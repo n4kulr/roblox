@@ -151,7 +151,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	top.Name = "Tabs"
 	top.BackgroundTransparency = 1
 	top.AnchorPoint = Vector2.new(0.5, 0)
-	top.Position = UDim2.new(0.5, 0, 0, 6)
+	top.Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop)
 	top.AutomaticSize = Enum.AutomaticSize.XY
 	top.Size = UDim2.new()
 	local tabList = Instance.new("UIListLayout")
@@ -182,7 +182,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Icon = "🏠",
 		IconAsset = UiAssets.Icons.MyBase,
 		IconLeft = true,
-		Size = UDim2.fromOffset(196, 58),
+		Size = UDim2.fromOffset(196, Kit.TabBarHeight),
 		Color = theme.Blue,
 		TextSize = 30,
 		LayoutOrder = 2,
@@ -196,10 +196,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	Kit.Button(trove, {
 		Parent = top,
 		Name = "LeadersTab",
-		Text = "🏆 Leaders",
+		Text = "🏆 LEADERS",
 		Size = UDim2.fromOffset(150, 48),
 		Color = theme.Gold,
-		TextColor = theme.TextInk,
 		TextSize = 24,
 		LayoutOrder = 3,
 		Callback = function()

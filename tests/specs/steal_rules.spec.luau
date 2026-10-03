@@ -20,6 +20,7 @@ describe("Steal rules", function()
 			HasThiefData = true,
 			HasVictimData = true,
 			ThiefCarrying = false,
+			ActiveThiefUserId = 0,
 			VictimPlaySeconds = steal.ShieldPlaySeconds,
 			VictimLockedUntil = 0,
 			Now = 1000,
@@ -119,6 +120,17 @@ describe("Steal rules", function()
 			local ok, reason = Steal.CanSteal(context({ ThiefCarrying = true }))
 			expect(ok):toBe(false)
 			expect(reason):toBe("You're already carrying a key!")
+		end)
+
+		it("rejects a victim another thief is already stealing from", function()
+			local ok, reason = Steal.CanSteal(context({ ActiveThiefUserId = 9 }))
+			expect(ok):toBe(false)
+			expect(reason):toBe("Someone is already stealing from them!")
+			expect(reason):toBe(Steal.Reasons.Busy)
+		end)
+
+		it("allows the thief who holds the active steal", function()
+			expect((Steal.CanSteal(context({ ActiveThiefUserId = 1 })))):toBe(true)
 		end)
 
 		it("rejects shielded victims", function()

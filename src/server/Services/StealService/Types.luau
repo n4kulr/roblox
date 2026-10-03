@@ -15,4 +15,9 @@ export type PromptRecord = {
 	Holding: { [Player]: string },
 }
 
+export type Lock = {
+	Thief: Player,
+	Slot: number,
+}
+
 return {}

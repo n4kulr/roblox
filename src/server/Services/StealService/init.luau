@@ -32,6 +32,7 @@ local StealService = {
 local services: { [string]: any } = {}
 local prompts: { [Player]: { [number]: Types.PromptRecord } } = {}
 local carriers: { [Player]: Types.Carrier } = {}
+local locks: { [number]: Types.Lock } = {}
 local lockedUntil: { [number]: number } = {}
 local lastTag: { [Player]: number } = {}
 local playClock: { [Player]: number } = {}
@@ -121,12 +122,14 @@ local function checkSteal(
 	local victimData = getData(owner)
 	local thiefRoot = rootOf(thief)
 	local lockedAt = lockedUntil[owner.UserId]
+	local lock = locks[owner.UserId]
 	return Steal.CanSteal({
 		ThiefUserId = thief.UserId,
 		VictimUserId = owner.UserId,
 		HasThiefData = thiefData ~= nil,
 		HasVictimData = victimData ~= nil,
 		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief),
+		ActiveThiefUserId = if lock then lock.Thief.UserId else 0,
 		VictimPlaySeconds = if victimData then victimData.PlaySeconds + pendingPlaySeconds(owner) else 0,
 		VictimLockedUntil = lockedAt or 0,
 		Now = os.time(),
@@ -138,6 +141,20 @@ local function checkSteal(
 	})
 end
 
+local syncPrompts: (owner: Player) -> ()
+
+local function releaseLock(victimUserId: number, thief: Player)
+	local lock = locks[victimUserId]
+	if not lock or lock.Thief ~= thief or carriers[thief] then
+		return
+	end
+	locks[victimUserId] = nil
+	local victim = Players:GetPlayerByUserId(victimUserId)
+	if victim and prompts[victim] then
+		syncPrompts(victim)
+	end
+end
+
 local function endCarry(thief: Player): Types.Carrier?
 	local carrier = carriers[thief]
 	if not carrier then
@@ -145,6 +162,7 @@ local function endCarry(thief: Player): Types.Carrier?
 	end
 	carriers[thief] = nil
 	carrier.Trove:Destroy()
+	releaseLock(carrier.VictimUserId, thief)
 	return carrier
 end
 
@@ -188,8 +206,6 @@ local function releaseCarriesOf(victim: Player, data: PlayerData.Data)
 		end
 	end
 end
-
-local syncPrompts: (owner: Player) -> ()
 
 local function deliver(thief: Player, carrier: Types.Carrier)
 	endCarry(thief)
@@ -264,6 +280,10 @@ local function onHoldBegan(
 	local isAllowed = checkSteal(thief, owner, slot, cap, current)
 	local key = Keys.ById[current]
 	if isAllowed and key then
+		if not locks[owner.UserId] then
+			locks[owner.UserId] = { Thief = thief, Slot = slot }
+			syncPrompts(owner)
+		end
 		alert(owner, thief.DisplayName, key.Index, 1)
 	end
 end
@@ -281,15 +301,19 @@ local function onTriggered(
 	record.Holding[thief] = nil
 	local isAllowed, reason = checkSteal(thief, owner, slot, cap, held)
 	if not isAllowed then
+		releaseLock(owner.UserId, thief)
 		alert(thief, reason, 0, rejectedPhase)
 		return
 	end
+	locks[owner.UserId] = { Thief = thief, Slot = 0 }
 	if not services.KeyboardService:TakeFromSlot(owner, slot, current) then
+		releaseLock(owner.UserId, thief)
 		alert(thief, Steal.Reasons.Gone, 0, rejectedPhase)
 		return
 	end
 	startCarry(thief, owner, slot, current)
 	if not carriers[thief] then
+		releaseLock(owner.UserId, thief)
 		services.KeyboardService:RestoreKey(owner, slot, current)
 	end
 end
@@ -304,6 +328,7 @@ local function createRecord(owner: Player, slot: number, cap: BasePart): Types.P
 	end)
 	recordTrove:Connect(prompt.PromptButtonHoldEnded, function(thief: Player)
 		record.Holding[thief] = nil
+		releaseLock(owner.UserId, thief)
 	end)
 	recordTrove:Connect(prompt.Triggered, function(thief: Player)
 		onTriggered(owner, slot, cap, record, thief)
@@ -324,6 +349,7 @@ function syncPrompts(owner: Player)
 		prompts[owner] = records
 	end
 	local lessonPending = data.TheftLessonDone == false
+	local lock = locks[owner.UserId]
 	for slot = 1, GameConfig.BoardSlots do
 		local cap = caps[slot]
 		local keyId = boardKey(data, slot)
@@ -336,6 +362,7 @@ function syncPrompts(owner: Player)
 			local active = record or createRecord(owner, slot, cap)
 			records[slot] = active
 			Prompts.Update(active.Prompt, keyId, lessonPending)
+			active.Prompt.Enabled = lock == nil or lock.Slot == slot
 		elseif record then
 			destroyRecord(owner, slot)
 		end
@@ -399,6 +426,7 @@ function StealService.Start(self: State)
 	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, data: PlayerData.Data)
 		releaseCarriesOf(player, data)
+		locks[player.UserId] = nil
 		data.PlaySeconds += takePlaySeconds(player)
 		playClock[player] = nil
 		lastTag[player] = nil
@@ -410,6 +438,11 @@ function StealService.Start(self: State)
 	end))
 	trove:Add(Players.PlayerRemoving:Connect(function(player: Player)
 		failCarry(player)
+		for victimUserId, lock in table.clone(locks) do
+			if lock.Thief == player then
+				releaseLock(victimUserId, player)
+			end
+		end
 	end))
 	for _, player in Players:GetPlayers() do
 		if getData(player) then
@@ -442,6 +475,7 @@ function StealService.Destroy(self: State)
 	for owner in table.clone(prompts) do
 		clearPrompts(owner)
 	end
+	table.clear(locks)
 	table.clear(lockedUntil)
 	table.clear(lastTag)
 	table.clear(playClock)

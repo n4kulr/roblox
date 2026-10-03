@@ -10,6 +10,7 @@ export type Context = {
 	HasThiefData: boolean,
 	HasVictimData: boolean,
 	ThiefCarrying: boolean,
+	ActiveThiefUserId: number,
 	VictimPlaySeconds: number,
 	VictimLockedUntil: number,
 	Now: number,
@@ -36,6 +37,7 @@ local Steal = {
 		TooWeak = "They're too weak to rob!",
 		Gone = "Too slow! That key is gone!",
 		TooFar = "Get closer to steal it!",
+		Busy = "Someone is already stealing from them!",
 	}),
 }
 
@@ -67,6 +69,9 @@ function Steal.CanSteal(context: Context): (boolean, string)
 	end
 	if context.ThiefCarrying then
 		return false, reasons.Carrying
+	end
+	if context.ActiveThiefUserId ~= 0 and context.ActiveThiefUserId ~= context.ThiefUserId then
+		return false, reasons.Busy
 	end
 	if Steal.IsShielded(context.VictimPlaySeconds) then
 		return false, reasons.Shielded

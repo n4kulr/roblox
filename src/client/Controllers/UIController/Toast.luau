@@ -28,8 +28,8 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 	holder.Name = "Holder"
 	holder.BackgroundTransparency = 1
 	holder.AnchorPoint = Vector2.new(0.5, 0)
-	holder.Position = UDim2.new(0.5, 0, 0, 12)
-	holder.Size = UDim2.new(1, -24, 1, -24)
+	holder.Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop + Kit.TabBarHeight + Kit.ToastGap)
+	holder.Size = UDim2.new(1, -24, 1, -(Kit.TabBarTop + Kit.TabBarHeight + Kit.ToastGap + 12))
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
