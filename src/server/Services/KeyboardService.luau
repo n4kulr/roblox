@@ -190,6 +190,64 @@ local function sellKey(player: Player, keyId: string, count: number): boolean
 	return true
 end
 
+local function equipBest(player: Player): boolean
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data then
+		return false
+	end
+	settle(player)
+	local unlocked = Stats.Slots(data.Upgrades)
+	local counts: { [string]: number } = {}
+	for index = 1, unlocked do
+		local keyId = data.Board[index]
+		if type(keyId) == "string" and Keys.ById[keyId] then
+			counts[keyId] = (counts[keyId] or 0) + 1
+		end
+	end
+	for keyId, count in data.Inventory do
+		if Keys.ById[keyId] and type(count) == "number" and count > 0 then
+			counts[keyId] = (counts[keyId] or 0) + count
+		end
+	end
+	local ranked: { string } = {}
+	for keyId in counts do
+		table.insert(ranked, keyId)
+	end
+	table.sort(ranked, function(a: string, b: string): boolean
+		local incomeA, incomeB = Keys.GetIncome(a), Keys.GetIncome(b)
+		if incomeA ~= incomeB then
+			return incomeA > incomeB
+		end
+		local hasPerkA, hasPerkB = Keys.ById[a].Perk ~= nil, Keys.ById[b].Perk ~= nil
+		if hasPerkA ~= hasPerkB then
+			return hasPerkA
+		end
+		return Keys.ById[a].Index < Keys.ById[b].Index
+	end)
+	local board: { string } = {}
+	for index = 1, GameConfig.BoardSlots do
+		board[index] = ""
+	end
+	local slot = 1
+	for _, keyId in ranked do
+		while counts[keyId] > 0 and slot <= unlocked do
+			board[slot] = keyId
+			counts[keyId] -= 1
+			slot += 1
+		end
+	end
+	local inventory: { [string]: number } = {}
+	for keyId, count in counts do
+		if count > 0 then
+			inventory[keyId] = count
+		end
+	end
+	services.DataService:Set(player, { "Board" }, board)
+	services.DataService:Set(player, { "Inventory" }, inventory)
+	KeyboardService.BoardChanged:Fire(player)
+	return true
+end
+
 function KeyboardService.Init(self: State, registry: { [string]: any })
 	services = registry
 	self._trove = Trove.new()
@@ -218,6 +276,7 @@ function KeyboardService.Start(self: State)
 	Packets.PlaceKey.OnServerInvoke = placeKey
 	Packets.ClearSlot.OnServerInvoke = clearSlot
 	Packets.SellKey.OnServerInvoke = sellKey
+	Packets.EquipBest.OnServerInvoke = equipBest
 end
 
 function KeyboardService.Settle(_self: State, player: Player)
@@ -285,6 +344,7 @@ function KeyboardService.Destroy(self: State)
 	Packets.PlaceKey.OnServerInvoke = nil
 	Packets.ClearSlot.OnServerInvoke = nil
 	Packets.SellKey.OnServerInvoke = nil
+	Packets.EquipBest.OnServerInvoke = nil
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil
