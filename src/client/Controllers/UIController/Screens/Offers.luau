@@ -7,6 +7,7 @@ local Monetization = require(ReplicatedStorage.Config.Monetization)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Daily = require(ReplicatedStorage.Rules.Daily)
+local Market = require(ReplicatedStorage.Rules.Market)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local BoostState = require(script.Parent.Parent.BoostState)
 local Kit = require(script.Parent.Parent.Kit)
@@ -145,6 +146,20 @@ function Offers.new(context: Types.Context): Types.Screen
 	passPill("DoubleLuck", theme.Green, 3)
 	passPill("DoubleClicks", theme.Yellow, 4)
 
+	local marketButton = Kit.Button(trove, {
+		Parent = stack,
+		Name = "MarketStock",
+		Text = "🏪 New stock in 0:00",
+		Size = UDim2.fromOffset(stackWidth, 44),
+		Color = Color3.fromRGB(255, 96, 48),
+		TextSize = 20,
+		LayoutOrder = 5,
+		Callback = function()
+			context.Toast("Visit the Key Market in the middle of the map!", "Info")
+		end,
+		Sound = playUi,
+	})
+
 	local badges = Instance.new("Frame")
 	badges.Name = "BoostBadges"
 	badges.BackgroundTransparency = 1
@@ -229,6 +244,7 @@ function Offers.new(context: Types.Context): Types.Screen
 			button.SetDisabled(isOwned)
 			button.SetText(if isOwned then "OWNED ✓" else Monetization.PassById[passId].Name)
 		end
+		marketButton.SetText(`🏪 New stock in {TimeFormat.Clock(Market.SecondsLeft(now))}`)
 		local dailyData = dataController:Get({ "Daily" })
 		dailyBadge.Visible = type(dailyData) == "table" and Daily.Status(dailyData, now).CanClaim
 	end

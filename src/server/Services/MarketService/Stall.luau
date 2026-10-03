@@ -1,0 +1,162 @@
+--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Keys = require(ReplicatedStorage.Config.Keys)
+local Market = require(ReplicatedStorage.Rules.Market)
+
+local config = GameConfig.Market
+
+local center = Vector3.new(0, 0, -14)
+local stripeColors = { Color3.fromRGB(255, 99, 72), Color3.fromRGB(250, 240, 224) }
+local woodColor = Color3.fromRGB(140, 96, 64)
+local counterColor = Color3.fromRGB(176, 124, 82)
+local rugColor = Color3.fromRGB(70, 74, 86)
+local signColor = Color3.fromRGB(255, 99, 72)
+local emptyCapColor = Color3.fromRGB(122, 127, 138)
+local capSize = Vector3.new(1.6, 1.2, 1.6)
+local capSpacing = 2
+local counterHeight = 3.5
+local counterZ = 3.5
+local stripeCount = 8
+local stripeWidth = 2
+
+local Stall = {}
+
+Stall.PromptName = "MarketPrompt"
+Stall.PlaceholderName = "Market"
+
+local function newPart(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	offset: Vector3,
+	color: Color3,
+	collide: boolean?,
+	tilt: number?
+): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored = true
+	part.Size = size
+	part.CFrame = CFrame.new(center + offset) * CFrame.Angles(tilt or 0, 0, 0)
+	part.Color = color
+	part.Material = Enum.Material.SmoothPlastic
+	part.CanCollide = collide ~= false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+	return part
+end
+
+local function buildSign(model: Model)
+	local board = newPart(model, "SignBoard", Vector3.new(12, 3, 0.6), Vector3.new(0, 10.2, 5.8), signColor)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "SignGui"
+	gui.Face = Enum.NormalId.Back
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Name = "Text"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.Text = "KEY MARKET"
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(20, 20, 25)
+	stroke.Thickness = 3
+	stroke.Parent = label
+end
+
+function Stall.Build(name: string): (Model, BasePart)
+	local model = Instance.new("Model")
+	model.Name = name
+	newPart(model, "Floor", Vector3.new(16, 0.2, 12), Vector3.new(0, 0.1, 0), rugColor, false)
+	local counter = newPart(
+		model,
+		"Counter",
+		Vector3.new(12, counterHeight, 2.5),
+		Vector3.new(0, counterHeight / 2, counterZ),
+		counterColor
+	)
+	local postIndex = 0
+	for _, x in { -7.5, 7.5 } do
+		for _, z in { -5.5, 5.5 } do
+			postIndex += 1
+			newPart(model, `Post{postIndex}`, Vector3.new(1, 9, 1), Vector3.new(x, 4.5, z), woodColor)
+		end
+	end
+	for index = 1, stripeCount do
+		local x = (index - (stripeCount + 1) / 2) * stripeWidth
+		newPart(
+			model,
+			`Awning{index}`,
+			Vector3.new(stripeWidth, 0.4, 13),
+			Vector3.new(x, 9.1, 0),
+			stripeColors[index % 2 + 1],
+			false,
+			math.rad(5)
+		)
+	end
+	buildSign(model)
+	for index = 1, config.OfferCount do
+		local x = (index - (config.OfferCount + 1) / 2) * capSpacing
+		newPart(
+			model,
+			`Cap{index}`,
+			capSize,
+			Vector3.new(x, counterHeight + capSize.Y / 2, counterZ),
+			emptyCapColor,
+			false
+		)
+	end
+	model.PrimaryPart = counter
+	return model, counter
+end
+
+function Stall.FindAuthored(): (Model?, BasePart?)
+	local found = workspace:FindFirstChild("Market")
+	if not found or not found:IsA("Model") then
+		return nil, nil
+	end
+	local counter = found:FindFirstChild("Counter", true)
+	if counter and counter:IsA("BasePart") then
+		return found, counter
+	end
+	return nil, nil
+end
+
+function Stall.EnsurePrompt(counter: BasePart): ProximityPrompt
+	local existing = counter:FindFirstChild(Stall.PromptName)
+	if existing and existing:IsA("ProximityPrompt") then
+		return existing
+	end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = Stall.PromptName
+	prompt.ActionText = "Open Key Market"
+	prompt.ObjectText = "Shop"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = config.PromptRange
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = counter
+	return prompt
+end
+
+function Stall.Paint(model: Model, slot: number)
+	local offers = Market.Offers(slot)
+	for index = 1, config.OfferCount do
+		local cap = model:FindFirstChild(`Cap{index}`, true)
+		local offer = offers[index]
+		if cap and cap:IsA("BasePart") and offer then
+			local rarity = Keys.GetRarity(Keys.ById[offer.KeyId])
+			cap.Color = rarity.Color
+			cap.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		end
+	end
+end
+
+return Stall

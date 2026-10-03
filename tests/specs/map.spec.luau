@@ -25,7 +25,7 @@ describe("ThockMap model", function()
 	local roots = load()
 
 	it("has the expected top-level items", function()
-		for _, name in { "Plots", "Paths", "Decor", "SpawnLocation", "Ground" } do
+		for _, name in { "Plots", "Paths", "Decor", "SpawnLocation", "Ground", "Market" } do
 			expect(roots[name] ~= nil):toBe(true)
 		end
 		expect(roots.SpawnLocation.ClassName):toBe("SpawnLocation")
@@ -124,7 +124,11 @@ describe("ThockMap model", function()
 		expect((spawn.CFrame.Position - Vector3.new(0, 0.5, 0)).Magnitude):toBeCloseTo(0, 1e-4)
 		expect(spawn.CFrame.Position.Y + spawn.Size.Y / 2):toBeCloseTo(1, 1e-4)
 		for _, root in roots do
-			if root.Name ~= "Ground" and root.Name ~= "SpawnLocation" and root.Name ~= "Paths" then
+			if root.Name ~= "Ground"
+				and root.Name ~= "SpawnLocation"
+				and root.Name ~= "Paths"
+				and root.Name ~= "Market"
+			then
 				for _, item in root:GetDescendants() do
 					if item:IsA("BasePart") then
 						local position = item.CFrame.Position
@@ -143,6 +147,39 @@ describe("ThockMap model", function()
 		expect(#roots.Decor.Keycaps:GetChildren() >= 10):toBe(true)
 		expect(roots.Decor:FindFirstChild("GiantKeyboard") ~= nil):toBe(true)
 		expect(roots.Decor:FindFirstChild("GiantMouse") ~= nil):toBe(true)
+	end)
+
+	it("has a market stall beside the spawn with a counter, awning and sign", function()
+		local market = roots.Market
+		expect(market.ClassName):toBe("Model")
+		expect(market.PrimaryPart == market.Counter):toBe(true)
+		local counter = market.Counter
+		expect(counter:IsA("BasePart")):toBe(true)
+		expect(counter.CFrame.Position.Z < -8):toBe(true)
+		local awning = 0
+		local caps = 0
+		for _, part in market:GetChildren() do
+			if string.sub(part.Name, 1, 6) == "Awning" then
+				awning += 1
+			elseif string.sub(part.Name, 1, 3) == "Cap" then
+				caps += 1
+			end
+		end
+		expect(awning):toBe(8)
+		expect(caps):toBe(6)
+		expect(market.SignBoard.SignGui.Text.Text):toBe("KEY MARKET")
+		local spawn = roots.SpawnLocation.CFrame.Position
+		for _, item in market:GetDescendants() do
+			if item:IsA("BasePart") then
+				local position = item.CFrame.Position
+				local halfX = item.Size.X / 2
+				local halfZ = item.Size.Z / 2
+				local clearOfSpawn = math.abs(position.X - spawn.X) - halfX > 4 or math.abs(position.Z - spawn.Z) - halfZ > 4
+				expect(clearOfSpawn):toBe(true)
+				expect(item.Anchored):toBe(true)
+			end
+		end
+		expect(#market:GetDescendants() < 60):toBe(true)
 	end)
 
 	it("keeps decor off the ring path", function()

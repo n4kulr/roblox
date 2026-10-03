@@ -358,6 +358,78 @@ local function buildDecor(parent: Part)
 	end
 end
 
+local function buildMarket(parent: Part)
+	local model = newModel("Market", parent)
+	local center = Vector3.new(0, 0, -14)
+	local function stallPart(
+		name: string,
+		size: Vector3,
+		offset: Vector3,
+		color: typeof(Color3.new()),
+		collide: boolean?,
+		tilt: number?
+	): Part
+		return newPart(model, name, size, CFrame.new(center + offset) * CFrame.Angles(tilt or 0, 0, 0), color, collide)
+	end
+	local stripeColors = { Color3.fromRGB(255, 99, 72), Color3.fromRGB(250, 240, 224) }
+	local counterHeight = 3.5
+	local capSize = Vector3.new(1.6, 1.2, 1.6)
+	stallPart("Floor", Vector3.new(16, 0.2, 12), Vector3.new(0, 0.1, 0), Color3.fromRGB(70, 74, 86), false)
+	local counter = stallPart(
+		"Counter",
+		Vector3.new(12, counterHeight, 2.5),
+		Vector3.new(0, counterHeight / 2, 3.5),
+		Color3.fromRGB(176, 124, 82)
+	)
+	local postIndex = 0
+	for _, x in { -7.5, 7.5 } do
+		for _, z in { -5.5, 5.5 } do
+			postIndex += 1
+			stallPart(`Post{postIndex}`, Vector3.new(1, 9, 1), Vector3.new(x, 4.5, z), woodColor)
+		end
+	end
+	for index = 1, 8 do
+		stallPart(
+			`Awning{index}`,
+			Vector3.new(2, 0.4, 13),
+			Vector3.new((index - 4.5) * 2, 9.1, 0),
+			stripeColors[index % 2 + 1],
+			false,
+			math.rad(5)
+		)
+	end
+	local board = stallPart("SignBoard", Vector3.new(12, 3, 0.6), Vector3.new(0, 10.2, 5.8), Color3.fromRGB(255, 99, 72))
+	local gui = roblox.Instance.new("SurfaceGui")
+	gui.Name = "SignGui"
+	gui.Face = Enum.NormalId.Back
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.Parent = board
+	local label = roblox.Instance.new("TextLabel")
+	label.Name = "Text"
+	label.BackgroundTransparency = 1
+	label.Size = roblox.UDim2.fromScale(1, 1)
+	label.FontFace = roblox.Font.fromEnum(Enum.Font.FredokaOne)
+	label.Text = "KEY MARKET"
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.Parent = gui
+	local stroke = roblox.Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(20, 20, 25)
+	stroke.Thickness = 3
+	stroke.Parent = label
+	for index = 1, 6 do
+		stallPart(
+			`Cap{index}`,
+			capSize,
+			Vector3.new((index - 3.5) * 2, counterHeight + capSize.Y / 2, 3.5),
+			Color3.fromRGB(122, 127, 138),
+			false
+		)
+	end
+	model.PrimaryPart = counter
+end
+
 local function buildSpawn(parent: Part)
 	local spawn = roblox.Instance.new("SpawnLocation")
 	spawn.Name = "SpawnLocation"
@@ -382,6 +454,7 @@ local function build(): { Part }
 	buildPaths(roots)
 	buildDecor(roots)
 	buildSpawn(roots)
+	buildMarket(roots)
 	buildGround(roots)
 	local children = roots:GetChildren()
 	for _, child in children do
