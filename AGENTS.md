@@ -50,6 +50,7 @@ rojo serve default.project.json --address 127.0.0.1
 - In Studio, enable **Game Settings > Security > Enable Studio Access to API Services** (the place must be published). Without it (or in an unpublished place), ProfileStore falls back to in-memory mock data: everything works, but data resets when Play stops, and `DataService` warns once. Live servers always have DataStore access.
 - In Play, output shows `[Game Boilerplate] Server services ready`, `Client controllers ready` and a Packet round trip. Both Bootstraps set a `Ready` attribute.
 - `./scripts/check.ps1` is the one command to run after every change. It formats `src` with StyLua, regenerates the sourcemap, runs luau-lsp type and lint analysis, and does a Rojo build. Fix every error it reports and rerun it until it passes.
+- Run `lune run tests/run` (or scripts/test.ps1); every gameplay feature must ship with tests in tests/. The headless harness in `tests/harness` loads the real server and shared modules under Lune with mocked engine services (see `tests/specs/*.spec.luau` for examples). `tests/` is not part of the Rojo project.
 - `rojo build` output is code-only, not a replacement for the authored place.
 
 ## Layout
