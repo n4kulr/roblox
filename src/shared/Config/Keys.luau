@@ -29,18 +29,26 @@ export type Rarity = {
 	Sound: SoundSettings,
 }
 
+export type PerkKind = "Luck" | "Speed" | "Income"
+
+export type Perk = {
+	Kind: PerkKind,
+	Amount: number,
+}
+
 export type Key = {
 	Id: string,
 	Name: string,
 	Rarity: string,
 	Index: number,
+	Perk: Perk?,
 }
 
 local soundAssets = {
-	Thock = "rbxasset://sounds/clickfast.wav",
-	Thud = "rbxasset://sounds/clickfast.wav",
-	Chime = "rbxasset://sounds/electronicpingshort.wav",
-	Sparkle = "rbxasset://sounds/electronicpingshort.wav",
+	Thock = "rbxassetid://99381679014350",
+	Thud = "rbxassetid://88055159429775",
+	Chime = "rbxassetid://9103417189",
+	Sparkle = "rbxassetid://107978604605265",
 }
 
 local function layer(soundId: string, speed: number, volume: number, delay: number?): SoundLayer
@@ -63,7 +71,7 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = sound({ layer(soundAssets.Thock, 0.6, 0.65) }, 6, -3, -26),
+		Sound = sound({ layer(soundAssets.Thock, 1.0, 0.65) }, 3, -3, -9),
 	},
 	{
 		Name = "Uncommon",
@@ -74,9 +82,9 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 0,
 		Announce = false,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.58, 0.65),
-			layer(soundAssets.Thud, 0.4, 0.3),
-		}, 7, -2, -24),
+			layer(soundAssets.Thock, 0.97, 0.65),
+			layer(soundAssets.Thud, 0.67, 0.3),
+		}, 4, -2, -8),
 	},
 	{
 		Name = "Rare",
@@ -87,9 +95,9 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 0,
 		Announce = false,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.52, 0.7),
-			layer(soundAssets.Thud, 0.36, 0.45, 0.005),
-		}, 8, -2, -18),
+			layer(soundAssets.Thock, 0.87, 0.7),
+			layer(soundAssets.Thud, 0.6, 0.45, 0.005),
+		}, 4, -2, -6),
 	},
 	{
 		Name = "Epic",
@@ -100,10 +108,10 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 0.6,
 		Announce = false,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.52, 0.7),
-			layer(soundAssets.Thud, 0.36, 0.45, 0.005),
-			layer(soundAssets.Chime, 1.3, 0.3, 0.015),
-		}, 7, 0, -8),
+			layer(soundAssets.Thock, 0.87, 0.7),
+			layer(soundAssets.Thud, 0.6, 0.45, 0.005),
+			layer(soundAssets.Chime, 1.0, 0.3, 0.015),
+		}, 4, 0, -3),
 	},
 	{
 		Name = "Legendary",
@@ -114,11 +122,11 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 1.0,
 		Announce = true,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.5, 0.75),
-			layer(soundAssets.Thud, 0.34, 0.5, 0.005),
-			layer(soundAssets.Chime, 1.4, 0.4, 0.015),
-			layer(soundAssets.Sparkle, 1.9, 0.25, 0.07),
-		}, 6, 0, -3),
+			layer(soundAssets.Thock, 0.83, 0.75),
+			layer(soundAssets.Thud, 0.57, 0.5, 0.005),
+			layer(soundAssets.Chime, 1.08, 0.4, 0.015),
+			layer(soundAssets.Sparkle, 1.0, 0.25, 0.07),
+		}, 3, 0, -1),
 	},
 	{
 		Name = "Mythic",
@@ -129,12 +137,12 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 1.5,
 		Announce = true,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.48, 0.8),
-			layer(soundAssets.Thud, 0.32, 0.55, 0.005),
-			layer(soundAssets.Chime, 1.5, 0.45, 0.015),
-			layer(soundAssets.Sparkle, 2.0, 0.3, 0.07),
-			layer(soundAssets.Chime, 2.1, 0.25, 0.14),
-		}, 6, 1, 0),
+			layer(soundAssets.Thock, 0.8, 0.8),
+			layer(soundAssets.Thud, 0.53, 0.55, 0.005),
+			layer(soundAssets.Chime, 1.15, 0.45, 0.015),
+			layer(soundAssets.Sparkle, 1.05, 0.3, 0.07),
+			layer(soundAssets.Chime, 1.62, 0.25, 0.14),
+		}, 3, 1, 0),
 	},
 	{
 		Name = "Secret",
@@ -145,30 +153,40 @@ local rarities: { Rarity } = {
 		BuildUpSeconds = 1.5,
 		Announce = true,
 		Sound = sound({
-			layer(soundAssets.Thock, 0.45, 0.85),
-			layer(soundAssets.Thud, 0.3, 0.6, 0.005),
-			layer(soundAssets.Chime, 1.6, 0.5, 0.015),
-			layer(soundAssets.Sparkle, 2.2, 0.35, 0.07),
-			layer(soundAssets.Chime, 2.4, 0.3, 0.14),
-			layer(soundAssets.Sparkle, 2.8, 0.25, 0.22),
-		}, 6, 2, 2),
+			layer(soundAssets.Thock, 0.75, 0.85),
+			layer(soundAssets.Thud, 0.5, 0.6, 0.005),
+			layer(soundAssets.Chime, 1.23, 0.5, 0.015),
+			layer(soundAssets.Sparkle, 1.16, 0.35, 0.07),
+			layer(soundAssets.Chime, 1.85, 0.3, 0.14),
+			layer(soundAssets.Sparkle, 1.47, 0.25, 0.22),
+		}, 3, 2, 1),
 	},
 }
 
-local definitions: { { string } } = {
-	{ "PlainClack", "Plain Clack", "Common" },
-	{ "BeigeBlock", "Beige Block", "Common" },
-	{ "OfficeTap", "Office Tap", "Common" },
-	{ "CreamyThock", "Creamy Thock", "Uncommon" },
-	{ "MintLinear", "Mint Linear", "Uncommon" },
-	{ "GlassTink", "Glass Tink", "Rare" },
-	{ "TopazTap", "Topaz Tap", "Rare" },
-	{ "CrystalChime", "Crystal Chime", "Epic" },
-	{ "AmethystPop", "Amethyst Pop", "Epic" },
-	{ "ThunderKey", "Thunder Key", "Legendary" },
-	{ "SunburstKey", "Sunburst Key", "Legendary" },
-	{ "LavaKey", "Lava Key", "Mythic" },
-	{ "MeowKey", "Meow Key", "Secret" },
+type Definition = { Id: string, Name: string, Rarity: string, Perk: Perk? }
+
+local function perk(kind: PerkKind, amount: number): Perk
+	return table.freeze({ Kind = kind, Amount = amount })
+end
+
+local definitions: { Definition } = {
+	{ Id = "PlainClack", Name = "Plain Clack", Rarity = "Common" },
+	{ Id = "BeigeBlock", Name = "Beige Block", Rarity = "Common" },
+	{ Id = "OfficeTap", Name = "Office Tap", Rarity = "Common" },
+	{ Id = "CreamyThock", Name = "Creamy Thock", Rarity = "Uncommon" },
+	{ Id = "MintLinear", Name = "Mint Linear", Rarity = "Uncommon" },
+	{ Id = "GlassTink", Name = "Glass Tink", Rarity = "Rare" },
+	{ Id = "TopazTap", Name = "Topaz Tap", Rarity = "Rare" },
+	{ Id = "CrystalChime", Name = "Crystal Chime", Rarity = "Epic" },
+	{ Id = "AmethystPop", Name = "Amethyst Pop", Rarity = "Epic" },
+	{ Id = "ThunderKey", Name = "Thunder Key", Rarity = "Legendary" },
+	{ Id = "SunburstKey", Name = "Sunburst Key", Rarity = "Legendary" },
+	{ Id = "LavaKey", Name = "Lava Key", Rarity = "Mythic" },
+	{ Id = "MeowKey", Name = "Meow Key", Rarity = "Secret" },
+	{ Id = "CloverCap", Name = "Clover Cap", Rarity = "Uncommon", Perk = perk("Luck", 0.1) },
+	{ Id = "TurboSwitch", Name = "Turbo Switch", Rarity = "Rare", Perk = perk("Speed", 0.15) },
+	{ Id = "GoldPlate", Name = "Gold Plate", Rarity = "Epic", Perk = perk("Income", 0.25) },
+	{ Id = "FourLeafArtisan", Name = "Four-Leaf Artisan", Rarity = "Legendary", Perk = perk("Luck", 0.5) },
 }
 
 local rarityByName: { [string]: Rarity } = {}
@@ -185,10 +203,11 @@ for _, rarity in rarities do
 end
 for index, definition in definitions do
 	local key: Key = {
-		Id = definition[1],
-		Name = definition[2],
-		Rarity = definition[3],
+		Id = definition.Id,
+		Name = definition.Name,
+		Rarity = definition.Rarity,
 		Index = index,
+		Perk = definition.Perk,
 	}
 	assert(rarityByName[key.Rarity] ~= nil, `Unknown rarity {key.Rarity}`)
 	table.freeze(key)
@@ -216,6 +235,10 @@ end
 function Keys.GetIncome(keyId: string): number
 	local key = byId[keyId]
 	return if key then rarityByName[key.Rarity].Income else 0
+end
+
+function Keys.GetSellValue(keyId: string): number
+	return math.max(10, Keys.GetIncome(keyId) * 30)
 end
 
 return table.freeze(Keys)

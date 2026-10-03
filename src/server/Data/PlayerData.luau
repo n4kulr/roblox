@@ -10,6 +10,15 @@ export type Data = {
 	Board: { string },
 	Inventory: { [string]: number },
 	Rolls: number,
+	Upgrades: { Luck: number, Speed: number, Slots: number },
+	Settings: {
+		LowGraphics: boolean,
+		AutoPlace: boolean,
+		RollVolume: number,
+		BoardVolume: number,
+		OtherVolume: number,
+	},
+	Tutorial: number,
 	LastSeenAt: number,
 	Receipts: { [string]: number },
 }
@@ -31,6 +40,15 @@ PlayerData.Template = {
 	Board = emptyBoard(),
 	Inventory = {},
 	Rolls = 0,
+	Upgrades = { Luck = 0, Speed = 0, Slots = 0 },
+	Settings = {
+		LowGraphics = false,
+		AutoPlace = true,
+		RollVolume = 1,
+		BoardVolume = 1,
+		OtherVolume = 1,
+	},
+	Tutorial = 0,
 	LastSeenAt = 0,
 	Receipts = {},
 } :: Data
@@ -47,7 +65,7 @@ function PlayerData.Validate(data: any): boolean
 	if type(data) ~= "table" or (data.SchemaVersion ~= nil and data.SchemaVersion ~= 1) then
 		return false
 	end
-	for _, key in { "Cash", "IncomeAt", "Rolls", "LastSeenAt" } do
+	for _, key in { "Cash", "IncomeAt", "Rolls", "Tutorial", "LastSeenAt" } do
 		if data[key] ~= nil and not natural(data[key]) then
 			return false
 		end
@@ -78,6 +96,26 @@ function PlayerData.Validate(data: any): boolean
 		end
 		for keyId, count in data.Inventory do
 			if type(keyId) ~= "string" or not natural(count) then
+				return false
+			end
+		end
+	end
+	if data.Upgrades ~= nil then
+		if type(data.Upgrades) ~= "table" then
+			return false
+		end
+		for name, level in data.Upgrades do
+			if type(name) ~= "string" or not natural(level) then
+				return false
+			end
+		end
+	end
+	if data.Settings ~= nil then
+		if type(data.Settings) ~= "table" then
+			return false
+		end
+		for name, value in data.Settings do
+			if type(name) ~= "string" or (type(value) ~= "boolean" and type(value) ~= "number") then
 				return false
 			end
 		end

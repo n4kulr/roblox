@@ -26,6 +26,11 @@
 - Avoid abbreviations except universally understood ones (`id`, `ui`, `dt`).
 - Booleans read as questions: `isOpen`, `hasLoaded`, `StartsOpen`.
 
+## THOCK project rules
+
+- The shared contract is owned by the lead: `src/shared/Packets.luau`, `src/shared/Config/*`, `src/shared/Rules/*` and `src/server/Data/PlayerData.luau`. Implementation agents read them but do not change them; ask the lead for contract changes.
+- The game brief lives at https://claude.ai/code/artifact/55936e51-9c0f-4735-95bf-7cac6152b25c.
+
 ## Scope
 
 - This is a generic game boilerplate. Keep it game-agnostic: no genre-specific systems, assets or design decisions unless the user asks. Ask before making material design decisions.
@@ -169,7 +174,7 @@ return ShopService
 
 `UIController` (`src/client/Controllers/UIController`) owns every screen. It ships with no screens; its `modules` table is empty.
 
-**Build UI in Studio, not in code.** Prefer ScreenGuis authored in StarterGui, with code finding and driving them. Only create UI in code (`Instance.new`, React or similar) if the user says they prefer that.
+**THOCK builds UI in code** (user decision: there is no Studio session to author UI). Screens create their ScreenGui and elements with `Instance.new` from shared helpers in `UIController/Kit.luau`, instead of finding authored ones in StarterGui. The Studio-authoring rules below describe the boilerplate default and do not apply to new THOCK screens.
 
 - Use the Roblox Studio MCP tools to create and edit UI in StarterGui: inspect the existing tree, add ScreenGuis and elements, and take screenshots to check the result.
 - If no Roblox Studio MCP is connected, do not fall back to building UI in code. Tell the user to set it up using https://create.roblox.com/docs/studio/mcp, and continue with the code side (the screen module) meanwhile.
