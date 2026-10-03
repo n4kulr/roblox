@@ -7,6 +7,7 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 
 type TroveInstance = typeof(Trove.new())
 type PlotInfo = {
@@ -16,6 +17,9 @@ type PlotInfo = {
 	Board: BasePart,
 	Caps: { BasePart },
 	Owner: Player?,
+	Placeholder: boolean,
+	Case: BasePart?,
+	Walkway: BasePart?,
 }
 type State = {
 	Name: string,
@@ -30,6 +34,8 @@ local services: { [string]: any } = {}
 local plots: { PlotInfo } = {}
 local plotByPlayer: { [Player]: PlotInfo } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
+local buildThread: thread? = nil
+local meshTimeout = 6
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
@@ -88,6 +94,56 @@ local emptyCapTransparency = 0.6
 local lockedCapColor = Color3.fromRGB(60, 60, 64)
 local lockedCapTransparency = 0.85
 
+local caseFloorRatio = 1.1 / 1.5
+
+local function capSurface(info: PlotInfo): number
+	local height = info.Board.Size.Y
+	if info.Case then
+		return -height / 2 + height * caseFloorRatio
+	end
+	return height / 2
+end
+
+local function layoutCap(info: PlotInfo, cap: BasePart, slot: number)
+	local columns = GameConfig.BoardColumns
+	local rows = math.ceil(GameConfig.BoardSlots / columns)
+	local size = info.Board.Size
+	local cellWidth = size.X / columns
+	local cellDepth = size.Z / rows
+	local column = (slot - 1) % columns
+	local row = (slot - 1) // columns
+	cap.Size = Vector3.new(cellWidth * 0.8, 1, cellDepth * 0.8)
+	cap.CFrame = info.Board.CFrame
+		* CFrame.new(
+			-size.X / 2 + cellWidth * (column + 0.5),
+			capSurface(info) + 0.5,
+			-size.Z / 2 + cellDepth * (row + 0.5)
+		)
+end
+
+local function layoutWalkway(info: PlotInfo)
+	local walkway = info.Walkway
+	if walkway then
+		walkway.CFrame = info.Board.CFrame * CFrame.new(0, capSurface(info) + 1 - 0.1, 0)
+	end
+end
+
+local function newCap(info: PlotInfo, slot: number): BasePart
+	local template = if info.Placeholder then MeshTemplates.Get("Keycap") else nil
+	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
+	cap.Name = `Slot{slot}`
+	cap.Anchored = true
+	cap.CanCollide = false
+	cap.CanQuery = false
+	cap.CanTouch = false
+	cap.Color = emptyCapColor
+	cap.Material = Enum.Material.SmoothPlastic
+	cap.Transparency = emptyCapTransparency
+	cap:SetAttribute("Slot", slot)
+	layoutCap(info, cap, slot)
+	return cap
+end
+
 local function createCaps(info: PlotInfo, trove: TroveInstance)
 	local existing = info.Model:FindFirstChild("Keys")
 	if existing then
@@ -95,34 +151,12 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Keys"
-	local columns = GameConfig.BoardColumns
-	local rows = math.ceil(GameConfig.BoardSlots / columns)
-	local size = info.Board.Size
-	local cellWidth = size.X / columns
-	local cellDepth = size.Z / rows
 	for slot = 1, GameConfig.BoardSlots do
-		local column = (slot - 1) % columns
-		local row = (slot - 1) // columns
-		local cap = Instance.new("Part")
-		cap.Name = `Slot{slot}`
-		cap.Anchored = true
-		cap.CanCollide = false
-		cap.CanQuery = false
-		cap.CanTouch = false
-		cap.Size = Vector3.new(cellWidth * 0.8, 1, cellDepth * 0.8)
-		cap.Color = emptyCapColor
-		cap.Material = Enum.Material.SmoothPlastic
-		cap.Transparency = emptyCapTransparency
-		cap:SetAttribute("Slot", slot)
-		cap.CFrame = info.Board.CFrame
-			* CFrame.new(
-				-size.X / 2 + cellWidth * (column + 0.5),
-				size.Y / 2 + 0.5,
-				-size.Z / 2 + cellDepth * (row + 0.5)
-			)
+		local cap = newCap(info, slot)
 		cap.Parent = folder
 		info.Caps[slot] = cap
 	end
+	local size = info.Board.Size
 	local walkway = Instance.new("Part")
 	walkway.Name = "Walkway"
 	walkway.Anchored = true
@@ -130,10 +164,54 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	walkway.CanTouch = false
 	walkway.Transparency = 1
 	walkway.Size = Vector3.new(size.X, 0.2, size.Z)
-	walkway.CFrame = info.Board.CFrame * CFrame.new(0, size.Y / 2 + 1 - 0.1, 0)
+	info.Walkway = walkway
+	layoutWalkway(info)
 	walkway.Parent = folder
 	folder.Parent = info.Model
 	trove:Add(folder)
+end
+
+local function swapPart(old: BasePart, new: BasePart)
+	new.Color = old.Color
+	new.Material = old.Material
+	new.Transparency = old.Transparency
+	new.Parent = old.Parent
+	old:Destroy()
+end
+
+local function skinCase(info: PlotInfo)
+	local template = MeshTemplates.Get("KeyboardCase")
+	if info.Case or not template then
+		return
+	end
+	local case = template:Clone()
+	case.Name = "BoardCase"
+	case.Anchored = true
+	case.CanCollide = false
+	case.CanQuery = false
+	case.CanTouch = false
+	case.Size = info.Board.Size
+	case.CFrame = info.Board.CFrame
+	case.Color = info.Board.Color
+	case.Material = info.Board.Material
+	case.Parent = info.Model
+	info.Board.Transparency = 1
+	info.Case = case
+end
+
+local function skinRollKey(info: PlotInfo)
+	local template = MeshTemplates.Get("RollKey")
+	local old = info.RollKey
+	if not template or old:IsA("MeshPart") then
+		return
+	end
+	local key = template:Clone()
+	key.Name = "RollKey"
+	key.Anchored = true
+	key.Size = old.Size
+	key.CFrame = old.CFrame
+	swapPart(old, key)
+	info.RollKey = key
 end
 
 local function render(info: PlotInfo, data: PlayerData.Data?)
@@ -218,7 +296,7 @@ local function assign(player: Player, data: PlayerData.Data)
 	end
 end
 
-local function collectPlots(folder: Instance, trove: TroveInstance)
+local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholder: boolean)
 	local models: { Model } = {}
 	for _, child in folder:GetChildren() do
 		if child:IsA("Model") then
@@ -241,7 +319,14 @@ local function collectPlots(folder: Instance, trove: TroveInstance)
 				Board = board,
 				Caps = {},
 				Owner = nil,
+				Placeholder = isPlaceholder,
+				Case = nil,
+				Walkway = nil,
 			}
+			if isPlaceholder then
+				skinCase(info)
+				skinRollKey(info)
+			end
 			createCaps(info, trove)
 			table.insert(plots, info)
 		else
@@ -257,10 +342,11 @@ function PlotService.Init(self: State, registry: { [string]: any })
 	self._trove = Trove.new()
 end
 
-function PlotService.Start(self: State)
-	local trove = self._trove :: TroveInstance
+local function buildPlots(trove: TroveInstance)
 	local folder = workspace:FindFirstChild("Plots")
+	local isPlaceholder = false
 	if not folder then
+		isPlaceholder = true
 		warn("[PlotService] workspace.Plots not found; building placeholder plots")
 		local placeholder = Instance.new("Folder")
 		placeholder.Name = "Plots"
@@ -269,11 +355,33 @@ function PlotService.Start(self: State)
 		trove:Add(placeholder)
 		folder = placeholder
 	end
-	collectPlots(folder :: Instance, trove)
-	services.DataService.PlayerLoaded:Connect(function(player: Player, data: PlayerData.Data)
+	collectPlots(folder :: Instance, trove, isPlaceholder)
+end
+
+local function loadPlayer(player: Player)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if data then
 		assign(player, data)
+		services.KeyboardService.BoardChanged:Fire(player)
+	end
+end
+
+function PlotService.Start(self: State)
+	local trove = self._trove :: TroveInstance
+	local isReady = false
+	local waiting: { Player } = {}
+	services.DataService.PlayerLoaded:Connect(function(player: Player, data: PlayerData.Data)
+		if isReady then
+			assign(player, data)
+		elseif not table.find(waiting, player) then
+			table.insert(waiting, player)
+		end
 	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, _data: PlayerData.Data)
+		local index = table.find(waiting, player)
+		if index then
+			table.remove(waiting, index)
+		end
 		release(player)
 	end)
 	services.KeyboardService.BoardChanged:Connect(function(player: Player)
@@ -284,11 +392,23 @@ function PlotService.Start(self: State)
 		end
 	end)
 	for _, player in Players:GetPlayers() do
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
-		if data then
-			assign(player, data)
+		if not table.find(waiting, player) then
+			table.insert(waiting, player)
 		end
 	end
+	buildThread = task.spawn(function()
+		MeshTemplates.Load()
+		MeshTemplates.Wait(meshTimeout)
+		buildPlots(trove)
+		trove:Connect(MeshTemplates.Changed, function(name: string)
+			warn(`[PlotService] {name} mesh arrived after plots were built; ignored`)
+		end)
+		isReady = true
+		for _, player in waiting do
+			loadPlayer(player)
+		end
+		table.clear(waiting)
+	end)
 end
 
 function PlotService.GetPlot(_self: State, player: Player): Model?
@@ -307,6 +427,11 @@ function PlotService.GetBase(_self: State, player: Player): BasePart?
 end
 
 function PlotService.Destroy(self: State)
+	if buildThread and coroutine.status(buildThread) == "suspended" then
+		task.cancel(buildThread)
+	end
+	buildThread = nil
+	MeshTemplates.Destroy()
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

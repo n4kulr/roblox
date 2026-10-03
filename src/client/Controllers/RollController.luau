@@ -44,6 +44,7 @@ local RollController = {
 local controllers: { [string]: any } = {}
 local plot: Model? = nil
 local rollKey: BasePart? = nil
+local keyConnections: { RBXScriptConnection } = {}
 local originCFrame = CFrame.identity
 local originSize = Vector3.one
 local originColor = Color3.new(1, 1, 1)
@@ -506,20 +507,50 @@ local function onInputEnded(input: InputObject, _gameProcessed: boolean)
 	end
 end
 
+local function disconnectKeyWatch()
+	for _, connection in keyConnections do
+		connection:Disconnect()
+	end
+	table.clear(keyConnections)
+end
+
+local function pickKey(model: Model?)
+	disconnectKeyWatch()
+	local key = if model then model:FindFirstChild("RollKey") else nil
+	if model and key and key:IsA("BasePart") then
+		rollKey = key
+		originCFrame = key.CFrame
+		originSize = key.Size
+		originColor = key.Color
+		table.insert(
+			keyConnections,
+			key.AncestryChanged:Connect(function()
+				if key.Parent ~= model then
+					pickKey(model)
+				end
+			end)
+		)
+	else
+		rollKey = nil
+	end
+	if model then
+		table.insert(
+			keyConnections,
+			model.ChildAdded:Connect(function(child: Instance)
+				if child.Name == "RollKey" and child ~= rollKey then
+					pickKey(model)
+				end
+			end)
+		)
+	end
+end
+
 local function setPlot(model: Model?)
 	if model == plot then
 		return
 	end
 	plot = model
-	local key = if model then model:FindFirstChild("RollKey") else nil
-	if key and key:IsA("BasePart") then
-		rollKey = key
-		originCFrame = key.CFrame
-		originSize = key.Size
-		originColor = key.Color
-	else
-		rollKey = nil
-	end
+	pickKey(model)
 end
 
 local function refreshPlot(folder: Instance)
@@ -660,6 +691,7 @@ function RollController.Destroy(self: State)
 	table.clear(squashTweens)
 	plot = nil
 	rollKey = nil
+	disconnectKeyWatch()
 	stopCardTweens()
 	card = nil
 	flashFrame = nil
