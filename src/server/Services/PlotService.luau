@@ -204,6 +204,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance)
 		local rollKey = findPart(model, "RollKey")
 		local board = findPart(model, "Board")
 		if base and rollKey and board then
+			model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 			local info: PlotInfo = {
 				Model = model,
 				Base = base,
