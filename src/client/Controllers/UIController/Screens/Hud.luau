@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
@@ -12,12 +11,15 @@ local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
 local hintStep = 2
+local menuButtonWidth = 80
+local menuButtonHeight = 86
 
 local Hud = {}
 
 function Hud.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local dataController = context.Controllers.DataController
+	local rollController = context.Controllers.RollController
 	local playUi = Kit.UiSound(context.Controllers)
 	local gui, root = Kit.ScreenGui("ThockHud", 1, context.PlayerGui, trove)
 	local tracker = Economy.Track(dataController, trove)
@@ -26,108 +28,205 @@ function Hud.new(context: Types.Context): Types.Screen
 	local lastIncome = ""
 	local lastStats = ""
 	local isHinting = false
-	local pulseTween: Tween? = nil
 
-	local top = Kit.Panel({
-		Parent = root,
-		Name = "Top",
-		Size = UDim2.fromOffset(300, 108),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Transparency = 0.2,
+	local left = Instance.new("Frame")
+	left.Name = "Left"
+	left.BackgroundTransparency = 1
+	left.AnchorPoint = Vector2.new(0, 0.5)
+	left.Position = UDim2.new(0, 12, 0.5, 0)
+	left.Size = UDim2.fromOffset(190, 0)
+	left.AutomaticSize = Enum.AutomaticSize.Y
+	local leftList = Instance.new("UIListLayout")
+	leftList.SortOrder = Enum.SortOrder.LayoutOrder
+	leftList.FillDirection = Enum.FillDirection.Vertical
+	leftList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	leftList.Padding = UDim.new(0, 8)
+	leftList.Parent = left
+	left.Parent = root
+
+	local pill = Kit.Panel({
+		Parent = left,
+		Name = "Clicks",
+		Size = UDim2.new(1, 0, 0, 78),
+		Color = theme.Deep,
+		Radius = 20,
+		LayoutOrder = 1,
+	})
+	Kit.Label({
+		Parent = pill,
+		Name = "Icon",
+		Text = "⌨️",
+		Position = UDim2.fromOffset(8, 0),
+		Size = UDim2.new(0, 48, 1, 0),
+		TextSize = 36,
+		Align = Enum.TextXAlignment.Center,
+		Outline = false,
+		Scaled = true,
 	})
 	local cashLabel = Kit.Label({
-		Parent = top,
+		Parent = pill,
 		Name = "Cash",
 		Text = "...",
-		Position = UDim2.fromOffset(0, 4),
-		Size = UDim2.new(1, 0, 0, 52),
-		TextSize = 42,
+		Position = UDim2.fromOffset(60, 6),
+		Size = UDim2.new(1, -68, 0, 40),
+		TextSize = 36,
 		Color = theme.Gold,
-		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
 	})
 	local incomeLabel = Kit.Label({
-		Parent = top,
+		Parent = pill,
 		Name = "Income",
 		Text = "",
-		Position = UDim2.fromOffset(0, 56),
-		Size = UDim2.new(1, 0, 0, 26),
-		TextSize = 22,
+		Position = UDim2.fromOffset(60, 46),
+		Size = UDim2.new(1, -68, 0, 24),
+		TextSize = 20,
 		Color = theme.Good,
-		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local readout = Kit.Panel({
+		Parent = left,
+		Name = "Readout",
+		Size = UDim2.new(1, 0, 0, 34),
+		Color = theme.Deep,
+		Radius = 17,
+		StrokeThickness = 2,
+		LayoutOrder = 2,
 	})
 	local statsLabel = Kit.Label({
-		Parent = top,
+		Parent = readout,
 		Name = "Stats",
 		Text = "",
-		Position = UDim2.fromOffset(0, 82),
-		Size = UDim2.new(1, 0, 0, 20),
-		TextSize = 16,
-		Color = theme.TextDim,
+		Position = UDim2.fromOffset(6, 0),
+		Size = UDim2.new(1, -12, 1, 0),
+		TextSize = 18,
 		Align = Enum.TextXAlignment.Center,
-		Bold = false,
+		Scaled = true,
 	})
 
-	local bar = Instance.new("Frame")
-	bar.Name = "Bar"
-	bar.BackgroundTransparency = 1
-	bar.AnchorPoint = Vector2.new(0.5, 1)
-	bar.Position = UDim2.new(0.5, 0, 1, -12)
-	bar.Size = UDim2.fromOffset(0, Kit.ButtonHeight)
-	bar.AutomaticSize = Enum.AutomaticSize.X
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, 10)
-	list.Parent = bar
-	bar.Parent = root
-
-	local function barButton(name: string, text: string, order: number, target: string): Kit.Button
-		return Kit.Button(trove, {
-			Parent = bar,
+	local function menuButton(
+		name: string,
+		icon: string,
+		label: string,
+		color: Color3,
+		order: number,
+		target: string
+	)
+		local holder = Instance.new("Frame")
+		holder.Name = `{name}Holder`
+		holder.BackgroundTransparency = 1
+		holder.Size = UDim2.fromOffset(menuButtonWidth, menuButtonHeight)
+		holder.LayoutOrder = order
+		holder.Parent = left
+		local button = Kit.Button(trove, {
+			Parent = holder,
 			Name = name,
-			Text = text,
-			LayoutOrder = order,
-			Size = UDim2.fromOffset(150, Kit.ButtonHeight),
-			Color = theme.Panel,
+			Icon = icon,
+			Text = label,
+			Size = UDim2.fromScale(1, 1),
+			Color = color,
+			TextSize = 18,
+			IconSize = 36,
+			Radius = 16,
 			Callback = function()
-				context.Open(target)
+				if context.IsOpen(target) then
+					context.Close(target)
+				else
+					context.Open(target)
+				end
 			end,
 			Sound = playUi,
 		})
+		return button, holder
 	end
-	local upgradesButton = barButton("Upgrades", "Upgrades", 1, "Shop")
-	barButton("Keys", "Keys", 2, "Keys")
-	barButton("Settings", "Settings", 3, "Settings")
+	local shopButton, shopHolder = menuButton("Shop", "🛒", "SHOP", theme.Green, 3, "Shop")
+	menuButton("Keys", "🔑", "KEYS", theme.Purple, 4, "Keys")
+	menuButton("Settings", "⚙️", "SETTINGS", theme.Grey, 5, "Settings")
 
 	local tooltip = Kit.Panel({
-		Parent = root,
+		Parent = shopHolder,
 		Name = "Tooltip",
-		Size = UDim2.fromOffset(250, 44),
-		Position = UDim2.new(0.5, 0, 1, -84),
-		AnchorPoint = Vector2.new(0.5, 1),
-		StrokeColor = theme.Gold,
+		Size = UDim2.fromOffset(270, 52),
+		Position = UDim2.new(1, 14, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Color = theme.Gold,
+		Radius = 16,
 	})
 	tooltip.Visible = false
 	Kit.Label({
 		Parent = tooltip,
 		Name = "Text",
-		Text = "Buy your first upgrade!",
-		Size = UDim2.fromScale(1, 1),
-		TextSize = 20,
-		Color = theme.Gold,
+		Text = "👈 Buy your first upgrade!",
+		Position = UDim2.fromOffset(8, 0),
+		Size = UDim2.new(1, -16, 1, 0),
+		TextSize = 22,
 		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
 	})
-	local bounce = TweenService:Create(
+	local bounce = Kit.Tween(
 		tooltip,
-		TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = UDim2.new(0.5, 0, 1, -92) }
+		TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Position = UDim2.new(1, 24, 0.5, 0) }
 	)
+	bounce:Pause()
 	trove:Add(function()
 		bounce:Cancel()
 		bounce:Destroy()
 	end)
+
+	local bottom = Instance.new("Frame")
+	bottom.Name = "Bottom"
+	bottom.BackgroundTransparency = 1
+	bottom.AnchorPoint = Vector2.new(0.5, 1)
+	bottom.Position = UDim2.new(0.5, 0, 1, -14)
+	bottom.Size = UDim2.fromOffset(0, 102)
+	bottom.AutomaticSize = Enum.AutomaticSize.X
+	local bottomList = Instance.new("UIListLayout")
+	bottomList.FillDirection = Enum.FillDirection.Horizontal
+	bottomList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bottomList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	bottomList.SortOrder = Enum.SortOrder.LayoutOrder
+	bottomList.Padding = UDim.new(0, 14)
+	bottomList.Parent = bottom
+	bottom.Parent = root
+
+	Kit.Button(trove, {
+		Parent = bottom,
+		Name = "Roll",
+		Text = "🎲 ROLL!",
+		Size = UDim2.fromOffset(236, 102),
+		Color = Color3.fromRGB(255, 176, 28),
+		TextSize = 46,
+		Radius = 20,
+		Lip = 8,
+		Immediate = true,
+		LayoutOrder = 1,
+		Callback = function()
+			rollController:RequestRoll()
+		end,
+	})
+	local autoButton = Kit.Button(trove, {
+		Parent = bottom,
+		Name = "Auto",
+		Icon = "🔁",
+		Text = "AUTO: OFF",
+		Size = UDim2.fromOffset(150, 88),
+		Color = theme.Grey,
+		TextSize = 20,
+		IconSize = 32,
+		Radius = 18,
+		LayoutOrder = 2,
+		Callback = function()
+			rollController:SetAuto(not rollController:IsAuto())
+		end,
+		Sound = playUi,
+	})
+	local function showAuto(isOn: boolean)
+		autoButton.SetText(if isOn then "AUTO: ON" else "AUTO: OFF")
+		autoButton.SetColor(if isOn then theme.Green else theme.Grey)
+		autoButton.SetGlow(isOn)
+	end
+	showAuto(rollController:IsAuto())
+	trove:Add(rollController.AutoChanged:Connect(showAuto))
 
 	local function setHinting(value: boolean)
 		if value == isHinting then
@@ -135,31 +234,11 @@ function Hud.new(context: Types.Context): Types.Screen
 		end
 		isHinting = value
 		tooltip.Visible = value
-		local stroke = upgradesButton.Instance:FindFirstChildOfClass("UIStroke")
+		shopButton.SetGlow(value)
 		if value then
 			bounce:Play()
-			if stroke then
-				stroke.Color = theme.Gold
-				local tweenInstance = TweenService:Create(
-					stroke,
-					TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-					{ Thickness = 5 }
-				)
-				pulseTween = tweenInstance
-				tweenInstance:Play()
-			end
 		else
 			bounce:Pause()
-			local active = pulseTween
-			if active then
-				active:Cancel()
-				active:Destroy()
-				pulseTween = nil
-			end
-			if stroke then
-				stroke.Color = theme.Stroke
-				stroke.Thickness = 1.5
-			end
 		end
 	end
 	trove:Add(function()
@@ -191,7 +270,7 @@ function Hud.new(context: Types.Context): Types.Screen
 			incomeLabel.Text = incomeText
 		end
 		local statsText = if balance
-			then string.format("Luck x%.2f  |  %.1f rolls/s", stats.Luck, stats.RollsPerSecond)
+			then string.format("🍀 x%.1f   ⚡ %.1f/s", stats.Luck, stats.RollsPerSecond)
 			else ""
 		if statsText ~= lastStats then
 			lastStats = statsText

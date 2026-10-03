@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
+local Toast = require(script.Toast)
 local Types = require(script.Types)
 
 local modules: { [string]: Types.ScreenModule } = {
@@ -73,6 +74,7 @@ local function createScreens(playerGui: PlayerGui)
 	if legacy and legacy:IsA("ScreenGui") then
 		legacy.Enabled = false
 	end
+	local toast = Toast.new(playerGui, trove :: TroveInstance)
 	local context: Types.Context = {
 		Controllers = registry,
 		PlayerGui = playerGui,
@@ -82,6 +84,7 @@ local function createScreens(playerGui: PlayerGui)
 		Close = function(name: string)
 			UIController:Close(name)
 		end,
+		Toast = toast,
 		IsOpen = function(name: string): boolean
 			return UIController:IsOpen(name)
 		end,

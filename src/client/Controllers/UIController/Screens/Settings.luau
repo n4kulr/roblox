@@ -13,13 +13,13 @@ type SliderRow = {
 }
 
 local theme = Kit.Theme
-local rowHeight = 84
+local rowHeight = 88
 local lowQualityMax = 3
 
 local volumes: { { Setting: string, Title: string } } = {
-	{ Setting = "RollVolume", Title = "Roll volume" },
-	{ Setting = "BoardVolume", Title = "Board volume" },
-	{ Setting = "OtherVolume", Title = "Other volume" },
+	{ Setting = "RollVolume", Title = "🔊 Roll Sounds" },
+	{ Setting = "BoardVolume", Title = "🎹 Keyboard Sounds" },
+	{ Setting = "OtherVolume", Title = "👥 Other Players" },
 }
 
 local function send(name: string, value: number)
@@ -46,8 +46,9 @@ function Settings.new(context: Types.Context): Types.Screen
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Settings",
-		Title = "Settings",
-		MaxSize = Vector2.new(620, 560),
+		Title = "⚙️ SETTINGS",
+		MaxSize = Vector2.new(600, 560),
+		HeaderColor = theme.Grey,
 		OnClose = function()
 			context.Close("Settings")
 		end,
@@ -56,9 +57,9 @@ function Settings.new(context: Types.Context): Types.Screen
 	local scroll = Kit.Scroll({
 		Parent = modal.Panel,
 		Name = "List",
-		Position = UDim2.fromOffset(12, Kit.HeaderHeight + 4),
-		Size = UDim2.new(1, -24, 1, -(Kit.HeaderHeight + 16)),
-		Padding = 10,
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 1, -18),
+		Padding = 12,
 	})
 
 	local toggles: { [string]: Kit.Toggle } = {}
@@ -78,19 +79,20 @@ function Settings.new(context: Types.Context): Types.Screen
 			Parent = row,
 			Name = "Title",
 			Text = title,
-			Position = UDim2.fromOffset(14, 10),
-			Size = UDim2.new(1, -140, 0, 28),
-			TextSize = 22,
+			Position = UDim2.fromOffset(14, 12),
+			Size = UDim2.new(1, -140, 0, 32),
+			TextSize = 24,
+			Scaled = true,
 		})
 		Kit.Label({
 			Parent = row,
 			Name = "Detail",
 			Text = detail,
-			Position = UDim2.fromOffset(14, 42),
+			Position = UDim2.fromOffset(14, 46),
 			Size = UDim2.new(1, -140, 0, 30),
-			TextSize = 15,
+			TextSize = 17,
 			Color = theme.TextDim,
-			Bold = false,
+			Outline = false,
 			Wrapped = true,
 			VerticalAlign = Enum.TextYAlignment.Top,
 		})
@@ -121,8 +123,9 @@ function Settings.new(context: Types.Context): Types.Screen
 			Name = "Title",
 			Text = title,
 			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -110, 0, 28),
-			TextSize = 22,
+			Size = UDim2.new(1, -110, 0, 32),
+			TextSize = 24,
+			Scaled = true,
 		})
 		local percent = Kit.Label({
 			Parent = row,
@@ -130,16 +133,16 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = "100%",
 			Position = UDim2.new(1, -14, 0, 8),
 			AnchorPoint = Vector2.new(1, 0),
-			Size = UDim2.fromOffset(80, 28),
-			TextSize = 20,
-			Color = theme.TextDim,
+			Size = UDim2.fromOffset(80, 32),
+			TextSize = 22,
+			Color = theme.Gold,
 			Align = Enum.TextXAlignment.Right,
 		})
 		local slider = Kit.Slider(trove, {
 			Parent = row,
 			Name = "Slider",
-			Position = UDim2.new(0, 14, 0, 38),
-			Size = UDim2.new(1, -28, 0, 40),
+			Position = UDim2.new(0, 0, 0, 38),
+			Size = UDim2.new(1, 0, 0, 46),
 			Value = 1,
 			OnChanged = function(value: number)
 				percent.Text = `{math.floor(value * 100 + 0.5)}%`
@@ -151,8 +154,8 @@ function Settings.new(context: Types.Context): Types.Screen
 		table.insert(sliderRows, { Setting = setting, Slider = slider, Percent = percent })
 	end
 
-	addToggle("LowGraphics", "Low graphics", "Fewer effects and popups. Helps on slower devices.")
-	addToggle("AutoPlace", "Auto-place new keys", "Put new keys on empty board slots automatically.")
+	addToggle("LowGraphics", "📉 Low Graphics", "(faster on phones)")
+	addToggle("AutoPlace", "✨ Auto-Equip New Keys", "New keys jump onto your keyboard!")
 	for _, volume in volumes do
 		addSlider(volume.Setting, volume.Title)
 	end
