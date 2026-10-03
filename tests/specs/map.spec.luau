@@ -65,8 +65,7 @@ describe("ThockMap model", function()
 			local origin = CFrame.lookAt(position, Vector3.new(0, position.Y, 0))
 			local expected = {
 				Base = { Vector3.new(44, 1, 44), origin },
-				Stem = { Vector3.new(3, 2, 3), origin * CFrame.new(0, 1.5, -10) },
-				RollKey = { Vector3.new(8, 3, 8), origin * CFrame.new(0, 4, -10) },
+				RollKey = { Vector3.new(8, 3, 8), origin * CFrame.new(0, 2, -10) },
 				Board = { Vector3.new(31, 1.5, 9.6), origin * CFrame.new(0, 1.25, 12) },
 			}
 			for name, spec in expected do
@@ -76,6 +75,9 @@ describe("ThockMap model", function()
 				expect((part.CFrame.Position - spec[2].Position).Magnitude):toBeCloseTo(0, 1e-3)
 				expect((part.CFrame.LookVector - spec[2].LookVector).Magnitude):toBeCloseTo(0, 1e-4)
 			end
+			expect(model:FindFirstChild("Stem")):toBeNil()
+			local rollKey = model.RollKey
+			expect(rollKey.CFrame.Position.Y - rollKey.Size.Y / 2):toBeCloseTo(model.Base.CFrame.Position.Y + 0.5, 1e-3)
 			expect(model:FindFirstChild("Fence") ~= nil):toBe(true)
 			local sign = model:FindFirstChild("Sign")
 			expect(sign ~= nil):toBe(true)

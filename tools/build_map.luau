@@ -148,12 +148,11 @@ local function buildPlots(parent: Part)
 		local color = palette[index]
 		local model = newModel(`Plot{index}`, folder)
 		local base = newPart(model, "Base", Vector3.new(44, 1, 44), origin, Color3.fromRGB(70, 74, 86))
-		newPart(model, "Stem", Vector3.new(3, 2, 3), origin * CFrame.new(0, 1.5, -10), Color3.fromRGB(60, 60, 66))
 		newPart(
 			model,
 			"RollKey",
 			Vector3.new(8, 3, 8),
-			origin * CFrame.new(0, 4, -10),
+			origin * CFrame.new(0, 2, -10),
 			Color3.fromRGB(215, 215, 220)
 		)
 		newPart(
