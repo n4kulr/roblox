@@ -38,4 +38,29 @@ function Rewards.GrantRandomKey(player: Player, services: { [string]: any }, rar
 	return true
 end
 
+function Rewards.AddClicks(player: Player, services: { [string]: any }, amount: number): boolean
+	local data = services.DataService:GetData(player)
+	if not data or not services.DataService:AdjustCash(player, amount) then
+		return false
+	end
+	if amount > 0 then
+		services.DataService:Set(player, { "TotalEarned" }, data.TotalEarned + amount)
+	end
+	return true
+end
+
+function Rewards.Grant(player: Player, services: { [string]: any }, reward: any): boolean
+	local kind = reward.Kind
+	if kind == "Clicks" then
+		return Rewards.AddClicks(player, services, reward.Amount)
+	elseif kind == "LuckPotion" then
+		return Rewards.ExtendPotion(player, services, "LuckUntil", reward.Amount)
+	elseif kind == "ClicksPotion" then
+		return Rewards.ExtendPotion(player, services, "ClicksUntil", reward.Amount)
+	elseif kind == "Key" then
+		return Rewards.GrantRandomKey(player, services, reward.Rarity or "Common")
+	end
+	return false
+end
+
 return Rewards

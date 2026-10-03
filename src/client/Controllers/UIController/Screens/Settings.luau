@@ -16,6 +16,7 @@ type SliderRow = {
 local theme = Kit.Theme
 local toggleHeight = 78
 local sliderHeight = 92
+local codeHeight = 112
 local lowQualityMax = 3
 
 local volumes: { { Setting: string, Title: string } } = {
@@ -159,6 +160,78 @@ function Settings.new(context: Types.Context): Types.Screen
 	for _, volume in volumes do
 		addSlider(volume.Setting, volume.Title)
 	end
+
+	local codeRow = addRow("Codes", codeHeight)
+	Kit.Label({
+		Parent = codeRow,
+		Name = "Title",
+		Text = "🎟️ CODES",
+		Position = UDim2.fromOffset(14, 8),
+		Size = UDim2.new(1, -28, 0, 34),
+		TextSize = 26,
+		Scaled = true,
+	})
+	local codeField = Kit.Panel({
+		Parent = codeRow,
+		Name = "Field",
+		Position = UDim2.fromOffset(14, 48),
+		Size = UDim2.new(1, -190, 0, 48),
+		Color = theme.Track,
+		Radius = 4,
+		Bevel = false,
+	})
+	local codeBox = Instance.new("TextBox")
+	codeBox.Name = "Input"
+	codeBox.BackgroundTransparency = 1
+	codeBox.BorderSizePixel = 0
+	codeBox.Position = UDim2.fromOffset(10, 0)
+	codeBox.Size = UDim2.new(1, -20, 1, 0)
+	codeBox.Font = Kit.Font
+	codeBox.TextSize = 24
+	codeBox.TextColor3 = theme.Text
+	codeBox.PlaceholderText = "Enter code"
+	codeBox.PlaceholderColor3 = theme.Disabled
+	codeBox.TextXAlignment = Enum.TextXAlignment.Left
+	codeBox.ClearTextOnFocus = false
+	codeBox.Text = ""
+	codeBox.Parent = codeField
+	local isRedeeming = false
+	Kit.Button(trove, {
+		Parent = codeRow,
+		Name = "Redeem",
+		Text = "REDEEM",
+		Position = UDim2.new(1, -14, 0, 48),
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(150, 48),
+		Color = theme.Green,
+		TextSize = 24,
+		Callback = function()
+			local text = codeBox.Text
+			if isRedeeming or #text == 0 then
+				return
+			end
+			isRedeeming = true
+			task.spawn(function()
+				local result = Packets.RedeemCode:Fire(text)
+				isRedeeming = false
+				if result == 1 then
+					codeBox.Text = ""
+					playUi("Confirm")
+					context.Toast("🎉 Code redeemed!", "Good")
+					return
+				end
+				playUi("Error")
+				if result == 3 then
+					context.Toast("Already used!", "Bad")
+				elseif result == 4 then
+					context.Toast("That code expired", "Bad")
+				else
+					context.Toast("❌ That code doesn't exist", "Bad")
+				end
+			end)
+		end,
+		Sound = playUi,
+	})
 
 	trove:Add(dataController:Observe({ "Settings" }, function(value: any)
 		if type(value) ~= "table" then

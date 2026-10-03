@@ -6,6 +6,8 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
+local Season = require(ReplicatedStorage.Rules.Season)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
@@ -68,7 +70,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	left.BackgroundTransparency = 1
 	left.AnchorPoint = Vector2.new(0, 0.5)
 	left.Position = UDim2.new(0, 12, 0.5, 0)
-	left.Size = UDim2.fromOffset(gridCell * 2 + gridGap, gridCell * 2 + gridGap)
+	left.Size = UDim2.fromOffset(gridCell * 2 + gridGap, gridCell * 3 + gridGap * 2)
 	local grid = Instance.new("UIGridLayout")
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.CellSize = UDim2.fromOffset(gridCell, gridCell)
@@ -79,7 +81,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local function menuButton(
 		name: string,
 		emoji: string,
-		asset: string,
+		asset: string?,
 		label: string,
 		color: Color3,
 		order: number,
@@ -104,9 +106,15 @@ function Hud.new(context: Types.Context): Types.Screen
 		menuButton("Upgrades", "🛒", UiAssets.Icons.Upgrades, "UPGRADES", theme.Green, 1, "Upgrades")
 	menuButton("Keys", "🔑", UiAssets.Icons.Keys, "KEYS", theme.Purple, 2, "Keys")
 	menuButton("Index", "📘", UiAssets.Icons.Index, "INDEX", theme.Blue, 3, "Index")
-	menuButton("Settings", "⚙️", UiAssets.Icons.Settings, "SETTINGS", theme.Grey, 4, "Settings")
+	local rebirthButton = menuButton("Rebirth", "♻️", nil, "REBIRTH", theme.Purple, 4, "Rebirth")
+	local passButton = menuButton("Pass", "🎟️", nil, "PASS", theme.Orange, 5, "Season")
+	menuButton("Settings", "⚙️", UiAssets.Icons.Settings, "SETTINGS", theme.Grey, 6, "Settings")
 	local upgradesBadge = Kit.Badge(upgradesButton.Instance, "!")
 	upgradesBadge.Visible = false
+	local rebirthBadge = Kit.Badge(rebirthButton.Instance, "!")
+	rebirthBadge.Visible = false
+	local passBadge = Kit.Badge(passButton.Instance, "!")
+	passBadge.Visible = false
 
 	local tooltip = Kit.Panel({
 		Parent = left,
@@ -187,14 +195,15 @@ function Hud.new(context: Types.Context): Types.Screen
 	})
 	Kit.Button(trove, {
 		Parent = top,
-		Name = "KeysTab",
-		Text = "KEYS",
+		Name = "LeadersTab",
+		Text = "🏆 Leaders",
 		Size = UDim2.fromOffset(150, 48),
-		Color = theme.Purple,
+		Color = theme.Gold,
+		TextColor = theme.TextInk,
 		TextSize = 24,
 		LayoutOrder = 3,
 		Callback = function()
-			toggleScreen("Keys")
+			toggleScreen("Leaderboards")
 		end,
 		Sound = playUi,
 	})
@@ -445,6 +454,11 @@ function Hud.new(context: Types.Context): Types.Screen
 		return cheapest
 	end
 
+	local function currentSeason(): Season.Progress
+		local value = dataController:Get({ "Season" })
+		return if type(value) == "table" then value else {}
+	end
+
 	local function refresh()
 		local balance = tracker.Balance()
 		local stats = tracker.GetStats()
@@ -471,6 +485,11 @@ function Hud.new(context: Types.Context): Types.Screen
 		local cost = cheapestCost()
 		local canAfford = balance ~= nil and cost ~= nil and balance >= cost
 		upgradesBadge.Visible = canAfford
+		rebirthBadge.Visible = balance ~= nil and balance >= Rebirth.Cost(tracker.GetRebirths())
+		passBadge.Visible = #Season.Claimable(
+			currentSeason(),
+			tracker.Boosts.Owns(GameConfig.Season.PremiumPassId)
+		) > 0
 		setHinting(tutorialStep == hintStep and canAfford)
 	end
 

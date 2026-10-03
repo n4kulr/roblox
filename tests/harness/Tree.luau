@@ -132,12 +132,16 @@ nodeMeta.__newindex = function(self, key, value)
 	local s = state[self]
 	if key == "Parent" then
 		if s.Parent then
-			local siblings = state[s.Parent].Children
-			table.remove(siblings, table.find(siblings, self))
+			local siblings = if state[s.Parent] then state[s.Parent].Children else s.Parent._children
+			local at = table.find(siblings, self)
+			if at then
+				table.remove(siblings, at)
+			end
 		end
 		s.Parent = value
 		if value then
-			table.insert(state[value].Children, self)
+			local siblings = if state[value] then state[value].Children else value._children
+			table.insert(siblings, self)
 		end
 	elseif key == "Name" then
 		s.Name = value
