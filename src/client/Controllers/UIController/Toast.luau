@@ -76,21 +76,28 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			remove(entries[1])
 		end
 		order += 1
-		local pill = Instance.new("Frame")
-		pill.Name = "Toast"
-		pill.BorderSizePixel = 0
+		local pill = Kit.Panel({
+			Parent = holder,
+			Name = "Toast",
+			Size = UDim2.fromOffset(0, 46),
+			Color = kinds[kind or "Info"] or kinds.Info,
+			LayoutOrder = order,
+			Shards = true,
+		})
 		pill.AutomaticSize = Enum.AutomaticSize.X
-		pill.Size = UDim2.fromOffset(0, 46)
-		pill.LayoutOrder = order
-		Kit.Paint(pill, kinds[kind or "Info"] or kinds.Info)
-		Kit.Corner(pill, 23)
-		Kit.Stroke(pill, Kit.Theme.Ink, 3)
+		local content = Instance.new("Frame")
+		content.Name = "Content"
+		content.BackgroundTransparency = 1
+		content.BorderSizePixel = 0
+		content.AutomaticSize = Enum.AutomaticSize.X
+		content.Size = UDim2.fromOffset(0, 46)
 		local padding = Instance.new("UIPadding")
 		padding.PaddingLeft = UDim.new(0, 20)
 		padding.PaddingRight = UDim.new(0, 20)
-		padding.Parent = pill
+		padding.Parent = content
+		content.Parent = pill
 		local label = Kit.Label({
-			Parent = pill,
+			Parent = content,
 			Name = "Text",
 			Text = text,
 			Size = UDim2.fromOffset(0, 46),
@@ -102,7 +109,6 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 		local scale = Instance.new("UIScale")
 		scale.Scale = 0.6
 		scale.Parent = pill
-		pill.Parent = holder
 		Kit.Tween(scale, Kit.PopInfo(), { Scale = 1 })
 		local entry: Entry = { Frame = pill, Scale = scale, Thread = nil }
 		table.insert(entries, entry)

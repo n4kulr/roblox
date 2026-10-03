@@ -1,11 +1,14 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Trove = require(game:GetService("ReplicatedStorage").Packages.Trove)
+local UiAssets = require(ReplicatedStorage.Config.UiAssets)
+local Trove = require(ReplicatedStorage.Packages.Trove)
 
 type TroveInstance = typeof(Trove.new())
 type SoundPlayer = (name: string) -> ()
+type ShardLayer = { Rotation: number, Bands: { { number } } }
 
 export type PanelProps = {
 	Parent: Instance,
@@ -19,6 +22,8 @@ export type PanelProps = {
 	Radius: number?,
 	StrokeColor: Color3?,
 	StrokeThickness: number?,
+	Shards: boolean?,
+	Bevel: boolean?,
 }
 
 export type LabelProps = {
@@ -39,12 +44,24 @@ export type LabelProps = {
 	RichText: boolean?,
 }
 
+export type IconProps = {
+	Parent: Instance,
+	Name: string?,
+	Emoji: string,
+	Asset: string?,
+	Size: UDim2?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	LayoutOrder: number?,
+}
+
 export type ButtonProps = {
 	Parent: Instance,
 	Name: string?,
 	Text: string?,
 	Icon: string?,
-	IconSize: number?,
+	IconAsset: string?,
+	IconLeft: boolean?,
 	Size: UDim2?,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
@@ -53,7 +70,6 @@ export type ButtonProps = {
 	TextColor: Color3?,
 	TextSize: number?,
 	Radius: number?,
-	Lip: number?,
 	Immediate: boolean?,
 	Callback: (() -> ())?,
 	Sound: SoundPlayer?,
@@ -66,6 +82,65 @@ export type Button = {
 	SetText: (text: string) -> (),
 	SetColor: (color: Color3) -> (),
 	SetGlow: (isOn: boolean) -> (),
+	SetSelected: (isOn: boolean) -> (),
+}
+
+export type ChipProps = {
+	Parent: Instance,
+	Name: string?,
+	Text: string,
+	Size: UDim2,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Color: Color3?,
+	TextSize: number?,
+}
+
+export type KeycapProps = {
+	Parent: Instance,
+	Name: string?,
+	Color: Color3,
+	Glyph: string?,
+	Size: UDim2,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+}
+
+export type Keycap = {
+	Instance: Frame,
+	SetColor: (color: Color3) -> (),
+	SetGlyph: (text: string, color: Color3?) -> (),
+}
+
+export type BurstProps = {
+	Parent: Instance,
+	Diameter: number,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Color: Color3?,
+}
+
+export type BarProps = {
+	Parent: Instance,
+	Name: string?,
+	Size: UDim2?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	LayoutOrder: number?,
+	Color: Color3?,
+	Value: number?,
+	Text: string?,
+	TextSize: number?,
+}
+
+export type Bar = {
+	Instance: Frame,
+	Fill: Frame,
+	Label: TextLabel,
+	Stroke: UIStroke,
+	SetValue: (alpha: number) -> (),
+	SetText: (text: string) -> (),
+	SetColor: (color: Color3) -> (),
 }
 
 export type ScrollProps = {
@@ -124,6 +199,8 @@ export type ModalProps = {
 	Parent: Instance,
 	Name: string,
 	Title: string,
+	Icon: string,
+	IconAsset: string?,
 	MaxSize: Vector2,
 	HeaderColor: Color3?,
 	OnClose: () -> (),
@@ -135,45 +212,80 @@ export type Modal = {
 	Root: Frame,
 	Panel: Frame,
 	Body: Frame,
+	HeaderRight: Frame,
 	Show: () -> (),
 	Hide: () -> (),
 }
 
 local theme = {
-	Ink = Color3.fromRGB(22, 18, 38),
-	Panel = Color3.fromRGB(64, 54, 128),
-	Deep = Color3.fromRGB(44, 36, 98),
-	Raised = Color3.fromRGB(90, 80, 168),
+	Ink = Color3.fromRGB(20, 20, 25),
+	TextInk = Color3.fromRGB(15, 15, 20),
+	Slate = Color3.fromRGB(45, 52, 64),
+	Cell = Color3.fromRGB(36, 42, 52),
+	Track = Color3.fromRGB(30, 33, 42),
 	Text = Color3.fromRGB(255, 255, 255),
-	TextDim = Color3.fromRGB(208, 202, 238),
-	Good = Color3.fromRGB(96, 224, 84),
+	TextDim = Color3.fromRGB(214, 218, 230),
+	Good = Color3.fromRGB(96, 230, 84),
 	Bad = Color3.fromRGB(255, 96, 96),
 	Gold = Color3.fromRGB(255, 210, 64),
-	Green = Color3.fromRGB(64, 200, 72),
-	Blue = Color3.fromRGB(58, 142, 255),
-	Purple = Color3.fromRGB(150, 92, 240),
-	Grey = Color3.fromRGB(128, 132, 152),
-	Red = Color3.fromRGB(238, 66, 66),
-	Orange = Color3.fromRGB(255, 142, 32),
-	Yellow = Color3.fromRGB(255, 200, 40),
-	Disabled = Color3.fromRGB(112, 114, 132),
+	Green = Color3.fromRGB(60, 203, 60),
+	Blue = Color3.fromRGB(30, 144, 255),
+	Purple = Color3.fromRGB(142, 45, 226),
+	Grey = Color3.fromRGB(122, 127, 138),
+	Red = Color3.fromRGB(232, 38, 78),
+	Orange = Color3.fromRGB(255, 140, 20),
+	Yellow = Color3.fromRGB(255, 179, 0),
+	Disabled = Color3.fromRGB(98, 102, 114),
 }
 
 local Kit = {
 	Theme = table.freeze(theme),
 	Font = Enum.Font.FredokaOne,
-	HeaderHeight = 64,
-	ButtonHeight = 56,
+	HeaderHeight = 60,
+	ButtonHeight = 52,
 	TouchSize = 48,
 }
 
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local quick = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local popInfo = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local popInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local closeInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 local white = Color3.new(1, 1, 1)
 local black = Color3.new(0, 0, 0)
+local windowTop = 70
+local windowBottom = 8
+local cornerRadius = 5
+
+local shardLayers: { ShardLayer } = {
+	{
+		Rotation = -35,
+		Bands = {
+			{ 0.08, 0.24, 0.8 },
+			{ 0.3, 0.36, 0.88 },
+			{ 0.5, 0.74, 0.84 },
+			{ 0.8, 0.86, 0.9 },
+		},
+	},
+	{
+		Rotation = 40,
+		Bands = {
+			{ 0.2, 0.32, 0.92 },
+			{ 0.62, 0.9, 0.93 },
+		},
+	},
+}
+
+local function bandSequence(bands: { { number } }): NumberSequence
+	local points = { NumberSequenceKeypoint.new(0, 1) }
+	for _, band in bands do
+		table.insert(points, NumberSequenceKeypoint.new(band[1], 1))
+		table.insert(points, NumberSequenceKeypoint.new(band[1] + 0.002, band[3]))
+		table.insert(points, NumberSequenceKeypoint.new(band[2], band[3]))
+		table.insert(points, NumberSequenceKeypoint.new(band[2] + 0.002, 1))
+	end
+	table.insert(points, NumberSequenceKeypoint.new(1, 1))
+	return NumberSequence.new(points)
+end
 
 function Kit.Tween(target: Instance, info: TweenInfo, goal: { [string]: any }): Tween
 	local created = TweenService:Create(target, info, goal)
@@ -203,7 +315,7 @@ end
 
 function Kit.Corner(parent: Instance, radius: number?): UICorner
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius or 12)
+	corner.CornerRadius = UDim.new(0, radius or cornerRadius)
 	corner.Parent = parent
 	return corner
 end
@@ -218,10 +330,14 @@ function Kit.Stroke(parent: Instance, color: Color3?, thickness: number?): UIStr
 	return stroke
 end
 
+function Kit.StrokeOf(parent: Instance): UIStroke
+	return parent:FindFirstChild("Stroke") :: UIStroke
+end
+
 function Kit.TextStroke(parent: Instance, thickness: number?): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "TextStroke"
-	stroke.Color = theme.Ink
+	stroke.Color = theme.TextInk
 	stroke.Thickness = thickness or 2.5
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	stroke.Parent = parent
@@ -240,7 +356,56 @@ function Kit.Paint(frame: GuiObject, color: Color3)
 		gradient.Rotation = 90
 		gradient.Parent = frame
 	end
-	gradient.Color = ColorSequence.new(Kit.Shade(color, 0.28), Kit.Shade(color, -0.16))
+	gradient.Color = ColorSequence.new(Kit.Shade(color, 0.26), Kit.Shade(color, -0.1))
+end
+
+function Kit.Shards(parent: GuiObject, radius: number)
+	if UiAssets.Pattern ~= "" then
+		local image = Instance.new("ImageLabel")
+		image.Name = "Shards"
+		image.BackgroundTransparency = 1
+		image.BorderSizePixel = 0
+		image.Size = UDim2.fromScale(1, 1)
+		image.Image = UiAssets.Pattern
+		image.ScaleType = Enum.ScaleType.Tile
+		image.TileSize = UDim2.fromOffset(128, 128)
+		image.ImageColor3 = white
+		image.ImageTransparency = 0.75
+		Kit.Corner(image, radius)
+		image.Parent = parent
+		return
+	end
+	for index, layer in shardLayers do
+		local band = Instance.new("Frame")
+		band.Name = `Shards{index}`
+		band.BackgroundColor3 = white
+		band.BorderSizePixel = 0
+		band.Size = UDim2.fromScale(1, 1)
+		Kit.Corner(band, radius)
+		local gradient = Instance.new("UIGradient")
+		gradient.Rotation = layer.Rotation
+		gradient.Transparency = bandSequence(layer.Bands)
+		gradient.Parent = band
+		band.Parent = parent
+	end
+end
+
+local function addBevel(parent: GuiObject, radius: number)
+	local inner = Instance.new("Frame")
+	inner.Name = "Bevel"
+	inner.BackgroundTransparency = 1
+	inner.BorderSizePixel = 0
+	inner.Position = UDim2.fromOffset(2, 2)
+	inner.Size = UDim2.new(1, -4, 1, -4)
+	Kit.Corner(inner, math.max(radius - 1, 0))
+	local edge = Instance.new("UIStroke")
+	edge.Name = "Edge"
+	edge.Color = white
+	edge.Transparency = 0.5
+	edge.Thickness = 2
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edge.Parent = inner
+	inner.Parent = parent
 end
 
 local function viewportScale(size: Vector2): number
@@ -285,6 +450,7 @@ function Kit.ScreenGui(
 end
 
 function Kit.Panel(props: PanelProps): Frame
+	local radius = props.Radius or cornerRadius
 	local frame = Instance.new("Frame")
 	frame.Name = props.Name or "Panel"
 	frame.BackgroundTransparency = props.Transparency or 0
@@ -293,9 +459,15 @@ function Kit.Panel(props: PanelProps): Frame
 	frame.Position = props.Position or UDim2.new()
 	frame.AnchorPoint = props.AnchorPoint or Vector2.zero
 	frame.LayoutOrder = props.LayoutOrder or 0
-	Kit.Paint(frame, props.Color or theme.Panel)
-	Kit.Corner(frame, props.Radius or 14)
+	Kit.Paint(frame, props.Color or theme.Cell)
+	Kit.Corner(frame, radius)
 	Kit.Stroke(frame, props.StrokeColor, props.StrokeThickness or 3)
+	if props.Shards == true then
+		Kit.Shards(frame, radius)
+	end
+	if props.Bevel ~= false then
+		addBevel(frame, radius)
+	end
 	frame.Parent = props.Parent
 	return frame
 end
@@ -328,20 +500,266 @@ function Kit.Label(props: LabelProps): TextLabel
 		label.TextTruncate = if props.Wrapped == true then Enum.TextTruncate.None else Enum.TextTruncate.AtEnd
 	end
 	if props.Outline ~= false then
-		Kit.TextStroke(label, if textSize >= 26 then 3 else 2)
+		Kit.TextStroke(label, if textSize >= 26 then 3 elseif textSize >= 17 then 2.5 else 2)
 	end
 	label.Parent = props.Parent
 	return label
 end
 
+function Kit.Icon(props: IconProps): GuiObject
+	local asset = props.Asset
+	if asset and asset ~= "" then
+		local image = Instance.new("ImageLabel")
+		image.Name = props.Name or "Icon"
+		image.BackgroundTransparency = 1
+		image.BorderSizePixel = 0
+		image.Image = asset
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Size = props.Size or UDim2.fromOffset(48, 48)
+		image.Position = props.Position or UDim2.new()
+		image.AnchorPoint = props.AnchorPoint or Vector2.zero
+		image.LayoutOrder = props.LayoutOrder or 0
+		image.Parent = props.Parent
+		return image
+	end
+	return Kit.Label({
+		Parent = props.Parent,
+		Name = props.Name or "Icon",
+		Text = props.Emoji,
+		Size = props.Size or UDim2.fromOffset(48, 48),
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		LayoutOrder = props.LayoutOrder,
+		TextSize = 60,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+		Outline = false,
+	})
+end
+
+function Kit.Chip(props: ChipProps): TextLabel
+	local chip = Kit.Panel({
+		Parent = props.Parent,
+		Name = props.Name or "Chip",
+		Size = props.Size,
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		Color = props.Color or theme.Red,
+		Radius = 4,
+		StrokeThickness = 2.5,
+		Bevel = false,
+	})
+	return Kit.Label({
+		Parent = chip,
+		Name = "Text",
+		Text = props.Text,
+		Size = UDim2.new(1, -4, 1, 0),
+		Position = UDim2.fromOffset(2, 0),
+		TextSize = props.TextSize or 16,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+end
+
+function Kit.Badge(parent: Instance, text: string?): Frame
+	local badge = Instance.new("Frame")
+	badge.Name = "Badge"
+	badge.BorderSizePixel = 0
+	badge.AnchorPoint = Vector2.new(1, 0)
+	badge.Position = UDim2.new(1, 6, 0, -6)
+	badge.Size = UDim2.fromOffset(26, 26)
+	Kit.Paint(badge, theme.Red)
+	Kit.Corner(badge, 13)
+	Kit.Stroke(badge, theme.Ink, 2.5)
+	Kit.Label({
+		Parent = badge,
+		Name = "Text",
+		Text = text or "!",
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 20,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	badge.Parent = parent
+	return badge
+end
+
+function Kit.Keycap(props: KeycapProps): Keycap
+	local holder = Instance.new("Frame")
+	holder.Name = props.Name or "Keycap"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.Size = props.Size
+	holder.Position = props.Position or UDim2.new()
+	holder.AnchorPoint = props.AnchorPoint or Vector2.zero
+	local base = Instance.new("Frame")
+	base.Name = "Base"
+	base.BorderSizePixel = 0
+	base.Position = UDim2.fromScale(0, 0.14)
+	base.Size = UDim2.fromScale(1, 0.86)
+	Kit.Corner(base, 8)
+	Kit.Stroke(base, theme.Ink, 2.5)
+	base.Parent = holder
+	local top = Instance.new("Frame")
+	top.Name = "Top"
+	top.BorderSizePixel = 0
+	top.Position = UDim2.fromScale(0.08, 0)
+	top.Size = UDim2.fromScale(0.84, 0.74)
+	Kit.Corner(top, 6)
+	Kit.Stroke(top, theme.Ink, 2)
+	top.Parent = holder
+	local shine = Instance.new("Frame")
+	shine.Name = "Shine"
+	shine.BackgroundColor3 = white
+	shine.BackgroundTransparency = 0.7
+	shine.BorderSizePixel = 0
+	shine.Position = UDim2.fromScale(0.1, 0.08)
+	shine.Size = UDim2.fromScale(0.5, 0.12)
+	Kit.Corner(shine, 3)
+	shine.Parent = top
+	local glyph = Kit.Label({
+		Parent = top,
+		Name = "Glyph",
+		Text = props.Glyph or "",
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 34,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local function paint(color: Color3)
+		base.BackgroundColor3 = Kit.Shade(color, -0.3)
+		Kit.Paint(top, color)
+	end
+	paint(props.Color)
+	holder.Parent = props.Parent
+	return {
+		Instance = holder,
+		SetColor = paint,
+		SetGlyph = function(text: string, color: Color3?)
+			glyph.Text = text
+			glyph.TextColor3 = color or theme.Text
+		end,
+	}
+end
+
+function Kit.Burst(props: BurstProps): Frame
+	local holder = Instance.new("Frame")
+	holder.Name = "Burst"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.Size = UDim2.fromOffset(props.Diameter, props.Diameter)
+	holder.Position = props.Position or UDim2.fromScale(0.5, 0.5)
+	holder.AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5)
+	local tint = props.Color or white
+	if UiAssets.Burst ~= "" then
+		local image = Instance.new("ImageLabel")
+		image.Name = "Image"
+		image.BackgroundTransparency = 1
+		image.BorderSizePixel = 0
+		image.Size = UDim2.fromScale(1, 1)
+		image.Image = UiAssets.Burst
+		image.ImageColor3 = tint
+		image.ImageTransparency = 0.45
+		image.Parent = holder
+	else
+		for index, fraction in { 1, 0.66, 0.36 } do
+			local glow = Instance.new("Frame")
+			glow.Name = `Glow{index}`
+			glow.BackgroundColor3 = tint
+			glow.BackgroundTransparency = 0.9 - index * 0.02
+			glow.BorderSizePixel = 0
+			glow.AnchorPoint = Vector2.new(0.5, 0.5)
+			glow.Position = UDim2.fromScale(0.5, 0.5)
+			glow.Size = UDim2.fromScale(fraction, fraction)
+			Kit.Corner(glow, props.Diameter)
+			glow.Parent = holder
+		end
+		for index = 0, 3 do
+			local ray = Instance.new("Frame")
+			ray.Name = `Ray{index}`
+			ray.BackgroundColor3 = tint
+			ray.BorderSizePixel = 0
+			ray.AnchorPoint = Vector2.new(0.5, 0.5)
+			ray.Position = UDim2.fromScale(0.5, 0.5)
+			ray.Size = UDim2.fromOffset(props.Diameter * 0.95, 5)
+			ray.Rotation = index * 45
+			local fade = Instance.new("UIGradient")
+			fade.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.5, 0.78),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			fade.Parent = ray
+			ray.Parent = holder
+		end
+	end
+	holder.Parent = props.Parent
+	return holder
+end
+
+function Kit.Bar(props: BarProps): Bar
+	local value = math.clamp(props.Value or 0, 0, 1)
+	local track = Kit.Panel({
+		Parent = props.Parent,
+		Name = props.Name or "Bar",
+		Size = props.Size or UDim2.new(1, 0, 0, 26),
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		LayoutOrder = props.LayoutOrder,
+		Color = theme.Track,
+		Radius = 4,
+		Bevel = false,
+	})
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.fromScale(value, 1)
+	Kit.Paint(fill, props.Color or theme.Green)
+	Kit.Corner(fill, 4)
+	local gloss = Instance.new("Frame")
+	gloss.Name = "Gloss"
+	gloss.BackgroundColor3 = white
+	gloss.BackgroundTransparency = 0.8
+	gloss.BorderSizePixel = 0
+	gloss.Position = UDim2.fromScale(0.02, 0.1)
+	gloss.Size = UDim2.fromScale(0.96, 0.32)
+	Kit.Corner(gloss, 3)
+	gloss.Parent = fill
+	fill.Parent = track
+	local label = Kit.Label({
+		Parent = track,
+		Name = "Text",
+		Text = props.Text or "",
+		Size = UDim2.fromScale(1, 1),
+		TextSize = props.TextSize or 18,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	return {
+		Instance = track,
+		Fill = fill,
+		Label = label,
+		Stroke = Kit.StrokeOf(track),
+		SetValue = function(alpha: number)
+			fill.Size = UDim2.fromScale(math.clamp(alpha, 0, 1), 1)
+		end,
+		SetText = function(text: string)
+			label.Text = text
+		end,
+		SetColor = function(color: Color3)
+			Kit.Paint(fill, color)
+		end,
+	}
+end
+
 function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	local baseColor = props.Color or theme.Green
 	local baseTextColor = props.TextColor or theme.Text
-	local lip = props.Lip or 5
-	local radius = props.Radius or 12
 	local isDisabled = false
 	local isDown = false
 	local isHover = false
+	local isGlowing = false
+	local isSelected = false
 	local glowTween: Tween? = nil
 
 	local root = Instance.new("TextButton")
@@ -350,48 +768,52 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	root.BorderSizePixel = 0
 	root.BackgroundTransparency = 1
 	root.Text = ""
-	root.Size = props.Size or UDim2.fromOffset(140, Kit.ButtonHeight + lip)
+	root.Size = props.Size or UDim2.fromOffset(140, Kit.ButtonHeight)
 	root.Position = props.Position or UDim2.new()
 	root.AnchorPoint = props.AnchorPoint or Vector2.zero
 	root.LayoutOrder = props.LayoutOrder or 0
 
-	local lipFrame = Instance.new("Frame")
-	lipFrame.Name = "Lip"
-	lipFrame.BorderSizePixel = 0
-	lipFrame.Position = UDim2.new(0, 0, 0, lip)
-	lipFrame.Size = UDim2.new(1, 0, 1, -lip)
-	Kit.Corner(lipFrame, radius)
-	Kit.Stroke(lipFrame, theme.Ink, 3)
-	lipFrame.Parent = root
+	local face = Kit.Panel({
+		Parent = root,
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		Color = baseColor,
+		Radius = props.Radius,
+		Shards = true,
+	})
+	local faceStroke = Kit.StrokeOf(face)
 
-	local face = Instance.new("Frame")
-	face.Name = "Face"
-	face.BorderSizePixel = 0
-	face.Size = UDim2.new(1, 0, 1, -lip)
-	Kit.Corner(face, radius)
-	local faceStroke = Kit.Stroke(face, theme.Ink, 3)
-	face.Parent = root
-
-	local hasIcon = props.Icon ~= nil
+	local hasIcon = props.Icon ~= nil or props.IconAsset ~= nil
+	local isLeft = props.IconLeft == true
 	if hasIcon then
-		Kit.Label({
+		local icon = Kit.Icon({
 			Parent = face,
 			Name = "Icon",
-			Text = props.Icon,
-			Position = UDim2.fromScale(0, 0.04),
-			Size = UDim2.fromScale(1, 0.56),
-			TextSize = props.IconSize or 34,
-			Align = Enum.TextXAlignment.Center,
-			Scaled = true,
-			Outline = false,
+			Emoji = props.Icon or "",
+			Asset = props.IconAsset,
+			Size = if isLeft then UDim2.fromScale(0, 0.78) else UDim2.fromScale(1, 0.56),
+			Position = if isLeft then UDim2.new(0, 8, 0.5, 0) else UDim2.fromScale(0, 0.06),
+			AnchorPoint = if isLeft then Vector2.new(0, 0.5) else Vector2.zero,
 		})
+		if isLeft then
+			local ratio = Instance.new("UIAspectRatioConstraint")
+			ratio.AspectRatio = 1
+			ratio.DominantAxis = Enum.DominantAxis.Height
+			ratio.Parent = icon
+		end
 	end
 	local text = Kit.Label({
 		Parent = face,
 		Name = "Text",
 		Text = props.Text or "",
-		Position = if hasIcon then UDim2.fromScale(0, 0.58) else UDim2.fromOffset(6, 2),
-		Size = if hasIcon then UDim2.fromScale(1, 0.36) else UDim2.new(1, -12, 1, -4),
+		Position = if hasIcon and isLeft
+			then UDim2.new(0.2, 0, 0, 2)
+			elseif hasIcon then UDim2.fromScale(0, 0.6)
+			else UDim2.fromOffset(6, 2),
+		Size = if hasIcon and isLeft
+			then UDim2.new(0.8, -8, 1, -4)
+			elseif hasIcon then UDim2.fromScale(1, 0.38)
+			else UDim2.new(1, -12, 1, -4),
 		TextSize = props.TextSize or 24,
 		Color = baseTextColor,
 		Align = Enum.TextXAlignment.Center,
@@ -405,15 +827,21 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	root.Parent = props.Parent
 
 	local function paint()
-		local color = if isDisabled then theme.Disabled else baseColor
-		Kit.Paint(face, color)
-		lipFrame.BackgroundColor3 = Kit.Shade(color, -0.45)
+		Kit.Paint(face, if isDisabled then theme.Disabled else baseColor)
 		text.TextColor3 = if isDisabled then theme.TextDim else baseTextColor
 	end
 	paint()
 
+	local function applyStroke()
+		if isGlowing then
+			return
+		end
+		faceStroke.Color = if isSelected then white else theme.Ink
+		faceStroke.Thickness = if isSelected then 4 else 3
+	end
+
 	local function settle()
-		local goal = if isDown then 0.92 elseif isHover then 1.06 else 1
+		local goal = if isDown then 0.92 elseif isHover then 1.05 else 1
 		Kit.Tween(pressScale, if isDown then pressInfo else springInfo, { Scale = goal })
 	end
 	local function release()
@@ -507,37 +935,42 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 				glowTween:Cancel()
 				glowTween = nil
 			end
+			isGlowing = isOn
 			if isOn then
-				faceStroke.Color = Color3.fromRGB(200, 255, 190)
+				faceStroke.Color = Color3.fromRGB(255, 240, 150)
 				local loop = TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 				glowTween = TweenService:Create(faceStroke, loop, { Thickness = 6 })
 				if glowTween then
 					glowTween:Play()
 				end
 			else
-				faceStroke.Color = theme.Ink
-				faceStroke.Thickness = 3
+				applyStroke()
 			end
+		end,
+		SetSelected = function(isOn: boolean)
+			isSelected = isOn
+			applyStroke()
 		end,
 	}
 end
 
-function Kit.IconButton(trove: TroveInstance, props: ButtonProps): Button
-	local size = props.Size or UDim2.fromOffset(Kit.ButtonHeight + 5, Kit.ButtonHeight + 5)
+function Kit.CloseButton(
+	trove: TroveInstance,
+	parent: Instance,
+	onClose: () -> (),
+	sound: SoundPlayer?
+): Button
 	return Kit.Button(trove, {
-		Parent = props.Parent,
-		Name = props.Name,
-		Text = props.Text,
-		Size = size,
-		Position = props.Position,
-		AnchorPoint = props.AnchorPoint,
-		LayoutOrder = props.LayoutOrder,
-		Color = props.Color,
-		TextColor = props.TextColor,
-		TextSize = props.TextSize or 28,
-		Radius = props.Radius or 14,
-		Callback = props.Callback,
-		Sound = props.Sound,
+		Parent = parent,
+		Name = "Close",
+		Text = "X",
+		Size = UDim2.fromOffset(Kit.TouchSize, Kit.TouchSize),
+		Position = UDim2.new(1, -6, 0, 6),
+		AnchorPoint = Vector2.new(1, 0),
+		Color = theme.Red,
+		TextSize = 30,
+		Callback = onClose,
+		Sound = sound,
 	})
 end
 
@@ -583,12 +1016,12 @@ function Kit.GridScroll(props: GridScrollProps): ScrollingFrame
 	local grid = Instance.new("UIGridLayout")
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.CellSize = props.CellSize
-	grid.CellPadding = props.CellPadding or UDim2.fromOffset(10, 12)
+	grid.CellPadding = props.CellPadding or UDim2.fromOffset(10, 10)
 	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	grid.Parent = scroll
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 12)
+	padding.PaddingTop = UDim.new(0, 8)
+	padding.PaddingBottom = UDim.new(0, 10)
 	padding.Parent = scroll
 	scroll.Parent = props.Parent
 	return scroll
@@ -603,42 +1036,35 @@ function Kit.Slider(trove: TroveInstance, props: SliderProps): Slider
 	hit.BackgroundTransparency = 1
 	hit.BorderSizePixel = 0
 	hit.Active = true
-	hit.Size = props.Size or UDim2.new(1, 0, 0, 52)
+	hit.Size = props.Size or UDim2.new(1, 0, 0, 48)
 	hit.Position = props.Position or UDim2.new()
 	hit.AnchorPoint = props.AnchorPoint or Vector2.zero
 	hit.LayoutOrder = props.LayoutOrder or 0
-	local track = Instance.new("Frame")
-	track.Name = "Track"
-	track.BorderSizePixel = 0
-	track.AnchorPoint = Vector2.new(0, 0.5)
-	track.Position = UDim2.new(0, 20, 0.5, 0)
-	track.Size = UDim2.new(1, -40, 0, 20)
-	Kit.Paint(track, theme.Deep)
-	Kit.Corner(track, 10)
-	Kit.Stroke(track, theme.Ink, 3)
-	track.Parent = hit
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.BorderSizePixel = 0
-	fill.Size = UDim2.fromScale(value, 1)
-	Kit.Paint(fill, props.Color or theme.Green)
-	Kit.Corner(fill, 10)
-	fill.Parent = track
-	local knob = Instance.new("Frame")
-	knob.Name = "Knob"
-	knob.BackgroundColor3 = theme.Text
-	knob.BorderSizePixel = 0
-	knob.AnchorPoint = Vector2.new(0.5, 0.5)
-	knob.Size = UDim2.fromOffset(36, 36)
-	knob.Position = UDim2.fromScale(value, 0.5)
-	Kit.Corner(knob, 18)
-	Kit.Stroke(knob, theme.Ink, 3)
-	knob.Parent = track
+	local bar = Kit.Bar({
+		Parent = hit,
+		Name = "Track",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 16, 0.5, 0),
+		Size = UDim2.new(1, -32, 0, 24),
+		Color = props.Color or theme.Green,
+		Value = value,
+	})
+	local track = bar.Instance
+	local knob = Kit.Panel({
+		Parent = track,
+		Name = "Knob",
+		Size = UDim2.fromOffset(20, 40),
+		Position = UDim2.fromScale(value, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Color = theme.Text,
+		Radius = 4,
+		Bevel = false,
+	})
 	hit.Parent = props.Parent
 
 	local function show(newValue: number)
 		value = math.clamp(newValue, 0, 1)
-		fill.Size = UDim2.fromScale(value, 1)
+		bar.SetValue(value)
 		knob.Position = UDim2.fromScale(value, 0.5)
 	end
 	local function fromX(x: number): number
@@ -702,47 +1128,37 @@ function Kit.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 	button.Name = props.Name or "Toggle"
 	button.AutoButtonColor = false
 	button.BorderSizePixel = 0
+	button.BackgroundTransparency = 1
 	button.Text = ""
-	button.Size = UDim2.fromOffset(104, 52)
+	button.Size = UDim2.fromOffset(100, Kit.TouchSize)
 	button.Position = props.Position or UDim2.new()
 	button.AnchorPoint = props.AnchorPoint or Vector2.zero
 	button.LayoutOrder = props.LayoutOrder or 0
-	Kit.Corner(button, 26)
-	Kit.Stroke(button, theme.Ink, 3)
-	local state = Kit.Label({
+	local face = Kit.Panel({
 		Parent = button,
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		Color = theme.Disabled,
+		Shards = true,
+	})
+	local state = Kit.Label({
+		Parent = face,
 		Name = "State",
 		Text = "OFF",
-		Size = UDim2.new(0, 56, 1, 0),
-		TextSize = 22,
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 28,
 		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
 	})
-	local knob = Instance.new("Frame")
-	knob.Name = "Knob"
-	knob.BackgroundColor3 = theme.Text
-	knob.BorderSizePixel = 0
-	knob.AnchorPoint = Vector2.new(0.5, 0.5)
-	knob.Size = UDim2.fromOffset(38, 38)
-	Kit.Corner(knob, 19)
-	Kit.Stroke(knob, theme.Ink, 3)
-	knob.Parent = button
 	local pressScale = Instance.new("UIScale")
 	pressScale.Parent = button
 	button.Parent = props.Parent
 
-	local function show(animate: boolean)
-		local color = if isOn then theme.Green else theme.Disabled
-		local position = if isOn then UDim2.new(1, -28, 0.5, 0) else UDim2.new(0, 28, 0.5, 0)
+	local function show()
 		state.Text = if isOn then "ON" else "OFF"
-		state.Position = if isOn then UDim2.new() else UDim2.new(1, -56, 0, 0)
-		Kit.Paint(button, color)
-		if animate then
-			Kit.Tween(knob, quick, { Position = position })
-		else
-			knob.Position = position
-		end
+		Kit.Paint(face, if isOn then theme.Green else theme.Red)
 	end
-	show(false)
+	show()
 
 	trove:Connect(button.MouseButton1Down, function()
 		Kit.Tween(pressScale, pressInfo, { Scale = 0.92 })
@@ -752,7 +1168,7 @@ function Kit.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 	end)
 	trove:Connect(button.Activated, function()
 		isOn = not isOn
-		show(true)
+		show()
 		Kit.Tween(pressScale, springInfo, { Scale = 1 })
 		local sound = props.Sound
 		if sound then
@@ -769,7 +1185,7 @@ function Kit.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 		SetValue = function(value: boolean)
 			if value ~= isOn then
 				isOn = value
-				show(true)
+				show()
 			end
 		end,
 	}
@@ -786,7 +1202,7 @@ function Kit.Pulse(target: GuiObject, color: Color3?)
 		scale.Parent = target
 	end
 	local reverse = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
-	Kit.Tween(scale, reverse, { Scale = 1.06 })
+	Kit.Tween(scale, reverse, { Scale = 1.04 })
 	local stroke = target:FindFirstChild("Stroke")
 	if stroke and stroke:IsA("UIStroke") then
 		Kit.Tween(stroke, reverse, { Color = color or theme.Good })
@@ -795,7 +1211,7 @@ end
 
 function Kit.Shake(target: GuiObject)
 	task.spawn(function()
-		for _, rotation in { 4, -4, 3, -3, 0 } do
+		for _, rotation in { 3, -3, 2, -2, 0 } do
 			if not target.Parent then
 				return
 			end
@@ -810,93 +1226,102 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	gui.Enabled = false
 	local token = 0
 	local headerColor = props.HeaderColor or theme.Blue
+	local headerHeight = Kit.HeaderHeight
 	local backdrop = Instance.new("TextButton")
 	backdrop.Name = "Backdrop"
 	backdrop.AutoButtonColor = false
-	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
-	backdrop.BackgroundTransparency = 0.5
+	backdrop.BackgroundColor3 = black
+	backdrop.BackgroundTransparency = 0.55
 	backdrop.BorderSizePixel = 0
 	backdrop.Text = ""
-	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.Position = UDim2.fromOffset(0, windowTop - 6)
+	backdrop.Size = UDim2.new(1, 0, 1, -(windowTop - 6))
 	backdrop.Parent = root
 	trove:Connect(backdrop.Activated, props.OnClose)
 
-	local panel = Kit.Panel({
-		Parent = root,
-		Name = "Panel",
-		Size = UDim2.fromScale(0.92, 0.9),
-		Position = UDim2.fromScale(0.5, 0.52),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Radius = 16,
-		StrokeThickness = 4,
-	})
-	panel.Active = true
+	local area = Instance.new("Frame")
+	area.Name = "Area"
+	area.BackgroundTransparency = 1
+	area.BorderSizePixel = 0
+	area.Position = UDim2.fromOffset(0, windowTop)
+	area.Size = UDim2.new(1, 0, 1, -(windowTop + windowBottom))
+	area.Parent = root
+
+	local window = Instance.new("Frame")
+	window.Name = "Window"
+	window.BackgroundTransparency = 1
+	window.BorderSizePixel = 0
+	window.Active = true
+	window.Size = UDim2.fromScale(0.92, 1)
+	window.Position = UDim2.fromScale(0.5, 0.5)
+	window.AnchorPoint = Vector2.new(0.5, 0.5)
+	window.Parent = area
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MaxSize = props.MaxSize
-	constraint.Parent = panel
+	constraint.Parent = window
 	local pop = Instance.new("UIScale")
 	pop.Name = "Pop"
-	pop.Parent = panel
+	pop.Parent = window
 
-	local header = Instance.new("Frame")
-	header.Name = "Header"
-	header.BorderSizePixel = 0
-	header.Size = UDim2.new(1, 0, 0, Kit.HeaderHeight)
-	Kit.Paint(header, headerColor)
-	Kit.Corner(header, 16)
-	header.Parent = panel
-	local filler = Instance.new("Frame")
-	filler.Name = "Filler"
-	filler.BorderSizePixel = 0
-	filler.Position = UDim2.new(0, 0, 1, -16)
-	filler.Size = UDim2.new(1, 0, 0, 16)
-	filler.BackgroundColor3 = Kit.Shade(headerColor, -0.16)
-	filler.Parent = header
-	local divider = Instance.new("Frame")
-	divider.Name = "Divider"
-	divider.BorderSizePixel = 0
-	divider.BackgroundColor3 = theme.Ink
-	divider.Position = UDim2.new(0, 0, 1, 0)
-	divider.Size = UDim2.new(1, 0, 0, 3)
-	divider.Parent = header
+	local body = Kit.Panel({
+		Parent = window,
+		Name = "Body",
+		Position = UDim2.fromOffset(0, headerHeight - 3),
+		Size = UDim2.new(1, 0, 1, -(headerHeight - 3)),
+		Color = theme.Slate,
+		Transparency = 0.1,
+		StrokeThickness = 3,
+	})
+	local header = Kit.Panel({
+		Parent = window,
+		Name = "Header",
+		Size = UDim2.new(1, 0, 0, headerHeight),
+		Color = headerColor,
+		Shards = true,
+	})
+	Kit.Icon({
+		Parent = header,
+		Name = "Icon",
+		Emoji = props.Icon,
+		Asset = props.IconAsset,
+		Size = UDim2.fromOffset(76, 76),
+		Position = UDim2.fromOffset(-14, -14),
+	})
 	Kit.Label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(16, 0),
-		Size = UDim2.new(1, -80, 1, 0),
+		Position = UDim2.fromOffset(70, 0),
+		Size = UDim2.new(0.5, -70, 1, 0),
 		TextSize = 36,
-		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	local body = Instance.new("Frame")
-	body.Name = "Body"
-	body.BackgroundTransparency = 1
-	body.BorderSizePixel = 0
-	body.Position = UDim2.fromOffset(0, Kit.HeaderHeight + 3)
-	body.Size = UDim2.new(1, 0, 1, -(Kit.HeaderHeight + 3))
-	body.Parent = panel
-	Kit.IconButton(trove, {
-		Parent = panel,
-		Name = "Close",
-		Text = "X",
-		Size = UDim2.fromOffset(52, 57),
-		Position = UDim2.new(1, -2, 0, 4),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Color = theme.Red,
-		Radius = 26,
-		Callback = props.OnClose,
-		Sound = props.Sound,
-	})
+	local headerRight = Instance.new("Frame")
+	headerRight.Name = "HeaderRight"
+	headerRight.BackgroundTransparency = 1
+	headerRight.BorderSizePixel = 0
+	headerRight.AnchorPoint = Vector2.new(1, 0.5)
+	headerRight.Position = UDim2.new(1, -(Kit.TouchSize + 14), 0.5, 0)
+	headerRight.Size = UDim2.new(0.5, -(Kit.TouchSize + 20), 1, -8)
+	local rightList = Instance.new("UIListLayout")
+	rightList.FillDirection = Enum.FillDirection.Horizontal
+	rightList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	rightList.VerticalAlignment = Enum.VerticalAlignment.Center
+	rightList.SortOrder = Enum.SortOrder.LayoutOrder
+	rightList.Padding = UDim.new(0, 8)
+	rightList.Parent = headerRight
+	headerRight.Parent = header
+	Kit.CloseButton(trove, header, props.OnClose, props.Sound)
 
 	return {
 		Gui = gui,
 		Root = root,
-		Panel = panel,
+		Panel = window,
 		Body = body,
+		HeaderRight = headerRight,
 		Show = function()
 			token += 1
-			pop.Scale = 0.8
+			pop.Scale = 0.85
 			gui.Enabled = true
 			Kit.Tween(pop, popInfo, { Scale = 1 })
 		end,
@@ -906,7 +1331,7 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 			end
 			token += 1
 			local mine = token
-			local closing = Kit.Tween(pop, closeInfo, { Scale = 0.8 })
+			local closing = Kit.Tween(pop, closeInfo, { Scale = 0.85 })
 			closing.Completed:Once(function()
 				if token == mine then
 					gui.Enabled = false

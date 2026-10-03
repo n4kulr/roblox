@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
+local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -13,9 +14,7 @@ local Types = require(script.Parent.Parent.Types)
 
 type Row = {
 	Frame: Frame,
-	Bar: Frame,
-	BarText: TextLabel,
-	Effect: TextLabel,
+	Bar: Kit.Bar,
 	Preview: TextLabel,
 	Buy: Kit.Button,
 	Upgrade: Upgrades.Upgrade,
@@ -23,36 +22,45 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local cardHeight = 228
+local cardHeight = 104
 local refreshSeconds = 0.2
+local buyWidth = 150
+local iconSize = 84
 
-local Shop = {}
+local cardColors: { [string]: Color3 } = {
+	Luck = theme.Green,
+	Speed = theme.Yellow,
+	Slots = theme.Blue,
+}
 
-function Shop.new(context: Types.Context): Types.Screen
+local UpgradesScreen = {}
+
+function UpgradesScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
 	local rows: { Row } = {}
 	local isOpen = false
 	local tracker: Economy.Tracker
 
-	local function close()
-		context.Close("Shop")
-	end
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
-		Name = "Shop",
-		Title = "🛒 SHOP",
-		MaxSize = Vector2.new(640, 580),
+		Name = "Upgrades",
+		Title = "UPGRADES",
+		Icon = "🛒",
+		IconAsset = UiAssets.Icons.Upgrades,
+		MaxSize = Vector2.new(700, 520),
 		HeaderColor = theme.Green,
-		OnClose = close,
+		OnClose = function()
+			context.Close("Upgrades")
+		end,
 		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(12, 6),
-		Size = UDim2.new(1, -24, 1, -18),
-		Padding = 14,
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.new(1, -20, 1, -16),
+		Padding = 10,
 	})
 
 	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
@@ -69,36 +77,36 @@ function Shop.new(context: Types.Context): Types.Screen
 		local after = if isMaxed then now else Stats.Compute(board, nextLevels)
 		if upgrade.Id == "Luck" then
 			if isMaxed then
-				return string.format("Now: 🍀 x%.1f (MAXED!)", now.Luck)
+				return string.format("Now: x%.1f Luck", now.Luck)
 			end
-			return string.format("🍀 x%.1f → x%.1f", now.Luck, after.Luck)
+			return string.format("x%.1f → x%.1f Luck", now.Luck, after.Luck)
 		elseif upgrade.Id == "Speed" then
 			if isMaxed then
-				return string.format("Now: ⚡ %.1f/s (MAXED!)", now.RollsPerSecond)
+				return string.format("Now: %.1f rolls/s", now.RollsPerSecond)
 			end
-			return string.format("⚡ %.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
+			return string.format("%.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
 		end
 		if isMaxed then
-			return string.format("Now: ⌨️ %d slots (MAXED!)", now.Slots)
+			return string.format("Now: %d slots", now.Slots)
 		end
-		return string.format("⌨️ %d → %d slots", now.Slots, after.Slots)
+		return string.format("%d → %d slots", now.Slots, after.Slots)
 	end
 
 	local function refreshRow(row: Row)
 		local level = tracker.GetLevel(row.Upgrade.Id)
 		row.Preview.Text = previewText(row.Upgrade, level)
 		local maxLevel = row.Upgrade.MaxLevel
-		row.BarText.Text = `Lv {level}/{maxLevel}`
-		row.Bar.Size = UDim2.fromScale(math.clamp(level / maxLevel, 0, 1), 1)
+		row.Bar.SetText(`Lv {level}/{maxLevel}`)
+		row.Bar.SetValue(level / maxLevel)
 		local cost = Upgrades.Cost(row.Upgrade, level)
 		if not cost then
 			row.Buy.SetText("MAXED!")
-			row.Buy.SetColor(theme.Gold)
+			row.Buy.SetColor(theme.Yellow)
 			return
 		end
 		local balance = tracker.Balance()
 		if balance ~= nil and balance >= cost then
-			row.Buy.SetText(`💰 {NumberFormat.Compact(cost)}`)
+			row.Buy.SetText(`BUY\n⌨️ {NumberFormat.Compact(cost)}`)
 			row.Buy.SetColor(theme.Green)
 		else
 			local missing = cost - (balance or 0)
@@ -152,97 +160,90 @@ function Shop.new(context: Types.Context): Types.Screen
 	end
 
 	for index, upgrade in Upgrades.List do
-		local frame = Kit.Panel({
+		local emoji, title = string.match(upgrade.Name, "^(%S+)%s+(.+)$")
+		local card = Kit.Panel({
 			Parent = scroll,
 			Name = upgrade.Id,
 			Size = UDim2.new(1, 0, 0, cardHeight),
-			Color = theme.Raised,
+			Color = cardColors[upgrade.Id] or theme.Green,
 			LayoutOrder = index,
+			Shards = true,
 		})
+		local iconTile = Kit.Panel({
+			Parent = card,
+			Name = "IconTile",
+			Position = UDim2.fromOffset(10, 10),
+			Size = UDim2.fromOffset(iconSize, iconSize),
+			Color = theme.Cell,
+			Transparency = 0.15,
+		})
+		Kit.Burst({
+			Parent = iconTile,
+			Diameter = iconSize - 8,
+		})
+		Kit.Icon({
+			Parent = iconTile,
+			Name = "Icon",
+			Emoji = emoji or "⌨️",
+			Size = UDim2.fromScale(0.8, 0.8),
+			Position = UDim2.fromScale(0.1, 0.1),
+		})
+		local textLeft = iconSize + 22
+		local textWidth = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 26)
 		Kit.Label({
-			Parent = frame,
+			Parent = card,
 			Name = "Name",
-			Text = upgrade.Name,
-			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -28, 0, 38),
-			TextSize = 30,
+			Text = title or upgrade.Name,
+			Position = UDim2.fromOffset(textLeft, 5),
+			Size = textWidth,
+			TextSize = 26,
 			Scaled = true,
 		})
 		Kit.Label({
-			Parent = frame,
-			Name = "Description",
-			Text = upgrade.Description,
-			Position = UDim2.fromOffset(14, 46),
-			Size = UDim2.new(1, -28, 0, 26),
-			TextSize = 20,
-			Color = theme.TextDim,
-			Scaled = true,
-			Outline = false,
-		})
-		local effectLabel = Kit.Label({
-			Parent = frame,
+			Parent = card,
 			Name = "Effect",
 			Text = upgrade.Effect,
-			Position = UDim2.fromOffset(14, 74),
-			Size = UDim2.new(1, -28, 0, 26),
-			TextSize = 22,
-			Color = theme.Gold,
+			Position = UDim2.fromOffset(textLeft, 32),
+			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 20),
+			TextSize = 17,
+			Color = Color3.fromRGB(255, 244, 170),
 			Scaled = true,
 		})
 		local previewLabel = Kit.Label({
-			Parent = frame,
+			Parent = card,
 			Name = "Preview",
 			Text = "",
-			Position = UDim2.fromOffset(14, 102),
-			Size = UDim2.new(1, -28, 0, 28),
-			TextSize = 24,
-			Color = theme.Good,
+			Position = UDim2.fromOffset(textLeft, 53),
+			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 22),
+			TextSize = 20,
 			Scaled = true,
 		})
-		local track = Instance.new("Frame")
-		track.Name = "Track"
-		track.BorderSizePixel = 0
-		track.Position = UDim2.fromOffset(14, 138)
-		track.Size = UDim2.new(1, -28, 0, 26)
-		Kit.Paint(track, theme.Deep)
-		Kit.Corner(track, 13)
-		Kit.Stroke(track, theme.Ink, 3)
-		track.Parent = frame
-		local fill = Instance.new("Frame")
-		fill.Name = "Fill"
-		fill.BorderSizePixel = 0
-		fill.Size = UDim2.fromScale(0, 1)
-		Kit.Paint(fill, theme.Good)
-		Kit.Corner(fill, 13)
-		fill.Parent = track
-		local barText = Kit.Label({
-			Parent = track,
+		local bar = Kit.Bar({
+			Parent = card,
 			Name = "Level",
+			Position = UDim2.fromOffset(textLeft, 77),
+			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 22),
+			Color = theme.Good,
 			Text = "Lv 0",
-			Size = UDim2.fromScale(1, 1),
-			TextSize = 18,
-			Align = Enum.TextXAlignment.Center,
-			Scaled = true,
+			TextSize = 16,
 		})
 		local row: Row = {
-			Frame = frame,
-			Bar = fill,
-			BarText = barText,
-			Effect = effectLabel,
+			Frame = card,
+			Bar = bar,
 			Preview = previewLabel,
 			Buy = nil :: any,
 			Upgrade = upgrade,
 			IsBusy = false,
 		}
 		row.Buy = Kit.Button(trove, {
-			Parent = frame,
+			Parent = card,
 			Name = "Buy",
-			Text = "💰",
-			Position = UDim2.new(0.5, 0, 1, -10),
-			AnchorPoint = Vector2.new(0.5, 1),
-			Size = UDim2.new(1, -28, 0, 46),
+			Text = "BUY",
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.new(0, buyWidth, 1, -20),
 			Color = theme.Green,
-			TextSize = 28,
+			TextSize = 26,
 			Callback = function()
 				buy(row)
 			end,
@@ -281,4 +282,4 @@ function Shop.new(context: Types.Context): Types.Screen
 	}
 end
 
-return Shop
+return UpgradesScreen

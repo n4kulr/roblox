@@ -10,8 +10,9 @@ local Types = require(script.Types)
 
 local modules: { [string]: Types.ScreenModule } = {
 	Hud = require(script.Screens.Hud),
-	Shop = require(script.Screens.Shop),
+	Upgrades = require(script.Screens.Upgrades),
 	Keys = require(script.Screens.Keys),
+	Index = require(script.Screens.Index),
 	Settings = require(script.Screens.Settings),
 }
 

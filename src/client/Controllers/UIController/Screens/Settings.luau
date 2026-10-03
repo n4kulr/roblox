@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
+local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
@@ -13,7 +14,8 @@ type SliderRow = {
 }
 
 local theme = Kit.Theme
-local rowHeight = 88
+local toggleHeight = 78
+local sliderHeight = 92
 local lowQualityMax = 3
 
 local volumes: { { Setting: string, Title: string } } = {
@@ -46,8 +48,10 @@ function Settings.new(context: Types.Context): Types.Screen
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Settings",
-		Title = "⚙️ SETTINGS",
-		MaxSize = Vector2.new(600, 560),
+		Title = "SETTINGS",
+		Icon = "⚙️",
+		IconAsset = UiAssets.Icons.Settings,
+		MaxSize = Vector2.new(620, 520),
 		HeaderColor = theme.Grey,
 		OnClose = function()
 			context.Close("Settings")
@@ -55,46 +59,48 @@ function Settings.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
-		Parent = modal.Panel,
+		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(12, 6),
-		Size = UDim2.new(1, -24, 1, -18),
-		Padding = 12,
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.new(1, -20, 1, -16),
+		Padding = 10,
 	})
 
 	local toggles: { [string]: Kit.Toggle } = {}
 	local sliderRows: { SliderRow } = {}
 	local order = 0
 
-	local function addToggle(setting: string, title: string, detail: string)
+	local function addRow(setting: string, height: number): Frame
 		order += 1
-		local row = Kit.Panel({
+		return Kit.Panel({
 			Parent = scroll,
 			Name = setting,
-			Size = UDim2.new(1, 0, 0, rowHeight),
-			Color = theme.Raised,
+			Size = UDim2.new(1, 0, 0, height),
+			Color = theme.Cell,
 			LayoutOrder = order,
 		})
+	end
+
+	local function addToggle(setting: string, title: string, detail: string)
+		local row = addRow(setting, toggleHeight)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
 			Text = title,
-			Position = UDim2.fromOffset(14, 12),
-			Size = UDim2.new(1, -140, 0, 32),
-			TextSize = 24,
+			Position = UDim2.fromOffset(14, 8),
+			Size = UDim2.new(1, -150, 0, 34),
+			TextSize = 26,
 			Scaled = true,
 		})
 		Kit.Label({
 			Parent = row,
 			Name = "Detail",
 			Text = detail,
-			Position = UDim2.fromOffset(14, 46),
-			Size = UDim2.new(1, -140, 0, 30),
+			Position = UDim2.fromOffset(14, 42),
+			Size = UDim2.new(1, -150, 0, 26),
 			TextSize = 17,
 			Color = theme.TextDim,
-			Outline = false,
-			Wrapped = true,
-			VerticalAlign = Enum.TextYAlignment.Top,
+			Scaled = true,
 		})
 		toggles[setting] = Kit.Toggle(trove, {
 			Parent = row,
@@ -110,21 +116,14 @@ function Settings.new(context: Types.Context): Types.Screen
 	end
 
 	local function addSlider(setting: string, title: string)
-		order += 1
-		local row = Kit.Panel({
-			Parent = scroll,
-			Name = setting,
-			Size = UDim2.new(1, 0, 0, rowHeight),
-			Color = theme.Raised,
-			LayoutOrder = order,
-		})
+		local row = addRow(setting, sliderHeight)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
 			Text = title,
 			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -110, 0, 32),
-			TextSize = 24,
+			Size = UDim2.new(1, -120, 0, 34),
+			TextSize = 26,
 			Scaled = true,
 		})
 		local percent = Kit.Label({
@@ -133,17 +132,18 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = "100%",
 			Position = UDim2.new(1, -14, 0, 8),
 			AnchorPoint = Vector2.new(1, 0),
-			Size = UDim2.fromOffset(80, 32),
-			TextSize = 22,
+			Size = UDim2.fromOffset(90, 34),
+			TextSize = 26,
 			Color = theme.Gold,
 			Align = Enum.TextXAlignment.Right,
 		})
 		local slider = Kit.Slider(trove, {
 			Parent = row,
 			Name = "Slider",
-			Position = UDim2.new(0, 0, 0, 38),
-			Size = UDim2.new(1, 0, 0, 46),
+			Position = UDim2.new(0, 0, 0, 40),
+			Size = UDim2.new(1, 0, 0, 48),
 			Value = 1,
+			Color = theme.Green,
 			OnChanged = function(value: number)
 				percent.Text = `{math.floor(value * 100 + 0.5)}%`
 			end,

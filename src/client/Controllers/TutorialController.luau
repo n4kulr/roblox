@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Kit = require(script.Parent.UIController.Kit)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -124,8 +125,8 @@ function TutorialController.Start(self: State)
 	label.TextColor3 = Keys.RarityByName.Legendary.Color
 	label.Text = ""
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(22, 18, 38)
-	stroke.Thickness = 3
+	stroke.Color = Kit.Theme.TextInk
+	stroke.Thickness = 3.5
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	stroke.Parent = label
 	label.Parent = gui

@@ -27,7 +27,7 @@ local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
 local releaseDelay = 0.07
-local cardSize = Vector2.new(300, 138)
+local cardSize = Vector2.new(440, 82)
 local cardBottomOffset = 124
 local goldColor = Color3.fromRGB(255, 210, 64)
 
@@ -82,8 +82,9 @@ type Card = {
 	Holder: Frame,
 	Group: CanvasGroup,
 	Scale: UIScale,
-	Tag: TextLabel,
 	Name: TextLabel,
+	NameStroke: UIStroke,
+	NameGradient: UIGradient,
 	Sub: TextLabel,
 	Info: TextLabel,
 }
@@ -94,16 +95,6 @@ local cardTweens: { Tween } = {}
 local cardThread: thread? = nil
 local cardRank = 0
 local cardHoldEnd = 0
-
-local function perkText(perk: Keys.Perk): string
-	local percent = string.format("%d%%", math.round(perk.Amount * 100))
-	if perk.Kind == "Luck" then
-		return `🍀 +{percent} Luck`
-	elseif perk.Kind == "Speed" then
-		return `⚡ +{percent} Speed`
-	end
-	return `💰 +{percent} Income`
-end
 
 local function buildCard(trove: TroveInstance, playerGui: PlayerGui)
 	local _gui, root = Kit.ScreenGui("RollCard", 3, playerGui, trove)
@@ -119,53 +110,70 @@ local function buildCard(trove: TroveInstance, playerGui: PlayerGui)
 	scale.Parent = holder
 	local group = Instance.new("CanvasGroup")
 	group.Name = "Group"
+	group.BackgroundTransparency = 1
 	group.BorderSizePixel = 0
 	group.Size = UDim2.fromScale(1, 1)
-	Kit.Paint(group, Kit.Theme.Panel)
-	Kit.Corner(group, 20)
-	Kit.Stroke(group, Kit.Theme.Ink, 6)
 	group.Parent = holder
-	local tag = Kit.Label({
-		Parent = group,
-		Name = "Tag",
-		Text = "⭐ GOLDEN ROLL!",
-		Position = UDim2.fromOffset(10, 6),
-		Size = UDim2.new(1, -20, 0, 24),
-		TextSize = 22,
-		Color = goldColor,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
-	})
 	local nameLabel = Kit.Label({
 		Parent = group,
 		Name = "KeyName",
-		Position = UDim2.fromOffset(10, 30),
-		Size = UDim2.new(1, -20, 0, 50),
-		TextSize = 40,
+		Size = UDim2.new(1, 0, 0, 50),
+		TextSize = 46,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
+	local nameStroke = nameLabel:FindFirstChild("TextStroke") :: UIStroke
+	nameStroke.Thickness = 3.5
+	local nameGradient = Instance.new("UIGradient")
+	nameGradient.Color = ColorSequence.new(Color3.fromRGB(255, 240, 150), Color3.fromRGB(255, 150, 20))
+	nameGradient.Rotation = 90
+	nameGradient.Enabled = false
+	nameGradient.Parent = nameStroke
+	local row = Instance.new("Frame")
+	row.Name = "Row"
+	row.BackgroundTransparency = 1
+	row.BorderSizePixel = 0
+	row.Position = UDim2.fromOffset(0, 52)
+	row.Size = UDim2.new(1, 0, 0, 26)
+	local rowList = Instance.new("UIListLayout")
+	rowList.FillDirection = Enum.FillDirection.Horizontal
+	rowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	rowList.VerticalAlignment = Enum.VerticalAlignment.Center
+	rowList.SortOrder = Enum.SortOrder.LayoutOrder
+	rowList.Padding = UDim.new(0, 16)
+	rowList.Parent = row
+	row.Parent = group
 	local sub = Kit.Label({
-		Parent = group,
+		Parent = row,
 		Name = "Sub",
-		Position = UDim2.fromOffset(10, 82),
-		Size = UDim2.new(1, -20, 0, 24),
-		TextSize = 22,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
+		Size = UDim2.fromOffset(0, 26),
+		TextSize = 24,
+		Align = Enum.TextXAlignment.Right,
+		LayoutOrder = 1,
 	})
+	sub.AutomaticSize = Enum.AutomaticSize.X
+	sub.TextTruncate = Enum.TextTruncate.None
 	local info = Kit.Label({
-		Parent = group,
+		Parent = row,
 		Name = "Info",
-		Position = UDim2.fromOffset(10, 108),
-		Size = UDim2.new(1, -20, 0, 22),
-		TextSize = 20,
-		Color = Kit.Theme.TextDim,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
+		Size = UDim2.fromOffset(0, 26),
+		TextSize = 24,
+		Color = Kit.Theme.Good,
+		Align = Enum.TextXAlignment.Left,
+		LayoutOrder = 2,
 	})
-	card =
-		{ Holder = holder, Group = group, Scale = scale, Tag = tag, Name = nameLabel, Sub = sub, Info = info }
+	info.AutomaticSize = Enum.AutomaticSize.X
+	info.TextTruncate = Enum.TextTruncate.None
+	card = {
+		Holder = holder,
+		Group = group,
+		Scale = scale,
+		Name = nameLabel,
+		NameStroke = nameStroke,
+		NameGradient = nameGradient,
+		Sub = sub,
+		Info = info,
+	}
 	local flashGui = Instance.new("ScreenGui")
 	flashGui.Name = "RollFlash"
 	flashGui.ResetOnSpawn = false
@@ -213,21 +221,13 @@ local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
 		hold += 0.5
 	end
 	cardHoldEnd = now + hold + 0.12
-	view.Tag.Visible = isGolden
-	view.Name.Text = key.Name
+	view.Name.Text = if isGolden then `⭐ {key.Name}` else key.Name
 	view.Name.TextColor3 = rarity.Color
+	view.NameGradient.Enabled = isGolden
+	view.NameStroke.Color = if isGolden then Color3.new(1, 1, 1) else Kit.Theme.TextInk
 	view.Sub.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
 	view.Sub.TextColor3 = rarity.Color
-	local info = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
-	if key.Perk then
-		info ..= `  {perkText(key.Perk)}`
-	end
-	view.Info.Text = info
-	Kit.Paint(view.Group, Kit.Theme.Deep:Lerp(rarity.Color, 0.35))
-	local stroke = view.Group:FindFirstChild("Stroke")
-	if stroke and stroke:IsA("UIStroke") then
-		stroke.Color = if isGolden then goldColor else Kit.Theme.Ink
-	end
+	view.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
 	local holder = view.Holder
 	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
 	view.Group.GroupTransparency = 0
@@ -593,6 +593,16 @@ end
 
 function RollController.IsAuto(_self: State): boolean
 	return isAuto
+end
+
+function RollController.TeleportToBase(_self: State): boolean
+	local base = if plot then plot:FindFirstChild("Base") else nil
+	local character = Players.LocalPlayer.Character
+	if not base or not base:IsA("BasePart") or not character then
+		return false
+	end
+	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + 3, 0))
+	return true
 end
 
 function RollController.Init(self: State, registry: { [string]: any })
