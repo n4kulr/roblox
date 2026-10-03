@@ -353,15 +353,10 @@ function World.new(
 			return Random.new(seed)
 		end,
 	}
-	self.workspace = {
-		GetServerTimeNow = function()
-			return self.now
-		end,
-		FindFirstChild = function()
-			return nil
-		end,
-		CurrentCamera = nil,
-	}
+	self.workspace = Tree.node("Workspace", "Workspace")
+	self.workspace.GetServerTimeNow = function()
+		return self.now
+	end
 	self.os = table.clone(os)
 	self.os.time = function(t: any)
 		if t ~= nil then

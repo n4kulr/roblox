@@ -19,6 +19,7 @@ local kinds: { [string]: Color3 } = {
 	Good = Kit.Theme.Green,
 	Bad = Kit.Theme.Red,
 	Info = Kit.Theme.Blue,
+	Gold = Kit.Theme.Gold,
 }
 
 function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, kind: string?) -> ()
