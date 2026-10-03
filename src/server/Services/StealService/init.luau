@@ -23,6 +23,7 @@ local config = GameConfig.Steal
 local stepSeconds = 0.2
 local playtimeSaveSeconds = 30
 local rejectedPhase = 9
+local victimLeftReason = "They left — the key went home!"
 
 local StealService = {
 	Name = "StealService",
@@ -161,6 +162,30 @@ local function failCarry(thief: Player)
 	local carrier = endCarry(thief)
 	if carrier then
 		returnToVictim(thief, carrier)
+	end
+end
+
+local function returnToDeparting(carrier: Types.Carrier, data: PlayerData.Data)
+	local slot = carrier.Slot
+	local current = data.Board[slot]
+	local isFree = slot >= 1
+		and slot <= Stats.Slots(data.Upgrades)
+		and (type(current) ~= "string" or Keys.ById[current] == nil)
+	if isFree then
+		data.Board[slot] = carrier.KeyId
+		data.BoardTags[slot] = ""
+	else
+		data.Inventory[carrier.KeyId] = (data.Inventory[carrier.KeyId] or 0) + 1
+	end
+end
+
+local function releaseCarriesOf(victim: Player, data: PlayerData.Data)
+	for thief, carrier in table.clone(carriers) do
+		if carrier.VictimUserId == victim.UserId and carriers[thief] == carrier then
+			endCarry(thief)
+			returnToDeparting(carrier, data)
+			alert(thief, victimLeftReason, 0, rejectedPhase)
+		end
 	end
 end
 
@@ -373,6 +398,7 @@ function StealService.Start(self: State)
 		syncPrompts(player)
 	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, data: PlayerData.Data)
+		releaseCarriesOf(player, data)
 		data.PlaySeconds += takePlaySeconds(player)
 		playClock[player] = nil
 		lastTag[player] = nil
@@ -411,7 +437,7 @@ end
 function StealService.Destroy(self: State)
 	Packets.TagThief.OnServerInvoke = nil
 	for thief in table.clone(carriers) do
-		endCarry(thief)
+		failCarry(thief)
 	end
 	for owner in table.clone(prompts) do
 		clearPrompts(owner)
