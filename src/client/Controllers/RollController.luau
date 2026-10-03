@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
+local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
@@ -30,6 +31,7 @@ local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
 local maxPopups = 6
+local lowMaxPopups = 2
 local pressRarity = Keys.Rarities[1]
 
 local RollController = {
@@ -50,6 +52,10 @@ local punching = false
 local popups: { Popup } = {}
 local popupGuis: Folder? = nil
 local destroyed = false
+local isLowGraphics = false
+local rollInterval = 1 / GameConfig.RollsPerSecond
+local board: any = {}
+local upgradeLevels: any = {}
 
 local function escapeRichText(text: string): string
 	local escaped = string.gsub(text, "&", "&amp;")
@@ -92,7 +98,7 @@ local function acquirePopup(): Popup?
 			return popup
 		end
 	end
-	if #popups < maxPopups then
+	if #popups < (if isLowGraphics then lowMaxPopups else maxPopups) then
 		local popup = createPopup()
 		table.insert(popups, popup)
 		return popup
@@ -140,7 +146,7 @@ end
 
 local function punchCamera()
 	local camera = workspace.CurrentCamera
-	if not camera or punching then
+	if not camera or punching or isLowGraphics then
 		return
 	end
 	punching = true
@@ -193,13 +199,15 @@ end
 
 local function buildUp(part: BasePart, rarity: Keys.Rarity)
 	local seconds = rarity.BuildUpSeconds
-	controllers.SoundController:PlaySwell(rarity, seconds)
+	controllers.SoundController:PlaySwell(rarity, seconds, "Roll")
 	local startedAt = os.clock()
 	local connection = RunService.RenderStepped:Connect(function()
 		local alpha = math.clamp((os.clock() - startedAt) / seconds, 0, 1)
 		local amplitude = 0.05 + 0.25 * alpha
-		part.CFrame = originCFrame
-			* CFrame.new((math.random() - 0.5) * amplitude * 2, 0, (math.random() - 0.5) * amplitude * 2)
+		if not isLowGraphics then
+			part.CFrame = originCFrame
+				* CFrame.new((math.random() - 0.5) * amplitude * 2, 0, (math.random() - 0.5) * amplitude * 2)
+		end
 		part.Color = originColor:Lerp(rarity.Color, alpha)
 	end)
 	buildingCount += 1
@@ -225,7 +233,7 @@ local function reveal(index: number)
 	if destroyed then
 		return
 	end
-	controllers.SoundController:PlayKey(rarity)
+	controllers.SoundController:PlayKey(rarity, 1, 1, nil, "Roll")
 	showPopup(key, rarity, part)
 	if rarity.Announce then
 		punchCamera()
@@ -238,7 +246,7 @@ local function press()
 		return
 	end
 	local now = os.clock()
-	if now - lastPress < 1 / GameConfig.RollsPerSecond then
+	if now - lastPress < rollInterval then
 		return
 	end
 	lastPress = now
@@ -249,7 +257,13 @@ local function press()
 	end
 	lastComboPress = now
 	squash()
-	controllers.SoundController:PlayKey(pressRarity, 1 + math.min(combo * comboStep, comboMax))
+	controllers.SoundController:PlayKey(
+		pressRarity,
+		1 + math.min(combo * comboStep, comboMax),
+		1,
+		nil,
+		"Roll"
+	)
 	task.spawn(function()
 		local index = Packets.Roll:Fire()
 		if type(index) == "number" and index > 0 and not destroyed then
@@ -345,6 +359,11 @@ local function watchPlots(folder: Instance, trove: TroveInstance)
 	refreshPlot(folder)
 end
 
+local function updateRollInterval()
+	local stats = Stats.Compute(board, upgradeLevels)
+	rollInterval = 1 / math.max(stats.RollsPerSecond, 0.1)
+end
+
 local function onRareRoll(playerName: string, index: number)
 	if playerName == Players.LocalPlayer.DisplayName then
 		return
@@ -363,7 +382,7 @@ local function onRareRoll(playerName: string, index: number)
 			)})!`
 		)
 	end
-	controllers.SoundController:PlayKey(rarity, 1, 0.4)
+	controllers.SoundController:PlayKey(rarity, 1, 0.4, nil, "Other")
 end
 
 function RollController.Init(self: State, registry: { [string]: any })
@@ -373,6 +392,17 @@ end
 
 function RollController.Start(self: State)
 	local trove = self._trove :: TroveInstance
+	trove:Add(controllers.DataController:Observe({ "Board" }, function(value: any)
+		board = if type(value) == "table" then value else {}
+		updateRollInterval()
+	end))
+	trove:Add(controllers.DataController:Observe({ "Upgrades" }, function(value: any)
+		upgradeLevels = if type(value) == "table" then value else {}
+		updateRollInterval()
+	end))
+	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
+		isLowGraphics = value == true
+	end))
 	local guis = Instance.new("Folder")
 	guis.Name = "RollPopups"
 	guis.Parent = workspace
@@ -399,6 +429,7 @@ end
 
 function RollController.Destroy(self: State)
 	destroyed = true
+	isLowGraphics = false
 	plot = nil
 	rollKey = nil
 	popupGuis = nil

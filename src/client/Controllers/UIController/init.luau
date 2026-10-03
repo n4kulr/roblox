@@ -2,22 +2,33 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local Types = require(script.Types)
 
 local modules: { [string]: Types.ScreenModule } = {
 	Hud = require(script.Screens.Hud),
+	Shop = require(script.Screens.Shop),
+	Keys = require(script.Screens.Keys),
+	Settings = require(script.Screens.Settings),
 }
+
+local legacyGuiName = "Hud"
+
+type TroveInstance = typeof(Trove.new())
 
 local UIController = { Name = "UIController" }
 local registry: { [string]: any } = {}
 local screens: { [string]: Types.Screen } = {}
 local opened: { [string]: boolean } = {}
 local pending: { any } = {}
+local trove: TroveInstance? = nil
 local destroyed = false
 
 function UIController.Init(_self: any, controllers: { [string]: any })
 	registry = controllers
+	trove = Trove.new()
 end
 
 function UIController.Open(_self: any, name: string)
@@ -49,46 +60,66 @@ function UIController.IsOpen(_self: any, name: string): boolean
 	return opened[name] == true
 end
 
-function UIController.Start(_self: any)
+local function closeModals()
+	for name in opened do
+		if screens[name].Modal then
+			UIController:Close(name)
+		end
+	end
+end
+
+local function createScreens(playerGui: PlayerGui)
+	local legacy = playerGui:FindFirstChild(legacyGuiName)
+	if legacy and legacy:IsA("ScreenGui") then
+		legacy.Enabled = false
+	end
 	local context: Types.Context = {
 		Controllers = registry,
+		PlayerGui = playerGui,
 		Open = function(name: string)
 			UIController:Open(name)
 		end,
 		Close = function(name: string)
 			UIController:Close(name)
 		end,
+		IsOpen = function(name: string): boolean
+			return UIController:IsOpen(name)
+		end,
 	}
 	for name, module in modules do
-		local promise = WaitFor.Child(Players.LocalPlayer, "PlayerGui", 15)
-			:andThen(function(playerGui: Instance)
-				return WaitFor.Child(playerGui, name, 15)
-			end)
-			:andThen(function(gui: Instance)
-				if destroyed then
-					return
-				end
-				if not gui:IsA("ScreenGui") then
-					error(`{gui:GetFullName()} is a {gui.ClassName}, not a ScreenGui`)
-				end
-				gui.ResetOnSpawn = false
-				local screen = module.new(context, gui)
-				screens[name] = screen
-				if screen.StartsOpen then
-					UIController:Open(name)
-				else
-					screen:Close()
-				end
-			end)
-			:catch(function(problem: any)
-				warn(
-					`[UIController] {name} screen disabled; needs a ScreenGui at PlayerGui.{name}: {tostring(
-						problem
-					)}`
-				)
-			end)
-		table.insert(pending, promise)
+		local created, result = pcall(module.new, context)
+		if created then
+			local screen = result :: Types.Screen
+			screens[name] = screen
+			if screen.StartsOpen then
+				UIController:Open(name)
+			else
+				screen:Close()
+			end
+		else
+			warn(`[UIController] {name} screen failed: {tostring(result)}`)
+		end
 	end
+end
+
+function UIController.Start(_self: any)
+	local own = trove :: TroveInstance
+	own:Connect(UserInputService.InputBegan, function(input: InputObject)
+		if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.ButtonB then
+			closeModals()
+		end
+	end)
+	local promise = WaitFor.Child(Players.LocalPlayer, "PlayerGui", 15)
+		:andThen(function(playerGui: Instance)
+			if destroyed or not playerGui:IsA("PlayerGui") then
+				return
+			end
+			createScreens(playerGui)
+		end)
+		:catch(function(problem: any)
+			warn(`[UIController] PlayerGui not found: {tostring(problem)}`)
+		end)
+	table.insert(pending, promise)
 end
 
 function UIController.Destroy(_self: any)
@@ -102,6 +133,10 @@ function UIController.Destroy(_self: any)
 	end
 	table.clear(screens)
 	table.clear(opened)
+	if trove then
+		trove:Destroy()
+		trove = nil
+	end
 end
 
 return UIController
