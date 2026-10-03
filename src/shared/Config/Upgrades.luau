@@ -15,8 +15,8 @@ export type Upgrade = {
 local list: { Upgrade } = {
 	{
 		Id = "Luck",
-		Name = "Luck",
-		Description = "+10% luck per level",
+		Name = "🍀 Lucky Charm",
+		Description = "Find rarer keys more often!",
 		MaxLevel = 20,
 		BaseCost = 100,
 		Growth = 1.6,
@@ -24,17 +24,17 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "Speed",
-		Name = "Roll Speed",
-		Description = "+0.3 rolls per second per level",
+		Name = "⚡ Fast Fingers",
+		Description = "Roll keys even faster!",
 		MaxLevel = 10,
 		BaseCost = 250,
 		Growth = 1.75,
-		PerLevel = 0.3,
+		PerLevel = 0.5,
 	},
 	{
 		Id = "Slots",
-		Name = "Keyboard Slots",
-		Description = "+2 keyboard slots per level",
+		Name = "⌨️ Bigger Keyboard",
+		Description = "Hold more keys and earn more Clicks!",
 		MaxLevel = 10,
 		BaseCost = 500,
 		Growth = 2.2,

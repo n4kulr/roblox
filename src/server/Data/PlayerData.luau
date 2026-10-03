@@ -9,6 +9,7 @@ export type Data = {
 	IncomeAt: number,
 	Board: { string },
 	Inventory: { [string]: number },
+	Discovered: { [string]: number },
 	Rolls: number,
 	Upgrades: { Luck: number, Speed: number, Slots: number },
 	Settings: {
@@ -39,6 +40,7 @@ PlayerData.Template = {
 	IncomeAt = 0,
 	Board = emptyBoard(),
 	Inventory = {},
+	Discovered = {},
 	Rolls = 0,
 	Upgrades = { Luck = 0, Speed = 0, Slots = 0 },
 	Settings = {
@@ -95,6 +97,16 @@ function PlayerData.Validate(data: any): boolean
 			return false
 		end
 		for keyId, count in data.Inventory do
+			if type(keyId) ~= "string" or not natural(count) then
+				return false
+			end
+		end
+	end
+	if data.Discovered ~= nil then
+		if type(data.Discovered) ~= "table" then
+			return false
+		end
+		for keyId, count in data.Discovered do
 			if type(keyId) ~= "string" or not natural(count) then
 				return false
 			end
