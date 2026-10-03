@@ -82,6 +82,9 @@ local function findPart(model: Model, name: string): BasePart?
 	return if child and child:IsA("BasePart") then child else nil
 end
 
+local emptyCapColor = Color3.fromRGB(40, 41, 48)
+local emptyCapTransparency = 0.6
+
 local function createCaps(info: PlotInfo, trove: TroveInstance)
 	local existing = info.Model:FindFirstChild("Keys")
 	if existing then
@@ -104,7 +107,10 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 		cap.CanQuery = false
 		cap.CanTouch = false
 		cap.Size = Vector3.new(cellWidth * 0.8, 1, cellDepth * 0.8)
-		cap.Transparency = 1
+		cap.Color = emptyCapColor
+		cap.Material = Enum.Material.SmoothPlastic
+		cap.Transparency = emptyCapTransparency
+		cap:SetAttribute("Slot", slot)
 		cap.CFrame = info.Board.CFrame
 			* CFrame.new(
 				-size.X / 2 + cellWidth * (column + 0.5),
@@ -114,6 +120,15 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 		cap.Parent = folder
 		info.Caps[slot] = cap
 	end
+	local walkway = Instance.new("Part")
+	walkway.Name = "Walkway"
+	walkway.Anchored = true
+	walkway.CanCollide = true
+	walkway.CanTouch = false
+	walkway.Transparency = 1
+	walkway.Size = Vector3.new(size.X, 0.2, size.Z)
+	walkway.CFrame = info.Board.CFrame * CFrame.new(0, size.Y / 2 + 1 - 0.1, 0)
+	walkway.Parent = folder
 	folder.Parent = info.Model
 	trove:Add(folder)
 end

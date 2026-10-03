@@ -1,9 +1,21 @@
 --!strict
 
-export type SoundSettings = {
+export type SoundLayer = {
 	SoundId: string,
 	PlaybackSpeed: number,
 	Volume: number,
+	Delay: number?,
+}
+
+export type Tone = {
+	LowGain: number,
+	MidGain: number,
+	HighGain: number,
+}
+
+export type SoundSettings = {
+	Layers: { SoundLayer },
+	Tone: Tone,
 }
 
 export type Rarity = {
@@ -24,8 +36,23 @@ export type Key = {
 	Index: number,
 }
 
-local clickSound = "rbxasset://sounds/clickfast.wav"
-local chimeSound = "rbxasset://sounds/electronicpingshort.wav"
+local soundAssets = {
+	Thock = "rbxasset://sounds/clickfast.wav",
+	Thud = "rbxasset://sounds/clickfast.wav",
+	Chime = "rbxasset://sounds/electronicpingshort.wav",
+	Sparkle = "rbxasset://sounds/electronicpingshort.wav",
+}
+
+local function layer(soundId: string, speed: number, volume: number, delay: number?): SoundLayer
+	return table.freeze({ SoundId = soundId, PlaybackSpeed = speed, Volume = volume, Delay = delay })
+end
+
+local function sound(layers: { SoundLayer }, low: number, mid: number, high: number): SoundSettings
+	return table.freeze({
+		Layers = table.freeze(layers),
+		Tone = table.freeze({ LowGain = low, MidGain = mid, HighGain = high }),
+	})
+end
 
 local rarities: { Rarity } = {
 	{
@@ -36,7 +63,7 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = { SoundId = clickSound, PlaybackSpeed = 1.0, Volume = 0.5 },
+		Sound = sound({ layer(soundAssets.Thock, 0.6, 0.65) }, 6, -3, -26),
 	},
 	{
 		Name = "Uncommon",
@@ -46,7 +73,10 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = { SoundId = clickSound, PlaybackSpeed = 1.15, Volume = 0.55 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.58, 0.65),
+			layer(soundAssets.Thud, 0.4, 0.3),
+		}, 7, -2, -24),
 	},
 	{
 		Name = "Rare",
@@ -56,7 +86,10 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = { SoundId = clickSound, PlaybackSpeed = 0.75, Volume = 0.7 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.52, 0.7),
+			layer(soundAssets.Thud, 0.36, 0.45, 0.005),
+		}, 8, -2, -18),
 	},
 	{
 		Name = "Epic",
@@ -66,7 +99,11 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 0.6,
 		Announce = false,
-		Sound = { SoundId = chimeSound, PlaybackSpeed = 1.0, Volume = 0.8 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.52, 0.7),
+			layer(soundAssets.Thud, 0.36, 0.45, 0.005),
+			layer(soundAssets.Chime, 1.3, 0.3, 0.015),
+		}, 7, 0, -8),
 	},
 	{
 		Name = "Legendary",
@@ -76,7 +113,12 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.0,
 		Announce = true,
-		Sound = { SoundId = chimeSound, PlaybackSpeed = 1.2, Volume = 0.9 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.5, 0.75),
+			layer(soundAssets.Thud, 0.34, 0.5, 0.005),
+			layer(soundAssets.Chime, 1.4, 0.4, 0.015),
+			layer(soundAssets.Sparkle, 1.9, 0.25, 0.07),
+		}, 6, 0, -3),
 	},
 	{
 		Name = "Mythic",
@@ -86,7 +128,13 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
-		Sound = { SoundId = chimeSound, PlaybackSpeed = 1.45, Volume = 1 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.48, 0.8),
+			layer(soundAssets.Thud, 0.32, 0.55, 0.005),
+			layer(soundAssets.Chime, 1.5, 0.45, 0.015),
+			layer(soundAssets.Sparkle, 2.0, 0.3, 0.07),
+			layer(soundAssets.Chime, 2.1, 0.25, 0.14),
+		}, 6, 1, 0),
 	},
 	{
 		Name = "Secret",
@@ -96,7 +144,14 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
-		Sound = { SoundId = chimeSound, PlaybackSpeed = 1.75, Volume = 1 },
+		Sound = sound({
+			layer(soundAssets.Thock, 0.45, 0.85),
+			layer(soundAssets.Thud, 0.3, 0.6, 0.005),
+			layer(soundAssets.Chime, 1.6, 0.5, 0.015),
+			layer(soundAssets.Sparkle, 2.2, 0.35, 0.07),
+			layer(soundAssets.Chime, 2.4, 0.3, 0.14),
+			layer(soundAssets.Sparkle, 2.8, 0.25, 0.22),
+		}, 6, 2, 2),
 	},
 }
 
@@ -118,7 +173,6 @@ local definitions: { { string } } = {
 
 local rarityByName: { [string]: Rarity } = {}
 for _, rarity in rarities do
-	table.freeze(rarity.Sound)
 	table.freeze(rarity)
 	rarityByName[rarity.Name] = rarity
 end
@@ -147,6 +201,7 @@ for _, group in byRarity do
 end
 
 local Keys = {
+	SoundAssets = table.freeze(soundAssets),
 	Rarities = table.freeze(rarities),
 	RarityByName = table.freeze(rarityByName),
 	Catalog = table.freeze(catalog),

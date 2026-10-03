@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
@@ -11,28 +12,51 @@ type State = {
 	_trove: TroveInstance?,
 }
 
-local stepSeconds = 0.5
-local ambientVolume = 0.15
-
 local KeyboardController = {
 	Name = "KeyboardController",
 	_trove = nil :: TroveInstance?,
 }
 local controllers: { [string]: any } = {}
 local board: { string } = {}
-local cursor = 0
+local hasBoard = false
 
-local function step()
-	local slots = GameConfig.BoardSlots
-	for offset = 1, slots do
-		local slot = (cursor + offset - 1) % slots + 1
+local function findCap(slot: number): BasePart?
+	local folder = workspace:FindFirstChild("Plots")
+	if not folder then
+		return nil
+	end
+	for _, model in folder:GetChildren() do
+		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
+			local keysFolder = model:FindFirstChild("Keys")
+			local cap = if keysFolder then keysFolder:FindFirstChild(`Slot{slot}`) else nil
+			return if cap and cap:IsA("BasePart") then cap else nil
+		end
+	end
+	return nil
+end
+
+local function onBoardChanged(value: any)
+	local previous = board
+	local current: { string } = {}
+	if type(value) == "table" then
+		for slot = 1, GameConfig.BoardSlots do
+			local keyId = value[slot]
+			if type(keyId) == "string" then
+				current[slot] = keyId
+			end
+		end
+	end
+	board = current
+	if not hasBoard then
+		hasBoard = true
+		return
+	end
+	for slot = 1, GameConfig.BoardSlots do
 		local keyId = board[slot]
 		local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
-		if key then
-			cursor = slot
-			local sound = Keys.GetRarity(key).Sound
-			controllers.SoundController:Play(sound, 1, ambientVolume / sound.Volume)
-			return
+		if key and previous[slot] ~= keyId then
+			local cap = findCap(slot)
+			controllers.SoundController:PlayKey(Keys.GetRarity(key), 1, 1, if cap then cap.Position else nil)
 		end
 	end
 end
@@ -44,19 +68,12 @@ end
 
 function KeyboardController.Start(self: State)
 	local trove = self._trove :: TroveInstance
-	trove:Add(controllers.DataController:Observe({ "Board" }, function(value: any)
-		board = if type(value) == "table" then value else {}
-	end))
-	trove:Add(task.spawn(function()
-		while true do
-			task.wait(stepSeconds)
-			step()
-		end
-	end))
+	trove:Add(controllers.DataController:Observe({ "Board" }, onBoardChanged))
 end
 
 function KeyboardController.Destroy(self: State)
 	table.clear(board)
+	hasBoard = false
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

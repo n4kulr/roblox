@@ -27,10 +27,10 @@ type State = {
 }
 
 local comboWindow = 0.6
-local comboStep = 0.04
-local comboMax = 0.5
+local comboStep = 0.03
+local comboMax = 0.3
 local maxPopups = 6
-local pressSound = Keys.Rarities[1].Sound
+local pressRarity = Keys.Rarities[1]
 
 local RollController = {
 	Name = "RollController",
@@ -193,7 +193,7 @@ end
 
 local function buildUp(part: BasePart, rarity: Keys.Rarity)
 	local seconds = rarity.BuildUpSeconds
-	controllers.SoundController:PlaySwell(rarity.Sound, seconds)
+	controllers.SoundController:PlaySwell(rarity, seconds)
 	local startedAt = os.clock()
 	local connection = RunService.RenderStepped:Connect(function()
 		local alpha = math.clamp((os.clock() - startedAt) / seconds, 0, 1)
@@ -225,7 +225,7 @@ local function reveal(index: number)
 	if destroyed then
 		return
 	end
-	controllers.SoundController:Play(rarity.Sound)
+	controllers.SoundController:PlayKey(rarity)
 	showPopup(key, rarity, part)
 	if rarity.Announce then
 		punchCamera()
@@ -249,7 +249,7 @@ local function press()
 	end
 	lastComboPress = now
 	squash()
-	controllers.SoundController:Play(pressSound, 1 + math.min(combo * comboStep, comboMax))
+	controllers.SoundController:PlayKey(pressRarity, 1 + math.min(combo * comboStep, comboMax))
 	task.spawn(function()
 		local index = Packets.Roll:Fire()
 		if type(index) == "number" and index > 0 and not destroyed then
@@ -363,7 +363,7 @@ local function onRareRoll(playerName: string, index: number)
 			)})!`
 		)
 	end
-	controllers.SoundController:Play(rarity.Sound, 1, 0.4)
+	controllers.SoundController:PlayKey(rarity, 1, 0.4)
 end
 
 function RollController.Init(self: State, registry: { [string]: any })
