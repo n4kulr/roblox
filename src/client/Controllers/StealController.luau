@@ -18,7 +18,6 @@ type State = {
 
 local config = GameConfig.Steal
 local promptName = "StealPrompt"
-local lockPromptName = "LockPrompt"
 local tagButtonOffset = -124
 local beamColor = Color3.fromRGB(255, 96, 96)
 
@@ -57,23 +56,6 @@ local function hideOwnPrompt(instance: Instance)
 			instance.Enabled = false
 		end
 	end
-end
-
-local function watchLockPrompt(trove: TroveInstance, instance: Instance)
-	if not instance:IsA("ProximityPrompt") or instance.Name ~= lockPromptName then
-		return
-	end
-	local function apply()
-		local isOwner = instance:GetAttribute("OwnerUserId") == Players.LocalPlayer.UserId
-		local wanted = isOwner and instance:GetAttribute("Ready") == true
-		if instance.Enabled ~= wanted then
-			instance.Enabled = wanted
-		end
-	end
-	trove:Connect(instance:GetPropertyChangedSignal("Enabled"), apply)
-	trove:Connect(instance:GetAttributeChangedSignal("OwnerUserId"), apply)
-	trove:Connect(instance:GetAttributeChangedSignal("Ready"), apply)
-	apply()
 end
 
 local function playAlarm(index: number)
@@ -293,7 +275,6 @@ function StealController.Start(self: State)
 	trove:Add(Packets.StealFeed.OnClientEvent:Connect(onFeed))
 	local function onPrompt(instance: Instance)
 		hideOwnPrompt(instance)
-		watchLockPrompt(trove, instance)
 	end
 	for _, descendant in workspace:GetDescendants() do
 		onPrompt(descendant)

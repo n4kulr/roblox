@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
@@ -43,6 +44,13 @@ local sections: { { Category: Upgrades.Category, Caption: string } } = {
 }
 local sectionStride = 1000
 local captionHeight = 26
+local lockRefreshSeconds = 0.25
+local lockCardHeight = 96
+local lockButtonWidth = 190
+local lockCardOrder = 900
+local lockReadyText = "LOCK BASE"
+local lockToast = "🔴 Lasers on! Your base is locked."
+local greyColor = Color3.fromRGB(120, 124, 134)
 
 local UpgradesScreen = {}
 
@@ -299,8 +307,121 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		table.insert(rows, row)
 	end
 
+	local lockButton: Kit.Button
+	local lockCard: Frame
+	local lockDescription: TextLabel
+	local isLockBusy = false
+
+	local function ownPlot(): Model?
+		local plots = workspace:FindFirstChild("Plots")
+		if not plots then
+			return nil
+		end
+		local userId = Players.LocalPlayer.UserId
+		for _, child in plots:GetChildren() do
+			if child:IsA("Model") and child:GetAttribute("Owner") == userId then
+				return child
+			end
+		end
+		return nil
+	end
+
+	local function clock(seconds: number): string
+		local whole = math.max(0, math.ceil(seconds))
+		return string.format("%d:%02d", whole // 60, whole % 60)
+	end
+
+	local function refreshLock()
+		local upgrade = Upgrades.ById.LockTime
+		local seconds = GameConfig.Defense.LockBaseSeconds + tracker.GetLevel("LockTime") * upgrade.PerLevel
+		lockDescription.Text = `Lasers zap thieves for {seconds}s`
+		local plot = ownPlot()
+		local now = workspace:GetServerTimeNow()
+		local lockedUntil = if plot then plot:GetAttribute("LockedUntil") else nil
+		local cooldownUntil = if plot then plot:GetAttribute("LockCooldownUntil") else nil
+		if type(lockedUntil) == "number" and now < lockedUntil then
+			lockButton.SetText(`LOCKED {clock(lockedUntil - now)}`)
+			lockButton.SetColor(theme.Green)
+			lockButton.SetDisabled(true)
+		elseif type(cooldownUntil) == "number" and now < cooldownUntil then
+			lockButton.SetText(`READY IN {clock(cooldownUntil - now)}`)
+			lockButton.SetColor(greyColor)
+			lockButton.SetDisabled(true)
+		else
+			lockButton.SetText(lockReadyText)
+			lockButton.SetColor(theme.Red)
+			lockButton.SetDisabled(plot == nil)
+		end
+	end
+
+	local function pressLock()
+		if isLockBusy then
+			return
+		end
+		isLockBusy = true
+		task.spawn(function()
+			local success = Packets.LockBase:Fire()
+			isLockBusy = false
+			if success == true then
+				playUi("Confirm")
+				Kit.Pulse(lockCard, theme.Good)
+				context.Toast(lockToast, "Good")
+			else
+				playUi("Error")
+				Kit.Shake(lockCard)
+			end
+			refreshLock()
+		end)
+	end
+
+	local function addLockCard(order: number)
+		lockCard = Kit.Panel({
+			Parent = scroll,
+			Name = "LockBase",
+			Size = UDim2.new(1, 0, 0, lockCardHeight),
+			Color = theme.Red,
+			LayoutOrder = order,
+			Shards = true,
+		})
+		local textWidth = UDim2.new(1, -(lockButtonWidth + 42), 0, 30)
+		Kit.Label({
+			Parent = lockCard,
+			Name = "Name",
+			Text = "🔴 LOCK BASE",
+			Position = UDim2.fromOffset(16, 12),
+			Size = textWidth,
+			TextSize = 28,
+			Scaled = true,
+		})
+		lockDescription = Kit.Label({
+			Parent = lockCard,
+			Name = "Description",
+			Text = "",
+			Position = UDim2.fromOffset(16, 50),
+			Size = UDim2.new(1, -(lockButtonWidth + 42), 0, 28),
+			TextSize = 20,
+			Color = Color3.fromRGB(255, 244, 170),
+			Scaled = true,
+		})
+		lockButton = Kit.Button(trove, {
+			Parent = lockCard,
+			Name = "Lock",
+			Text = lockReadyText,
+			Position = UDim2.new(1, -10, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.new(0, lockButtonWidth, 1, -20),
+			Color = theme.Red,
+			TextSize = 28,
+			Callback = pressLock,
+			Sound = playUi,
+		})
+	end
+
 	for sectionIndex, section in sections do
 		addCaption(section.Caption, sectionIndex * sectionStride)
+		if section.Category == "Defense" then
+			addLockCard(sectionIndex * sectionStride + lockCardOrder)
+		end
 		for index, upgrade in Upgrades.List do
 			if upgrade.Category == section.Category then
 				addCard(upgrade, sectionIndex * sectionStride + index)
@@ -308,15 +429,23 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
+	refreshLock()
+
 	local elapsed = 0
+	local lockElapsed = 0
 	trove:Connect(RunService.Heartbeat, function(dt: number)
 		if not isOpen then
 			return
 		end
 		elapsed += dt
+		lockElapsed += dt
 		if elapsed >= refreshSeconds then
 			elapsed = 0
 			refreshAll()
+		end
+		if lockElapsed >= lockRefreshSeconds then
+			lockElapsed = 0
+			refreshLock()
 		end
 	end)
 
@@ -326,6 +455,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Open = function(_self: Types.Screen)
 			isOpen = true
 			refreshAll()
+			refreshLock()
 			modal.Show()
 		end,
 		Close = function(_self: Types.Screen)

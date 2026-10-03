@@ -41,7 +41,6 @@ local zapMessage = "🔴 The lasers zapped you!"
 local zapToastSeconds = 1.5
 local lastZap: { [Player]: number } = {}
 local hasWarnedSlots = false
-local activateLock: (info: PlotInfo, player: Player) -> boolean
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
@@ -248,7 +247,6 @@ local function applyOwner(info: PlotInfo, owner: Player?)
 	local state = info.Defense
 	if state then
 		Lock.Reset(state)
-		state.Prompt:SetAttribute("OwnerUserId", if owner then owner.UserId else nil)
 	end
 	presentLock(info)
 end
@@ -262,7 +260,7 @@ local function refreshWalls(info: PlotInfo, data: PlayerData.Data?)
 	if info.Walls and info.WallLevel == level then
 		return
 	end
-	Walls.Build(info, level)
+	Walls.Apply(info, level)
 	local state = info.Defense
 	if state and state.IsActive then
 		Lock.ShowLasers(info, state)
@@ -353,6 +351,8 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Walkway = nil,
 				Sign = nil,
 				Walls = nil,
+				WallParts = {},
+				WallsAuthored = false,
 				WallLevel = 0,
 				Defense = nil,
 			}
@@ -364,9 +364,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 			info.Layout = FloorGrid.ForPlot(base, info.RollKey, board)
 			createCaps(info, trove)
 			Walls.Build(info, 0)
-			info.Defense = Lock.Build(info, trove, function(player: Player)
-				activateLock(info, player)
-			end)
+			info.Defense = Lock.Build()
 			presentLock(info)
 			info.Sign = OwnerSign.new(model, base, trove)
 			table.insert(plots, info)
@@ -378,7 +376,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 	end
 end
 
-function activateLock(info: PlotInfo, player: Player): boolean
+local function activateLock(info: PlotInfo, player: Player): boolean
 	local state = info.Defense
 	if not state or info.Owner ~= player then
 		return false
@@ -463,6 +461,10 @@ end
 
 function PlotService.Start(self: State)
 	local trove = self._trove :: TroveInstance
+	Packets.LockBase.OnServerInvoke = function(player: Player)
+		local info = plotByPlayer[player]
+		return info ~= nil and activateLock(info, player)
+	end
 	local isReady = false
 	local waiting: { Player } = {}
 	services.DataService.PlayerLoaded:Connect(function(player: Player, data: PlayerData.Data)
@@ -562,6 +564,7 @@ function PlotService.GetWallHeight(_self: State, player: Player): number?
 end
 
 function PlotService.Destroy(self: State)
+	Packets.LockBase.OnServerInvoke = nil
 	if buildThread and coroutine.status(buildThread) == "suspended" then
 		task.cancel(buildThread)
 	end

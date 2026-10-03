@@ -5,8 +5,6 @@ local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local OwnerSign = require(script.Parent.Parent.Parent.Utils.OwnerSign)
 
 export type Defense = {
-	Pad: BasePart,
-	Prompt: ProximityPrompt,
 	IsActive: boolean,
 	LockedUntil: number,
 	CooldownUntil: number,
@@ -30,6 +28,8 @@ export type PlotInfo = {
 	Walkway: BasePart?,
 	Sign: OwnerSign.Display?,
 	Walls: Folder?,
+	WallParts: { [string]: BasePart },
+	WallsAuthored: boolean,
 	WallLevel: number,
 	Defense: Defense?,
 }

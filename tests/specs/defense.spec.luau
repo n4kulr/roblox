@@ -57,12 +57,8 @@ describe("Base defense", function()
 		return plot.Base.CFrame:ToObjectSpace(part.CFrame).Position
 	end
 
-	local function padOf(plot: any): any
-		return plot.LockPad
-	end
-
-	local function triggerLock(plot: any, player: any)
-		padOf(plot).LockPrompt.Triggered:Fire(player)
+	local function triggerLock(_plot: any, player: any): any
+		return world:invoke("LockBase", player)
 	end
 
 	local function lasersOf(plot: any): { any }
@@ -170,41 +166,255 @@ describe("Base defense", function()
 		end)
 	end)
 
-	describe("lock pad", function()
-		it("sits inside the base near the roll key with a Lock Base prompt", function()
-			local player = join("Owner")
-			local plot = registry.PlotService:GetPlot(player)
-			local pad = padOf(plot)
-			local position = localPosition(plot, pad)
-			expect(math.abs(position.X) < 22 and math.abs(position.Z) < 22):toBe(true)
-			local rollKey = localPosition(plot, plot.RollKey)
-			expect((Vector3.new(position.X, 0, position.Z) - Vector3.new(rollKey.X, 0, rollKey.Z)).Magnitude < 12):toBe(
-				true
-			)
-			expect(pad.Color):toBe(roblox.Color3.fromRGB(255, 56, 70))
-			expect(pad.Material == roblox.Enum.Material.Neon):toBe(true)
-			local prompt = pad.LockPrompt
-			expect(prompt.ActionText):toBe("Lock Base")
-			expect(prompt.HoldDuration):toBe(0)
-			expect(prompt.MaxActivationDistance):toBe(defense.PadRange)
-			expect(prompt:GetAttribute("OwnerUserId")):toBe(player.UserId)
-			expect(prompt:GetAttribute("Ready")):toBe(true)
+	describe("lock base button", function()
+		local function hasPad(plot: any): boolean
+			for _, descendant in plot:GetDescendants() do
+				if descendant.Name == "LockPad" or descendant.Name == "LockPrompt" then
+					return true
+				end
+			end
+			return false
+		end
+
+		it("has no lock pad or prompt in any plot", function()
+			for _, plot in plots:GetChildren() do
+				expect(hasPad(plot)):toBe(false)
+			end
+			local owner = join("Owner")
+			expect(hasPad(registry.PlotService:GetPlot(owner))):toBe(false)
 		end)
 
-		it("has no owner attribute on an empty plot", function()
-			expect(padOf(plots.Plot3).LockPrompt:GetAttribute("OwnerUserId")):toBeNil()
-			expect(padOf(plots.Plot3).LockPrompt:GetAttribute("Ready")):toBe(false)
+		it("locks the caller's own base through the LockBase packet", function()
+			local owner = join("Owner")
+			local other = join("Other")
+			local plot = registry.PlotService:GetPlot(owner)
+			expect(world:invoke("LockBase", owner)):toBe(true)
+			expect(registry.PlotService:IsLocked(owner)):toBe(true)
+			expect(registry.PlotService:IsLocked(other)):toBe(false)
+			expect(plot:GetAttribute("LockedUntil")):toBe(world.now + defense.LockBaseSeconds)
+			expect(#lasersOf(plot) >= 3):toBe(true)
+		end)
+
+		it("never locks someone else's base", function()
+			local owner = join("Owner")
+			local other = join("Other")
+			expect(world:invoke("LockBase", other)):toBe(true)
+			expect(registry.PlotService:IsLocked(other)):toBe(true)
+			expect(registry.PlotService:IsLocked(owner)):toBe(false)
+			expect(registry.PlotService:GetPlot(owner):GetAttribute("LockedUntil")):toBeNil()
+		end)
+
+		it("fails without a plot", function()
+			local owner = join("Owner")
+			world:removePlayer(owner)
+			expect(world:invoke("LockBase", owner)):toBe(false)
+		end)
+
+		it("fails while locked and during the cooldown", function()
+			local owner = join("Owner")
+			expect(world:invoke("LockBase", owner)):toBe(true)
+			expect(world:invoke("LockBase", owner)):toBe(false)
+			world:advance(defense.LockBaseSeconds + 1)
+			expect(world:invoke("LockBase", owner)):toBe(false)
+			world:advance(defense.LockCooldownSeconds)
+			expect(world:invoke("LockBase", owner)):toBe(true)
+		end)
+	end)
+
+	describe("wall stability", function()
+		local function identities(plot: any): { [string]: any }
+			return wallParts(plot)
+		end
+
+		it("keeps the same wall instances when the board changes", function()
+			local player = join("Stable")
+			local plot = registry.PlotService:GetPlot(player)
+			local before = identities(plot)
+			local folder = plot.Walls
+			for _ = 1, 5 do
+				registry.KeyboardService.BoardChanged:Fire(player)
+			end
+			expect(plot.Walls == folder):toBe(true)
+			local after = identities(plot)
+			for name, part in before do
+				expect(after[name] == part):toBe(true)
+			end
+			expect(countKeys(after)):toBe(5)
+		end)
+
+		it("resizes the same wall instances in place when the height changes", function()
+			local player, data = join("Grower", { Cash = 1e9 })
+			local plot = registry.PlotService:GetPlot(player)
+			local before = identities(plot)
+			expect(world:invoke("BuyUpgrade", player, "Walls")):toBe(true)
+			expect(data.Upgrades.Walls):toBe(1)
+			local after = identities(plot)
+			for name, part in before do
+				expect(after[name] == part):toBe(true)
+				expect(part.Size.Y):toBe(defense.WallBaseHeight + 3)
+				expect(localPosition(plot, part).Y - part.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+			end
+			world:removePlayer(player)
+			for name, part in before do
+				expect(identities(plot)[name] == part):toBe(true)
+				expect(part.Size.Y):toBe(defense.WallBaseHeight)
+			end
+		end)
+
+		it("sets the safe flags on every wall part", function()
+			for _, part in wallParts(plots.Plot1) do
+				expect(part.CanCollide):toBe(true)
+				expect(part.CanTouch):toBe(false)
+				expect(part.CanQuery):toBe(false)
+				expect(part.CastShadow):toBe(false)
+				expect(part.Anchored):toBe(true)
+			end
+			expect(plots.Plot1.Walls.Parent == plots.Plot1):toBe(true)
+		end)
+	end)
+
+	describe("authored plots", function()
+		local authored: any
+		local nested: any
+
+		local function bootAuthored(withFence: boolean, withWalls: boolean)
+			world:destroy()
+			world = H.newWorld({ Time = 1700000000 })
+			world.workspace = world:newInstance("Folder")
+			local folder = world:newInstance("Folder")
+			folder.Name = "Plots"
+			authored = world:newInstance("Model")
+			authored.Name = "Plot1"
+			local origin = roblox.CFrame.new(300, 0.5, 0)
+			for name, size in
+				{
+					Base = Vector3.new(44, 1, 44),
+					RollKey = Vector3.new(8, 3, 8),
+					Board = Vector3.new(31, 1.5, 9.6),
+				}
+			do
+				local part = world:newInstance("Part")
+				part.Name = name
+				part.Size = size
+				part.CFrame = if name == "Base" then origin else origin * roblox.CFrame.new(0, 2, -10)
+				part.Color = roblox.Color3.new(1, 1, 1)
+				part.Parent = authored
+			end
+			nested = world:newInstance("Model")
+			nested.Name = "Decor"
+			local inner = world:newInstance("Model")
+			inner.Name = "Lamp"
+			local lampPart = world:newInstance("Part")
+			lampPart.Name = "Post"
+			lampPart.Size = Vector3.new(2, 40, 2)
+			lampPart.CFrame = origin * roblox.CFrame.new(100, 20, 100)
+			lampPart.Parent = inner
+			inner.Parent = nested
+			nested.Parent = authored
+			if withFence then
+				local fence = world:newInstance("Folder")
+				fence.Name = "Fence"
+				local post = world:newInstance("Part")
+				post.Name = "Rail"
+				post.Size = Vector3.new(44, 3, 0.5)
+				post.CFrame = origin * roblox.CFrame.new(0, 2, 22)
+				post.Parent = fence
+				fence.Parent = authored
+			end
+			if withWalls then
+				local walls = world:newInstance("Folder")
+				walls.Name = "Walls"
+				for index, offset in { -20, 20 } do
+					local wall = world:newInstance("Part")
+					wall.Name = `Wall{index}`
+					wall.Size = Vector3.new(1, 5, 44)
+					wall.CFrame = origin * roblox.CFrame.new(offset, 0.5 + 2.5, 0)
+					wall.Parent = walls
+				end
+				walls.Parent = authored
+			end
+			authored.Parent = folder
+			folder.Parent = world.workspace
+			local plotService = world:require("ServerScriptService.Services.PlotService")
+			registry = world:boot(
+				{ "KeyboardService", "PlotService", "StealService", "UpgradeService" },
+				{ PlotService = plotService }
+			)
+			return authored
+		end
+
+		it("builds walls from the base alone and never touches nested models", function()
+			local plot = bootAuthored(false, false)
+			for _, part in wallParts(plot) do
+				local position = localPosition(plot, part)
+				expect(math.abs(position.X) <= 22 and math.abs(position.Z) <= 22):toBe(true)
+				expect(position.Y - part.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+			end
+			expect(plot.Walls.Parent == plot):toBe(true)
+			expect(#nested:GetChildren()):toBe(1)
+			expect(#nested.Lamp:GetChildren()):toBe(1)
+			expect(nested.Lamp.Post.CFrame.Position.X):toBeCloseTo(400, 1e-3)
+			expect(nested.Lamp.Post.Size.Y):toBe(40)
+			expect(plot.Base.Size.X):toBe(44)
+			local player = join("Owner", { Upgrades = { Walls = 2 } })
+			expect(registry.PlotService:GetPlot(player) == plot):toBe(true)
+			expect(wallParts(plot).Back.Size.Y):toBe(defense.WallBaseHeight + 6)
+			expect(#nested:GetChildren()):toBe(1)
+			expect(#nested.Lamp:GetChildren()):toBe(1)
+		end)
+
+		it("insets the walls from an authored Fence without overlapping the key grid", function()
+			local plot = bootAuthored(true, false)
+			local parts = wallParts(plot)
+			local FloorGrid = world:require("ReplicatedStorage.Rules.FloorGrid")
+			expect(localPosition(plot, parts.Left).X - parts.Left.Size.X / 2 > -22):toBe(true)
+			expect(localPosition(plot, parts.Left).X + parts.Left.Size.X / 2 <= -22 + FloorGrid.EdgeMargin + 1e-3):toBe(
+				true
+			)
+			expect(localPosition(plot, parts.Back).Z + parts.Back.Size.Z / 2 < 22):toBe(true)
+			for _, part in parts do
+				expect(part.CanCollide):toBe(true)
+			end
+			expect(plot.Fence.Rail.Size.X):toBe(44)
+			expect(#plot.Fence:GetChildren()):toBe(1)
+		end)
+
+		it("scales an authored Walls folder instead of creating code walls", function()
+			local plot = bootAuthored(false, true)
+			local walls = plot.Walls
+			expect(#walls:GetChildren()):toBe(2)
+			local before = { walls.Wall1, walls.Wall2 }
+			for _, wall in before do
+				expect(wall.Size.Y):toBe(defense.WallBaseHeight)
+				expect(localPosition(plot, wall).Y - wall.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+				expect(wall.Size.Z):toBe(44)
+			end
+			local player = join("Owner", { Upgrades = { Walls = 3 } })
+			expect(registry.PlotService:GetPlot(player) == plot):toBe(true)
+			expect(#plot:GetChildren() > 0):toBe(true)
+			local count = 0
+			for _, child in plot:GetChildren() do
+				if child.Name == "Walls" then
+					count += 1
+				end
+			end
+			expect(count):toBe(1)
+			expect(plot.Walls == walls):toBe(true)
+			expect(#walls:GetChildren()):toBe(2)
+			for _, wall in before do
+				expect(wall.Size.Y):toBe(defense.WallBaseHeight + 9)
+				expect(localPosition(plot, wall).Y - wall.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+			end
+			world:removePlayer(player)
+			expect(walls.Wall1.Size.Y):toBe(defense.WallBaseHeight)
 		end)
 	end)
 
 	describe("locking", function()
-		it("lets only the owner lock the base", function()
+		it("locks only the base of the player who asks", function()
 			local owner = join("Owner")
 			local other = join("Other")
 			local plot = registry.PlotService:GetPlot(owner)
-			triggerLock(plot, other)
-			expect(registry.PlotService:IsLocked(owner)):toBe(false)
-			expect(registry.PlotService:IsLocked(other)):toBe(false)
 			expect(#lasersOf(plot)):toBe(0)
 			triggerLock(plot, owner)
 			expect(registry.PlotService:IsLocked(owner)):toBe(true)
@@ -228,8 +438,6 @@ describe("Base defense", function()
 			expect(plot:GetAttribute("LockCooldownUntil")):toBe(
 				world.now + defense.LockBaseSeconds + defense.LockCooldownSeconds
 			)
-			expect(padOf(plot).Color):toBe(roblox.Color3.fromRGB(70, 235, 110))
-			expect(padOf(plot).LockPrompt:GetAttribute("Ready")):toBe(false)
 		end)
 
 		it("adds LockTime seconds per level", function()
@@ -257,8 +465,6 @@ describe("Base defense", function()
 			world:advance(1.5)
 			expect(registry.PlotService:IsLocked(owner)):toBe(false)
 			expect(#lasersOf(plot)):toBe(0)
-			expect(padOf(plot).Color):toBe(roblox.Color3.fromRGB(120, 124, 134))
-			expect(padOf(plot).LockPrompt:GetAttribute("Ready")):toBe(false)
 			expect(registry.PlotService:GetLockCooldownUntil(owner)):toBe(
 				start + defense.LockBaseSeconds + defense.LockCooldownSeconds
 			)
@@ -268,7 +474,6 @@ describe("Base defense", function()
 			triggerLock(plot, owner)
 			expect(registry.PlotService:IsLocked(owner)):toBe(false)
 			world:advance(2)
-			expect(padOf(plot).LockPrompt:GetAttribute("Ready")):toBe(true)
 			triggerLock(plot, owner)
 			expect(registry.PlotService:IsLocked(owner)):toBe(true)
 		end)
@@ -308,7 +513,6 @@ describe("Base defense", function()
 			local next = join("Next")
 			expect(registry.PlotService:GetPlot(next) == plot):toBe(true)
 			expect(registry.PlotService:IsLocked(next)):toBe(false)
-			expect(padOf(plot).LockPrompt:GetAttribute("Ready")):toBe(true)
 		end)
 
 		it("fires LockChanged when a lock starts and ends", function()

@@ -8,13 +8,7 @@ local Walls = require(script.Parent.Walls)
 
 local defense = GameConfig.Defense
 
-local readyColor = Color3.fromRGB(255, 56, 70)
-local cooldownColor = Color3.fromRGB(120, 124, 134)
-local activeColor = Color3.fromRGB(70, 235, 110)
 local laserColor = Color3.fromRGB(255, 30, 50)
-local padDiameter = 5
-local padThickness = 0.4
-local padSideGap = 5
 local laserCount = 5
 local laserThickness = 0.3
 local laserMargin = 0.5
@@ -63,46 +57,8 @@ function Lock.Outward(info: Types.PlotInfo): Vector3
 	return info.Base.CFrame.LookVector
 end
 
-local function padSurfaceY(info: Types.PlotInfo): number
-	local walkway = info.Walkway
-	if walkway then
-		return info.Base.CFrame:ToObjectSpace(walkway.CFrame).Position.Y + walkway.Size.Y / 2
-	end
-	return info.Base.Size.Y / 2
-end
-
-function Lock.Build(info: Types.PlotInfo, trove: any, onTriggered: (player: Player) -> ()): Types.Defense
-	local baseSize = info.Base.Size
-	local rollKeyAt = info.Base.CFrame:ToObjectSpace(info.RollKey.CFrame).Position
-	local x = math.max(rollKeyAt.X - (info.RollKey.Size.X / 2 + padSideGap), -baseSize.X / 2 + padDiameter)
-	local pad = Instance.new("Part")
-	pad.Name = "LockPad"
-	pad.Shape = Enum.PartType.Cylinder
-	pad.Anchored = true
-	pad.CanCollide = false
-	pad.CanQuery = true
-	pad.CanTouch = false
-	pad.CastShadow = false
-	pad.Material = Enum.Material.Neon
-	pad.Color = readyColor
-	pad.Size = Vector3.new(padThickness, padDiameter, padDiameter)
-	pad.CFrame = info.Base.CFrame
-		* CFrame.new(x, padSurfaceY(info) + padThickness / 2, rollKeyAt.Z)
-		* CFrame.Angles(0, 0, math.pi / 2)
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "LockPrompt"
-	prompt.ActionText = "Lock Base"
-	prompt.ObjectText = "Laser Lock"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = defense.PadRange
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = pad
-	pad.Parent = info.Model
-	trove:Add(pad)
-	trove:Connect(prompt.Triggered, onTriggered)
+function Lock.Build(): Types.Defense
 	local state: Types.Defense = {
-		Pad = pad,
-		Prompt = prompt,
 		IsActive = false,
 		LockedUntil = 0,
 		CooldownUntil = 0,
@@ -211,11 +167,6 @@ end
 function Lock.Present(info: Types.PlotInfo, state: Types.Defense, now: number)
 	local status = Lock.StatusAt(state, now)
 	state.Status = status
-	state.Pad.Color = if status == statusReady
-		then readyColor
-		elseif status == statusActive then activeColor
-		else cooldownColor
-	state.Prompt:SetAttribute("Ready", status == statusReady and info.Owner ~= nil)
 	local remaining = math.ceil(state.LockedUntil - now)
 	local label = state.Label
 	if status == statusActive and label and remaining ~= state.ShownSeconds then
