@@ -71,8 +71,8 @@ function Offers.new(context: Types.Context): Types.Screen
 	local stack = Instance.new("Frame")
 	stack.Name = "Offers"
 	stack.BackgroundTransparency = 1
-	stack.AnchorPoint = Vector2.new(1, 0.5)
-	stack.Position = UDim2.new(1, -screenMargin, 0.5, 0)
+	stack.AnchorPoint = Vector2.new(1, 0)
+	stack.Position = UDim2.new(1, -screenMargin, 0.2, 0)
 	stack.AutomaticSize = Enum.AutomaticSize.Y
 	stack.Size = UDim2.fromOffset(stackWidth, 0)
 	local stackList = Instance.new("UIListLayout")

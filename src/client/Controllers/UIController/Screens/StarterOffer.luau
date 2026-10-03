@@ -10,7 +10,6 @@ local Purchases = require(script.Parent.Parent.Purchases)
 local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
-local showDelay = 2
 local offerSeconds = 900
 local oldPrice = "R$ 99"
 local contentHeight = 464
@@ -31,10 +30,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	local starterPack = Monetization.ProductById.StarterPack
 	local isBought = false
 	local isOpen = false
-	local hasShown = false
-	local isScheduled = false
 	local deadline: number? = nil
-	local showThread: thread? = nil
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -183,31 +179,12 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		end
 	end)
 
-	trove:Add(function()
-		local thread = showThread
-		showThread = nil
-		if thread then
-			task.cancel(thread)
-		end
-	end)
-
 	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
 		isBought = value == true
 		if isBought then
 			context.Close("StarterOffer")
 			return
 		end
-		if isScheduled then
-			return
-		end
-		isScheduled = true
-		showThread = task.delay(showDelay, function()
-			showThread = nil
-			if hasShown or isBought then
-				return
-			end
-			context.Open("StarterOffer")
-		end)
 	end))
 
 	return {
@@ -219,7 +196,6 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 				context.Close("StarterOffer")
 				return
 			end
-			hasShown = true
 			isOpen = true
 			if not deadline then
 				deadline = os.clock() + offerSeconds
