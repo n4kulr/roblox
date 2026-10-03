@@ -28,11 +28,6 @@ local comboStep = 0.03
 local comboMax = 0.3
 local releaseDelay = 0.07
 local cardSize = Vector2.new(440, 82)
-local cardWidthScale = 0.48
-local slotOffset = 0.26
-local slideDelay = 0.35
-local slideTime = 0.25
-local slotX: { [string]: number } = { Center = 0.5, Left = 0.5 - slotOffset, Right = 0.5 + slotOffset }
 local cardBottomOffset = 124
 local goldColor = Color3.fromRGB(255, 210, 64)
 
@@ -76,7 +71,6 @@ end
 
 local epicRank = rarityRank.Epic or 4
 local rareRank = rarityRank.Rare or 3
-local legendaryRank = rarityRank.Legendary or 5
 local legendaryRarity: Keys.Rarity? = nil
 for _, rarity in Keys.Rarities do
 	if rarity.Name == "Legendary" then
@@ -93,36 +87,25 @@ type Card = {
 	NameGradient: UIGradient,
 	Sub: TextLabel,
 	Info: TextLabel,
-	Tweens: { Tween },
-	Thread: thread?,
-	IsActive: boolean,
-	Slot: string,
 }
 
-type Pending = {
-	Key: Keys.Key,
-	Rarity: Keys.Rarity,
-	IsGolden: boolean,
-}
-
-local cards: { Card } = {}
-local pinnedCard: Card? = nil
-local isPinnedSettled = false
-local pendingCommon: Pending? = nil
+local card: Card? = nil
 local flashFrame: Frame? = nil
+local cardTweens: { Tween } = {}
+local cardThread: thread? = nil
+local cardRank = 0
+local cardHoldEnd = 0
 
-local function buildCard(root: Frame, index: number): Card
+local function buildCard(trove: TroveInstance, playerGui: PlayerGui)
+	local _gui, root = Kit.ScreenGui("RollCard", 3, playerGui, trove)
 	local holder = Instance.new("Frame")
-	holder.Name = `Holder{index}`
+	holder.Name = "Holder"
 	holder.BackgroundTransparency = 1
 	holder.AnchorPoint = Vector2.new(0.5, 1)
-	holder.Position = UDim2.new(slotX.Center, 0, 1, -cardBottomOffset)
-	holder.Size = UDim2.new(cardWidthScale, 0, 0, cardSize.Y)
+	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
+	holder.Size = UDim2.fromOffset(cardSize.X, cardSize.Y)
 	holder.Visible = false
 	holder.Parent = root
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(cardSize.X, cardSize.Y)
-	constraint.Parent = holder
 	local scale = Instance.new("UIScale")
 	scale.Parent = holder
 	local group = Instance.new("CanvasGroup")
@@ -181,7 +164,7 @@ local function buildCard(root: Frame, index: number): Card
 	})
 	info.AutomaticSize = Enum.AutomaticSize.X
 	info.TextTruncate = Enum.TextTruncate.None
-	return {
+	card = {
 		Holder = holder,
 		Group = group,
 		Scale = scale,
@@ -190,19 +173,7 @@ local function buildCard(root: Frame, index: number): Card
 		NameGradient = nameGradient,
 		Sub = sub,
 		Info = info,
-		Tweens = {},
-		Thread = nil,
-		IsActive = false,
-		Slot = "Center",
 	}
-end
-
-local function buildCards(trove: TroveInstance, playerGui: PlayerGui)
-	local _gui, root = Kit.ScreenGui("RollCard", 3, playerGui, trove)
-	table.clear(cards)
-	for index = 1, 2 do
-		table.insert(cards, buildCard(root, index))
-	end
 	local flashGui = Instance.new("ScreenGui")
 	flashGui.Name = "RollFlash"
 	flashGui.ResetOnSpawn = false
@@ -221,84 +192,35 @@ local function buildCards(trove: TroveInstance, playerGui: PlayerGui)
 	trove:Add(flashGui)
 end
 
-local function stopCard(view: Card)
-	for _, active in view.Tweens do
+local function stopCardTweens()
+	for _, active in cardTweens do
 		active:Cancel()
 		active:Destroy()
 	end
-	table.clear(view.Tweens)
-	if view.Thread then
-		task.cancel(view.Thread)
-		view.Thread = nil
+	table.clear(cardTweens)
+	if cardThread then
+		task.cancel(cardThread)
+		cardThread = nil
 	end
 end
 
-local function stopAllCards()
-	for _, view in cards do
-		stopCard(view)
-	end
-	pinnedCard = nil
-	isPinnedSettled = false
-	pendingCommon = nil
-end
-
-local function placeCard(view: Card, slot: string)
-	view.Slot = slot
-	view.Holder.Position = UDim2.new(slotX[slot], 0, 1, -cardBottomOffset)
-end
-
-local function fadeCard(view: Card, seconds: number, hasDrift: boolean)
-	stopCard(view)
-	if view == pinnedCard then
-		pinnedCard = nil
-		isPinnedSettled = false
-		pendingCommon = nil
-	end
-	if not view.IsActive then
+local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
+	local view = card
+	if not view then
 		return
 	end
-	local fade = TweenService:Create(
-		view.Group,
-		TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ GroupTransparency = 1 }
-	)
-	table.insert(view.Tweens, fade)
-	if hasDrift and not isLowGraphics then
-		local drift = TweenService:Create(
-			view.Holder,
-			TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Position = UDim2.new(slotX[view.Slot], 0, 1, -cardBottomOffset + 24) }
-		)
-		table.insert(view.Tweens, drift)
-		drift:Play()
+	local rank = rarityRank[rarity.Name] or 1
+	local now = os.clock()
+	if cardRank >= epicRank and now < cardHoldEnd and rank < cardRank then
+		return
 	end
-	fade.Completed:Once(function(state: Enum.PlaybackState)
-		if state == Enum.PlaybackState.Completed then
-			view.Holder.Visible = false
-			view.IsActive = false
-		end
-	end)
-	fade:Play()
-end
-
-local function pickCard(excluded: Card?, slot: string): Card?
-	local fallback: Card? = nil
-	for _, view in cards do
-		if view ~= excluded then
-			if view.IsActive and view.Slot == slot then
-				return view
-			end
-			if fallback == nil or not view.IsActive then
-				fallback = view
-			end
-		end
+	stopCardTweens()
+	cardRank = rank
+	local hold = if rank >= epicRank then 2 elseif rank >= rareRank then 1.2 else 0.7
+	if isGolden then
+		hold += 0.5
 	end
-	return fallback
-end
-
-local function presentCard(view: Card, slot: string, key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
-	stopCard(view)
-	placeCard(view, slot)
+	cardHoldEnd = now + hold + 0.12
 	view.Name.Text = if isGolden then `⭐ {key.Name}` else key.Name
 	view.Name.TextColor3 = rarity.Color
 	view.NameGradient.Enabled = isGolden
@@ -306,9 +228,10 @@ local function presentCard(view: Card, slot: string, key: Keys.Key, rarity: Keys
 	view.Sub.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
 	view.Sub.TextColor3 = rarity.Color
 	view.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
+	local holder = view.Holder
+	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
 	view.Group.GroupTransparency = 0
-	view.Holder.Visible = true
-	view.IsActive = true
+	holder.Visible = true
 	if isLowGraphics then
 		view.Scale.Scale = 1
 	else
@@ -318,104 +241,37 @@ local function presentCard(view: Card, slot: string, key: Keys.Key, rarity: Keys
 			TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 			{ Scale = 1 }
 		)
-		table.insert(view.Tweens, pop)
+		table.insert(cardTweens, pop)
 		pop:Play()
 	end
-end
-
-local function showCommon(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
-	local slot = if pinnedCard then "Right" else "Center"
-	if pinnedCard and not isPinnedSettled then
-		pendingCommon = { Key = key, Rarity = rarity, IsGolden = isGolden }
-		return
-	end
-	local view = pickCard(pinnedCard, slot)
-	if not view then
-		return
-	end
-	if not pinnedCard then
-		for _, other in cards do
-			if other ~= view and other.IsActive then
-				fadeCard(other, 0.15, false)
-			end
-		end
-	end
-	presentCard(view, slot, key, rarity, isGolden)
-	view.Thread = task.delay(0.7, function()
-		view.Thread = nil
+	cardThread = task.delay(hold, function()
+		cardThread = nil
 		if destroyed then
 			return
 		end
-		fadeCard(view, 0.25, true)
-	end)
-end
-
-local function showRare(key: Keys.Key, rarity: Keys.Rarity, rank: number, isGolden: boolean)
-	local old = pinnedCard
-	if old then
-		fadeCard(old, 0.15, false)
-	end
-	pendingCommon = nil
-	isPinnedSettled = false
-	local view = pickCard(old, "Center")
-	if not view then
-		return
-	end
-	for _, other in cards do
-		if other ~= view and other ~= old and other.IsActive then
-			fadeCard(other, 0.15, false)
-		end
-	end
-	presentCard(view, "Center", key, rarity, isGolden)
-	pinnedCard = view
-	local hold = if rank >= legendaryRank then 5 elseif rank >= epicRank then 4 else 3
-	if isGolden then
-		hold += 1
-	end
-	view.Thread = task.spawn(function()
-		if isLowGraphics then
-			placeCard(view, "Left")
-		else
-			task.wait(slideDelay)
-			placeCard(view, "Center")
+		local fade = TweenService:Create(
+			view.Group,
+			TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ GroupTransparency = 1 }
+		)
+		table.insert(cardTweens, fade)
+		if not isLowGraphics then
 			local slide = TweenService:Create(
-				view.Holder,
-				TweenInfo.new(slideTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Position = UDim2.new(slotX.Left, 0, 1, -cardBottomOffset) }
+				holder,
+				TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{ Position = UDim2.new(0.5, 0, 1, -cardBottomOffset + 24) }
 			)
-			table.insert(view.Tweens, slide)
+			table.insert(cardTweens, slide)
 			slide:Play()
-			view.Slot = "Left"
-			task.wait(slideTime)
 		end
-		if destroyed or pinnedCard ~= view then
-			return
-		end
-		isPinnedSettled = true
-		local pending = pendingCommon
-		pendingCommon = nil
-		if pending then
-			showCommon(pending.Key, pending.Rarity, pending.IsGolden)
-		end
-		task.wait(hold)
-		view.Thread = nil
-		if destroyed then
-			return
-		end
-		fadeCard(view, 0.25, false)
+		fade.Completed:Once(function(state: Enum.PlaybackState)
+			if state == Enum.PlaybackState.Completed then
+				holder.Visible = false
+				cardRank = 0
+			end
+		end)
+		fade:Play()
 	end)
-end
-
-local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
-	if #cards == 0 then
-		return
-	end
-	local rank = rarityRank[rarity.Name] or 1
-	if rank >= rareRank or isGolden then
-		showRare(key, rarity, rank, isGolden)
-	else
-		showCommon(key, rarity, isGolden)
-	end
 end
 
 local function goldenFeedback()
@@ -769,7 +625,7 @@ function RollController.Start(self: State)
 	end))
 	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
 	if playerGui then
-		buildCards(trove, playerGui)
+		buildCard(trove, playerGui)
 	end
 	trove:Connect(UserInputService.InputBegan, onInput)
 	trove:Connect(UserInputService.InputEnded, onInputEnded)
@@ -804,8 +660,8 @@ function RollController.Destroy(self: State)
 	table.clear(squashTweens)
 	plot = nil
 	rollKey = nil
-	stopAllCards()
-	table.clear(cards)
+	stopCardTweens()
+	card = nil
 	flashFrame = nil
 	if self._trove then
 		self._trove:Destroy()
