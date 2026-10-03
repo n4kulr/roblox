@@ -13,7 +13,7 @@ type Part = roblox.Instance
 local outputPath = "assets/map/ThockMap.rbxm"
 local plotCount = 8
 local plotRadius = 80
-local arenaRadius = 40
+local ringRadius = 54
 local tau = math.pi * 2
 
 local palette = {
@@ -193,63 +193,17 @@ local function giantKeycap(parent: Part, name: string, cframe: typeof(CFrame.new
 	)
 end
 
-local function buildArena(parent: Part)
-	local arena = newModel("Arena", parent)
-	local floor = newPart(
-		arena,
-		"Floor",
-		Vector3.new(1, arenaRadius * 2, arenaRadius * 2),
-		CFrame.new(0, 0.5, 0) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(255, 120, 190)
-	)
-	floor.Shape = Enum.PartType.Cylinder
-	arena.PrimaryPart = floor
-	local ring = newPart(
-		arena,
-		"InnerRing",
-		Vector3.new(0.2, 40, 40),
-		CFrame.new(0, 1.05, 0) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(255, 160, 210),
-		false
-	)
-	ring.Shape = Enum.PartType.Cylinder
-	local rim = newFolder("Rim", arena)
-	local wallRadius = arenaRadius + 2
-	local arc = math.rad(7.5)
-	local length = 2 * wallRadius * math.tan(arc / 2) + 0.3
-	for wall = 0, plotCount - 1 do
-		local center = (wall + 0.5) / plotCount * tau
-		for step = -1, 1 do
-			local angle = center + step * arc
-			local position = polar(angle, wallRadius, 1.5)
-			local cframe = CFrame.lookAt(position, Vector3.new(0, 1.5, 0))
-			local color = if (step + wall) % 2 == 0 then Color3.fromRGB(110, 90, 190) else Color3.fromRGB(80, 66, 150)
-			newPart(rim, `Wall{wall * 3 + step + 2}`, Vector3.new(length, 2, 3), cframe, color)
-		end
-	end
-	local caps = newFolder("Keycaps", arena)
-	for index = 1, plotCount do
-		local angle = (index - 0.5) / plotCount * tau + math.rad(11)
-		local cframe = CFrame.new(polar(angle, arenaRadius + 8.5, 0)) * CFrame.Angles(0, -angle, 0)
-		giantKeycap(caps, `Keycap{index}`, cframe, 6, palette[(index + 3 - 1) % plotCount + 1])
-	end
-end
-
 local function buildPaths(parent: Part)
 	local folder = newFolder("Paths", parent)
-	local startRadius = arenaRadius + 4
-	local endRadius = plotRadius - 22
-	local tiles = 5
-	local length = (endRadius - startRadius) / tiles
-	for index = 1, plotCount do
-		local angle = (index - 1) / plotCount * tau
-		local path = newFolder(`Path{index}`, folder)
-		for tile = 1, tiles do
-			local radius = startRadius + length * (tile - 0.5)
-			local position = polar(angle, radius, 0.5)
-			local cframe = CFrame.lookAt(position, Vector3.new(0, 0.5, 0))
-			newPart(path, `Tile{tile}`, Vector3.new(10, 1, length - 0.4), cframe, pathColors[tile % 2 + 1])
-		end
+	local path = newFolder("Ring", folder)
+	local tiles = 96
+	local radius = ringRadius
+	local length = 2 * (radius - 5) * math.tan(math.pi / tiles) + 0.05
+	for tile = 1, tiles do
+		local angle = (tile - 0.5) / tiles * tau
+		local position = polar(angle, radius, 0.5)
+		local cframe = CFrame.lookAt(position, Vector3.new(0, 0.5, 0))
+		newPart(path, `Tile{tile}`, Vector3.new(length, 1, 10), cframe, pathColors[tile % 2 + 1])
 	end
 end
 
@@ -411,7 +365,7 @@ local function buildSpawn(parent: Part)
 	spawn.Name = "SpawnLocation"
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(8, 1, 8)
-	spawn.CFrame = CFrame.new(polar(math.rad(22.5), 50, 0.5))
+	spawn.CFrame = CFrame.new(Vector3.new(0, 0.5, 0))
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Color = Color3.fromRGB(255, 214, 51)
@@ -427,7 +381,6 @@ end
 local function build(): { Part }
 	local roots = newFolder("Roots", nil)
 	buildPlots(roots)
-	buildArena(roots)
 	buildPaths(roots)
 	buildDecor(roots)
 	buildSpawn(roots)

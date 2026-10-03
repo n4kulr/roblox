@@ -25,12 +25,13 @@ describe("ThockMap model", function()
 	local roots = load()
 
 	it("has the expected top-level items", function()
-		for _, name in { "Plots", "Arena", "Paths", "Decor", "SpawnLocation", "Ground" } do
+		for _, name in { "Plots", "Paths", "Decor", "SpawnLocation", "Ground" } do
 			expect(roots[name] ~= nil):toBe(true)
 		end
 		expect(roots.SpawnLocation.ClassName):toBe("SpawnLocation")
 		expect(roots.SpawnLocation.Neutral):toBe(true)
 		expect(roots.SpawnLocation.Duration):toBe(0)
+		expect(roots.Arena == nil):toBe(true)
 	end)
 
 	it("keeps the part count under budget and everything anchored", function()
@@ -80,28 +81,65 @@ describe("ThockMap model", function()
 		end
 	end)
 
-	it("has a round arena floor sized for Keyfall", function()
-		local floor = roots.Arena:FindFirstChild("Floor")
-		expect(floor.Shape == roblox.Enum.PartType.Cylinder):toBe(true)
-		expect(floor.Size):toBe(Vector3.new(1, 80, 80))
-		expect((floor.CFrame.Position - Vector3.new(0, 0.5, 0)).Magnitude):toBeCloseTo(0, 1e-4)
-		expect(math.abs(floor.CFrame.RightVector.Y)):toBeCloseTo(1, 1e-4)
-		expect(roots.Arena.PrimaryPart == floor):toBe(true)
+	it("has a ring path passing every plot front", function()
+		local ring = roots.Paths:FindFirstChild("Ring")
+		expect(ring ~= nil):toBe(true)
+		expect(#roots.Paths:GetChildren()):toBe(1)
+		local tiles = ring:GetChildren()
+		expect(#tiles >= 48):toBe(true)
+		for _, tile in tiles do
+			local position = tile.CFrame.Position
+			local radius = Vector3.new(position.X, 0, position.Z).Magnitude
+			expect(radius >= 50 and radius <= 58):toBe(true)
+			expect(tile.CFrame.Position.Y + tile.Size.Y / 2):toBeCloseTo(1, 1e-3)
+			expect(tile.Size.Z):toBe(10)
+		end
+		for index = 1, 8 do
+			local base = roots.Plots:FindFirstChild(`Plot{index}`).Base.CFrame
+			local front = base.Position * (58.5 / 80)
+			local nearest = math.huge
+			for _, tile in tiles do
+				nearest = math.min(nearest, (tile.CFrame.Position - Vector3.new(front.X, 0.5, front.Z)).Magnitude)
+			end
+			expect(nearest < 8):toBe(true)
+		end
 	end)
 
-	it("has paths, ground and a clear spawn", function()
-		expect(#roots.Paths:GetChildren()):toBe(8)
+	it("has ground, a centered spawn and an empty middle", function()
 		expect(roots.Ground.Size):toBe(Vector3.new(420, 1, 420))
 		expect(roots.Ground.CFrame.Position.Y + roots.Ground.Size.Y / 2):toBeCloseTo(0, 1e-4)
-		local spawn = roots.SpawnLocation.CFrame.Position
-		for index = 1, 8 do
-			local base = roots.Plots:FindFirstChild(`Plot{index}`).Base.CFrame.Position
-			expect((spawn - base).Magnitude > 30):toBe(true)
+		local spawn = roots.SpawnLocation
+		expect((spawn.CFrame.Position - Vector3.new(0, 0.5, 0)).Magnitude):toBeCloseTo(0, 1e-4)
+		expect(spawn.CFrame.Position.Y + spawn.Size.Y / 2):toBeCloseTo(1, 1e-4)
+		for _, root in roots do
+			if root.Name ~= "Ground" and root.Name ~= "SpawnLocation" and root.Name ~= "Paths" then
+				for _, item in root:GetDescendants() do
+					if item:IsA("BasePart") then
+						local position = item.CFrame.Position
+						expect(Vector3.new(position.X, 0, position.Z).Magnitude > 45):toBe(true)
+					end
+				end
+			end
+		end
+		for _, item in roots.Paths:GetDescendants() do
+			if item:IsA("BasePart") then
+				local position = item.CFrame.Position
+				expect(Vector3.new(position.X, 0, position.Z).Magnitude > 45):toBe(true)
+			end
 		end
 		expect(#roots.Decor.Trees:GetChildren()):toBe(12)
 		expect(#roots.Decor.Keycaps:GetChildren() >= 10):toBe(true)
 		expect(roots.Decor:FindFirstChild("GiantKeyboard") ~= nil):toBe(true)
 		expect(roots.Decor:FindFirstChild("GiantMouse") ~= nil):toBe(true)
+	end)
+
+	it("keeps decor off the ring path", function()
+		for _, item in roots.Decor:GetDescendants() do
+			if item:IsA("BasePart") then
+				local position = item.CFrame.Position
+				expect(Vector3.new(position.X, 0, position.Z).Magnitude > 70):toBe(true)
+			end
+		end
 	end)
 
 	it("keeps decor away from every plot base", function()
