@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
+local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Income = require(ReplicatedStorage.Rules.Income)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -26,8 +28,10 @@ local KeyboardService = {
 }
 local services: { [string]: any } = {}
 
-local function boardRate(data: PlayerData.Data): number
-	return Stats.Compute(data.Board, data.Upgrades).Rate
+local function boardRate(player: Player, data: PlayerData.Data): number
+	local passService = services.PassService
+	local passes = if passService then passService:GetPasses(player) else {}
+	return Stats.Compute(data.Board, data.Upgrades, { Income = Boosts.PassIncome(passes) }).Rate
 end
 
 local function isInteger(value: any): boolean
@@ -38,11 +42,17 @@ local function isEmptySlot(keyId: any): boolean
 	return type(keyId) ~= "string" or Keys.ById[keyId] == nil
 end
 
-local function settledValues(data: PlayerData.Data, now: number): (number, number)
+local function settledValues(player: Player, data: PlayerData.Data, now: number): (number, number)
 	if data.IncomeAt <= 0 or now <= data.IncomeAt then
 		return data.Cash, if data.IncomeAt <= 0 then now else data.IncomeAt
 	end
-	local earned = math.floor(boardRate(data) * (now - data.IncomeAt))
+	local earned = Income.Earned(
+		boardRate(player, data),
+		data.IncomeAt,
+		now,
+		data.Boosts.ClicksUntil,
+		GameConfig.Boosts.PotionMultiplier
+	)
 	return math.min(maxCash, data.Cash + earned), now
 end
 
@@ -52,7 +62,7 @@ local function settle(player: Player)
 	if not data or not replica then
 		return
 	end
-	local cash, incomeAt = settledValues(data, os.time())
+	local cash, incomeAt = settledValues(player, data, os.time())
 	if cash ~= data.Cash or incomeAt ~= data.IncomeAt then
 		replica:SetValues({}, { Cash = cash, IncomeAt = incomeAt })
 	end
@@ -137,7 +147,15 @@ local function grantOffline(player: Player, data: PlayerData.Data)
 	local cash = data.Cash
 	if data.IncomeAt > 0 then
 		local elapsed = math.clamp(now - data.IncomeAt, 0, GameConfig.OfflineCapSeconds)
-		local earned = math.floor(boardRate(data) * elapsed * GameConfig.OfflineRate)
+		local earned = math.floor(
+			Income.Earned(
+				boardRate(player, data),
+				data.IncomeAt,
+				data.IncomeAt + elapsed,
+				data.Boosts.ClicksUntil,
+				GameConfig.Boosts.PotionMultiplier
+			) * GameConfig.OfflineRate
+		)
 		cash = math.min(maxCash, cash + earned)
 	end
 	local replica = services.DataService:GetReplica(player)
@@ -275,8 +293,8 @@ function KeyboardService.Start(self: State)
 		grantOffline(player, data)
 		KeyboardService.BoardChanged:Fire(player)
 	end)
-	services.DataService.PlayerReleasing:Connect(function(_player: Player, data: PlayerData.Data)
-		local cash, incomeAt = settledValues(data, os.time())
+	services.DataService.PlayerReleasing:Connect(function(player: Player, data: PlayerData.Data)
+		local cash, incomeAt = settledValues(player, data, os.time())
 		data.Cash = cash
 		data.IncomeAt = incomeAt
 	end)
@@ -300,7 +318,7 @@ end
 
 function KeyboardService.GetRate(_self: State, player: Player): number
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	return if data then boardRate(data) else 0
+	return if data then boardRate(player, data) else 0
 end
 
 function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag: string?): boolean

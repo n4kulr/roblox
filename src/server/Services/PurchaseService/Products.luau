@@ -1,7 +1,75 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Monetization = require(ReplicatedStorage.Config.Monetization)
+local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Rewards = require(script.Parent.Parent.Parent.Utils.Rewards)
+
 export type Grant = (player: Player, services: { [string]: any }) -> boolean
 
+local starterPotionSeconds = GameConfig.Boosts.PotionSeconds
+local starterKeyRarity = "Epic"
+
+local function makeGrant(product: Monetization.Product): Grant?
+	local kind = product.Kind
+	if kind == "LuckPotion" then
+		return function(player, services)
+			return Rewards.ExtendPotion(player, services, "LuckUntil", product.Amount)
+		end
+	elseif kind == "ClicksPotion" then
+		return function(player, services)
+			return Rewards.ExtendPotion(player, services, "ClicksUntil", product.Amount)
+		end
+	elseif kind == "Clicks" then
+		return function(player, services)
+			return services.DataService:AdjustCash(player, product.Amount)
+		end
+	elseif kind == "ServerLuck" then
+		return function(player, _services)
+			local current = ReplicatedStorage:GetAttribute("ServerLuckUntil")
+			local expiresAt = if type(current) == "number" then current else 0
+			ReplicatedStorage:SetAttribute("ServerLuckBy", player.DisplayName)
+			ReplicatedStorage:SetAttribute(
+				"ServerLuckUntil",
+				Boosts.Extend(expiresAt, os.time(), product.Amount)
+			)
+			return true
+		end
+	elseif kind == "StarterPack" then
+		return function(player, services)
+			local data = services.DataService:GetData(player)
+			if not data then
+				return false
+			end
+			if not services.DataService:AdjustCash(player, product.Amount) then
+				return false
+			end
+			if data.StarterPackBought then
+				return true
+			end
+			if not Rewards.GrantRandomKey(player, services, starterKeyRarity) then
+				return false
+			end
+			if not Rewards.ExtendPotion(player, services, "LuckUntil", starterPotionSeconds) then
+				return false
+			end
+			services.DataService:Set(player, { "StarterPackBought" }, true)
+			return true
+		end
+	end
+	return nil
+end
+
 local Products: { [number]: Grant } = {}
+
+for _, product in Monetization.Products do
+	if product.AssetId ~= 0 then
+		local grant = makeGrant(product)
+		if grant then
+			Products[product.AssetId] = grant
+		end
+	end
+end
 
 return Products

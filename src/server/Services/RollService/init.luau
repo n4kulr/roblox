@@ -6,6 +6,7 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Roll = require(script.Roll)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -46,7 +47,15 @@ local function handleRoll(player: Player): (number, boolean)
 	if not data or not services.PlotService:GetPlot(player) then
 		return 0, false
 	end
-	local stats = Stats.Compute(data.Board, data.Upgrades)
+	local passService = services.PassService
+	local serverLuckUntil = ReplicatedStorage:GetAttribute("ServerLuckUntil")
+	local modifiers = Boosts.Modifiers(
+		data.Boosts,
+		if passService then passService:GetPasses(player) else {},
+		os.time(),
+		if type(serverLuckUntil) == "number" then serverLuckUntil else 0
+	)
+	local stats = Stats.Compute(data.Board, data.Upgrades, modifiers)
 	if not takeToken(player, stats.RollsPerSecond) then
 		return 0, false
 	end

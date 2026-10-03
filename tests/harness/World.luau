@@ -243,12 +243,22 @@ local function makeFakeServices(world)
 
 	services.MarketplaceService = {
 		ProcessReceipt = nil,
-		PromptProductPurchase = function() end,
-		PromptGamePassPurchase = function() end,
-		UserOwnsGamePassAsync = function()
-			return false
+		PromptProductPurchase = function(_self, player: any, productId: number)
+			table.insert(world.prompts, { Kind = "Product", Player = player, Id = productId })
+		end,
+		PromptGamePassPurchase = function(_self, player: any, passId: number)
+			table.insert(world.prompts, { Kind = "Pass", Player = player, Id = passId })
+		end,
+		UserOwnsGamePassAsync = function(_self, userId: number, assetId: number)
+			if world.passCheckFailures > 0 then
+				world.passCheckFailures -= 1
+				error("fake marketplace outage")
+			end
+			local owned = world.ownedPasses[userId]
+			return owned ~= nil and owned[assetId] == true
 		end,
 		PromptPurchaseFinished = world:require("ReplicatedStorage.Packages.Signal").new(),
+		PromptGamePassPurchaseFinished = world:require("ReplicatedStorage.Packages.Signal").new(),
 	}
 
 	local tags: { [string]: { any } } = {}
@@ -291,7 +301,9 @@ local function makeFakeServices(world)
 	return services
 end
 
-function World.new(options: { Seed: number?, Time: number?, Clock: number?, PrintErrors: boolean? }?)
+function World.new(
+	options: { Seed: number?, Time: number?, Clock: number?, PrintErrors: boolean?, AssetIds: { [string]: number }? }?
+)
 	options = options or {}
 	local opts = options :: any
 	local tree = getTree()
@@ -310,6 +322,9 @@ function World.new(options: { Seed: number?, Time: number?, Clock: number?, Prin
 		started = {} :: { any },
 		registry = {} :: { [string]: any },
 		saves = {} :: { [any]: number },
+		prompts = {} :: { { Kind: string, Player: any, Id: number } },
+		ownedPasses = {} :: { [number]: { [number]: boolean } },
+		passCheckFailures = 0,
 		_kicked = {} :: { any },
 	}, World)
 
@@ -345,8 +360,13 @@ function World.new(options: { Seed: number?, Time: number?, Clock: number?, Prin
 	self.Players = makePlayers(self)
 	self.fakeServices = makeFakeServices(self)
 	self:_installPacketStub()
+	self.tree.ReplicatedStorage:SetAttribute("ServerLuckUntil", nil)
+	self.tree.ReplicatedStorage:SetAttribute("ServerLuckBy", nil)
 	self.game = self:_makeGame()
 	self.Data = require("./FakeData").new(self)
+	if opts.AssetIds then
+		self:_overrideAssetIds(opts.AssetIds)
+	end
 	self.fakeRegistry = {
 		DataService = self.Data.Service,
 		PlotService = {
@@ -357,6 +377,42 @@ function World.new(options: { Seed: number?, Time: number?, Clock: number?, Prin
 		},
 	}
 	return self
+end
+
+function World._overrideAssetIds(self, assetIds: { [string]: number })
+	local real = self:require("ReplicatedStorage.Config.Monetization")
+	local copy: any = { Passes = {}, PassById = {}, Products = {}, ProductById = {} }
+	for _, pass in real.Passes do
+		local clone = table.clone(pass)
+		clone.AssetId = assetIds[pass.Id] or pass.AssetId
+		table.insert(copy.Passes, clone)
+		copy.PassById[clone.Id] = clone
+	end
+	for _, product in real.Products do
+		local clone = table.clone(product)
+		clone.AssetId = assetIds[product.Id] or product.AssetId
+		table.insert(copy.Products, clone)
+		copy.ProductById[clone.Id] = clone
+	end
+	self.overrides[self.tree.ReplicatedStorage.Config.Monetization] = copy
+end
+
+function World.own(self, player: any, assetId: number)
+	self.ownedPasses[player.UserId] = self.ownedPasses[player.UserId] or {}
+	self.ownedPasses[player.UserId][assetId] = true
+end
+
+function World.receipt(self, player: any, productId: number, purchaseId: number?)
+	self._receiptCount = (self._receiptCount or 0) + 1
+	local handler = self.fakeServices.MarketplaceService.ProcessReceipt
+	return handler({
+		PurchaseId = purchaseId or self._receiptCount,
+		PlayerId = player.UserId,
+		ProductId = productId,
+		CurrencySpent = 1,
+		CurrencyType = "Robux",
+		PlaceIdWherePurchased = 1,
+	})
 end
 
 function World._makeGame(self)
@@ -569,6 +625,7 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		Character = nil,
 		Parent = self.Players,
 		Kicked = nil,
+		_attributes = {} :: { [string]: any },
 	}, {
 		__rbxtype = "Instance",
 		__tostring = function()
@@ -582,6 +639,12 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
 	player.CharacterAdded = Signal.new()
 	player.CharacterRemoving = Signal.new()
+	player.GetAttribute = function(p: any, attribute: string)
+		return p._attributes[attribute]
+	end
+	player.SetAttribute = function(p: any, attribute: string, value: any)
+		p._attributes[attribute] = value
+	end
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"
 	end

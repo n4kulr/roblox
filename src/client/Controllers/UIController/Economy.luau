@@ -1,8 +1,12 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Income = require(ReplicatedStorage.Rules.Income)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local BoostState = require(script.Parent.BoostState)
 
 type TroveInstance = typeof(Trove.new())
 
@@ -10,18 +14,25 @@ export type Tracker = {
 	IsLoaded: () -> boolean,
 	Balance: () -> number?,
 	GetStats: () -> Stats.Stats,
+	Boosts: BoostState.State,
 	GetBoard: () -> { string },
 	GetLevel: (id: string) -> number,
 }
 
 local Economy = {}
 
-function Economy.Predict(cash: number, incomeAt: number, rate: number): number
+function Economy.Predict(cash: number, incomeAt: number, rate: number, clicksUntil: number): number
 	if incomeAt <= 0 then
 		return cash
 	end
-	local elapsed = math.max(0, workspace:GetServerTimeNow() - incomeAt)
-	return cash + math.floor(rate * elapsed)
+	local earned = Income.Earned(
+		rate,
+		incomeAt,
+		workspace:GetServerTimeNow(),
+		clicksUntil,
+		GameConfig.Boosts.PotionMultiplier
+	)
+	return cash + earned
 end
 
 function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (() -> ())?): Tracker
@@ -29,10 +40,9 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 	local incomeAt = 0
 	local board: { string } = {}
 	local levels: any = {}
-	local stats = Stats.Compute(board, levels)
+	local boostState = BoostState.Track(dataController, trove)
 
 	local function changed()
-		stats = Stats.Compute(board, levels)
 		if onChanged then
 			onChanged()
 		end
@@ -67,15 +77,18 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 		IsLoaded = function()
 			return cash ~= nil
 		end,
+		Boosts = boostState,
 		Balance = function()
 			local current = cash
 			if not current then
 				return nil
 			end
-			return Economy.Predict(current, incomeAt, stats.Rate)
+			local passIncome = Boosts.PassIncome(boostState.Passes())
+			local rate = Stats.Compute(board, levels, { Income = passIncome }).Rate
+			return Economy.Predict(current, incomeAt, rate, boostState.Stored().ClicksUntil or 0)
 		end,
 		GetStats = function()
-			return stats
+			return Stats.Compute(board, levels, boostState.Modifiers(workspace:GetServerTimeNow()))
 		end,
 		GetBoard = function()
 			return board
