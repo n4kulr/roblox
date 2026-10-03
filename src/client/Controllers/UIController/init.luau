@@ -27,6 +27,7 @@ local opened: { [string]: boolean } = {}
 local pending: { any } = {}
 local trove: TroveInstance? = nil
 local destroyed = false
+local showToast: ((text: string, kind: string?) -> ())? = nil
 
 function UIController.Init(_self: any, controllers: { [string]: any })
 	registry = controllers
@@ -58,6 +59,13 @@ function UIController.Close(_self: any, name: string)
 	screen:Close()
 end
 
+function UIController.Toast(_self: any, text: string, kind: string?)
+	local show = showToast
+	if show then
+		show(text, kind)
+	end
+end
+
 function UIController.IsOpen(_self: any, name: string): boolean
 	return opened[name] == true
 end
@@ -76,6 +84,7 @@ local function createScreens(playerGui: PlayerGui)
 		legacy.Enabled = false
 	end
 	local toast = Toast.new(playerGui, trove :: TroveInstance)
+	showToast = toast
 	local context: Types.Context = {
 		Controllers = registry,
 		PlayerGui = playerGui,
@@ -128,6 +137,7 @@ end
 
 function UIController.Destroy(_self: any)
 	destroyed = true
+	showToast = nil
 	for _, promise in pending do
 		promise:cancel()
 	end

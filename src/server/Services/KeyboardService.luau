@@ -70,9 +70,21 @@ local function removeFromInventory(player: Player, data: PlayerData.Data, keyId:
 	services.DataService:Set(player, { "Inventory", keyId }, if remaining > 0 then remaining else nil)
 end
 
+local function setTag(player: Player, slot: number, tag: string)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or type(data.BoardTags) ~= "table" then
+		return
+	end
+	if (data.BoardTags[slot] or "") ~= tag then
+		local path: { string | number } = { "BoardTags", slot }
+		services.DataService:Set(player, path, tag)
+	end
+end
+
 local function setSlot(player: Player, slot: number, keyId: string)
 	local path: { string | number } = { "Board", slot }
 	services.DataService:Set(player, path, keyId)
+	setTag(player, slot, "")
 end
 
 local function normalize(player: Player, data: PlayerData.Data)
@@ -244,6 +256,9 @@ local function equipBest(player: Player): boolean
 	end
 	services.DataService:Set(player, { "Board" }, board)
 	services.DataService:Set(player, { "Inventory" }, inventory)
+	for index = 1, GameConfig.BoardSlots do
+		setTag(player, index, "")
+	end
 	KeyboardService.BoardChanged:Fire(player)
 	return true
 end
@@ -288,7 +303,7 @@ function KeyboardService.GetRate(_self: State, player: Player): number
 	return if data then boardRate(data) else 0
 end
 
-function KeyboardService.AddKey(_self: State, player: Player, keyId: string): boolean
+function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag: string?): boolean
 	local key = Keys.ById[keyId]
 	if not key then
 		return false
@@ -321,10 +336,12 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string): bo
 		end
 		if emptyIndex then
 			setSlot(player, emptyIndex, keyId)
+			setTag(player, emptyIndex, tag or "")
 			placed = true
 		elseif key.Perk == nil and lowestIndex and income > lowestIncome then
 			local displaced = data.Board[lowestIndex]
 			setSlot(player, lowestIndex, keyId)
+			setTag(player, lowestIndex, tag or "")
 			addToInventory(player, displaced, 1)
 			placed = true
 		end
@@ -338,6 +355,39 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string): bo
 		services.DataService:RequestSave(player)
 	end
 	return true
+end
+
+function KeyboardService.TakeFromSlot(_self: State, player: Player, slot: number, keyId: string): boolean
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or not isInteger(slot) or slot < 1 or slot > Stats.Slots(data.Upgrades) then
+		return false
+	end
+	if data.Board[slot] ~= keyId or Keys.ById[keyId] == nil then
+		return false
+	end
+	settle(player)
+	setSlot(player, slot, "")
+	KeyboardService.BoardChanged:Fire(player)
+	return true
+end
+
+function KeyboardService.RestoreKey(_self: State, player: Player, slot: number, keyId: string): boolean
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or Keys.ById[keyId] == nil then
+		return false
+	end
+	if
+		isInteger(slot)
+		and slot >= 1
+		and slot <= Stats.Slots(data.Upgrades)
+		and isEmptySlot(data.Board[slot])
+	then
+		settle(player)
+		setSlot(player, slot, keyId)
+		KeyboardService.BoardChanged:Fire(player)
+		return true
+	end
+	return KeyboardService.AddKey(KeyboardService, player, keyId)
 end
 
 function KeyboardService.Destroy(self: State)

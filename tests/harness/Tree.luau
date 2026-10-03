@@ -64,7 +64,7 @@ end
 
 function methods.IsA(self, className: string)
 	local own = state[self].ClassName
-	return own == className or className == "Instance" or (className == "LuaSourceContainer" and (own == "ModuleScript" or own == "Script" or own == "LocalScript"))
+	return own == className or className == "Instance" or (className == "BasePart" and (own == "Part" or own == "MeshPart")) or (className == "LuaSourceContainer" and (own == "ModuleScript" or own == "Script" or own == "LocalScript"))
 end
 
 function methods.GetAttribute(self, name: string)
