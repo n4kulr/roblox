@@ -58,6 +58,29 @@ return table.freeze({
 		GoldenSpacebarMaxSeconds = 600,
 		GoldenSpacebarKeyId = "GoldenSpacebar",
 	}),
+	Rebirth = table.freeze({
+		BaseCost = 1000000,
+		CostGrowth = 4,
+		IncomePerRebirth = 0.5,
+	}),
+	Season = table.freeze({
+		Id = 1,
+		XpPerRoll = 1,
+		XpPerGoldenRoll = 10,
+		XpPerLevel = 100,
+		PremiumPassId = "SeasonPremium",
+	}),
+	Leaderboards = table.freeze({
+		RefreshSeconds = 60,
+		SubmitSeconds = 120,
+		Size = 50,
+	}),
+	Trade = table.freeze({
+		RequestTimeoutSeconds = 20,
+		ConfirmCountdownSeconds = 3,
+		MaxRange = 0,
+		MaxDistinctKeys = 12,
+	}),
 	DailyStreakResetSeconds = 172800,
 	DailyCooldownSeconds = 72000,
 })

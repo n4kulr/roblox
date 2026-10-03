@@ -45,6 +45,14 @@ local passes: { Pass } = {
 	},
 }
 
+table.insert(passes, {
+	Id = "SeasonPremium",
+	AssetId = 0,
+	Name = "🎟️ Premium Pass",
+	Description = "Unlock the premium Season Pass rewards!",
+	PriceLabel = "399",
+})
+
 local products: { Product } = {
 	{
 		Id = "StarterPack",

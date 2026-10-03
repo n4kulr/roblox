@@ -26,6 +26,10 @@ export type Data = {
 	Boosts: { LuckUntil: number, ClicksUntil: number },
 	Daily: { Streak: number, LastClaim: number },
 	StarterPackBought: boolean,
+	Rebirths: number,
+	TotalEarned: number,
+	RedeemedCodes: { [string]: boolean },
+	Season: { Id: number, Xp: number, ClaimedFree: number, ClaimedPremium: number },
 	LastSeenAt: number,
 	Receipts: { [string]: number },
 }
@@ -63,6 +67,10 @@ PlayerData.Template = {
 	Boosts = { LuckUntil = 0, ClicksUntil = 0 },
 	Daily = { Streak = 0, LastClaim = 0 },
 	StarterPackBought = false,
+	Rebirths = 0,
+	TotalEarned = 0,
+	RedeemedCodes = {},
+	Season = { Id = 0, Xp = 0, ClaimedFree = 0, ClaimedPremium = 0 },
 	LastSeenAt = 0,
 	Receipts = {},
 } :: Data
@@ -79,7 +87,9 @@ function PlayerData.Validate(data: any): boolean
 	if type(data) ~= "table" or (data.SchemaVersion ~= nil and data.SchemaVersion ~= 1) then
 		return false
 	end
-	for _, key in { "Cash", "IncomeAt", "Rolls", "Tutorial", "PlaySeconds", "LastSeenAt" } do
+	for _, key in
+		{ "Cash", "IncomeAt", "Rolls", "Tutorial", "PlaySeconds", "Rebirths", "TotalEarned", "LastSeenAt" }
+	do
 		if data[key] ~= nil and not natural(data[key]) then
 			return false
 		end
@@ -139,7 +149,17 @@ function PlayerData.Validate(data: any): boolean
 			end
 		end
 	end
-	for _, group in { "Boosts", "Daily" } do
+	if data.RedeemedCodes ~= nil then
+		if type(data.RedeemedCodes) ~= "table" then
+			return false
+		end
+		for code, used in data.RedeemedCodes do
+			if type(code) ~= "string" or type(used) ~= "boolean" then
+				return false
+			end
+		end
+	end
+	for _, group in { "Boosts", "Daily", "Season" } do
 		local value = data[group]
 		if value ~= nil then
 			if type(value) ~= "table" then
