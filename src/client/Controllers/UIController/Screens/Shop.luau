@@ -12,15 +12,16 @@ local Types = require(script.Parent.Parent.Types)
 
 type Row = {
 	Frame: Frame,
-	Level: TextLabel,
-	Cost: TextLabel,
+	Bar: Frame,
+	BarText: TextLabel,
 	Buy: Kit.Button,
 	Upgrade: Upgrades.Upgrade,
 	IsBusy: boolean,
 }
 
 local theme = Kit.Theme
-local rowHeight = 96
+local cardHeight = 178
+local refreshSeconds = 0.2
 
 local Shop = {}
 
@@ -37,35 +38,40 @@ function Shop.new(context: Types.Context): Types.Screen
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Shop",
-		Title = "Upgrades",
-		MaxSize = Vector2.new(720, 560),
+		Title = "🛒 SHOP",
+		MaxSize = Vector2.new(640, 580),
+		HeaderColor = theme.Green,
 		OnClose = close,
 		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
-		Parent = modal.Panel,
+		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(12, Kit.HeaderHeight + 4),
-		Size = UDim2.new(1, -24, 1, -(Kit.HeaderHeight + 16)),
-		Padding = 10,
+		Position = UDim2.fromOffset(12, 6),
+		Size = UDim2.new(1, -24, 1, -18),
+		Padding = 14,
 	})
 
 	local function refreshRow(row: Row)
 		local level = tracker.GetLevel(row.Upgrade.Id)
+		local maxLevel = row.Upgrade.MaxLevel
+		row.BarText.Text = `Lv {level}/{maxLevel}`
+		row.Bar.Size = UDim2.fromScale(math.clamp(level / maxLevel, 0, 1), 1)
 		local cost = Upgrades.Cost(row.Upgrade, level)
-		row.Level.Text = `Lv {level}/{row.Upgrade.MaxLevel}`
 		if not cost then
-			row.Cost.Text = "MAX"
-			row.Buy.SetText("MAX")
-			row.Buy.SetDisabled(true)
+			row.Buy.SetText("MAXED!")
+			row.Buy.SetColor(theme.Gold)
 			return
 		end
 		local balance = tracker.Balance()
-		local canAfford = balance ~= nil and balance >= cost
-		row.Cost.Text = `${NumberFormat.Compact(cost)}`
-		row.Cost.TextColor3 = if canAfford then theme.Good else theme.Bad
-		row.Buy.SetText("Buy")
-		row.Buy.SetDisabled(row.IsBusy or not canAfford)
+		if balance ~= nil and balance >= cost then
+			row.Buy.SetText(`💰 {NumberFormat.Compact(cost)}`)
+			row.Buy.SetColor(theme.Green)
+		else
+			local missing = cost - (balance or 0)
+			row.Buy.SetText(`Need {NumberFormat.Compact(missing)} more!`)
+			row.Buy.SetColor(theme.Red)
+		end
 	end
 
 	local function refreshAll()
@@ -80,17 +86,33 @@ function Shop.new(context: Types.Context): Types.Screen
 		if row.IsBusy then
 			return
 		end
+		local level = tracker.GetLevel(row.Upgrade.Id)
+		local cost = Upgrades.Cost(row.Upgrade, level)
+		if not cost then
+			playUi("Confirm")
+			context.Toast("Already MAXED! 🎉", "Good")
+			Kit.Pulse(row.Frame, theme.Gold)
+			return
+		end
+		local balance = tracker.Balance() or 0
+		if balance < cost then
+			playUi("Error")
+			Kit.Shake(row.Frame)
+			context.Toast(`Need {NumberFormat.Compact(cost - balance)} more Clicks!`, "Bad")
+			return
+		end
 		row.IsBusy = true
-		refreshRow(row)
 		task.spawn(function()
 			local success = Packets.BuyUpgrade:Fire(row.Upgrade.Id)
 			row.IsBusy = false
 			if success == true then
 				playUi("Confirm")
 				Kit.Pulse(row.Frame, theme.Good)
+				context.Toast(`Bought {row.Upgrade.Name}!`, "Good")
 			else
 				playUi("Error")
 				Kit.Shake(row.Frame)
+				context.Toast("Oops, couldn't buy that!", "Bad")
 			end
 			refreshRow(row)
 		end)
@@ -100,7 +122,7 @@ function Shop.new(context: Types.Context): Types.Screen
 		local frame = Kit.Panel({
 			Parent = scroll,
 			Name = upgrade.Id,
-			Size = UDim2.new(1, 0, 0, rowHeight),
+			Size = UDim2.new(1, 0, 0, cardHeight),
 			Color = theme.Raised,
 			LayoutOrder = index,
 		})
@@ -109,70 +131,79 @@ function Shop.new(context: Types.Context): Types.Screen
 			Name = "Name",
 			Text = upgrade.Name,
 			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -170, 0, 28),
-			TextSize = 24,
+			Size = UDim2.new(1, -28, 0, 38),
+			TextSize = 30,
+			Scaled = true,
 		})
 		Kit.Label({
 			Parent = frame,
 			Name = "Description",
 			Text = upgrade.Description,
-			Position = UDim2.fromOffset(14, 38),
-			Size = UDim2.new(1, -170, 0, 22),
-			TextSize = 16,
+			Position = UDim2.fromOffset(14, 46),
+			Size = UDim2.new(1, -28, 0, 26),
+			TextSize = 20,
 			Color = theme.TextDim,
-			Bold = false,
+			Scaled = true,
+			Outline = false,
 		})
-		local level = Kit.Label({
-			Parent = frame,
+		local track = Instance.new("Frame")
+		track.Name = "Track"
+		track.BorderSizePixel = 0
+		track.Position = UDim2.fromOffset(14, 80)
+		track.Size = UDim2.new(1, -28, 0, 26)
+		Kit.Paint(track, theme.Deep)
+		Kit.Corner(track, 13)
+		Kit.Stroke(track, theme.Ink, 3)
+		track.Parent = frame
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.BorderSizePixel = 0
+		fill.Size = UDim2.fromScale(0, 1)
+		Kit.Paint(fill, theme.Good)
+		Kit.Corner(fill, 13)
+		fill.Parent = track
+		local barText = Kit.Label({
+			Parent = track,
 			Name = "Level",
-			Text = "",
-			Position = UDim2.fromOffset(14, 64),
-			Size = UDim2.new(1, -170, 0, 22),
+			Text = "Lv 0",
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 18,
-			Color = theme.Accent,
-		})
-		local cost = Kit.Label({
-			Parent = frame,
-			Name = "Cost",
-			Text = "",
-			Position = UDim2.new(1, -12, 0, 6),
-			AnchorPoint = Vector2.new(1, 0),
-			Size = UDim2.fromOffset(140, 26),
-			TextSize = 22,
-			Align = Enum.TextXAlignment.Right,
+			Align = Enum.TextXAlignment.Center,
+			Scaled = true,
 		})
 		local row: Row = {
 			Frame = frame,
-			Level = level,
-			Cost = cost,
+			Bar = fill,
+			BarText = barText,
+			Buy = nil :: any,
 			Upgrade = upgrade,
 			IsBusy = false,
-			Buy = nil :: any,
 		}
 		row.Buy = Kit.Button(trove, {
 			Parent = frame,
 			Name = "Buy",
-			Text = "Buy",
-			Position = UDim2.new(1, -12, 1, -10),
-			AnchorPoint = Vector2.new(1, 1),
-			Size = UDim2.fromOffset(140, 52),
-			Color = theme.Accent,
+			Text = "💰",
+			Position = UDim2.new(0.5, 0, 1, -10),
+			AnchorPoint = Vector2.new(0.5, 1),
+			Size = UDim2.new(1, -28, 0, 46),
+			Color = theme.Green,
+			TextSize = 28,
 			Callback = function()
 				buy(row)
 			end,
+			Sound = playUi,
 		})
 		table.insert(rows, row)
 	end
-	refreshAll()
 
-	local sinceRefresh = 0
+	local elapsed = 0
 	trove:Connect(RunService.Heartbeat, function(dt: number)
 		if not isOpen then
 			return
 		end
-		sinceRefresh += dt
-		if sinceRefresh >= 0.25 then
-			sinceRefresh = 0
+		elapsed += dt
+		if elapsed >= refreshSeconds then
+			elapsed = 0
 			refreshAll()
 		end
 	end)

@@ -35,11 +35,11 @@ local elapsed = 0
 local function hintText(): string?
 	if step == 0 then
 		if UserInputService.KeyboardEnabled then
-			return "TAP THE KEY!\nor press E"
+			return "TAP THE KEY! 👆\nor press E"
 		end
-		return "TAP THE KEY!"
+		return "TAP THE KEY! 👆"
 	elseif step == 1 then
-		return "ROLL AGAIN!"
+		return "ROLL AGAIN! 🎲"
 	end
 	return nil
 end
@@ -119,11 +119,15 @@ function TutorialController.Start(self: State)
 	label.Name = "Hint"
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.GothamBold
+	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.TextColor3 = Keys.RarityByName.Legendary.Color
-	label.TextStrokeTransparency = 0.2
 	label.Text = ""
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(22, 18, 38)
+	stroke.Thickness = 3
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	stroke.Parent = label
 	label.Parent = gui
 	gui.Parent = workspace
 	hint = gui

@@ -6,6 +6,7 @@ export type Context = {
 	Open: (name: string) -> (),
 	Close: (name: string) -> (),
 	IsOpen: (name: string) -> boolean,
+	Toast: (text: string, kind: string?) -> (),
 }
 
 export type Screen = {
