@@ -74,8 +74,18 @@ describe("RebirthService", function()
 		expect(rebirth()):toBe(true)
 		expect(data.Cash):toBe(0)
 		expect(data.IncomeAt):toBe(world.now)
-		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 0, Slots = 0 })
+		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0 })
 		expect(data.Rebirths):toBe(1)
+	end)
+
+	it("resets the Income upgrade but keeps the base defense upgrades", function()
+		join({
+			Cash = 5000000,
+			IncomeAt = world.now,
+			Upgrades = { Luck = 1, Speed = 1, Slots = 1, Income = 6, Walls = 2, LockTime = 3 },
+		})
+		expect(rebirth()):toBe(true)
+		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 2, LockTime = 3 })
 	end)
 
 	it("keeps keys, discoveries and everything else", function()

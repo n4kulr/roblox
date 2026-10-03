@@ -42,7 +42,7 @@ local function buyUpgrade(player: Player, upgradeId: string): boolean
 	end
 	replica:SetValues({}, values)
 	replica:SetValues({ "Upgrades" }, { [upgrade.Id] = level + 1 })
-	if upgrade.Id == "Slots" then
+	if upgrade.Id == "Slots" or upgrade.Id == "Walls" then
 		services.KeyboardService.BoardChanged:Fire(player)
 	end
 	return true

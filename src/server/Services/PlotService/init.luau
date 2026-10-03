@@ -4,34 +4,29 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Packets = require(ReplicatedStorage.Packets)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
+local Lock = require(script.Lock)
+local Types = require(script.Types)
+local Walls = require(script.Walls)
 
 type TroveInstance = typeof(Trove.new())
-type PlotInfo = {
-	Model: Model,
-	Base: BasePart,
-	RollKey: BasePart,
-	Board: BasePart,
-	Caps: { BasePart },
-	FloorCaps: { BasePart },
-	Layout: FloorGrid.Layout,
-	Owner: Player?,
-	Placeholder: boolean,
-	Walkway: BasePart?,
-	Sign: OwnerSign.Display?,
-}
+type PlotInfo = Types.PlotInfo
 type State = {
 	Name: string,
+	LockChanged: Signal.Signal<Player>,
 	_trove: TroveInstance?,
 }
 
 local PlotService = {
 	Name = "PlotService",
+	LockChanged = Signal.new() :: Signal.Signal<Player>,
 	_trove = nil :: TroveInstance?,
 }
 local services: { [string]: any } = {}
@@ -40,6 +35,13 @@ local plotByPlayer: { [Player]: PlotInfo } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
 local buildThread: thread? = nil
 local meshTimeout = 6
+local sweepSeconds = 0.2
+local zapAlertPhase = 9
+local zapMessage = "🔴 The lasers zapped you!"
+local zapToastSeconds = 1.5
+local lastZap: { [Player]: number } = {}
+local hasWarnedSlots = false
+local activateLock: (info: PlotInfo, player: Player) -> boolean
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
@@ -143,8 +145,11 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 			info.Caps[slot] = cap
 		end
 	end
-	if #info.Caps < GameConfig.BoardSlots then
-		warn(`[PlotService] {info.Model:GetFullName()} has no room for {GameConfig.BoardSlots} slot keys`)
+	if #info.Caps < GameConfig.BoardSlots and not hasWarnedSlots then
+		hasWarnedSlots = true
+		warn(
+			`[PlotService] {info.Model:GetFullName()} only fits {#info.Caps} of {GameConfig.BoardSlots} slot keys`
+		)
 	end
 	local baseSize = info.Base.Size
 	local walkway = Instance.new("Part")
@@ -231,6 +236,40 @@ local function teleport(player: Player, character: Model)
 	end)
 end
 
+local function presentLock(info: PlotInfo)
+	local state = info.Defense
+	if state then
+		Lock.Present(info, state, os.time())
+	end
+end
+
+local function applyOwner(info: PlotInfo, owner: Player?)
+	info.Owner = owner
+	local state = info.Defense
+	if state then
+		Lock.Reset(state)
+		state.Prompt:SetAttribute("OwnerUserId", if owner then owner.UserId else nil)
+	end
+	presentLock(info)
+end
+
+local function wallLevelOf(data: PlayerData.Data?): number
+	return if data then Walls.Level(data.Upgrades.Walls) else 0
+end
+
+local function refreshWalls(info: PlotInfo, data: PlayerData.Data?)
+	local level = wallLevelOf(data)
+	if info.Walls and info.WallLevel == level then
+		return
+	end
+	Walls.Build(info, level)
+	local state = info.Defense
+	if state and state.IsActive then
+		Lock.ShowLasers(info, state)
+		Lock.Present(info, state, os.time())
+	end
+end
+
 local function release(player: Player)
 	local playerTrove = playerTroves[player]
 	playerTroves[player] = nil
@@ -239,9 +278,11 @@ local function release(player: Player)
 	end
 	local info = plotByPlayer[player]
 	plotByPlayer[player] = nil
+	lastZap[player] = nil
 	if info then
-		info.Owner = nil
+		applyOwner(info, nil)
 		info.Model:SetAttribute("Owner", nil)
+		refreshWalls(info, nil)
 		render(info, nil)
 		if info.Sign then
 			info.Sign:Set(nil)
@@ -264,9 +305,10 @@ local function assign(player: Player, data: PlayerData.Data)
 		warn(`[PlotService] No free plot for {player.Name}`)
 		return
 	end
-	free.Owner = player
+	applyOwner(free, player)
 	plotByPlayer[player] = free
 	free.Model:SetAttribute("Owner", player.UserId)
+	refreshWalls(free, data)
 	render(free, data)
 	if free.Sign then
 		free.Sign:Set(player)
@@ -310,6 +352,9 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Placeholder = useMeshes,
 				Walkway = nil,
 				Sign = nil,
+				Walls = nil,
+				WallLevel = 0,
+				Defense = nil,
 			}
 			if useMeshes then
 				skinRollKey(info)
@@ -318,12 +363,71 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 			board.CanCollide = false
 			info.Layout = FloorGrid.ForPlot(base, info.RollKey, board)
 			createCaps(info, trove)
+			Walls.Build(info, 0)
+			info.Defense = Lock.Build(info, trove, function(player: Player)
+				activateLock(info, player)
+			end)
+			presentLock(info)
 			info.Sign = OwnerSign.new(model, base, trove)
 			table.insert(plots, info)
 		else
 			warn(
 				`[PlotService] {model:GetFullName()} needs BasePart children Base, RollKey and Board; skipped`
 			)
+		end
+	end
+end
+
+function activateLock(info: PlotInfo, player: Player): boolean
+	local state = info.Defense
+	if not state or info.Owner ~= player then
+		return false
+	end
+	local now = os.time()
+	if Lock.StatusAt(state, now) ~= Lock.Ready then
+		return false
+	end
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	Lock.Start(info, state, now, Lock.Duration(if data then data.Upgrades.LockTime else 0))
+	Lock.Present(info, state, now)
+	PlotService.LockChanged:Fire(player)
+	return true
+end
+
+local function zapIntruders(info: PlotInfo, owner: Player)
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+		if
+			player ~= owner
+			and root
+			and root:IsA("BasePart")
+			and Lock.IsInside(info, root.CFrame.Position)
+		then
+			Lock.Knock(info, root)
+			local last = lastZap[player]
+			if not last or os.clock() - last >= zapToastSeconds then
+				lastZap[player] = os.clock()
+				Packets.StealAlert:FireClient(player, zapMessage, 0, zapAlertPhase)
+			end
+		end
+	end
+end
+
+local function sweep()
+	local now = os.time()
+	for _, info in plots do
+		local state = info.Defense
+		local owner = info.Owner
+		if state and owner then
+			if state.IsActive and now >= state.LockedUntil then
+				Lock.Finish(state)
+				Lock.Present(info, state, now)
+				PlotService.LockChanged:Fire(owner)
+			elseif state.IsActive then
+				zapIntruders(info, owner)
+			end
+			Lock.Present(info, state, now)
 		end
 	end
 end
@@ -379,6 +483,7 @@ function PlotService.Start(self: State)
 		local info = plotByPlayer[player]
 		local data = services.DataService:GetData(player) :: PlayerData.Data?
 		if info and data then
+			refreshWalls(info, data)
 			render(info, data)
 		end
 	end)
@@ -400,6 +505,12 @@ function PlotService.Start(self: State)
 		end
 		table.clear(waiting)
 	end)
+	trove:Add(task.spawn(function()
+		while true do
+			task.wait(sweepSeconds)
+			sweep()
+		end
+	end))
 end
 
 function PlotService.GetPlot(_self: State, player: Player): Model?
@@ -422,12 +533,47 @@ function PlotService.GetBase(_self: State, player: Player): BasePart?
 	return if info then info.Base else nil
 end
 
+function PlotService.Lock(_self: State, player: Player): boolean
+	local info = plotByPlayer[player]
+	return info ~= nil and activateLock(info, player)
+end
+
+function PlotService.IsLocked(_self: State, player: Player): boolean
+	local info = plotByPlayer[player]
+	local state = if info then info.Defense else nil
+	return state ~= nil and state.IsActive and os.time() < state.LockedUntil
+end
+
+function PlotService.GetLockedUntil(_self: State, player: Player): number
+	local info = plotByPlayer[player]
+	local state = if info then info.Defense else nil
+	return if state and state.IsActive then state.LockedUntil else 0
+end
+
+function PlotService.GetLockCooldownUntil(_self: State, player: Player): number
+	local info = plotByPlayer[player]
+	local state = if info then info.Defense else nil
+	return if state then state.CooldownUntil else 0
+end
+
+function PlotService.GetWallHeight(_self: State, player: Player): number?
+	local info = plotByPlayer[player]
+	return if info then Walls.Height(info.WallLevel) else nil
+end
+
 function PlotService.Destroy(self: State)
 	if buildThread and coroutine.status(buildThread) == "suspended" then
 		task.cancel(buildThread)
 	end
 	buildThread = nil
 	MeshTemplates.Destroy()
+	for _, info in plots do
+		Walls.Clear(info)
+		if info.Defense then
+			Lock.Reset(info.Defense)
+		end
+	end
+	table.clear(lastZap)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

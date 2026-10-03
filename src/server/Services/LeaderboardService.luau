@@ -34,7 +34,7 @@ local services: { [string]: any } = {}
 local cache: { [number]: { Entry } } = {}
 local isRemote: { [number]: boolean } = {}
 local names: { [number]: string } = {}
-local statValues: { [Player]: { Clicks: any, Rolls: any } } = {}
+local statValues: { [Player]: { Clicks: any, Rolls: any, Rebirths: any } } = {}
 
 local function fieldValue(data: PlayerData.Data, field: string): number
 	local value = (data :: any)[field]
@@ -131,6 +131,7 @@ local function updateStats(player: Player)
 	if data and values then
 		values.Clicks.Value = data.Cash
 		values.Rolls.Value = data.Rolls
+		values.Rebirths.Value = data.Rebirths
 	end
 end
 
@@ -147,7 +148,10 @@ local function createStats(player: Player)
 	local rolls = Instance.new("NumberValue")
 	rolls.Name = "Rolls"
 	rolls.Parent = folder
-	statValues[player] = { Clicks = clicks, Rolls = rolls }
+	local rebirths = Instance.new("NumberValue")
+	rebirths.Name = "Rebirths"
+	rebirths.Parent = folder
+	statValues[player] = { Clicks = clicks, Rolls = rolls, Rebirths = rebirths }
 	folder.Parent = player
 	updateStats(player)
 end

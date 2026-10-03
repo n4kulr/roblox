@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Stats = require(ReplicatedStorage.Rules.Stats)
@@ -31,7 +32,17 @@ local cardColors: { [string]: Color3 } = {
 	Luck = theme.Green,
 	Speed = theme.Yellow,
 	Slots = theme.Blue,
+	Income = theme.Gold,
+	Walls = theme.Orange,
+	LockTime = theme.Red,
 }
+
+local sections: { { Category: Upgrades.Category, Caption: string } } = {
+	{ Category = "Keys", Caption = "KEYS" },
+	{ Category = "Defense", Caption = "BASE DEFENSE" },
+}
+local sectionStride = 1000
+local captionHeight = 26
 
 local UpgradesScreen = {}
 
@@ -69,6 +80,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Luck = tracker.GetLevel("Luck"),
 			Speed = tracker.GetLevel("Speed"),
 			Slots = tracker.GetLevel("Slots"),
+			Income = tracker.GetLevel("Income"),
 		}
 		local nextLevels = table.clone(levels)
 		nextLevels[upgrade.Id] = level + 1
@@ -85,6 +97,29 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 				return string.format("Now: %.1f rolls/s", now.RollsPerSecond)
 			end
 			return string.format("%.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
+		end
+		if upgrade.Id == "Income" then
+			local current = math.round(level * upgrade.PerLevel * 100)
+			if isMaxed then
+				return string.format("Now: +%d%% Clicks", current)
+			end
+			return string.format(
+				"+%d%% → +%d%% Clicks",
+				current,
+				current + math.round(upgrade.PerLevel * 100)
+			)
+		elseif upgrade.Id == "Walls" then
+			local current = GameConfig.Defense.WallBaseHeight + level * upgrade.PerLevel
+			if isMaxed then
+				return string.format("Now: %d studs tall", current)
+			end
+			return string.format("%d → %d studs tall", current, current + upgrade.PerLevel)
+		elseif upgrade.Id == "LockTime" then
+			local current = GameConfig.Defense.LockBaseSeconds + level * upgrade.PerLevel
+			if isMaxed then
+				return string.format("Now: %ds of lasers", current)
+			end
+			return string.format("%ds → %ds of lasers", current, current + upgrade.PerLevel)
 		end
 		if isMaxed then
 			return string.format("Now: %d slots", now.Slots)
@@ -159,14 +194,26 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		end)
 	end
 
-	for index, upgrade in Upgrades.List do
+	local function addCaption(text: string, order: number)
+		Kit.Label({
+			Parent = scroll,
+			Name = `Caption{text}`,
+			Text = text,
+			Size = UDim2.new(1, 0, 0, captionHeight),
+			TextSize = 22,
+			Color = theme.Gold,
+			LayoutOrder = order,
+		})
+	end
+
+	local function addCard(upgrade: Upgrades.Upgrade, order: number)
 		local emoji, title = string.match(upgrade.Name, "^(%S+)%s+(.+)$")
 		local card = Kit.Panel({
 			Parent = scroll,
 			Name = upgrade.Id,
 			Size = UDim2.new(1, 0, 0, cardHeight),
 			Color = cardColors[upgrade.Id] or theme.Green,
-			LayoutOrder = index,
+			LayoutOrder = order,
 			Shards = true,
 		})
 		local iconTile = Kit.Panel({
@@ -250,6 +297,15 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Sound = playUi,
 		})
 		table.insert(rows, row)
+	end
+
+	for sectionIndex, section in sections do
+		addCaption(section.Caption, sectionIndex * sectionStride)
+		for index, upgrade in Upgrades.List do
+			if upgrade.Category == section.Category then
+				addCard(upgrade, sectionIndex * sectionStride + index)
+			end
+		end
 	end
 
 	local elapsed = 0

@@ -55,60 +55,41 @@ function FloorGrid.Build(baseX: number, baseZ: number, rollKey: Rect?, boardX: n
 	local minZ = -rows * size / 2
 	local lookup: { [number]: Cell } = {}
 	local cells: { Cell } = {}
-	local blocked: { [number]: boolean } = {}
 	for row = 0, rows - 1 do
 		for column = 0, columns - 1 do
 			local index = row * columns + column + 1
 			local cx = minX + (column + 0.5) * size
 			local cz = minZ + (row + 0.5) * size
-			if rollKey and overlapsRect(cx, cz, half, rollKey, FloorGrid.RollKeyMargin) then
-				blocked[index] = true
-			else
+			if not (rollKey and overlapsRect(cx, cz, half, rollKey, FloorGrid.RollKeyMargin)) then
 				local cell: Cell = { X = cx, Z = cz, Column = column, Row = row, Index = index, Slot = nil }
 				lookup[index] = cell
 				table.insert(cells, cell)
 			end
 		end
 	end
-	local slotColumns = GameConfig.BoardColumns
-	local slotRows = math.ceil(GameConfig.BoardSlots / slotColumns)
-	local slots: { Cell } = {}
-	local bestRow = -1
-	local bestColumn = -1
-	local bestDistance = math.huge
-	for startRow = 0, rows - slotRows do
-		for startColumn = 0, columns - slotColumns do
-			local isFree = true
-			for row = startRow, startRow + slotRows - 1 do
-				for column = startColumn, startColumn + slotColumns - 1 do
-					if blocked[row * columns + column + 1] then
-						isFree = false
-					end
-				end
-			end
-			if isFree then
-				local centerX = minX + (startColumn + slotColumns / 2) * size
-				local centerZ = minZ + (startRow + slotRows / 2) * size
-				local distance = (centerX - boardX) ^ 2 + (centerZ - boardZ) ^ 2
-				if distance < bestDistance - epsilon then
-					bestDistance = distance
-					bestRow = startRow
-					bestColumn = startColumn
-				end
-			end
-		end
+	local ranked: { Cell } = table.clone(cells)
+	local distances: { [Cell]: number } = {}
+	for _, cell in ranked do
+		distances[cell] = (cell.X - boardX) ^ 2 + (cell.Z - boardZ) ^ 2
 	end
-	if bestRow >= 0 then
-		for row = 0, slotRows - 1 do
-			for column = 0, slotColumns - 1 do
-				local slot = row * slotColumns + column + 1
-				if slot <= GameConfig.BoardSlots then
-					local cell = lookup[(bestRow + row) * columns + bestColumn + column + 1]
-					cell.Slot = slot
-					slots[slot] = cell
-				end
-			end
+	table.sort(ranked, function(a: Cell, b: Cell): boolean
+		local distanceA, distanceB = distances[a], distances[b]
+		if math.abs(distanceA - distanceB) > epsilon then
+			return distanceA < distanceB
 		end
+		return a.Index < b.Index
+	end)
+	local chosen: { Cell } = {}
+	for position = 1, math.min(GameConfig.BoardSlots, #ranked) do
+		chosen[position] = ranked[position]
+	end
+	table.sort(chosen, function(a: Cell, b: Cell): boolean
+		return a.Index < b.Index
+	end)
+	local slots: { Cell } = {}
+	for slot, cell in chosen do
+		cell.Slot = slot
+		slots[slot] = cell
 	end
 	return {
 		Cells = cells,

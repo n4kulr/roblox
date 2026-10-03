@@ -23,8 +23,15 @@ describe("Stats", function()
 		end)
 
 		it("clamps to the board size", function()
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 10 })):toBe(GameConfig.BoardSlots)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 25 })):toBe(GameConfig.BoardSlots)
 			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 999 })):toBe(GameConfig.BoardSlots)
+		end)
+
+		it("reaches BoardSlots exactly at the Slots max level", function()
+			local Upgrades = H.newWorld():require("ReplicatedStorage.Config.Upgrades")
+			expect(GameConfig.BoardSlots):toBe(60)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = Upgrades.ById.Slots.MaxLevel })):toBe(60)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = Upgrades.ById.Slots.MaxLevel - 1 })):toBe(58)
 		end)
 
 		it("never goes below the base slot count", function()
@@ -39,6 +46,14 @@ describe("Stats", function()
 	end)
 
 	describe("Compute", function()
+		it("scales income by 10% per Income level", function()
+			local board = S.fill("PlainClack", 4)
+			local base = Stats.Compute(board, noUpgrades)
+			local boosted = Stats.Compute(board, { Luck = 0, Speed = 0, Slots = 0, Income = 5 })
+			expect(boosted.IncomeMultiplier):toBeCloseTo(1.5, 1e-9)
+			expect(boosted.Rate):toBe(math.floor(base.Rate * 1.5))
+		end)
+
 		it("returns base stats for an empty board", function()
 			local stats = Stats.Compute(S.fill("", 30), noUpgrades)
 			expect(stats.Luck):toBe(GameConfig.Luck)
@@ -134,9 +149,9 @@ describe("Upgrades.Cost", function()
 	it("grows geometrically and floors", function()
 		local luck = Upgrades.ById.Luck
 		for level = 0, luck.MaxLevel - 1 do
-			expect(Upgrades.Cost(luck, level)):toBe(math.floor(100 * 1.6 ^ level))
+			expect(Upgrades.Cost(luck, level)):toBe(math.floor(luck.BaseCost * luck.Growth ^ level))
 		end
-		expect(Upgrades.Cost(Upgrades.ById.Slots, 3)):toBe(math.floor(500 * 2.2 ^ 3))
+		expect(Upgrades.Cost(Upgrades.ById.Slots, 3)):toBe(math.floor(Upgrades.ById.Slots.BaseCost * Upgrades.ById.Slots.Growth ^ 3))
 	end)
 
 	it("is strictly increasing up to the max level", function()

@@ -152,12 +152,42 @@ describe("KeyboardService", function()
 		end)
 
 		it("repairs short boards and rescues keys stored past the board end", function()
-			local board: any = { "PlainClack", "", [31] = "CreamyThock", [99] = "Bogus" }
+			local board: any = { "PlainClack", "", [61] = "CreamyThock", [99] = "Bogus" }
 			local _, data = join({ Board = board }, true)
 			expect(#data.Board):toBe(GameConfig.BoardSlots)
-			expect(data.Board[31]):toBeNil()
+			expect(data.Board[61]):toBeNil()
 			expect(data.Inventory.CreamyThock):toBe(1)
 			expect(data.Inventory.Bogus):toBeNil()
+		end)
+
+		it("pads a 30-slot save to BoardSlots for both Board and BoardTags", function()
+			local board: any = S.fill("", 30)
+			board[1] = "PlainClack"
+			local tags: any = S.fill("", 30)
+			tags[1] = "@Zed"
+			local _, data = join({ Board = board, BoardTags = tags }, true)
+			expect(#data.Board):toBe(GameConfig.BoardSlots)
+			expect(#data.BoardTags):toBe(GameConfig.BoardSlots)
+			for index = 1, GameConfig.BoardSlots do
+				expect(type(data.Board[index])):toBe("string")
+				expect(type(data.BoardTags[index])):toBe("string")
+			end
+			expect(data.Board[1]):toBe("PlainClack")
+			expect(data.BoardTags[1]):toBe("@Zed")
+			expect(data.BoardTags[60]):toBe("")
+		end)
+
+		it("pads a missing or short BoardTags and clears tags on locked slots", function()
+			local board: any = S.fill("", 30)
+			board[25] = "GlassTink"
+			local tags: any = S.fill("", 30)
+			tags[25] = "@Old"
+			local _, data = join({ Board = board, BoardTags = tags }, true)
+			expect(data.Board[25]):toBe("")
+			expect(data.BoardTags[25]):toBe("")
+			expect(#data.BoardTags):toBe(GameConfig.BoardSlots)
+			local _, other = join({ Board = S.board("PlainClack"), BoardTags = {} }, true)
+			expect(#other.BoardTags):toBe(GameConfig.BoardSlots)
 		end)
 
 		it("leaves a valid board untouched", function()
@@ -497,7 +527,7 @@ describe("KeyboardService", function()
 			})
 			local before = S.totals(data)
 			expect(equip(player)):toBe(true)
-			expect(boardKeys(data)):toEqual({
+			local expected = {
 				"LavaKey",
 				"GlassTink",
 				"GlassTink",
@@ -508,8 +538,11 @@ describe("KeyboardService", function()
 				"PlainClack",
 				"PlainClack",
 				"PlainClack",
-				"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-			})
+			}
+			for index = #expected + 1, GameConfig.BoardSlots do
+				expected[index] = ""
+			end
+			expect(boardKeys(data)):toEqual(expected)
 			expect(data.Inventory):toEqual({ PlainClack = 5 })
 			expect(S.totals(data)):toEqual(before)
 		end)
@@ -535,7 +568,7 @@ describe("KeyboardService", function()
 		it("fills only the unlocked slots", function()
 			local player, data = join({ Inventory = { PlainClack = 15 } })
 			equip(player)
-			for index = 11, 30 do
+			for index = 11, GameConfig.BoardSlots do
 				expect(data.Board[index]):toBe("")
 			end
 			expect(data.Inventory.PlainClack):toBe(5)

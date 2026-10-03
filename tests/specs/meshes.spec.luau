@@ -150,7 +150,7 @@ describe("Mesh skins", function()
 			end
 		end
 		expect(slots):toBe(GameConfig.BoardSlots)
-		expect(fillers):toBe(58)
+		expect(fillers):toBe(88 - GameConfig.BoardSlots)
 		expect(plot.RollKey.ClassName):toBe("MeshPart")
 		expect(plot.RollKey.Size):toBe(Vector3.new(8, 3, 8))
 		expect(plot:FindFirstChild("BoardCase")):toBeNil()

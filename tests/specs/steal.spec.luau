@@ -23,6 +23,14 @@ describe("StealService", function()
 		function fake.GetBase(_self, player: any)
 			return if plots[player] then plots[player].Base else nil
 		end
+		fake.LockChanged = world:require("ReplicatedStorage.Packages.Signal").new()
+		fake.LockedUntil = {}
+		function fake.GetLockedUntil(_self, player: any)
+			return fake.LockedUntil[player] or 0
+		end
+		function fake.IsLocked(_self, player: any)
+			return (fake.LockedUntil[player] or 0) > world.now
+		end
 		function fake.Assign(player: any, x: number)
 			local caps = {}
 			for slot = 1, GameConfig.BoardSlots do

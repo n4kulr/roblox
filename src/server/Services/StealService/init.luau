@@ -121,7 +121,7 @@ local function checkSteal(
 	local thiefData = getData(thief)
 	local victimData = getData(owner)
 	local thiefRoot = rootOf(thief)
-	local lockedAt = lockedUntil[owner.UserId]
+	local lockedAt = math.max(lockedUntil[owner.UserId] or 0, services.PlotService:GetLockedUntil(owner))
 	local lock = locks[owner.UserId]
 	return Steal.CanSteal({
 		ThiefUserId = thief.UserId,
@@ -131,7 +131,7 @@ local function checkSteal(
 		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief),
 		ActiveThiefUserId = if lock then lock.Thief.UserId else 0,
 		VictimPlaySeconds = if victimData then victimData.PlaySeconds + pendingPlaySeconds(owner) else 0,
-		VictimLockedUntil = lockedAt or 0,
+		VictimLockedUntil = lockedAt,
 		Now = os.time(),
 		ThiefRate = services.KeyboardService:GetRate(thief),
 		VictimRate = services.KeyboardService:GetRate(owner),
@@ -350,6 +350,7 @@ function syncPrompts(owner: Player)
 	end
 	local lessonPending = data.TheftLessonDone == false
 	local lock = locks[owner.UserId]
+	local isBaseLocked = services.PlotService:IsLocked(owner) == true
 	for slot = 1, GameConfig.BoardSlots do
 		local cap = caps[slot]
 		local keyId = boardKey(data, slot)
@@ -362,7 +363,7 @@ function syncPrompts(owner: Player)
 			local active = record or createRecord(owner, slot, cap)
 			records[slot] = active
 			Prompts.Update(active.Prompt, keyId, lessonPending)
-			active.Prompt.Enabled = lock == nil or lock.Slot == slot
+			active.Prompt.Enabled = not isBaseLocked and (lock == nil or lock.Slot == slot)
 		elseif record then
 			destroyRecord(owner, slot)
 		end
@@ -435,6 +436,11 @@ function StealService.Start(self: State)
 	end)
 	trove:Add(services.KeyboardService.BoardChanged:Connect(function(player: Player)
 		syncPrompts(player)
+	end))
+	trove:Add(services.PlotService.LockChanged:Connect(function(player: Player)
+		if prompts[player] then
+			syncPrompts(player)
+		end
 	end))
 	trove:Add(Players.PlayerRemoving:Connect(function(player: Player)
 		failCarry(player)
