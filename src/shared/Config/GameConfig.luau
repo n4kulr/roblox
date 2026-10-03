@@ -7,6 +7,7 @@ return table.freeze({
 	BoardColumns = 10,
 	PlotCount = 8,
 	RollsPerSecond = 3,
+	MaxRollsPerSecond = 8,
 	OfflineCapSeconds = 7200,
 	OfflineRate = 0.5,
 	SettleIntervalSeconds = 60,

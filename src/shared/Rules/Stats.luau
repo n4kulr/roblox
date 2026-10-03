@@ -50,6 +50,7 @@ function Stats.Compute(board: { string }, levels: any): Stats
 	local luck = (GameConfig.Luck + level(levels, "Luck") * Upgrades.ById.Luck.PerLevel) * (1 + luckBonus)
 	local rollsPerSecond = (GameConfig.RollsPerSecond + level(levels, "Speed") * Upgrades.ById.Speed.PerLevel)
 		* (1 + speedBonus)
+	rollsPerSecond = math.min(rollsPerSecond, GameConfig.MaxRollsPerSecond)
 	local multiplier = 1 + incomeBonus
 	return {
 		Luck = luck,
