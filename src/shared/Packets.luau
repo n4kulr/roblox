@@ -14,6 +14,8 @@ local Packets = {
 	StealAlert = Packet("StealAlert", Packet.String, Packet.NumberU16, Packet.NumberU8),
 	StealFeed = Packet("StealFeed", Packet.String, Packet.String, Packet.NumberU16),
 	TagThief = Packet("TagThief", Packet.NumberF64):Response(Packet.Boolean8):RateLimit(4, 1),
+	Knock = Packet("Knock", Packet.NumberF64):Response(Packet.Boolean8):RateLimit(3, 1),
+	KeyfallEvent = Packet("KeyfallEvent", Packet.NumberU8, Packet.String, Packet.NumberU16),
 	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
 	Ping = Packet("Ping"):Response(Packet.NumberF64):RateLimit(5, 1),
 }

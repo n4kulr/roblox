@@ -46,6 +46,7 @@ export type Key = {
 	Perk: Perk?,
 	Switch: string,
 	Flair: { SoundLayer }?,
+	Exclusive: boolean,
 }
 
 local soundAssets = {
@@ -160,6 +161,7 @@ type Definition = {
 	Switch: string,
 	Perk: Perk?,
 	Flair: { SoundLayer }?,
+	Exclusive: boolean?,
 }
 
 local function perk(kind: PerkKind, amount: number): Perk
@@ -211,6 +213,14 @@ local definitions: { Definition } = {
 		Switch = "NkCream",
 		Perk = perk("Luck", 0.5),
 	},
+	{
+		Id = "GoldenSpacebar",
+		Name = "Golden Spacebar",
+		Rarity = "Mythic",
+		Switch = "ToprePurple",
+		Perk = perk("Income", 0.5),
+		Exclusive = true,
+	},
 }
 
 local rarityByName: { [string]: Rarity } = {}
@@ -234,13 +244,16 @@ for index, definition in definitions do
 		Perk = definition.Perk,
 		Switch = definition.Switch,
 		Flair = definition.Flair,
+		Exclusive = definition.Exclusive == true,
 	}
 	assert(SwitchSounds.Switches[key.Switch] ~= nil, `Unknown switch {key.Switch}`)
 	assert(rarityByName[key.Rarity] ~= nil, `Unknown rarity {key.Rarity}`)
 	table.freeze(key)
 	catalog[index] = key
 	byId[key.Id] = key
-	table.insert(byRarity[key.Rarity], key)
+	if not key.Exclusive then
+		table.insert(byRarity[key.Rarity], key)
+	end
 end
 for _, group in byRarity do
 	table.freeze(group)
