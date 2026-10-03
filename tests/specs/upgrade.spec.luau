@@ -30,7 +30,7 @@ describe("UpgradeService", function()
 	it("only touches the purchased upgrade", function()
 		local player, data = world:join(nil, { Cash = 10000, Upgrades = { Speed = 2 } })
 		buy(player, "Slots")
-		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 2, Slots = 1 })
+		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 2, Slots = 1, Income = 0, Walls = 0, LockTime = 0 })
 	end)
 
 	it("accepts an exact-cost purchase and rejects one coin short", function()
@@ -54,7 +54,7 @@ describe("UpgradeService", function()
 	it("buys up to the max level then stops", function()
 		local player, data = world:join(nil, { Cash = 1e12 })
 		local bought = 0
-		for _ = 1, 40 do
+		for _ = 1, Upgrades.ById.Luck.MaxLevel + 10 do
 			if buy(player, "Luck") then
 				bought += 1
 			end

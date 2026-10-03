@@ -110,8 +110,17 @@ local function normalize(player: Player, data: PlayerData.Data)
 	local unlocked = Stats.Slots(data.Upgrades)
 	local board: { string } = {}
 	local moved: { string } = {}
+	local tags: { string } = {}
 	local changed = false
+	local tagsChanged = false
+	local oldTags: any = data.BoardTags
 	for index = 1, GameConfig.BoardSlots do
+		local tag = if type(oldTags) == "table" then oldTags[index] else nil
+		if type(tag) ~= "string" then
+			tag = ""
+			tagsChanged = true
+		end
+		tags[index] = tag
 		local keyId = data.Board[index]
 		if type(keyId) ~= "string" then
 			keyId = ""
@@ -122,7 +131,9 @@ local function normalize(player: Player, data: PlayerData.Data)
 				table.insert(moved, keyId)
 			end
 			keyId = ""
+			tags[index] = ""
 			changed = true
+			tagsChanged = true
 		end
 		board[index] = keyId
 	end
@@ -130,6 +141,16 @@ local function normalize(player: Player, data: PlayerData.Data)
 		if type(index) ~= "number" or index < 1 or index > GameConfig.BoardSlots or index % 1 ~= 0 then
 			changed = true
 		end
+	end
+	if type(oldTags) == "table" then
+		for index in oldTags do
+			if type(index) ~= "number" or index < 1 or index > GameConfig.BoardSlots or index % 1 ~= 0 then
+				tagsChanged = true
+			end
+		end
+	end
+	if tagsChanged then
+		services.DataService:Set(player, { "BoardTags" }, tags)
 	end
 	if not changed then
 		return

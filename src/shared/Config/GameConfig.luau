@@ -2,7 +2,7 @@
 
 return table.freeze({
 	Name = "THOCK",
-	BoardSlots = 30,
+	BoardSlots = 60,
 	BaseSlots = 10,
 	BoardColumns = 10,
 	PlotCount = 8,
@@ -101,6 +101,15 @@ return table.freeze({
 			Legendary = 1.8,
 			Mythic = 0.2,
 		}),
+	}),
+	Defense = table.freeze({
+		WallBaseHeight = 2,
+		WallThickness = 1,
+		EntranceWidth = 12,
+		LockBaseSeconds = 30,
+		LockCooldownSeconds = 60,
+		LaserKnockback = 40,
+		PadRange = 4,
 	}),
 	DailyStreakResetSeconds = 172800,
 	DailyCooldownSeconds = 72000,

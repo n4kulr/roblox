@@ -11,7 +11,7 @@ export type Data = {
 	Inventory: { [string]: number },
 	Discovered: { [string]: number },
 	Rolls: number,
-	Upgrades: { Luck: number, Speed: number, Slots: number },
+	Upgrades: { Luck: number, Speed: number, Slots: number, Income: number, Walls: number, LockTime: number },
 	Settings: {
 		LowGraphics: boolean,
 		AutoPlace: boolean,
@@ -53,7 +53,7 @@ PlayerData.Template = {
 	Inventory = {},
 	Discovered = {},
 	Rolls = 0,
-	Upgrades = { Luck = 0, Speed = 0, Slots = 0 },
+	Upgrades = { Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0 },
 	Settings = {
 		LowGraphics = false,
 		AutoPlace = true,

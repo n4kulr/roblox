@@ -1,12 +1,15 @@
 --!strict
 
-export type UpgradeId = "Luck" | "Speed" | "Slots"
+export type UpgradeId = "Luck" | "Speed" | "Slots" | "Income" | "Walls" | "LockTime"
+
+export type Category = "Keys" | "Defense"
 
 export type Upgrade = {
 	Id: UpgradeId,
 	Name: string,
 	Description: string,
 	Effect: string,
+	Category: Category,
 	MaxLevel: number,
 	BaseCost: number,
 	Growth: number,
@@ -19,9 +22,10 @@ local list: { Upgrade } = {
 		Name = "🍀 Lucky Charm",
 		Description = "Find rarer keys more often!",
 		Effect = "+10% Luck each level",
-		MaxLevel = 20,
+		Category = "Keys",
+		MaxLevel = 75,
 		BaseCost = 100,
-		Growth = 1.6,
+		Growth = 1.22,
 		PerLevel = 0.1,
 	},
 	{
@@ -29,6 +33,7 @@ local list: { Upgrade } = {
 		Name = "⚡ Fast Fingers",
 		Description = "Roll keys even faster!",
 		Effect = "+0.5 rolls per second each level",
+		Category = "Keys",
 		MaxLevel = 10,
 		BaseCost = 250,
 		Growth = 1.75,
@@ -39,10 +44,44 @@ local list: { Upgrade } = {
 		Name = "⌨️ Bigger Keyboard",
 		Description = "Hold more keys and earn more Clicks!",
 		Effect = "+2 keyboard slots each level",
-		MaxLevel = 10,
+		Category = "Keys",
+		MaxLevel = 25,
 		BaseCost = 500,
-		Growth = 2.2,
+		Growth = 1.45,
 		PerLevel = 2,
+	},
+	{
+		Id = "Income",
+		Name = "💰 Money Maker",
+		Description = "Every key earns more Clicks!",
+		Effect = "+10% Clicks each level",
+		Category = "Keys",
+		MaxLevel = 50,
+		BaseCost = 400,
+		Growth = 1.25,
+		PerLevel = 0.1,
+	},
+	{
+		Id = "Walls",
+		Name = "🧱 Taller Walls",
+		Description = "Build your base walls higher!",
+		Effect = "+3 wall height each level",
+		Category = "Defense",
+		MaxLevel = 5,
+		BaseCost = 5000,
+		Growth = 3,
+		PerLevel = 3,
+	},
+	{
+		Id = "LockTime",
+		Name = "🔴 Laser Lock",
+		Description = "Lasers block thieves for longer!",
+		Effect = "+10 seconds of lasers each level",
+		Category = "Defense",
+		MaxLevel = 10,
+		BaseCost = 20000,
+		Growth = 1.9,
+		PerLevel = 10,
 	},
 }
 

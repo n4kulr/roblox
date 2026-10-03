@@ -5,7 +5,14 @@ local GameConfig = require(Config.GameConfig)
 local Keys = require(Config.Keys)
 local Upgrades = require(Config.Upgrades)
 
-export type Levels = { Luck: number, Speed: number, Slots: number }
+export type Levels = {
+	Luck: number,
+	Speed: number,
+	Slots: number,
+	Income: number?,
+	Walls: number?,
+	LockTime: number?,
+}
 
 export type Stats = {
 	Luck: number,
@@ -53,7 +60,7 @@ function Stats.Compute(board: { string }, levels: any, modifiers: Modifiers?): S
 	local rollsPerSecond = (GameConfig.RollsPerSecond + level(levels, "Speed") * Upgrades.ById.Speed.PerLevel)
 		* (1 + speedBonus)
 	rollsPerSecond = math.min(rollsPerSecond, GameConfig.MaxRollsPerSecond)
-	local multiplier = 1 + incomeBonus
+	local multiplier = (1 + incomeBonus) * (1 + level(levels, "Income") * Upgrades.ById.Income.PerLevel)
 	if modifiers then
 		luck *= modifiers.Luck or 1
 		multiplier *= modifiers.Income or 1

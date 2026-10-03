@@ -41,20 +41,21 @@ describe("FloorGrid", function()
 		expect(#layout.Cells):toBe(100)
 	end)
 
-	it("places exactly 30 slot cells as a grid-aligned 10x3 block in row-major order", function()
+	it("places exactly BoardSlots slot cells in row-major order clear of the roll key", function()
 		local layout = FloorGrid.Build(44, 44, rollKey, 0, 12)
+		expect(GameConfig.BoardSlots):toBe(60)
 		expect(#layout.Slots):toBe(GameConfig.BoardSlots)
-		local first = layout.Slots[1]
+		local previous = nil
 		for slot = 1, GameConfig.BoardSlots do
 			local cell = layout.Slots[slot]
 			expect(cell.Slot):toBe(slot)
-			expect(cell.Column):toBe(first.Column + (slot - 1) % GameConfig.BoardColumns)
-			expect(cell.Row):toBe(first.Row + (slot - 1) // GameConfig.BoardColumns)
 			expect(layout.Lookup[cell.Index] == cell):toBe(true)
 			expect(overlaps(cell, rollKey)):toBe(false)
+			if previous then
+				expect(cell.Index > previous.Index):toBe(true)
+			end
+			previous = cell
 		end
-		expect(layout.Slots[1].X < layout.Slots[2].X):toBe(true)
-		expect(layout.Slots[1].Z < layout.Slots[11].Z):toBe(true)
 		local marked = 0
 		for _, cell in layout.Cells do
 			if cell.Slot then
@@ -62,6 +63,27 @@ describe("FloorGrid", function()
 			end
 		end
 		expect(marked):toBe(GameConfig.BoardSlots)
+	end)
+
+	it("picks the cells nearest the board center", function()
+		local layout = FloorGrid.Build(44, 44, rollKey, 0, 12)
+		local function distance(cell: any): number
+			return (cell.X - 0) ^ 2 + (cell.Z - 12) ^ 2
+		end
+		local farthestSlot = 0
+		for _, cell in layout.Slots do
+			farthestSlot = math.max(farthestSlot, distance(cell))
+		end
+		for _, cell in layout.Cells do
+			if not cell.Slot then
+				expect(distance(cell) >= farthestSlot - 1e-6):toBe(true)
+			end
+		end
+	end)
+
+	it("fits 60 slots on a 44x44 base without a roll key", function()
+		local layout = FloorGrid.Build(44, 44, nil, 0, 0)
+		expect(#layout.Slots):toBe(GameConfig.BoardSlots)
 	end)
 
 	it("is deterministic", function()
@@ -75,7 +97,7 @@ describe("FloorGrid", function()
 		end
 	end)
 
-	it("shifts the slot block off the roll key when the board center is near it", function()
+	it("keeps slots off the roll key when the board center is near it", function()
 		local layout = FloorGrid.Build(44, 44, rollKey, 0, -10)
 		expect(#layout.Slots):toBe(GameConfig.BoardSlots)
 		for _, cell in layout.Slots do
@@ -83,16 +105,23 @@ describe("FloorGrid", function()
 		end
 	end)
 
-	it("shifts the slot block inside the base when the board center is past the edge", function()
+	it("keeps slots inside the base when the board center is past the edge", function()
 		local layout = FloorGrid.Build(44, 44, rollKey, 60, 60)
 		expect(#layout.Slots):toBe(GameConfig.BoardSlots)
-		expect(layout.Slots[GameConfig.BoardSlots].Column):toBe(layout.Columns - 1)
-		expect(layout.Slots[GameConfig.BoardSlots].Row):toBe(layout.Rows - 1)
+		local half = FloorGrid.CellSize / 2
+		for _, cell in layout.Slots do
+			expect(math.abs(cell.X) + half <= 22 - FloorGrid.EdgeMargin + 1e-6):toBe(true)
+			expect(math.abs(cell.Z) + half <= 22 - FloorGrid.EdgeMargin + 1e-6):toBe(true)
+		end
+		local last = layout.Slots[GameConfig.BoardSlots]
+		expect(last.Column):toBe(layout.Columns - 1)
 	end)
 
-	it("returns no slots when the base is too small", function()
+	it("uses every free cell when the base has fewer cells than BoardSlots", function()
 		local layout = FloorGrid.Build(20, 20, nil, 0, 0)
-		expect(#layout.Slots):toBe(0)
+		expect(#layout.Cells):toBe(16)
+		expect(#layout.Slots):toBe(16)
+		expect(#layout.Slots < GameConfig.BoardSlots):toBe(true)
 	end)
 
 	it("locates the cell under a point", function()
