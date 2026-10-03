@@ -7,6 +7,7 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Income = require(ReplicatedStorage.Rules.Income)
+local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -31,7 +32,12 @@ local services: { [string]: any } = {}
 local function boardRate(player: Player, data: PlayerData.Data): number
 	local passService = services.PassService
 	local passes = if passService then passService:GetPasses(player) else {}
-	return Stats.Compute(data.Board, data.Upgrades, { Income = Boosts.PassIncome(passes) }).Rate
+	local income = Boosts.PassIncome(passes) * Rebirth.IncomeMultiplier(data.Rebirths)
+	return Stats.Compute(data.Board, data.Upgrades, { Income = income }).Rate
+end
+
+local function totalEarnedAfter(data: PlayerData.Data, cash: number): number
+	return data.TotalEarned + math.max(0, cash - data.Cash)
 end
 
 local function isInteger(value: any): boolean
@@ -64,7 +70,10 @@ local function settle(player: Player)
 	end
 	local cash, incomeAt = settledValues(player, data, os.time())
 	if cash ~= data.Cash or incomeAt ~= data.IncomeAt then
-		replica:SetValues({}, { Cash = cash, IncomeAt = incomeAt })
+		replica:SetValues(
+			{},
+			{ Cash = cash, IncomeAt = incomeAt, TotalEarned = totalEarnedAfter(data, cash) }
+		)
 	end
 end
 
@@ -160,7 +169,7 @@ local function grantOffline(player: Player, data: PlayerData.Data)
 	end
 	local replica = services.DataService:GetReplica(player)
 	if replica then
-		replica:SetValues({}, { Cash = cash, IncomeAt = now })
+		replica:SetValues({}, { Cash = cash, IncomeAt = now, TotalEarned = totalEarnedAfter(data, cash) })
 	end
 end
 
@@ -295,6 +304,7 @@ function KeyboardService.Start(self: State)
 	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, data: PlayerData.Data)
 		local cash, incomeAt = settledValues(player, data, os.time())
+		data.TotalEarned = totalEarnedAfter(data, cash)
 		data.Cash = cash
 		data.IncomeAt = incomeAt
 	end)
@@ -314,6 +324,13 @@ end
 
 function KeyboardService.Settle(_self: State, player: Player)
 	settle(player)
+end
+
+function KeyboardService.Normalize(_self: State, player: Player)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if data then
+		normalize(player, data)
+	end
 end
 
 function KeyboardService.GetRate(_self: State, player: Player): number

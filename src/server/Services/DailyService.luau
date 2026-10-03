@@ -13,7 +13,7 @@ local services: { [string]: any } = {}
 local function grant(player: Player, reward: DailyRewards.Reward): boolean
 	local kind = reward.Kind
 	if kind == "Clicks" then
-		return services.DataService:AdjustCash(player, reward.Amount)
+		return Rewards.AddClicks(player, services, reward.Amount)
 	elseif kind == "LuckPotion" then
 		return Rewards.ExtendPotion(player, services, "LuckUntil", reward.Amount)
 	elseif kind == "ClicksPotion" then

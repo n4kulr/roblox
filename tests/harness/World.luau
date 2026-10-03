@@ -191,6 +191,18 @@ local function makePlayers(world)
 	function players.GetPlayers(_self)
 		return table.clone(players._list)
 	end
+	function players.GetNameFromUserIdAsync(_self, userId: number)
+		world.nameLookups += 1
+		if world.nameFailures > 0 then
+			world.nameFailures -= 1
+			error("fake name lookup failure")
+		end
+		local name = world.userNames[userId]
+		if not name then
+			error("fake name lookup: unknown user")
+		end
+		return name
+	end
 	function players.GetPlayerByUserId(_self, userId: number)
 		for _, player in players._list do
 			if player.UserId == userId then
@@ -282,6 +294,52 @@ local function makeFakeServices(world)
 	}
 
 	services.DataStoreService = {
+		GetOrderedDataStore = function(_self, name: string)
+			if world.orderedDown then
+				error("fake ordered datastore unavailable")
+			end
+			local values = world.orderedStores[name]
+			if not values then
+				values = {}
+				world.orderedStores[name] = values
+			end
+			return {
+				SetAsync = function(_store, key: string, value: number)
+					world.orderedWrites += 1
+					if world.orderedDown then
+						error("fake ordered datastore unavailable")
+					end
+					values[key] = value
+				end,
+				GetSortedAsync = function(_store, ascending: boolean, pageSize: number)
+					world.orderedReads += 1
+					if world.orderedDown then
+						error("fake ordered datastore unavailable")
+					end
+					local page = {}
+					for key, value in values do
+						table.insert(page, { key = key, value = value })
+					end
+					table.sort(page, function(a, b)
+						if a.value ~= b.value then
+							if ascending then
+								return a.value < b.value
+							end
+							return a.value > b.value
+						end
+						return a.key < b.key
+					end)
+					while #page > pageSize do
+						table.remove(page)
+					end
+					return {
+						GetCurrentPage = function()
+							return page
+						end,
+					}
+				end,
+			}
+		end,
 		GetDataStore = function()
 			return {
 				GetAsync = function() end,
@@ -340,6 +398,13 @@ function World.new(
 		meshRequests = {} :: { any },
 		meshFailures = {} :: { [any]: boolean },
 		meshDelay = 0,
+		orderedStores = {} :: { [string]: { [string]: number } },
+		orderedDown = false,
+		orderedReads = 0,
+		orderedWrites = 0,
+		userNames = {} :: { [number]: string },
+		nameFailures = 0,
+		nameLookups = 0,
 		_kicked = {} :: { any },
 	}, World)
 
@@ -641,6 +706,7 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		Parent = self.Players,
 		Kicked = nil,
 		_attributes = {} :: { [string]: any },
+		_children = {} :: { any },
 	}, {
 		__rbxtype = "Instance",
 		__tostring = function()
@@ -659,6 +725,14 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 	end
 	player.SetAttribute = function(p: any, attribute: string, value: any)
 		p._attributes[attribute] = value
+	end
+	player.FindFirstChild = function(p: any, childName: string)
+		for _, child in p._children do
+			if child.Name == childName then
+				return child
+			end
+		end
+		return nil
 	end
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"

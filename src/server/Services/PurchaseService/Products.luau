@@ -23,7 +23,7 @@ local function makeGrant(product: Monetization.Product): Grant?
 		end
 	elseif kind == "Clicks" then
 		return function(player, services)
-			return services.DataService:AdjustCash(player, product.Amount)
+			return Rewards.AddClicks(player, services, product.Amount)
 		end
 	elseif kind == "ServerLuck" then
 		return function(player, _services)
@@ -42,7 +42,7 @@ local function makeGrant(product: Monetization.Product): Grant?
 			if not data then
 				return false
 			end
-			if not services.DataService:AdjustCash(player, product.Amount) then
+			if not Rewards.AddClicks(player, services, product.Amount) then
 				return false
 			end
 			if data.StarterPackBought then

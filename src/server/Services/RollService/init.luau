@@ -75,6 +75,9 @@ local function handleRoll(player: Player): (number, boolean)
 	if data.Tutorial == 1 and data.Rolls >= GameConfig.GuaranteedRareRoll then
 		services.DataService:Set(player, { "Tutorial" }, 2)
 	end
+	if services.SeasonService then
+		services.SeasonService:AddRoll(player, isGolden)
+	end
 	if Keys.GetRarity(key).Announce then
 		Packets.RareRoll:FireAllClients(player.DisplayName, key.Index)
 	end

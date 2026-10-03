@@ -19,7 +19,7 @@ type BoostPill = {
 }
 
 local theme = Kit.Theme
-local menuHalfHeight = 88
+local menuHalfHeight = 134
 local dailyWidth = 176
 local dailyHeight = 50
 local menuGap = 8
