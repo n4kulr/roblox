@@ -129,7 +129,7 @@ local function layoutWalkway(info: PlotInfo)
 end
 
 local function newCap(info: PlotInfo, slot: number): BasePart
-	local template = if info.Placeholder then MeshTemplates.Get("Keycap") else nil
+	local template = MeshTemplates.Get("Keycap")
 	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
 	cap.Name = `Slot{slot}`
 	cap.Anchored = true

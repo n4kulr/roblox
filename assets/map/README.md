@@ -1,0 +1,26 @@
+# THOCK starter map
+
+`ThockMap.rbxm` is a ready-made map: grass `Ground`, 8 `Plots`, the `Arena`, `Paths`, `Decor` and a `SpawnLocation`. The game code builds placeholder plots and arena at runtime only when these are missing.
+
+## Insert it
+
+1. Open the place in Studio.
+2. Right-click `Workspace` > Insert from File... > pick `assets/map/ThockMap.rbxm` (or drag the file into the viewport).
+3. The file has several roots, so `Plots`, `Arena`, `Paths`, `Decor`, `SpawnLocation` and `Ground` land directly in `Workspace`.
+4. Delete the old `Baseplate`, then save to Roblox (File > Publish to Roblox).
+
+## Rules
+
+- Do not rename `Workspace.Plots`, `Workspace.Arena`, `Arena.Floor`, `Plot1`..`Plot8`, or the `Base`, `RollKey` and `Board` parts in each plot. The server finds them by name.
+- Everything else can be moved, recolored or decorated freely. Keep the plot positions and the arena size if you want gameplay distances (delivery radius, arena radius 40) to stay tuned.
+- `preview.png` is a top-down footprint render of the layout.
+
+## Regenerate
+
+```
+lune run tools/build_map
+lune run tools/export_footprints assets/map/ThockMap.rbxm footprints.json
+python3 tools/render_preview.py footprints.json assets/map/preview.png
+```
+
+The preview step needs Pillow (`pip install pillow`). `tests/specs/map.spec.luau` validates the generated file.

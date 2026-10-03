@@ -1,12 +1,13 @@
 local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
 
-local Vector3, Color3 = roblox.Vector3, roblox.Color3
+local Vector3, Color3, CFrame = roblox.Vector3, roblox.Color3, roblox.CFrame
 
 local describe, it, expect, afterEach = H.describe, H.it, H.expect, H.afterEach
 
 describe("Mesh skins", function()
 	local world, GameConfig, plots, registry, boardChanges
+	local authoredPlots = false
 
 	local function setup(ids: { [string]: string }, delay: number?, failures: { string }?, authored: { string }?)
 		world = H.newWorld()
@@ -23,6 +24,23 @@ describe("Mesh skins", function()
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 		local Signal = world:require("ReplicatedStorage.Packages.Signal")
 		world.workspace = world:newInstance("Folder")
+		if authoredPlots then
+			local folder = world:newInstance("Folder")
+			folder.Name = "Plots"
+			local model = world:newInstance("Model")
+			model.Name = "Plot1"
+			for name, size in
+				{ Base = Vector3.new(44, 1, 44), RollKey = Vector3.new(8, 3, 8), Board = Vector3.new(31, 1.5, 9.6) }
+			do
+				local part = world:newInstance("Part")
+				part.Name = name
+				part.Size = size
+				part.CFrame = CFrame.new(0, 0.5, 0)
+				part.Parent = model
+			end
+			model.Parent = folder
+			folder.Parent = world.workspace
+		end
 		world.overrides[world.tree.ReplicatedStorage.Config.Meshes] =
 			{ Keycap = ids.Keycap or "", RollKey = ids.RollKey or "", KeyboardCase = ids.KeyboardCase or "" }
 		world.meshDelay = delay or 0
@@ -51,6 +69,7 @@ describe("Mesh skins", function()
 	end
 
 	afterEach(function()
+		authoredPlots = false
 		expect(world.errors):toEqual({})
 		world:destroy()
 	end)
@@ -163,5 +182,20 @@ describe("Mesh skins", function()
 			end
 		end
 		expect(warned):toBe(true)
+	end)
+
+	it("uses keycap meshes on authored plots and leaves RollKey and Board alone", function()
+		authoredPlots = true
+		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" })
+		local plot = plots.Plot1
+		expect(plot.RollKey.ClassName):toBe("Part")
+		expect(plot.Board.ClassName):toBe("Part")
+		expect(plot:FindFirstChild("BoardCase")):toBeNil()
+		local count = 0
+		for _, cap in slotCaps(plot) do
+			count += 1
+			expect(cap.ClassName):toBe("MeshPart")
+		end
+		expect(count):toBe(GameConfig.BoardSlots)
 	end)
 end)
