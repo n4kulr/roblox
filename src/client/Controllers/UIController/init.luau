@@ -15,6 +15,7 @@ local modules: { [string]: Types.ScreenModule } = {
 	Index = require(script.Screens.Index),
 	Settings = require(script.Screens.Settings),
 	Offers = require(script.Screens.Offers),
+	StarterOffer = require(script.Screens.StarterOffer),
 	Daily = require(script.Screens.Daily),
 	Market = require(script.Screens.Market),
 	Shop = require(script.Screens.Shop),

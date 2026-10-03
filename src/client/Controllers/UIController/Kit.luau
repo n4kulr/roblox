@@ -239,8 +239,10 @@ local theme = {
 }
 
 local Kit = {
-	TabBarTop = 6,
-	TabBarHeight = 58,
+	TabBarTop = 8,
+	TabBarHeight = 56,
+	ClicksGap = 8,
+	ClicksHeight = 40,
 	ToastGap = 12,
 	Theme = table.freeze(theme),
 	Font = Enum.Font.FredokaOne,

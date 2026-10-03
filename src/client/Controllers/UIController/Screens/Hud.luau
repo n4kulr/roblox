@@ -21,7 +21,11 @@ type BadgeText = {
 
 local theme = Kit.Theme
 local hintStep = 2
-local gridCell = 84
+local screenMargin = 24
+local sideTabWidth = 184
+local sideTabHeight = 48
+local settingsSize = 44
+local gridCell = 88
 local gridGap = 8
 local rollWidth = 200
 local rollHeight = 98
@@ -69,13 +73,8 @@ function Hud.new(context: Types.Context): Types.Screen
 	left.Name = "Menu"
 	left.BackgroundTransparency = 1
 	left.AnchorPoint = Vector2.new(0, 0.5)
-	left.Position = UDim2.new(0, 12, 0.5, 0)
+	left.Position = UDim2.new(0, screenMargin, 0.5, 0)
 	left.Size = UDim2.fromOffset(gridCell * 2 + gridGap, gridCell * 3 + gridGap * 2)
-	local grid = Instance.new("UIGridLayout")
-	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.CellSize = UDim2.fromOffset(gridCell, gridCell)
-	grid.CellPadding = UDim2.fromOffset(gridGap, gridGap)
-	grid.Parent = left
 	left.Parent = root
 
 	local function menuButton(
@@ -84,7 +83,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		asset: string?,
 		label: string,
 		color: Color3,
-		order: number,
+		position: Vector2,
 		target: string
 	): Kit.Button
 		return Kit.Button(trove, {
@@ -94,27 +93,52 @@ function Hud.new(context: Types.Context): Types.Screen
 			IconAsset = asset,
 			Text = label,
 			Color = color,
+			Size = UDim2.fromOffset(gridCell, gridCell),
+			Position = UDim2.fromOffset(position.X, position.Y),
 			TextSize = 18,
-			LayoutOrder = order,
 			Callback = function()
 				toggleScreen(target)
 			end,
 			Sound = playUi,
 		})
 	end
-	local upgradesButton =
-		menuButton("Upgrades", "🛒", UiAssets.Icons.Upgrades, "UPGRADES", theme.Green, 1, "Upgrades")
-	menuButton("Keys", "🔑", UiAssets.Icons.Keys, "KEYS", theme.Purple, 2, "Keys")
-	menuButton("Index", "📘", UiAssets.Icons.Index, "INDEX", theme.Blue, 3, "Index")
-	local rebirthButton = menuButton("Rebirth", "♻️", nil, "REBIRTH", theme.Purple, 4, "Rebirth")
-	local passButton = menuButton("Pass", "🎟️", nil, "PASS", theme.Orange, 5, "Season")
-	menuButton("Settings", "⚙️", UiAssets.Icons.Settings, "SETTINGS", theme.Grey, 6, "Settings")
+	local step = gridCell + gridGap
+	local upgradesButton = menuButton(
+		"Upgrades",
+		"🛒",
+		UiAssets.Icons.Upgrades,
+		"UPGRADES",
+		theme.Green,
+		Vector2.new(0, 0),
+		"Upgrades"
+	)
+	menuButton("Keys", "🔑", UiAssets.Icons.Keys, "KEYS", theme.Purple, Vector2.new(step, 0), "Keys")
+	menuButton("Index", "📘", UiAssets.Icons.Index, "INDEX", theme.Blue, Vector2.new(0, step), "Index")
+	local rebirthButton =
+		menuButton("Rebirth", "♻️", nil, "REBIRTH", theme.Purple, Vector2.new(step, step), "Rebirth")
+	local passButton =
+		menuButton("Pass", "🎟️", nil, "PASS", theme.Orange, Vector2.new(step / 2, step * 2), "Season")
 	local upgradesBadge = Kit.Badge(upgradesButton.Instance, "!")
 	upgradesBadge.Visible = false
 	local rebirthBadge = Kit.Badge(rebirthButton.Instance, "!")
 	rebirthBadge.Visible = false
 	local passBadge = Kit.Badge(passButton.Instance, "!")
 	passBadge.Visible = false
+
+	Kit.Button(trove, {
+		Parent = root,
+		Name = "Settings",
+		Text = "⚙️",
+		Size = UDim2.fromOffset(settingsSize, settingsSize),
+		Position = UDim2.new(0, screenMargin, 1, -screenMargin),
+		AnchorPoint = Vector2.new(0, 1),
+		Color = theme.Grey,
+		TextSize = 28,
+		Callback = function()
+			toggleScreen("Settings")
+		end,
+		Sound = playUi,
+	})
 
 	local tooltip = Kit.Panel({
 		Parent = left,
@@ -162,16 +186,16 @@ function Hud.new(context: Types.Context): Types.Screen
 	tabList.Padding = UDim.new(0, 8)
 	tabList.Parent = top
 	top.Parent = root
-	local upgradesTab = Kit.Button(trove, {
+	Kit.Button(trove, {
 		Parent = top,
-		Name = "UpgradesTab",
-		Text = "UPGRADES",
-		Size = UDim2.fromOffset(150, 48),
-		Color = theme.Green,
+		Name = "ShopTab",
+		Text = "SHOP",
+		Size = UDim2.fromOffset(sideTabWidth, sideTabHeight),
+		Color = theme.Red,
 		TextSize = 24,
 		LayoutOrder = 1,
 		Callback = function()
-			toggleScreen("Upgrades")
+			toggleScreen("Shop")
 		end,
 		Sound = playUi,
 	})
@@ -195,9 +219,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	})
 	Kit.Button(trove, {
 		Parent = top,
-		Name = "LeadersTab",
-		Text = "🏆 LEADERS",
-		Size = UDim2.fromOffset(150, 48),
+		Name = "LeaderboardTab",
+		Text = "LEADERBOARD",
+		Size = UDim2.fromOffset(sideTabWidth, sideTabHeight),
 		Color = theme.Gold,
 		TextSize = 24,
 		LayoutOrder = 3,
@@ -210,52 +234,54 @@ function Hud.new(context: Types.Context): Types.Screen
 	local money = Instance.new("Frame")
 	money.Name = "Currency"
 	money.BackgroundTransparency = 1
-	money.AnchorPoint = Vector2.new(0, 1)
-	money.Position = UDim2.new(0, 12, 1, -12)
-	money.Size = UDim2.fromOffset(190, 92)
+	money.AnchorPoint = Vector2.new(0.5, 0)
+	money.Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap)
+	money.AutomaticSize = Enum.AutomaticSize.X
+	money.Size = UDim2.fromOffset(0, Kit.ClicksHeight)
+	local moneyList = Instance.new("UIListLayout")
+	moneyList.SortOrder = Enum.SortOrder.LayoutOrder
+	moneyList.FillDirection = Enum.FillDirection.Horizontal
+	moneyList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	moneyList.VerticalAlignment = Enum.VerticalAlignment.Center
+	moneyList.Padding = UDim.new(0, gridGap)
+	moneyList.Parent = money
 	money.Parent = root
-	local rollsLabel = Kit.Label({
-		Parent = money,
-		Name = "Rolls",
-		Text = "🎲 0 rolls",
-		Position = UDim2.fromOffset(4, 0),
-		Size = UDim2.new(1, -4, 0, 20),
-		TextSize = 18,
-		Color = theme.TextDim,
-	})
 	Kit.Icon({
 		Parent = money,
 		Name = "Icon",
 		Emoji = "⌨️",
 		Asset = UiAssets.Icons.Clicks,
-		Position = UDim2.fromOffset(0, 22),
-		Size = UDim2.fromOffset(44, 44),
+		Size = UDim2.fromOffset(Kit.ClicksHeight, Kit.ClicksHeight),
+		LayoutOrder = 1,
 	})
 	local cashLabel = Kit.Label({
 		Parent = money,
 		Name = "Cash",
 		Text = "...",
-		Position = UDim2.fromOffset(48, 22),
-		Size = UDim2.new(1, -48, 0, 44),
+		Size = UDim2.fromOffset(0, Kit.ClicksHeight),
 		TextSize = 40,
 		Color = cashColor,
-		Scaled = true,
+		LayoutOrder = 2,
 	})
+	cashLabel.AutomaticSize = Enum.AutomaticSize.X
+	cashLabel.TextTruncate = Enum.TextTruncate.None
 	local incomeLabel = Kit.Label({
 		Parent = money,
 		Name = "Income",
 		Text = "",
-		Position = UDim2.fromOffset(50, 66),
-		Size = UDim2.new(1, -50, 0, 22),
-		TextSize = 20,
-		Color = Color3.fromRGB(200, 255, 190),
+		Size = UDim2.fromOffset(0, Kit.ClicksHeight),
+		TextSize = 24,
+		Color = theme.Good,
+		LayoutOrder = 3,
 	})
+	incomeLabel.AutomaticSize = Enum.AutomaticSize.X
+	incomeLabel.TextTruncate = Enum.TextTruncate.None
 
 	local multipliers = Instance.new("Frame")
 	multipliers.Name = "Multipliers"
 	multipliers.BackgroundTransparency = 1
 	multipliers.AnchorPoint = Vector2.new(1, 1)
-	multipliers.Position = UDim2.new(1, -12, 1, -12)
+	multipliers.Position = UDim2.new(1, -screenMargin, 1, -screenMargin)
 	multipliers.Size = UDim2.fromOffset(3 * 58 + 12, 64)
 	local multiplierList = Instance.new("UIListLayout")
 	multiplierList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -301,7 +327,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	bottom.Name = "Bottom"
 	bottom.BackgroundTransparency = 1
 	bottom.AnchorPoint = Vector2.new(0.5, 1)
-	bottom.Position = UDim2.new(0.5, 0, 1, -14)
+	bottom.Position = UDim2.new(0.5, 0, 1, -screenMargin)
 	bottom.Size = UDim2.fromOffset(0, rollHeight)
 	local fitScale = Instance.new("UIScale")
 	fitScale.Name = "FitScale"
@@ -421,7 +447,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		goldenBar.SetText(`{count}/{GameConfig.GoldenRollEvery}`)
 		goldenBar.SetValue(count / GameConfig.GoldenRollEvery)
 		setGoldenNext(count == GameConfig.GoldenRollEvery - 1)
-		rollsLabel.Text = `🎲 {NumberFormat.Commas(rolls)} rolls`
 	end))
 
 	local function setHinting(value: boolean)
@@ -431,7 +456,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		isHinting = value
 		tooltip.Visible = value
 		upgradesButton.SetGlow(value)
-		upgradesTab.SetGlow(value)
 		if value then
 			bounce:Play()
 		else
