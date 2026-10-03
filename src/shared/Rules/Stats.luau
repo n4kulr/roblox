@@ -27,7 +27,9 @@ function Stats.Slots(levels: any): number
 	return math.clamp(slots, GameConfig.BaseSlots, GameConfig.BoardSlots)
 end
 
-function Stats.Compute(board: { string }, levels: any): Stats
+export type Modifiers = { Luck: number?, Income: number? }
+
+function Stats.Compute(board: { string }, levels: any, modifiers: Modifiers?): Stats
 	local slots = Stats.Slots(levels)
 	local luckBonus, speedBonus, incomeBonus, baseRate = 0, 0, 0, 0
 	for index = 1, slots do
@@ -52,6 +54,10 @@ function Stats.Compute(board: { string }, levels: any): Stats
 		* (1 + speedBonus)
 	rollsPerSecond = math.min(rollsPerSecond, GameConfig.MaxRollsPerSecond)
 	local multiplier = 1 + incomeBonus
+	if modifiers then
+		luck *= modifiers.Luck or 1
+		multiplier *= modifiers.Income or 1
+	end
 	return {
 		Luck = luck,
 		RollsPerSecond = rollsPerSecond,

@@ -11,6 +11,10 @@ local Packets = {
 	EquipBest = Packet("EquipBest"):Response(Packet.Boolean8):RateLimit(2, 1),
 	SellKey = Packet("SellKey", Packet.String, Packet.NumberU16):Response(Packet.Boolean8):RateLimit(5, 1),
 	SetSetting = Packet("SetSetting", Packet.String, Packet.NumberF32):RateLimit(10, 1),
+	StealAlert = Packet("StealAlert", Packet.String, Packet.NumberU16, Packet.NumberU8),
+	StealFeed = Packet("StealFeed", Packet.String, Packet.String, Packet.NumberU16),
+	TagThief = Packet("TagThief", Packet.NumberF64):Response(Packet.Boolean8):RateLimit(4, 1),
+	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
 	Ping = Packet("Ping"):Response(Packet.NumberF64):RateLimit(5, 1),
 }
 

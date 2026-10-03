@@ -20,6 +20,12 @@ export type Data = {
 		OtherVolume: number,
 	},
 	Tutorial: number,
+	BoardTags: { string },
+	PlaySeconds: number,
+	TheftLessonDone: boolean,
+	Boosts: { LuckUntil: number, ClicksUntil: number },
+	Daily: { Streak: number, LastClaim: number },
+	StarterPackBought: boolean,
 	LastSeenAt: number,
 	Receipts: { [string]: number },
 }
@@ -51,6 +57,12 @@ PlayerData.Template = {
 		OtherVolume = 1,
 	},
 	Tutorial = 0,
+	BoardTags = emptyBoard(),
+	PlaySeconds = 0,
+	TheftLessonDone = false,
+	Boosts = { LuckUntil = 0, ClicksUntil = 0 },
+	Daily = { Streak = 0, LastClaim = 0 },
+	StarterPackBought = false,
 	LastSeenAt = 0,
 	Receipts = {},
 } :: Data
@@ -67,7 +79,7 @@ function PlayerData.Validate(data: any): boolean
 	if type(data) ~= "table" or (data.SchemaVersion ~= nil and data.SchemaVersion ~= 1) then
 		return false
 	end
-	for _, key in { "Cash", "IncomeAt", "Rolls", "Tutorial", "LastSeenAt" } do
+	for _, key in { "Cash", "IncomeAt", "Rolls", "Tutorial", "PlaySeconds", "LastSeenAt" } do
 		if data[key] ~= nil and not natural(data[key]) then
 			return false
 		end
@@ -109,6 +121,34 @@ function PlayerData.Validate(data: any): boolean
 		for keyId, count in data.Discovered do
 			if type(keyId) ~= "string" or not natural(count) then
 				return false
+			end
+		end
+	end
+	for _, key in { "TheftLessonDone", "StarterPackBought" } do
+		if data[key] ~= nil and type(data[key]) ~= "boolean" then
+			return false
+		end
+	end
+	if data.BoardTags ~= nil then
+		if type(data.BoardTags) ~= "table" then
+			return false
+		end
+		for index, tag in data.BoardTags do
+			if type(index) ~= "number" or type(tag) ~= "string" then
+				return false
+			end
+		end
+	end
+	for _, group in { "Boosts", "Daily" } do
+		local value = data[group]
+		if value ~= nil then
+			if type(value) ~= "table" then
+				return false
+			end
+			for name, amount in value do
+				if type(name) ~= "string" or not natural(amount) then
+					return false
+				end
 			end
 		end
 	end
