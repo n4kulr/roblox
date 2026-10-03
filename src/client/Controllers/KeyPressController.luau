@@ -27,6 +27,7 @@ type State = {
 }
 
 local viewRange = 60
+local lowViewRange = 30
 local maxCharacters = 8
 local pressDepth = 0.35
 local debounceSeconds = 0.12
@@ -43,6 +44,7 @@ local controllers: { [string]: any } = {}
 local plotStates: { [Model]: PlotState } = {}
 local standingOn: { [Player]: CapState } = {}
 local destroyed = false
+local isLowGraphics = false
 
 local function releaseTween(cap: CapState)
 	local tween = cap.Tween
@@ -84,19 +86,26 @@ local function pressCap(cap: CapState)
 	down:Play()
 end
 
-local function triggerCap(cap: CapState)
+local function triggerCap(cap: CapState, player: Player)
 	local now = os.clock()
 	if now - cap.LastPress < debounceSeconds then
 		return
 	end
 	cap.LastPress = now
 	pressCap(cap)
+	local category = if player == Players.LocalPlayer then "Board" else "Other"
 	local keyId = cap.Part:GetAttribute("KeyId")
 	local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
 	if key then
-		controllers.SoundController:PlayKey(Keys.GetRarity(key), 1, 1, cap.Part.Position)
+		controllers.SoundController:PlayKey(Keys.GetRarity(key), 1, 1, cap.Part.Position, category)
 	else
-		controllers.SoundController:PlayKey(Keys.Rarities[1], blankPitch, blankVolume, cap.Part.Position)
+		controllers.SoundController:PlayKey(
+			Keys.Rarities[1],
+			blankPitch,
+			blankVolume,
+			cap.Part.Position,
+			category
+		)
 	end
 end
 
@@ -246,15 +255,18 @@ local function update()
 	local localPlayer = Players.LocalPlayer
 	local seen: { [Player]: boolean } = {}
 	local count = 0
-	local candidates = Players:GetPlayers()
-	table.insert(candidates, 1, localPlayer)
+	local candidates = if isLowGraphics then { localPlayer } else Players:GetPlayers()
+	if not isLowGraphics then
+		table.insert(candidates, 1, localPlayer)
+	end
+	local range = if isLowGraphics then lowViewRange else viewRange
 	for _, player in candidates do
 		if count >= maxCharacters then
 			break
 		end
 		if seen[player] == nil then
 			local root, isGrounded = getRoot(player)
-			if root and (root.Position - cameraPosition).Magnitude <= viewRange then
+			if root and (root.Position - cameraPosition).Magnitude <= range then
 				seen[player] = true
 				count += 1
 				local cap = if isGrounded then findCap(root.Position) else nil
@@ -262,7 +274,7 @@ local function update()
 				if cap ~= previous then
 					if cap then
 						standingOn[player] = cap
-						triggerCap(cap)
+						triggerCap(cap, player)
 					else
 						standingOn[player] = nil
 					end
@@ -284,6 +296,9 @@ end
 
 function KeyPressController.Start(self: State)
 	local trove = self._trove :: TroveInstance
+	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
+		isLowGraphics = value == true
+	end))
 	local promise = WaitFor.Child(workspace, "Plots", 30)
 		:andThen(function(folder: Instance)
 			if destroyed then
@@ -304,6 +319,7 @@ end
 
 function KeyPressController.Destroy(self: State)
 	destroyed = true
+	isLowGraphics = false
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

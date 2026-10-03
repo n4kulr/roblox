@@ -2,8 +2,10 @@
 
 export type Context = {
 	Controllers: { [string]: any },
+	PlayerGui: PlayerGui,
 	Open: (name: string) -> (),
 	Close: (name: string) -> (),
+	IsOpen: (name: string) -> boolean,
 }
 
 export type Screen = {
@@ -15,7 +17,7 @@ export type Screen = {
 }
 
 export type ScreenModule = {
-	new: (context: Context, gui: ScreenGui) -> Screen,
+	new: (context: Context) -> Screen,
 }
 
 return {}
