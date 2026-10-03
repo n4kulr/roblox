@@ -15,10 +15,13 @@ function Roll.PickRarity(rng: Random, luck: number): Keys.Rarity
 	return Keys.Rarities[1]
 end
 
-function Roll.Pick(rng: Random, luck: number): Keys.Key
-	local rarity = Roll.PickRarity(rng, luck)
-	local group = Keys.ByRarity[rarity.Name]
+function Roll.PickInRarity(rng: Random, rarityName: string): Keys.Key
+	local group = Keys.ByRarity[rarityName]
 	return group[rng:NextInteger(1, #group)]
+end
+
+function Roll.Pick(rng: Random, luck: number): Keys.Key
+	return Roll.PickInRarity(rng, Roll.PickRarity(rng, luck).Name)
 end
 
 return Roll

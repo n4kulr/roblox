@@ -4,6 +4,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Packets = require(ReplicatedStorage.Packets)
+local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -24,15 +26,12 @@ local KeyboardService = {
 }
 local services: { [string]: any } = {}
 
-local function boardRate(board: { string }): number
-	local rate = 0
-	for index = 1, GameConfig.BoardSlots do
-		local keyId = board[index]
-		if type(keyId) == "string" then
-			rate += Keys.GetIncome(keyId)
-		end
-	end
-	return rate
+local function boardRate(data: PlayerData.Data): number
+	return Stats.Compute(data.Board, data.Upgrades).Rate
+end
+
+local function isInteger(value: any): boolean
+	return type(value) == "number" and value == value and math.abs(value) < math.huge and value % 1 == 0
 end
 
 local function isEmptySlot(keyId: any): boolean
@@ -43,7 +42,7 @@ local function settledValues(data: PlayerData.Data, now: number): (number, numbe
 	if data.IncomeAt <= 0 or now <= data.IncomeAt then
 		return data.Cash, if data.IncomeAt <= 0 then now else data.IncomeAt
 	end
-	local earned = math.floor(boardRate(data.Board) * (now - data.IncomeAt))
+	local earned = math.floor(boardRate(data) * (now - data.IncomeAt))
 	return math.min(maxCash, data.Cash + earned), now
 end
 
@@ -59,16 +58,38 @@ local function settle(player: Player)
 	end
 end
 
-local function addToInventory(player: Player, data: PlayerData.Data, keyId: string)
-	services.DataService:Set(player, { "Inventory", keyId }, (data.Inventory[keyId] or 0) + 1)
+local function addToInventory(player: Player, keyId: string, amount: number)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if data then
+		services.DataService:Set(player, { "Inventory", keyId }, (data.Inventory[keyId] or 0) + amount)
+	end
+end
+
+local function removeFromInventory(player: Player, data: PlayerData.Data, keyId: string, amount: number)
+	local remaining = (data.Inventory[keyId] or 0) - amount
+	services.DataService:Set(player, { "Inventory", keyId }, if remaining > 0 then remaining else nil)
+end
+
+local function setSlot(player: Player, slot: number, keyId: string)
+	local path: { string | number } = { "Board", slot }
+	services.DataService:Set(player, path, keyId)
 end
 
 local function normalize(player: Player, data: PlayerData.Data)
+	local unlocked = Stats.Slots(data.Upgrades)
 	local board: { string } = {}
+	local moved: { string } = {}
 	local changed = false
 	for index = 1, GameConfig.BoardSlots do
 		local keyId = data.Board[index]
 		if type(keyId) ~= "string" then
+			keyId = ""
+			changed = true
+		end
+		if index > unlocked and keyId ~= "" then
+			if Keys.ById[keyId] then
+				table.insert(moved, keyId)
+			end
 			keyId = ""
 			changed = true
 		end
@@ -91,8 +112,11 @@ local function normalize(player: Player, data: PlayerData.Data)
 		end
 	end
 	services.DataService:Set(player, { "Board" }, board)
+	for _, keyId in moved do
+		addToInventory(player, keyId, 1)
+	end
 	for _, keyId in overflow do
-		addToInventory(player, data, keyId)
+		addToInventory(player, keyId, 1)
 	end
 end
 
@@ -101,13 +125,69 @@ local function grantOffline(player: Player, data: PlayerData.Data)
 	local cash = data.Cash
 	if data.IncomeAt > 0 then
 		local elapsed = math.clamp(now - data.IncomeAt, 0, GameConfig.OfflineCapSeconds)
-		local earned = math.floor(boardRate(data.Board) * elapsed * GameConfig.OfflineRate)
+		local earned = math.floor(boardRate(data) * elapsed * GameConfig.OfflineRate)
 		cash = math.min(maxCash, cash + earned)
 	end
 	local replica = services.DataService:GetReplica(player)
 	if replica then
 		replica:SetValues({}, { Cash = cash, IncomeAt = now })
 	end
+end
+
+local function placeKey(player: Player, slot: number, keyId: string): boolean
+	if type(slot) ~= "number" or type(keyId) ~= "string" or not isInteger(slot) then
+		return false
+	end
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or slot < 1 or slot > Stats.Slots(data.Upgrades) then
+		return false
+	end
+	if Keys.ById[keyId] == nil or (data.Inventory[keyId] or 0) < 1 then
+		return false
+	end
+	settle(player)
+	local previous = data.Board[slot]
+	removeFromInventory(player, data, keyId, 1)
+	if not isEmptySlot(previous) then
+		addToInventory(player, previous, 1)
+	end
+	setSlot(player, slot, keyId)
+	KeyboardService.BoardChanged:Fire(player)
+	return true
+end
+
+local function clearSlot(player: Player, slot: number): boolean
+	if type(slot) ~= "number" or not isInteger(slot) then
+		return false
+	end
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or slot < 1 or slot > Stats.Slots(data.Upgrades) then
+		return false
+	end
+	local previous = data.Board[slot]
+	if isEmptySlot(previous) then
+		return false
+	end
+	settle(player)
+	addToInventory(player, previous, 1)
+	setSlot(player, slot, "")
+	KeyboardService.BoardChanged:Fire(player)
+	return true
+end
+
+local function sellKey(player: Player, keyId: string, count: number): boolean
+	if type(keyId) ~= "string" or type(count) ~= "number" or not isInteger(count) or count < 1 then
+		return false
+	end
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or Keys.ById[keyId] == nil or (data.Inventory[keyId] or 0) < count then
+		return false
+	end
+	settle(player)
+	removeFromInventory(player, data, keyId, count)
+	local cash = math.min(maxCash, data.Cash + Keys.GetSellValue(keyId) * count)
+	services.DataService:Set(player, { "Cash" }, cash)
+	return true
 end
 
 function KeyboardService.Init(self: State, registry: { [string]: any })
@@ -135,6 +215,9 @@ function KeyboardService.Start(self: State)
 			end
 		end
 	end))
+	Packets.PlaceKey.OnServerInvoke = placeKey
+	Packets.ClearSlot.OnServerInvoke = clearSlot
+	Packets.SellKey.OnServerInvoke = sellKey
 end
 
 function KeyboardService.Settle(_self: State, player: Player)
@@ -143,7 +226,7 @@ end
 
 function KeyboardService.GetRate(_self: State, player: Player): number
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	return if data then boardRate(data.Board) else 0
+	return if data then boardRate(data) else 0
 end
 
 function KeyboardService.AddKey(_self: State, player: Player, keyId: string): boolean
@@ -156,34 +239,41 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string): bo
 	if not data then
 		return false
 	end
-	local income = Keys.GetIncome(keyId)
-	local emptyIndex: number? = nil
-	local lowestIndex: number? = nil
-	local lowestIncome = math.huge
-	for index = 1, GameConfig.BoardSlots do
-		local slotId = data.Board[index]
-		if isEmptySlot(slotId) then
-			emptyIndex = index
-			break
+	local placed = false
+	if data.Settings.AutoPlace then
+		local income = Keys.GetIncome(keyId)
+		local emptyIndex: number? = nil
+		local lowestIndex: number? = nil
+		local lowestIncome = math.huge
+		for index = 1, Stats.Slots(data.Upgrades) do
+			local slotId = data.Board[index]
+			if isEmptySlot(slotId) then
+				emptyIndex = index
+				break
+			end
+			local slotKey = Keys.ById[slotId]
+			if slotKey and slotKey.Perk == nil then
+				local slotIncome = Keys.GetIncome(slotId)
+				if slotIncome < lowestIncome then
+					lowestIncome = slotIncome
+					lowestIndex = index
+				end
+			end
 		end
-		local slotIncome = Keys.GetIncome(slotId)
-		if slotIncome < lowestIncome then
-			lowestIncome = slotIncome
-			lowestIndex = index
+		if emptyIndex then
+			setSlot(player, emptyIndex, keyId)
+			placed = true
+		elseif key.Perk == nil and lowestIndex and income > lowestIncome then
+			local displaced = data.Board[lowestIndex]
+			setSlot(player, lowestIndex, keyId)
+			addToInventory(player, displaced, 1)
+			placed = true
 		end
 	end
-	if emptyIndex then
-		local path: { string | number } = { "Board", emptyIndex }
-		services.DataService:Set(player, path, keyId)
-		KeyboardService.BoardChanged:Fire(player)
-	elseif lowestIndex and income > lowestIncome then
-		local displaced = data.Board[lowestIndex]
-		local path: { string | number } = { "Board", lowestIndex }
-		services.DataService:Set(player, path, keyId)
-		addToInventory(player, data, displaced)
+	if placed then
 		KeyboardService.BoardChanged:Fire(player)
 	else
-		addToInventory(player, data, keyId)
+		addToInventory(player, keyId, 1)
 	end
 	if Keys.GetRarity(key).Announce then
 		services.DataService:RequestSave(player)
@@ -192,6 +282,9 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string): bo
 end
 
 function KeyboardService.Destroy(self: State)
+	Packets.PlaceKey.OnServerInvoke = nil
+	Packets.ClearSlot.OnServerInvoke = nil
+	Packets.SellKey.OnServerInvoke = nil
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil
