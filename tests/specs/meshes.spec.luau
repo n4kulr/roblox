@@ -6,7 +6,7 @@ local Vector3, Color3 = roblox.Vector3, roblox.Color3
 local describe, it, expect, afterEach = H.describe, H.it, H.expect, H.afterEach
 
 describe("Mesh skins", function()
-	local world, GameConfig, plots
+	local world, GameConfig, plots, registry, boardChanges
 
 	local function setup(ids: { [string]: string }, delay: number?, failures: { string }?)
 		world = H.newWorld()
@@ -20,9 +20,13 @@ describe("Mesh skins", function()
 			world.meshFailures[id] = true
 		end
 		local keyboard = { Name = "KeyboardService", BoardChanged = Signal.new() }
+		boardChanges = {}
+		keyboard.BoardChanged:Connect(function(player: any)
+			table.insert(boardChanges, player)
+		end)
 		local plotService = world:require("ServerScriptService.Services.PlotService")
-		world:boot({ "PlotService" }, { KeyboardService = keyboard, PlotService = plotService })
-		plots = world.workspace.Plots
+		registry = world:boot({ "PlotService" }, { KeyboardService = keyboard, PlotService = plotService })
+		plots = world.workspace:FindFirstChild("Plots")
 	end
 
 	local function slotCaps(plot: any): { [number]: any }
@@ -95,25 +99,44 @@ describe("Mesh skins", function()
 		expect(cap.CFrame.Position.Y):toBeCloseTo(expected, 1e-4)
 	end)
 
-	it("re-skins existing caps and moves their children after a late load", function()
-		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" }, 5)
-		local plot = plots.Plot1
-		local first = slotCaps(plot)[2]
-		expect(first.ClassName):toBe("Part")
-		first:SetAttribute("KeyId", "PlainClack")
-		first.Color = Color3.fromRGB(1, 2, 3)
-		local prompt = world:newInstance("ProximityPrompt")
-		prompt.Name = "StealPrompt"
-		prompt.Parent = first
-		world:advance(6)
-		local after = slotCaps(plot)[2]
-		expect(after.ClassName):toBe("MeshPart")
-		expect(after == first):toBe(false)
-		expect(after:GetAttribute("KeyId")):toBe("PlainClack")
-		expect(after:GetAttribute("Slot")):toBe(2)
-		expect(after.Color):toBe(Color3.fromRGB(1, 2, 3))
-		expect(after:FindFirstChild("StealPrompt") == prompt):toBe(true)
-		expect(plot.RollKey.ClassName):toBe("MeshPart")
-		expect(plot.BoardCase.ClassName):toBe("MeshPart")
+	it("waits for slow meshes before building plots and assigning players", function()
+		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" }, 3)
+		expect(plots):toBeNil()
+		local player = world:join({ Name = "Early" })
+		expect(registry.PlotService:GetPlot(player)):toBeNil()
+		world:advance(3.5)
+		plots = world.workspace:FindFirstChild("Plots")
+		local caps = registry.PlotService:GetCaps(player)
+		expect(caps ~= nil):toBe(true)
+		expect(registry.PlotService:GetPlot(player) ~= nil):toBe(true)
+		for _, cap in caps do
+			expect(cap.ClassName):toBe("MeshPart")
+		end
+		expect(slotCaps(registry.PlotService:GetPlot(player))[1] == caps[1]):toBe(true)
+		expect(boardChanges):toEqual({ player })
+		expect(plots.Plot1.RollKey.ClassName):toBe("MeshPart")
+		expect(plots.Plot1.BoardCase.ClassName):toBe("MeshPart")
+	end)
+
+	it("builds plain plots after the timeout and ignores late meshes", function()
+		setup({ Keycap = "k" }, 10)
+		local player = world:join({ Name = "Early" })
+		world:advance(6.5)
+		plots = world.workspace:FindFirstChild("Plots")
+		local caps = registry.PlotService:GetCaps(player)
+		expect(caps ~= nil):toBe(true)
+		local before = caps[1]
+		expect(before.ClassName):toBe("Part")
+		world:advance(10)
+		expect(registry.PlotService:GetCaps(player)[1] == before):toBe(true)
+		expect(before.ClassName):toBe("Part")
+		expect(before.Parent ~= nil):toBe(true)
+		local warned = false
+		for _, message in world.warnings do
+			if string.find(message, "ignored", 1, true) then
+				warned = true
+			end
+		end
+		expect(warned):toBe(true)
 	end)
 end)

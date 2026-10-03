@@ -34,6 +34,8 @@ local services: { [string]: any } = {}
 local plots: { PlotInfo } = {}
 local plotByPlayer: { [Player]: PlotInfo } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
+local buildThread: thread? = nil
+local meshTimeout = 6
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
@@ -173,12 +175,6 @@ local function swapPart(old: BasePart, new: BasePart)
 	new.Color = old.Color
 	new.Material = old.Material
 	new.Transparency = old.Transparency
-	for name, value in old:GetAttributes() do
-		new:SetAttribute(name, value)
-	end
-	for _, child in old:GetChildren() do
-		child.Parent = new
-	end
 	new.Parent = old.Parent
 	old:Destroy()
 end
@@ -216,32 +212,6 @@ local function skinRollKey(info: PlotInfo)
 	key.CFrame = old.CFrame
 	swapPart(old, key)
 	info.RollKey = key
-end
-
-local function skinCaps(info: PlotInfo)
-	if not MeshTemplates.Get("Keycap") then
-		return
-	end
-	for slot, old in info.Caps do
-		if not old:IsA("MeshPart") then
-			local cap = newCap(info, slot)
-			swapPart(old, cap)
-			info.Caps[slot] = cap
-		end
-	end
-end
-
-local function skinPlot(info: PlotInfo)
-	if not info.Placeholder then
-		return
-	end
-	skinCase(info)
-	skinRollKey(info)
-	skinCaps(info)
-	for slot, cap in info.Caps do
-		layoutCap(info, cap, slot)
-	end
-	layoutWalkway(info)
 end
 
 local function render(info: PlotInfo, data: PlayerData.Data?)
@@ -353,6 +323,10 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Case = nil,
 				Walkway = nil,
 			}
+			if isPlaceholder then
+				skinCase(info)
+				skinRollKey(info)
+			end
 			createCaps(info, trove)
 			table.insert(plots, info)
 		else
@@ -368,8 +342,7 @@ function PlotService.Init(self: State, registry: { [string]: any })
 	self._trove = Trove.new()
 end
 
-function PlotService.Start(self: State)
-	local trove = self._trove :: TroveInstance
+local function buildPlots(trove: TroveInstance)
 	local folder = workspace:FindFirstChild("Plots")
 	local isPlaceholder = false
 	if not folder then
@@ -383,16 +356,32 @@ function PlotService.Start(self: State)
 		folder = placeholder
 	end
 	collectPlots(folder :: Instance, trove, isPlaceholder)
-	trove:Connect(MeshTemplates.Changed, function()
-		for _, info in plots do
-			skinPlot(info)
+end
+
+local function loadPlayer(player: Player)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if data then
+		assign(player, data)
+		services.KeyboardService.BoardChanged:Fire(player)
+	end
+end
+
+function PlotService.Start(self: State)
+	local trove = self._trove :: TroveInstance
+	local isReady = false
+	local waiting: { Player } = {}
+	services.DataService.PlayerLoaded:Connect(function(player: Player, data: PlayerData.Data)
+		if isReady then
+			assign(player, data)
+		elseif not table.find(waiting, player) then
+			table.insert(waiting, player)
 		end
 	end)
-	MeshTemplates.Load()
-	services.DataService.PlayerLoaded:Connect(function(player: Player, data: PlayerData.Data)
-		assign(player, data)
-	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, _data: PlayerData.Data)
+		local index = table.find(waiting, player)
+		if index then
+			table.remove(waiting, index)
+		end
 		release(player)
 	end)
 	services.KeyboardService.BoardChanged:Connect(function(player: Player)
@@ -403,11 +392,23 @@ function PlotService.Start(self: State)
 		end
 	end)
 	for _, player in Players:GetPlayers() do
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
-		if data then
-			assign(player, data)
+		if not table.find(waiting, player) then
+			table.insert(waiting, player)
 		end
 	end
+	buildThread = task.spawn(function()
+		MeshTemplates.Load()
+		MeshTemplates.Wait(meshTimeout)
+		buildPlots(trove)
+		trove:Connect(MeshTemplates.Changed, function(name: string)
+			warn(`[PlotService] {name} mesh arrived after plots were built; ignored`)
+		end)
+		isReady = true
+		for _, player in waiting do
+			loadPlayer(player)
+		end
+		table.clear(waiting)
+	end)
 end
 
 function PlotService.GetPlot(_self: State, player: Player): Model?
@@ -426,6 +427,10 @@ function PlotService.GetBase(_self: State, player: Player): BasePart?
 end
 
 function PlotService.Destroy(self: State)
+	if buildThread and coroutine.status(buildThread) == "suspended" then
+		task.cancel(buildThread)
+	end
+	buildThread = nil
 	MeshTemplates.Destroy()
 	if self._trove then
 		self._trove:Destroy()
