@@ -9,3 +9,4 @@
 *.rbxl.lock
 *.rbxlx.lock
 .DS_Store
+/.claude/worktrees/
