@@ -30,6 +30,7 @@ export type Data = {
 	TotalEarned: number,
 	RedeemedCodes: { [string]: boolean },
 	Season: { Id: number, Xp: number, ClaimedFree: number, ClaimedPremium: number },
+	Market: { Slot: number, Bought: { [string]: number } },
 	LastSeenAt: number,
 	Receipts: { [string]: number },
 }
@@ -71,6 +72,7 @@ PlayerData.Template = {
 	TotalEarned = 0,
 	RedeemedCodes = {},
 	Season = { Id = 0, Xp = 0, ClaimedFree = 0, ClaimedPremium = 0 },
+	Market = { Slot = 0, Bought = {} },
 	LastSeenAt = 0,
 	Receipts = {},
 } :: Data
@@ -146,6 +148,21 @@ function PlayerData.Validate(data: any): boolean
 		for index, tag in data.BoardTags do
 			if type(index) ~= "number" or type(tag) ~= "string" then
 				return false
+			end
+		end
+	end
+	if data.Market ~= nil then
+		if type(data.Market) ~= "table" or (data.Market.Slot ~= nil and not natural(data.Market.Slot)) then
+			return false
+		end
+		if data.Market.Bought ~= nil then
+			if type(data.Market.Bought) ~= "table" then
+				return false
+			end
+			for offer, count in data.Market.Bought do
+				if type(offer) ~= "string" or not natural(count) then
+					return false
+				end
 			end
 		end
 	end
