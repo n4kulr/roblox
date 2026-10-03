@@ -168,6 +168,7 @@ local function buildPlots(parent: Part)
 		buildSign(model, origin, color)
 		model.PrimaryPart = base
 		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+		model:SetAttribute("UseMeshes", true)
 	end
 end
 

@@ -8,6 +8,7 @@ local describe, it, expect, afterEach = H.describe, H.it, H.expect, H.afterEach
 describe("Mesh skins", function()
 	local world, GameConfig, plots, registry, boardChanges
 	local authoredPlots = false
+	local authoredUseMeshes = false
 
 	local function setup(ids: { [string]: string }, delay: number?, failures: { string }?, authored: { string }?)
 		world = H.newWorld()
@@ -29,6 +30,9 @@ describe("Mesh skins", function()
 			folder.Name = "Plots"
 			local model = world:newInstance("Model")
 			model.Name = "Plot1"
+			if authoredUseMeshes then
+				model:SetAttribute("UseMeshes", true)
+			end
 			for name, size in
 				{ Base = Vector3.new(44, 1, 44), RollKey = Vector3.new(8, 3, 8), Board = Vector3.new(31, 1.5, 9.6) }
 			do
@@ -36,6 +40,8 @@ describe("Mesh skins", function()
 				part.Name = name
 				part.Size = size
 				part.CFrame = CFrame.new(0, 0.5, 0)
+				part.Color = Color3.new(1, 1, 1)
+				part.Material = roblox.Enum.Material.SmoothPlastic
 				part.Parent = model
 			end
 			model.Parent = folder
@@ -70,6 +76,7 @@ describe("Mesh skins", function()
 
 	afterEach(function()
 		authoredPlots = false
+		authoredUseMeshes = false
 		expect(world.errors):toEqual({})
 		world:destroy()
 	end)
@@ -197,5 +204,16 @@ describe("Mesh skins", function()
 			expect(cap.ClassName):toBe("MeshPart")
 		end
 		expect(count):toBe(GameConfig.BoardSlots)
+	end)
+it("skins authored plots marked UseMeshes like placeholder plots", function()
+		authoredPlots = true
+		authoredUseMeshes = true
+		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" })
+		local plot = plots.Plot1
+		expect(plot.RollKey.ClassName):toBe("MeshPart")
+		expect(plot:FindFirstChild("BoardCase")).never:toBeNil()
+		for _, cap in slotCaps(plot) do
+			expect(cap.ClassName):toBe("MeshPart")
+		end
 	end)
 end)

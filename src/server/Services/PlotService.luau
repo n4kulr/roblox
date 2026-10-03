@@ -311,6 +311,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 		local rollKey = findPart(model, "RollKey")
 		local board = findPart(model, "Board")
 		if base and rollKey and board then
+			local useMeshes = isPlaceholder or model:GetAttribute("UseMeshes") == true
 			model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 			local info: PlotInfo = {
 				Model = model,
@@ -319,11 +320,11 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Board = board,
 				Caps = {},
 				Owner = nil,
-				Placeholder = isPlaceholder,
+				Placeholder = useMeshes,
 				Case = nil,
 				Walkway = nil,
 			}
-			if isPlaceholder then
+			if useMeshes then
 				skinCase(info)
 				skinRollKey(info)
 			end
