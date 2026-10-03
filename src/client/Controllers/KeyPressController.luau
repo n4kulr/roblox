@@ -4,8 +4,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 
@@ -18,7 +18,7 @@ type CapState = {
 }
 type PlotState = {
 	Model: Model,
-	Board: BasePart?,
+	Base: BasePart?,
 	Caps: { [number]: CapState },
 }
 type State = {
@@ -35,6 +35,9 @@ local minHeight = -1
 local maxHeight = 7
 local blankVolume = 0.35
 local blankSwitch = "MxBlack"
+local fillerVolume = 0.55
+local fillerSwitch = "CreamTravel"
+local capHeight = 1
 
 local KeyPressController = {
 	Name = "KeyPressController",
@@ -94,14 +97,10 @@ end
 local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")
 	local category = if player == Players.LocalPlayer then "Board" else "Other"
 	local key = capKey(cap)
-	controllers.SoundController:PlaySwitch(
-		if key then key.Switch else blankSwitch,
-		kind,
-		1,
-		if key then 1 else blankVolume,
-		cap.Part.Position,
-		category
-	)
+	local isFiller = cap.Part:GetAttribute("Filler") == true
+	local switchId = if key then key.Switch elseif isFiller then fillerSwitch else blankSwitch
+	local volume = if key then 1 elseif isFiller then fillerVolume else blankVolume
+	controllers.SoundController:PlaySwitch(switchId, kind, 1, volume, cap.Part.Position, category)
 end
 
 local function triggerCap(cap: CapState, player: Player)
@@ -121,22 +120,22 @@ local function addCap(state: PlotState, child: Instance)
 	if not child:IsA("BasePart") then
 		return
 	end
-	local slot = child:GetAttribute("Slot")
-	if type(slot) ~= "number" then
+	local cell = child:GetAttribute("Cell")
+	if type(cell) ~= "number" then
 		return
 	end
-	local existing = state.Caps[slot]
+	local existing = state.Caps[cell]
 	if existing then
 		releaseTween(existing)
 	end
-	state.Caps[slot] = { Part = child, Rest = child.CFrame, LastPress = 0, Tween = nil }
+	state.Caps[cell] = { Part = child, Rest = child.CFrame, LastPress = 0, Tween = nil }
 end
 
 local function removeCap(state: PlotState, child: Instance)
-	for slot, cap in state.Caps do
+	for cell, cap in state.Caps do
 		if cap.Part == child then
 			releaseTween(cap)
-			state.Caps[slot] = nil
+			state.Caps[cell] = nil
 			for player, standing in standingOn do
 				if standing == cap then
 					standingOn[player] = nil
@@ -161,7 +160,7 @@ end
 local function trackPlot(model: Model, parentTrove: TroveInstance)
 	local trove = Trove.new()
 	parentTrove:Add(trove)
-	local state: PlotState = { Model = model, Board = nil, Caps = {} }
+	local state: PlotState = { Model = model, Base = nil, Caps = {} }
 	plotStates[model] = state
 	trove:Add(function()
 		plotStates[model] = nil
@@ -201,40 +200,30 @@ local function watchPlots(folder: Instance, trove: TroveInstance)
 	end)
 end
 
-local function getBoard(state: PlotState): BasePart?
-	local board = state.Board
-	if board and board.Parent then
-		return board
+local function getBase(state: PlotState): BasePart?
+	local base = state.Base
+	if base and base.Parent then
+		return base
 	end
-	local found = state.Model:FindFirstChild("Board")
-	board = if found and found:IsA("BasePart") then found else nil
-	state.Board = board
-	return board
+	local found = state.Model:FindFirstChild("Base")
+	base = if found and found:IsA("BasePart") then found else nil
+	state.Base = base
+	return base
 end
 
 local function findCap(position: Vector3): CapState?
-	local columns = GameConfig.BoardColumns
-	local rows = math.ceil(GameConfig.BoardSlots / columns)
 	for _, state in plotStates do
-		local board = getBoard(state)
-		if board then
-			local size = board.Size
-			local localPosition = board.CFrame:PointToObjectSpace(position)
-			local height = localPosition.Y - (size.Y / 2 + 1)
-			if
-				math.abs(localPosition.X) <= size.X / 2
-				and math.abs(localPosition.Z) <= size.Z / 2
-				and height >= minHeight
-				and height <= maxHeight
-			then
-				local column = math.clamp(
-					math.floor((localPosition.X + size.X / 2) / (size.X / columns)),
-					0,
-					columns - 1
-				)
-				local row =
-					math.clamp(math.floor((localPosition.Z + size.Z / 2) / (size.Z / rows)), 0, rows - 1)
-				return state.Caps[row * columns + column + 1]
+		local base = getBase(state)
+		local columns = state.Model:GetAttribute("FloorColumns")
+		local rows = state.Model:GetAttribute("FloorRows")
+		if base and type(columns) == "number" and type(rows) == "number" then
+			local localPosition = base.CFrame:PointToObjectSpace(position)
+			local height = localPosition.Y - (base.Size.Y / 2 + capHeight)
+			if height >= minHeight and height <= maxHeight then
+				local index = FloorGrid.IndexAt(columns, rows, localPosition.X, localPosition.Z)
+				if index then
+					return state.Caps[index]
+				end
 			end
 		end
 	end

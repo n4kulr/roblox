@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -17,9 +18,10 @@ type PlotInfo = {
 	RollKey: BasePart,
 	Board: BasePart,
 	Caps: { BasePart },
+	FloorCaps: { BasePart },
+	Layout: FloorGrid.Layout,
 	Owner: Player?,
 	Placeholder: boolean,
-	Case: BasePart?,
 	Walkway: BasePart?,
 	Sign: OwnerSign.Display?,
 }
@@ -88,54 +90,37 @@ local emptyCapColor = Color3.fromRGB(40, 41, 48)
 local emptyCapTransparency = 0.6
 local lockedCapColor = Color3.fromRGB(60, 60, 64)
 local lockedCapTransparency = 0.85
+local fillerCapColor = Color3.fromRGB(222, 218, 208)
+local capHeight = 1.0
+local walkwayThickness = 0.2
 
-local caseFloorRatio = 1.1 / 1.5
-
-local function capSurface(info: PlotInfo): number
-	local height = info.Board.Size.Y
-	if info.Case then
-		return -height / 2 + height * caseFloorRatio
-	end
-	return height / 2
+local function applyFiller(cap: BasePart)
+	cap.Color = fillerCapColor
+	cap.Material = Enum.Material.SmoothPlastic
+	cap.Transparency = 0
 end
 
-local function layoutCap(info: PlotInfo, cap: BasePart, slot: number)
-	local columns = GameConfig.BoardColumns
-	local rows = math.ceil(GameConfig.BoardSlots / columns)
-	local size = info.Board.Size
-	local cellWidth = size.X / columns
-	local cellDepth = size.Z / rows
-	local column = (slot - 1) % columns
-	local row = (slot - 1) // columns
-	cap.Size = Vector3.new(cellWidth * 0.8, 1, cellDepth * 0.8)
-	cap.CFrame = info.Board.CFrame
-		* CFrame.new(
-			-size.X / 2 + cellWidth * (column + 0.5),
-			capSurface(info) + 0.5,
-			-size.Z / 2 + cellDepth * (row + 0.5)
-		)
-end
-
-local function layoutWalkway(info: PlotInfo)
-	local walkway = info.Walkway
-	if walkway then
-		walkway.CFrame = info.Board.CFrame * CFrame.new(0, capSurface(info) + 1 - 0.1, 0)
-	end
-end
-
-local function newCap(info: PlotInfo, slot: number): BasePart
+local function newCap(info: PlotInfo, cell: FloorGrid.Cell): BasePart
 	local template = MeshTemplates.Get("Keycap")
 	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
-	cap.Name = `Slot{slot}`
+	local capSize = FloorGrid.CapSize()
 	cap.Anchored = true
 	cap.CanCollide = false
 	cap.CanQuery = false
 	cap.CanTouch = false
-	cap.Color = emptyCapColor
-	cap.Material = Enum.Material.SmoothPlastic
-	cap.Transparency = emptyCapTransparency
-	cap:SetAttribute("Slot", slot)
-	layoutCap(info, cap, slot)
+	cap.CastShadow = false
+	cap.Size = Vector3.new(capSize, capHeight, capSize)
+	cap.CFrame = info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2, cell.Z)
+	cap:SetAttribute("Cell", cell.Index)
+	applyFiller(cap)
+	local slot = cell.Slot
+	if slot then
+		cap.Name = `Slot{slot}`
+		cap:SetAttribute("Slot", slot)
+	else
+		cap.Name = `Floor{cell.Index}`
+		cap:SetAttribute("Filler", true)
+	end
 	return cap
 end
 
@@ -144,24 +129,39 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	if existing then
 		existing:Destroy()
 	end
+	local layout = info.Layout
 	local folder = Instance.new("Folder")
 	folder.Name = "Keys"
-	for slot = 1, GameConfig.BoardSlots do
-		local cap = newCap(info, slot)
+	table.clear(info.Caps)
+	table.clear(info.FloorCaps)
+	for _, cell in layout.Cells do
+		local cap = newCap(info, cell)
 		cap.Parent = folder
-		info.Caps[slot] = cap
+		table.insert(info.FloorCaps, cap)
+		local slot = cell.Slot
+		if slot then
+			info.Caps[slot] = cap
+		end
 	end
-	local size = info.Board.Size
+	if #info.Caps < GameConfig.BoardSlots then
+		warn(`[PlotService] {info.Model:GetFullName()} has no room for {GameConfig.BoardSlots} slot keys`)
+	end
+	local baseSize = info.Base.Size
 	local walkway = Instance.new("Part")
 	walkway.Name = "Walkway"
 	walkway.Anchored = true
 	walkway.CanCollide = true
+	walkway.CanQuery = true
 	walkway.CanTouch = false
 	walkway.Transparency = 1
-	walkway.Size = Vector3.new(size.X, 0.2, size.Z)
+	walkway.Size = Vector3.new(baseSize.X, walkwayThickness, baseSize.Z)
+	walkway.CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + capHeight - walkwayThickness / 2, 0)
 	info.Walkway = walkway
-	layoutWalkway(info)
 	walkway.Parent = folder
+	info.Model:SetAttribute("FloorCell", FloorGrid.CellSize)
+	info.Model:SetAttribute("FloorGap", FloorGrid.CellGap)
+	info.Model:SetAttribute("FloorColumns", layout.Columns)
+	info.Model:SetAttribute("FloorRows", layout.Rows)
 	folder.Parent = info.Model
 	trove:Add(folder)
 end
@@ -172,26 +172,6 @@ local function swapPart(old: BasePart, new: BasePart)
 	new.Transparency = old.Transparency
 	new.Parent = old.Parent
 	old:Destroy()
-end
-
-local function skinCase(info: PlotInfo)
-	local template = MeshTemplates.Get("KeyboardCase")
-	if info.Case or not template then
-		return
-	end
-	local case = template:Clone()
-	case.Name = "BoardCase"
-	case.Anchored = true
-	case.CanCollide = false
-	case.CanQuery = false
-	case.CanTouch = false
-	case.Size = info.Board.Size
-	case.CFrame = info.Board.CFrame
-	case.Color = info.Board.Color
-	case.Material = info.Board.Material
-	case.Parent = info.Model
-	info.Board.Transparency = 1
-	info.Case = case
 end
 
 local function skinRollKey(info: PlotInfo)
@@ -226,10 +206,14 @@ local function render(info: PlotInfo, data: PlayerData.Data?)
 			cap.Transparency = lockedCapTransparency
 			cap:SetAttribute("KeyId", nil)
 			cap:SetAttribute("Locked", true)
-		else
+		elseif data then
 			cap.Color = emptyCapColor
 			cap.Material = Enum.Material.SmoothPlastic
-			cap.Transparency = if data then emptyCapTransparency else 1
+			cap.Transparency = emptyCapTransparency
+			cap:SetAttribute("KeyId", nil)
+			cap:SetAttribute("Locked", nil)
+		else
+			applyFiller(cap)
 			cap:SetAttribute("KeyId", nil)
 			cap:SetAttribute("Locked", nil)
 		end
@@ -320,16 +304,19 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				RollKey = rollKey,
 				Board = board,
 				Caps = {},
+				FloorCaps = {},
+				Layout = nil :: any,
 				Owner = nil,
 				Placeholder = useMeshes,
-				Case = nil,
 				Walkway = nil,
 				Sign = nil,
 			}
 			if useMeshes then
-				skinCase(info)
 				skinRollKey(info)
 			end
+			board.Transparency = 1
+			board.CanCollide = false
+			info.Layout = FloorGrid.ForPlot(base, info.RollKey, board)
 			createCaps(info, trove)
 			info.Sign = OwnerSign.new(model, base, trove)
 			table.insert(plots, info)
@@ -423,6 +410,11 @@ end
 function PlotService.GetCaps(_self: State, player: Player): { BasePart }?
 	local info = plotByPlayer[player]
 	return if info then info.Caps else nil
+end
+
+function PlotService.GetFloorCaps(_self: State, player: Player): { BasePart }?
+	local info = plotByPlayer[player]
+	return if info then info.FloorCaps else nil
 end
 
 function PlotService.GetBase(_self: State, player: Player): BasePart?
