@@ -22,7 +22,7 @@ local RollService = {
 }
 local services: { [string]: any } = {}
 local rng = Random.new()
-local bucketCapacity = 2
+local bucketCapacity = 3
 local buckets: { [Player]: { Tokens: number, UpdatedAt: number } } = {}
 
 local function takeToken(player: Player, rate: number): boolean
@@ -56,6 +56,7 @@ local function handleRoll(player: Player): number
 	if not services.KeyboardService:AddKey(player, key.Id) then
 		return 0
 	end
+	services.DataService:Set(player, { "Discovered", key.Id }, (data.Discovered[key.Id] or 0) + 1)
 	if data.Tutorial == 0 then
 		services.DataService:Set(player, { "Tutorial" }, 1)
 	end
