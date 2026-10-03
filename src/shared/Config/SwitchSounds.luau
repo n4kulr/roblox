@@ -4,7 +4,7 @@ export type Clip = { Start: number, Length: number }
 export type Switch = { Id: string, Name: string, Presses: { Clip }, Release: Clip? }
 
 return table.freeze({
-	SpriteId = "",
+	SpriteId = "rbxassetid://112299938536962",
 	Switches = table.freeze({
 		MxBlack = table.freeze({
 			Id = "MxBlack",
