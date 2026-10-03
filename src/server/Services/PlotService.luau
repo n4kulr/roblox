@@ -296,6 +296,16 @@ function PlotService.GetPlot(_self: State, player: Player): Model?
 	return if info then info.Model else nil
 end
 
+function PlotService.GetCaps(_self: State, player: Player): { BasePart }?
+	local info = plotByPlayer[player]
+	return if info then info.Caps else nil
+end
+
+function PlotService.GetBase(_self: State, player: Player): BasePart?
+	local info = plotByPlayer[player]
+	return if info then info.Base else nil
+end
+
 function PlotService.Destroy(self: State)
 	if self._trove then
 		self._trove:Destroy()

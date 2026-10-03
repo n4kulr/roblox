@@ -26,6 +26,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local playUi = Kit.UiSound(context.Controllers)
 	local cells: { [string]: Cells.Cell } = {}
 	local inventory: { [string]: number } = {}
+	local boardTags: { [number]: string } = {}
 	local isOpen = false
 	local isDirty = true
 	local isEquipping = false
@@ -196,6 +197,19 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		return counts
 	end
 
+	local function stolenTags(): { [string]: string }
+		local tags: { [string]: string } = {}
+		local board = tracker.GetBoard()
+		for index = 1, tracker.GetStats().Slots do
+			local keyId = board[index]
+			local tag = boardTags[index]
+			if type(keyId) == "string" and tag and tag ~= "" and not tags[keyId] then
+				tags[keyId] = tag
+			end
+		end
+		return tags
+	end
+
 	local function closeDetail()
 		detailKey = nil
 		isConfirming = false
@@ -353,6 +367,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local function refreshAll()
 		isDirty = false
 		local onBoard = boardCounts()
+		local tags = stolenTags()
 		local ownedKinds = 0
 		for keyId, cell in cells do
 			local total = (inventory[keyId] or 0) + (onBoard[keyId] or 0)
@@ -366,6 +381,15 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				local tag = cell.TagChip
 				if tag then
 					tag.Visible = (onBoard[keyId] or 0) > 0
+				end
+				local stolenChip = cell.StolenChip
+				local stolenLabel = cell.StolenLabel
+				if stolenChip and stolenLabel then
+					local stolenFrom = tags[keyId]
+					stolenChip.Visible = stolenFrom ~= nil
+					if stolenFrom then
+						stolenLabel.Text = `🦹 Stolen from {stolenFrom}`
+					end
 				end
 			end
 		end
@@ -392,6 +416,19 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			end
 		end
 		inventory = copy
+		markDirty()
+	end))
+
+	trove:Add(dataController:Observe({ "BoardTags" }, function(value: any)
+		local copy: { [number]: string } = {}
+		if type(value) == "table" then
+			for index, tag in value do
+				if type(index) == "number" and type(tag) == "string" then
+					copy[index] = tag
+				end
+			end
+		end
+		boardTags = copy
 		markDirty()
 	end))
 

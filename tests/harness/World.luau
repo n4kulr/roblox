@@ -1,6 +1,7 @@
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
+local CFrame = roblox.CFrame
 
 local Random = require("./Random")
 local Tree = require("./Tree")
@@ -481,7 +482,7 @@ function World._environment(self, node: any)
 		_G = {},
 		Instance = {
 			new = function(className: string)
-				return Tree.node(className, className)
+				return self:newInstance(className)
 			end,
 		},
 	}
@@ -578,12 +579,67 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		p.Kicked = reason or ""
 		table.insert(self._kicked, p)
 	end
+	local Signal = self:require("ReplicatedStorage.Packages.Signal")
+	player.CharacterAdded = Signal.new()
+	player.CharacterRemoving = Signal.new()
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"
 	end
 	table.insert(self.Players._list, player)
 	self.Players.PlayerAdded:Fire(player)
 	return player
+end
+
+function World.newInstance(self, className: string)
+	local node = Tree.node(className, className)
+	local Signal = self:require("ReplicatedStorage.Packages.Signal")
+	if className == "ProximityPrompt" then
+		node.Triggered = Signal.new()
+		node.PromptButtonHoldBegan = Signal.new()
+		node.PromptButtonHoldEnded = Signal.new()
+	elseif className == "Humanoid" then
+		node.Died = Signal.new()
+		node.WalkSpeed = 16
+	end
+	return node
+end
+
+function World.newPart(self, name: string, x: number, y: number, z: number)
+	local part = self:newInstance("Part")
+	part.Name = name
+	part.CFrame = CFrame.new(x, y, z)
+	return part
+end
+
+function World.spawnCharacter(self, player: any, x: number, y: number, z: number)
+	local character = self:newInstance("Model")
+	character.Name = player.Name
+	local root = self:newPart("HumanoidRootPart", x, y, z)
+	root.Parent = character
+	local humanoid = self:newInstance("Humanoid")
+	humanoid.Name = "Humanoid"
+	humanoid.Parent = character
+	player.Character = character
+	player.CharacterAdded:Fire(character)
+	return character
+end
+
+function World.moveCharacter(_self, player: any, x: number, y: number, z: number)
+	player.Character.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+end
+
+function World.killCharacter(_self, player: any)
+	player.Character.Humanoid.Died:Fire()
+end
+
+function World.resetCharacter(_self, player: any)
+	local character = player.Character
+	player.CharacterRemoving:Fire(character)
+	player.Character = nil
+end
+
+function World.walkSpeed(_self, player: any): number
+	return player.Character.Humanoid.WalkSpeed
 end
 
 function World.removePlayer(self, player: any)

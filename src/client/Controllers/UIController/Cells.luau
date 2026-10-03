@@ -24,6 +24,8 @@ export type Cell = {
 	Count: TextLabel?,
 	CountChip: Frame?,
 	TagChip: Frame?,
+	StolenChip: Frame?,
+	StolenLabel: TextLabel?,
 	SetFound: (isFound: boolean, info: string, infoColor: Color3?) -> (),
 }
 
@@ -134,6 +136,8 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local count: TextLabel? = nil
 	local countChip: Frame? = nil
 	local tagChip: Frame? = nil
+	local stolenChip: Frame? = nil
+	local stolenLabel: TextLabel? = nil
 	if props.HasChips == true then
 		count = Kit.Chip({
 			Parent = cell,
@@ -158,6 +162,19 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		local tagFrame = tag.Parent :: Frame
 		tagFrame.Visible = false
 		tagChip = tagFrame
+		local stolen = Kit.Chip({
+			Parent = cell,
+			Name = "Stolen",
+			Text = "",
+			Size = UDim2.new(1, -8, 0, 16),
+			Position = UDim2.fromOffset(4, 70),
+			Color = theme.Orange,
+			TextSize = 12,
+		})
+		local stolenFrame = stolen.Parent :: Frame
+		stolenFrame.Visible = false
+		stolenChip = stolenFrame
+		stolenLabel = stolen
 	end
 	local callback = props.Callback
 	if callback then
@@ -195,6 +212,8 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Count = count,
 		CountChip = countChip,
 		TagChip = tagChip,
+		StolenChip = stolenChip,
+		StolenLabel = stolenLabel,
 		SetFound = function(isFound: boolean, info: string, infoColor: Color3?)
 			keycap.SetColor(if isFound then rarity.Color else unknownColor)
 			if isFound then
