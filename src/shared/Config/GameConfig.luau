@@ -14,4 +14,6 @@ return table.freeze({
 	Luck = 1,
 	RollRange = 25,
 	GuaranteedRareRoll = 3,
+	GoldenRollEvery = 100,
+	GoldenRollLuck = 10,
 })

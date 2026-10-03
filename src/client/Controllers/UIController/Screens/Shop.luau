@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Economy = require(script.Parent.Parent.Economy)
@@ -14,13 +15,15 @@ type Row = {
 	Frame: Frame,
 	Bar: Frame,
 	BarText: TextLabel,
+	Effect: TextLabel,
+	Preview: TextLabel,
 	Buy: Kit.Button,
 	Upgrade: Upgrades.Upgrade,
 	IsBusy: boolean,
 }
 
 local theme = Kit.Theme
-local cardHeight = 178
+local cardHeight = 228
 local refreshSeconds = 0.2
 
 local Shop = {}
@@ -52,8 +55,38 @@ function Shop.new(context: Types.Context): Types.Screen
 		Padding = 14,
 	})
 
+	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
+		local board = tracker.GetBoard()
+		local levels = {
+			Luck = tracker.GetLevel("Luck"),
+			Speed = tracker.GetLevel("Speed"),
+			Slots = tracker.GetLevel("Slots"),
+		}
+		local nextLevels = table.clone(levels)
+		nextLevels[upgrade.Id] = level + 1
+		local now = Stats.Compute(board, levels)
+		local isMaxed = level >= upgrade.MaxLevel
+		local after = if isMaxed then now else Stats.Compute(board, nextLevels)
+		if upgrade.Id == "Luck" then
+			if isMaxed then
+				return string.format("Now: 🍀 x%.1f (MAXED!)", now.Luck)
+			end
+			return string.format("🍀 x%.1f → x%.1f", now.Luck, after.Luck)
+		elseif upgrade.Id == "Speed" then
+			if isMaxed then
+				return string.format("Now: ⚡ %.1f/s (MAXED!)", now.RollsPerSecond)
+			end
+			return string.format("⚡ %.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
+		end
+		if isMaxed then
+			return string.format("Now: ⌨️ %d slots (MAXED!)", now.Slots)
+		end
+		return string.format("⌨️ %d → %d slots", now.Slots, after.Slots)
+	end
+
 	local function refreshRow(row: Row)
 		local level = tracker.GetLevel(row.Upgrade.Id)
+		row.Preview.Text = previewText(row.Upgrade, level)
 		local maxLevel = row.Upgrade.MaxLevel
 		row.BarText.Text = `Lv {level}/{maxLevel}`
 		row.Bar.Size = UDim2.fromScale(math.clamp(level / maxLevel, 0, 1), 1)
@@ -146,10 +179,30 @@ function Shop.new(context: Types.Context): Types.Screen
 			Scaled = true,
 			Outline = false,
 		})
+		local effectLabel = Kit.Label({
+			Parent = frame,
+			Name = "Effect",
+			Text = upgrade.Effect,
+			Position = UDim2.fromOffset(14, 74),
+			Size = UDim2.new(1, -28, 0, 26),
+			TextSize = 22,
+			Color = theme.Gold,
+			Scaled = true,
+		})
+		local previewLabel = Kit.Label({
+			Parent = frame,
+			Name = "Preview",
+			Text = "",
+			Position = UDim2.fromOffset(14, 102),
+			Size = UDim2.new(1, -28, 0, 28),
+			TextSize = 24,
+			Color = theme.Good,
+			Scaled = true,
+		})
 		local track = Instance.new("Frame")
 		track.Name = "Track"
 		track.BorderSizePixel = 0
-		track.Position = UDim2.fromOffset(14, 80)
+		track.Position = UDim2.fromOffset(14, 138)
 		track.Size = UDim2.new(1, -28, 0, 26)
 		Kit.Paint(track, theme.Deep)
 		Kit.Corner(track, 13)
@@ -175,6 +228,8 @@ function Shop.new(context: Types.Context): Types.Screen
 			Frame = frame,
 			Bar = fill,
 			BarText = barText,
+			Effect = effectLabel,
+			Preview = previewLabel,
 			Buy = nil :: any,
 			Upgrade = upgrade,
 			IsBusy = false,

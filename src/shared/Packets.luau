@@ -3,7 +3,7 @@
 local Packet = require(script.Parent.Packet)
 
 local Packets = {
-	Roll = Packet("Roll"):Response(Packet.NumberU16):RateLimit(15, 1),
+	Roll = Packet("Roll"):Response(Packet.NumberU16, Packet.Boolean8):RateLimit(15, 1),
 	RareRoll = Packet("RareRoll", Packet.String, Packet.NumberU16),
 	BuyUpgrade = Packet("BuyUpgrade", Packet.String):Response(Packet.Boolean8):RateLimit(5, 1),
 	PlaceKey = Packet("PlaceKey", Packet.NumberU8, Packet.String):Response(Packet.Boolean8):RateLimit(10, 1),

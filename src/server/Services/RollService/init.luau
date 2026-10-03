@@ -41,20 +41,23 @@ local function takeToken(player: Player, rate: number): boolean
 	return true
 end
 
-local function handleRoll(player: Player): number
+local function handleRoll(player: Player): (number, boolean)
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
 	if not data or not services.PlotService:GetPlot(player) then
-		return 0
+		return 0, false
 	end
 	local stats = Stats.Compute(data.Board, data.Upgrades)
 	if not takeToken(player, stats.RollsPerSecond) then
-		return 0
+		return 0, false
 	end
 	local isGuaranteed = data.Rolls + 1 == GameConfig.GuaranteedRareRoll
-	local key = if isGuaranteed then Roll.PickInRarity(rng, "Rare") else Roll.Pick(rng, stats.Luck)
+	local isGolden = not isGuaranteed and (data.Rolls + 1) % GameConfig.GoldenRollEvery == 0
+	local key = if isGuaranteed
+		then Roll.PickInRarity(rng, "Rare")
+		else Roll.Pick(rng, if isGolden then stats.Luck * GameConfig.GoldenRollLuck else stats.Luck)
 	services.DataService:Set(player, { "Rolls" }, data.Rolls + 1)
 	if not services.KeyboardService:AddKey(player, key.Id) then
-		return 0
+		return 0, false
 	end
 	services.DataService:Set(player, { "Discovered", key.Id }, (data.Discovered[key.Id] or 0) + 1)
 	if data.Tutorial == 0 then
@@ -66,7 +69,7 @@ local function handleRoll(player: Player): number
 	if Keys.GetRarity(key).Announce then
 		Packets.RareRoll:FireAllClients(player.DisplayName, key.Index)
 	end
-	return key.Index
+	return key.Index, isGolden
 end
 
 function RollService.Init(self: State, registry: { [string]: any })

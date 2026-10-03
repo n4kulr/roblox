@@ -15,18 +15,9 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local Kit = require(script.Parent.UIController.Kit)
 
 type TroveInstance = typeof(Trove.new())
-type Popup = {
-	Gui: BillboardGui,
-	Group: CanvasGroup,
-	Scale: UIScale,
-	Name: TextLabel,
-	Chance: TextLabel,
-	IsBusy: boolean,
-	StartedAt: number,
-	Tweens: { Tween },
-}
 type State = {
 	Name: string,
 	_trove: TroveInstance?,
@@ -35,12 +26,10 @@ type State = {
 local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
-local maxPopups = 8
-local lowMaxPopups = 3
-local smallPopupMaxRank = 2
 local releaseDelay = 0.07
-local fullPopupSize = Vector2.new(300, 90)
-local smallPopupSize = Vector2.new(200, 44)
+local cardSize = Vector2.new(300, 138)
+local cardBottomOffset = 124
+local goldColor = Color3.fromRGB(255, 210, 64)
 
 local rarityRank: { [string]: number } = {}
 for index, rarity in Keys.Rarities do
@@ -65,8 +54,6 @@ local buildingCount = 0
 local punching = false
 local holdPitch = 1
 local isHolding = false
-local popups: { Popup } = {}
-local popupGuis: Folder? = nil
 local destroyed = false
 local isLowGraphics = false
 local isAuto = false
@@ -82,143 +69,238 @@ local function escapeRichText(text: string): string
 	return escaped
 end
 
-local function newLabel(parent: Instance, name: string, position: UDim2, size: UDim2): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Position = position
-	label.Size = size
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(22, 18, 38)
-	stroke.Thickness = 2.5
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-	stroke.Parent = label
-	label.Parent = parent
-	return label
+local epicRank = rarityRank.Epic or 4
+local rareRank = rarityRank.Rare or 3
+local legendaryRarity: Keys.Rarity? = nil
+for _, rarity in Keys.Rarities do
+	if rarity.Name == "Legendary" then
+		legendaryRarity = rarity
+	end
 end
 
-local function createPopup(): Popup
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "RollPopup"
-	gui.AlwaysOnTop = true
-	gui.Size = UDim2.fromOffset(fullPopupSize.X, fullPopupSize.Y)
-	gui.StudsOffset = Vector3.new(0, 5, 0)
-	gui.Enabled = false
-	gui.ResetOnSpawn = false
+type Card = {
+	Holder: Frame,
+	Group: CanvasGroup,
+	Scale: UIScale,
+	Tag: TextLabel,
+	Name: TextLabel,
+	Sub: TextLabel,
+	Info: TextLabel,
+}
+
+local card: Card? = nil
+local flashFrame: Frame? = nil
+local cardTweens: { Tween } = {}
+local cardThread: thread? = nil
+local cardRank = 0
+local cardHoldEnd = 0
+
+local function perkText(perk: Keys.Perk): string
+	local percent = string.format("%d%%", math.round(perk.Amount * 100))
+	if perk.Kind == "Luck" then
+		return `🍀 +{percent} Luck`
+	elseif perk.Kind == "Speed" then
+		return `⚡ +{percent} Speed`
+	end
+	return `💰 +{percent} Income`
+end
+
+local function buildCard(trove: TroveInstance, playerGui: PlayerGui)
+	local _gui, root = Kit.ScreenGui("RollCard", 3, playerGui, trove)
+	local holder = Instance.new("Frame")
+	holder.Name = "Holder"
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(0.5, 1)
+	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
+	holder.Size = UDim2.fromOffset(cardSize.X, cardSize.Y)
+	holder.Visible = false
+	holder.Parent = root
+	local scale = Instance.new("UIScale")
+	scale.Parent = holder
 	local group = Instance.new("CanvasGroup")
 	group.Name = "Group"
-	group.BackgroundTransparency = 1
+	group.BorderSizePixel = 0
 	group.Size = UDim2.fromScale(1, 1)
-	group.Parent = gui
-	local scale = Instance.new("UIScale")
-	scale.Parent = group
-	local nameLabel = newLabel(group, "KeyName", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.6))
-	local chanceLabel = newLabel(group, "Chance", UDim2.fromScale(0, 0.6), UDim2.fromScale(1, 0.4))
-	gui.Parent = popupGuis
-	return {
-		Gui = gui,
-		Group = group,
-		Scale = scale,
-		Name = nameLabel,
-		Chance = chanceLabel,
-		IsBusy = false,
-		StartedAt = 0,
-		Tweens = {},
-	}
+	Kit.Paint(group, Kit.Theme.Panel)
+	Kit.Corner(group, 20)
+	Kit.Stroke(group, Kit.Theme.Ink, 6)
+	group.Parent = holder
+	local tag = Kit.Label({
+		Parent = group,
+		Name = "Tag",
+		Text = "⭐ GOLDEN ROLL!",
+		Position = UDim2.fromOffset(10, 6),
+		Size = UDim2.new(1, -20, 0, 24),
+		TextSize = 22,
+		Color = goldColor,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local nameLabel = Kit.Label({
+		Parent = group,
+		Name = "KeyName",
+		Position = UDim2.fromOffset(10, 30),
+		Size = UDim2.new(1, -20, 0, 50),
+		TextSize = 40,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local sub = Kit.Label({
+		Parent = group,
+		Name = "Sub",
+		Position = UDim2.fromOffset(10, 82),
+		Size = UDim2.new(1, -20, 0, 24),
+		TextSize = 22,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local info = Kit.Label({
+		Parent = group,
+		Name = "Info",
+		Position = UDim2.fromOffset(10, 108),
+		Size = UDim2.new(1, -20, 0, 22),
+		TextSize = 20,
+		Color = Kit.Theme.TextDim,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	card =
+		{ Holder = holder, Group = group, Scale = scale, Tag = tag, Name = nameLabel, Sub = sub, Info = info }
+	local flashGui = Instance.new("ScreenGui")
+	flashGui.Name = "RollFlash"
+	flashGui.ResetOnSpawn = false
+	flashGui.IgnoreGuiInset = true
+	flashGui.DisplayOrder = 4
+	local flash = Instance.new("Frame")
+	flash.Name = "Flash"
+	flash.BorderSizePixel = 0
+	flash.BackgroundColor3 = goldColor
+	flash.BackgroundTransparency = 1
+	flash.Size = UDim2.fromScale(1, 1)
+	flash.Active = false
+	flash.Parent = flashGui
+	flashGui.Parent = playerGui
+	flashFrame = flash
+	trove:Add(flashGui)
 end
 
-local function stopPopup(popup: Popup)
-	for _, active in popup.Tweens do
+local function stopCardTweens()
+	for _, active in cardTweens do
 		active:Cancel()
 		active:Destroy()
 	end
-	table.clear(popup.Tweens)
-	popup.Gui.Enabled = false
-	popup.IsBusy = false
+	table.clear(cardTweens)
+	if cardThread then
+		task.cancel(cardThread)
+		cardThread = nil
+	end
 end
 
-local function acquirePopup(): Popup?
-	local oldest: Popup? = nil
-	for _, popup in popups do
-		if not popup.IsBusy then
-			return popup
-		end
-		if not oldest or popup.StartedAt < oldest.StartedAt then
-			oldest = popup
-		end
-	end
-	if #popups < (if isLowGraphics then lowMaxPopups else maxPopups) then
-		local popup = createPopup()
-		table.insert(popups, popup)
-		return popup
-	end
-	if oldest then
-		stopPopup(oldest)
-	end
-	return oldest
-end
-
-local function showPopup(key: Keys.Key, rarity: Keys.Rarity, adornee: BasePart)
-	local popup = acquirePopup()
-	if not popup then
+local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
+	local view = card
+	if not view then
 		return
 	end
-	popup.IsBusy = true
-	popup.StartedAt = os.clock()
-	local isSmall = (rarityRank[rarity.Name] or 1) <= smallPopupMaxRank
-	local size = if isSmall then smallPopupSize else fullPopupSize
-	local gui = popup.Gui
-	gui.Size = UDim2.fromOffset(
-		size.X * (if rarity.Announce then 1.4 else 1),
-		size.Y * (if rarity.Announce then 1.4 else 1)
-	)
-	gui.StudsOffset = Vector3.new(0, 5, 0)
-	gui.Adornee = adornee
-	popup.Name.Text = key.Name
-	popup.Name.TextColor3 = rarity.Color
-	popup.Name.Size = if isSmall then UDim2.fromScale(1, 1) else UDim2.fromScale(1, 0.6)
-	popup.Chance.Visible = not isSmall
-	popup.Chance.Text = `1 in {NumberFormat.Commas(rarity.Chance)}`
-	popup.Group.GroupTransparency = 0
-	popup.Scale.Scale = 0.5
-	gui.Enabled = true
-	local lifetime = if isSmall then 0.6 else 1.3
-	local fadeDelay = if isSmall then 0.3 else 0.8
-	local rise = TweenService:Create(
-		gui,
-		TweenInfo.new(lifetime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ StudsOffset = Vector3.new(0, if isSmall then 7 else 9, 0) }
-	)
-	local pop = TweenService:Create(
-		popup.Scale,
-		TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Scale = 1 }
-	)
-	local fade = TweenService:Create(
-		popup.Group,
-		TweenInfo.new(
-			lifetime - fadeDelay,
-			Enum.EasingStyle.Linear,
-			Enum.EasingDirection.In,
-			0,
-			false,
-			fadeDelay
-		),
-		{ GroupTransparency = 1 }
-	)
-	popup.Tweens = { rise, pop, fade }
-	fade.Completed:Once(function(state: Enum.PlaybackState)
-		if state ~= Enum.PlaybackState.Completed or popup.Tweens[3] ~= fade then
+	local rank = rarityRank[rarity.Name] or 1
+	local now = os.clock()
+	if cardRank >= epicRank and now < cardHoldEnd and rank < cardRank then
+		return
+	end
+	stopCardTweens()
+	cardRank = rank
+	local hold = if rank >= epicRank then 2 elseif rank >= rareRank then 1.2 else 0.7
+	if isGolden then
+		hold += 0.5
+	end
+	cardHoldEnd = now + hold + 0.12
+	view.Tag.Visible = isGolden
+	view.Name.Text = key.Name
+	view.Name.TextColor3 = rarity.Color
+	view.Sub.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
+	view.Sub.TextColor3 = rarity.Color
+	local info = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
+	if key.Perk then
+		info ..= `  {perkText(key.Perk)}`
+	end
+	view.Info.Text = info
+	Kit.Paint(view.Group, Kit.Theme.Deep:Lerp(rarity.Color, 0.35))
+	local stroke = view.Group:FindFirstChild("Stroke")
+	if stroke and stroke:IsA("UIStroke") then
+		stroke.Color = if isGolden then goldColor else Kit.Theme.Ink
+	end
+	local holder = view.Holder
+	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
+	view.Group.GroupTransparency = 0
+	holder.Visible = true
+	if isLowGraphics then
+		view.Scale.Scale = 1
+	else
+		view.Scale.Scale = 0.7
+		local pop = TweenService:Create(
+			view.Scale,
+			TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Scale = 1 }
+		)
+		table.insert(cardTweens, pop)
+		pop:Play()
+	end
+	cardThread = task.delay(hold, function()
+		cardThread = nil
+		if destroyed then
 			return
 		end
-		stopPopup(popup)
+		local fade = TweenService:Create(
+			view.Group,
+			TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ GroupTransparency = 1 }
+		)
+		table.insert(cardTweens, fade)
+		if not isLowGraphics then
+			local slide = TweenService:Create(
+				holder,
+				TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{ Position = UDim2.new(0.5, 0, 1, -cardBottomOffset + 24) }
+			)
+			table.insert(cardTweens, slide)
+			slide:Play()
+		end
+		fade.Completed:Once(function(state: Enum.PlaybackState)
+			if state == Enum.PlaybackState.Completed then
+				holder.Visible = false
+				cardRank = 0
+			end
+		end)
+		fade:Play()
 	end)
-	rise:Play()
-	pop:Play()
-	fade:Play()
+end
+
+local function goldenFeedback()
+	local sounds = controllers.SoundController
+	if legendaryRarity then
+		sounds:PlayReveal(legendaryRarity, "Roll")
+	end
+	local flash = flashFrame
+	if flash and not isLowGraphics then
+		flash.BackgroundTransparency = 0.35
+		local fadeOut = TweenService:Create(
+			flash,
+			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ BackgroundTransparency = 1 }
+		)
+		fadeOut.Completed:Once(function()
+			fadeOut:Destroy()
+		end)
+		fadeOut:Play()
+	end
+	local part = rollKey
+	if part then
+		part.Color = goldColor
+		task.delay(0.5, function()
+			if not destroyed and part.Parent and buildingCount == 0 then
+				part.Color = originColor
+			end
+		end)
+	end
 end
 
 local function punchCamera()
@@ -320,24 +402,15 @@ local function isInRange(): boolean
 	return (root.Position - part.Position).Magnitude <= GameConfig.RollRange
 end
 
-local function popupAnchor(): BasePart?
-	if rollKey and isInRange() then
-		return rollKey
-	end
-	local character = Players.LocalPlayer.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if root and root:IsA("BasePart") then
-		return root
-	end
-	return rollKey
-end
-
-local function reveal(index: number)
+local function reveal(index: number, isGolden: boolean)
 	local key = Keys.Catalog[index]
 	if not key then
 		return
 	end
 	local rarity = Keys.GetRarity(key)
+	if isGolden then
+		goldenFeedback()
+	end
 	if rarity.BuildUpSeconds > 0 then
 		buildUp(rollKey, rarity)
 	end
@@ -348,10 +421,7 @@ local function reveal(index: number)
 	sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Roll")
 	sounds:PlayFlair(key, nil, "Roll")
 	sounds:PlayReveal(rarity, "Roll")
-	local anchor = popupAnchor()
-	if anchor then
-		showPopup(key, rarity, anchor)
-	end
+	showCard(key, rarity, isGolden)
 	if rarity.Announce then
 		punchCamera()
 	end
@@ -382,9 +452,9 @@ local function press(autoRelease: boolean): boolean
 		end)
 	end
 	task.spawn(function()
-		local index = Packets.Roll:Fire()
+		local index: any, isGolden: any = Packets.Roll:Fire()
 		if type(index) == "number" and index > 0 and not destroyed then
-			reveal(index)
+			reveal(index, isGolden == true)
 		end
 	end)
 	return true
@@ -543,11 +613,10 @@ function RollController.Start(self: State)
 	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
 		isLowGraphics = value == true
 	end))
-	local guis = Instance.new("Folder")
-	guis.Name = "RollPopups"
-	guis.Parent = workspace
-	popupGuis = guis
-	trove:Add(guis)
+	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if playerGui then
+		buildCard(trove, playerGui)
+	end
 	trove:Connect(UserInputService.InputBegan, onInput)
 	trove:Connect(UserInputService.InputEnded, onInputEnded)
 	trove:Connect(RunService.Heartbeat, function()
@@ -581,8 +650,9 @@ function RollController.Destroy(self: State)
 	table.clear(squashTweens)
 	plot = nil
 	rollKey = nil
-	popupGuis = nil
-	table.clear(popups)
+	stopCardTweens()
+	card = nil
+	flashFrame = nil
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

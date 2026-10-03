@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
@@ -13,6 +14,13 @@ local theme = Kit.Theme
 local hintStep = 2
 local menuButtonWidth = 80
 local menuButtonHeight = 86
+local rollWidth = 200
+local rollHeight = 98
+local autoWidth = 130
+local goldenWidth = 200
+local goldenHeight = 84
+local barGap = 12
+local barDesignWidth = 2 * (rollWidth / 2 + barGap + goldenWidth) + 24
 
 local Hud = {}
 
@@ -178,28 +186,36 @@ function Hud.new(context: Types.Context): Types.Screen
 	bottom.BackgroundTransparency = 1
 	bottom.AnchorPoint = Vector2.new(0.5, 1)
 	bottom.Position = UDim2.new(0.5, 0, 1, -14)
-	bottom.Size = UDim2.fromOffset(0, 102)
-	bottom.AutomaticSize = Enum.AutomaticSize.X
-	local bottomList = Instance.new("UIListLayout")
-	bottomList.FillDirection = Enum.FillDirection.Horizontal
-	bottomList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	bottomList.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	bottomList.SortOrder = Enum.SortOrder.LayoutOrder
-	bottomList.Padding = UDim.new(0, 14)
-	bottomList.Parent = bottom
+	bottom.Size = UDim2.fromOffset(0, rollHeight)
+	local fitScale = Instance.new("UIScale")
+	fitScale.Name = "FitScale"
+	fitScale.Parent = bottom
 	bottom.Parent = root
+	local function fit()
+		local viewport = root:FindFirstChild("ViewportScale")
+		local factor = if viewport
+				and viewport:IsA("UIScale")
+				and viewport.Scale > 0
+			then viewport.Scale
+			else 1
+		local available = root.AbsoluteSize.X / factor
+		fitScale.Scale = math.clamp(available / barDesignWidth, 0.5, 1)
+	end
+	fit()
+	trove:Connect(root:GetPropertyChangedSignal("AbsoluteSize"), fit)
 
 	Kit.Button(trove, {
 		Parent = bottom,
 		Name = "Roll",
 		Text = "🎲 ROLL!",
-		Size = UDim2.fromOffset(236, 102),
+		Size = UDim2.fromOffset(rollWidth, rollHeight),
+		Position = UDim2.new(0, 0, 1, 0),
+		AnchorPoint = Vector2.new(0.5, 1),
 		Color = Color3.fromRGB(255, 176, 28),
-		TextSize = 46,
+		TextSize = 44,
 		Radius = 20,
 		Lip = 8,
 		Immediate = true,
-		LayoutOrder = 1,
 		Callback = function()
 			rollController:RequestRoll()
 		end,
@@ -209,12 +225,13 @@ function Hud.new(context: Types.Context): Types.Screen
 		Name = "Auto",
 		Icon = "🔁",
 		Text = "AUTO: OFF",
-		Size = UDim2.fromOffset(150, 88),
+		Size = UDim2.fromOffset(autoWidth, 84),
+		Position = UDim2.new(0, rollWidth / 2 + barGap, 1, 0),
+		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Grey,
 		TextSize = 20,
 		IconSize = 32,
 		Radius = 18,
-		LayoutOrder = 2,
 		Callback = function()
 			rollController:SetAuto(not rollController:IsAuto())
 		end,
@@ -227,6 +244,92 @@ function Hud.new(context: Types.Context): Types.Screen
 	end
 	showAuto(rollController:IsAuto())
 	trove:Add(rollController.AutoChanged:Connect(showAuto))
+
+	local golden = Kit.Panel({
+		Parent = bottom,
+		Name = "Golden",
+		Size = UDim2.fromOffset(goldenWidth, goldenHeight),
+		Position = UDim2.new(0, -(rollWidth / 2 + barGap), 1, 0),
+		AnchorPoint = Vector2.new(1, 1),
+		Color = theme.Deep,
+		Radius = 18,
+	})
+	local goldenStroke = golden:FindFirstChild("Stroke") :: UIStroke
+	goldenStroke.Color = theme.Gold
+	local goldenTitle = Kit.Label({
+		Parent = golden,
+		Name = "Title",
+		Text = "⭐ GOLDEN ROLL",
+		Position = UDim2.fromOffset(8, 6),
+		Size = UDim2.new(1, -16, 0, 24),
+		TextSize = 22,
+		Color = theme.Gold,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local goldenTrack = Instance.new("Frame")
+	goldenTrack.Name = "Track"
+	goldenTrack.BorderSizePixel = 0
+	goldenTrack.Position = UDim2.new(0, 10, 1, -12)
+	goldenTrack.AnchorPoint = Vector2.new(0, 1)
+	goldenTrack.Size = UDim2.new(1, -20, 0, 30)
+	Kit.Paint(goldenTrack, theme.Ink)
+	Kit.Corner(goldenTrack, 15)
+	Kit.Stroke(goldenTrack, theme.Ink, 2)
+	goldenTrack.Parent = golden
+	local goldenFill = Instance.new("Frame")
+	goldenFill.Name = "Fill"
+	goldenFill.BorderSizePixel = 0
+	goldenFill.Size = UDim2.fromScale(0, 1)
+	Kit.Paint(goldenFill, theme.Gold)
+	Kit.Corner(goldenFill, 15)
+	goldenFill.Parent = goldenTrack
+	local goldenCount = Kit.Label({
+		Parent = goldenTrack,
+		Name = "Count",
+		Text = "0/" .. GameConfig.GoldenRollEvery,
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 20,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local goldenPulse: Tween? = nil
+	local isGoldenNext = false
+	local function setGoldenNext(value: boolean)
+		if value == isGoldenNext then
+			return
+		end
+		isGoldenNext = value
+		if goldenPulse then
+			goldenPulse:Cancel()
+			goldenPulse:Destroy()
+			goldenPulse = nil
+		end
+		goldenStroke.Thickness = 3
+		goldenTitle.Text = if value then "NEXT ROLL IS GOLDEN! ⭐" else "⭐ GOLDEN ROLL"
+		if value then
+			goldenStroke.Thickness = 4
+			goldenPulse = Kit.Tween(
+				goldenStroke,
+				TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Thickness = 9 }
+			)
+		end
+	end
+	trove:Add(function()
+		if goldenPulse then
+			goldenPulse:Cancel()
+			goldenPulse:Destroy()
+			goldenPulse = nil
+		end
+	end)
+	trove:Add(dataController:Observe({ "Rolls" }, function(value: any)
+		local rolls = if type(value) == "number" then value else 0
+		local count = rolls % GameConfig.GoldenRollEvery
+		goldenCount.Text = `{count}/{GameConfig.GoldenRollEvery}`
+		goldenFill.Size = UDim2.fromScale(math.clamp(count / GameConfig.GoldenRollEvery, 0, 1), 1)
+		setGoldenNext(count == GameConfig.GoldenRollEvery - 1)
+	end))
 
 	local function setHinting(value: boolean)
 		if value == isHinting then
