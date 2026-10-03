@@ -464,15 +464,11 @@ local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
 		return
 	end
 	local rank = rarityRank[rarity.Name] or 1
-	local hold = if rank >= legendaryRank
-		then 5
-		elseif rank >= epicRank then 4
-		elseif rank >= rareRank or isGolden then 3
-		else 0.7
+	local isRare = rank >= legendaryRank
+	local hold = if isRare then 5 elseif rank >= epicRank then 2 elseif rank >= rareRank then 1.2 else 0.7
 	if isGolden then
 		hold += 1
 	end
-	local isRare = rank >= rareRank or isGolden
 	local payload: Payload = { Key = key, Rarity = rarity, IsGolden = isGolden }
 	runActions(slots:Push(payload, isRare, hold, os.clock(), isLowGraphics))
 end
