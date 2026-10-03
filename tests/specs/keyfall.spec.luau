@@ -12,6 +12,7 @@ describe("KeyfallService", function()
 		world = H.newWorld({ Time = 1700000000 })
 		local original = world:require("ReplicatedStorage.Config.GameConfig")
 		local copy = H.deepCopy(original)
+		copy.Keyfall.Enabled = true
 		for key, value in keyfallOverrides or {} do
 			copy.Keyfall[key] = value
 		end
@@ -158,6 +159,18 @@ describe("KeyfallService", function()
 		world:moveCharacter(player, baseX, 3, 0)
 		world:advance(0.2)
 	end
+
+	describe("disabled", function()
+		it("builds nothing, drops nothing and refuses knocks when Enabled is false", function()
+			setup({ Enabled = false })
+			expect(tree:FindFirstChild("KeyfallArena")):toBeNil()
+			expect(tree:FindFirstChild("KeyfallCaps")):toBeNil()
+			world:advance(120)
+			expect(tree:FindFirstChild("KeyfallCaps")):toBeNil()
+			local player = world:join({ UserId = 9001, Name = "Knocker" })
+			expect(world:invoke("Knock", player, 9002)):toBe(false)
+		end)
+	end)
 
 	describe("arena", function()
 		it("builds a placeholder floor at the arena centre when none is authored", function()

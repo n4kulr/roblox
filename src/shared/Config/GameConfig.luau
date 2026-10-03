@@ -43,6 +43,7 @@ return table.freeze({
 		MaxStackSeconds = 7200,
 	}),
 	Keyfall = table.freeze({
+		Enabled = false,
 		ArenaCenter = Vector3.new(0, 0.5, 0),
 		ArenaRadius = 40,
 		DropIntervalSeconds = 1.5,

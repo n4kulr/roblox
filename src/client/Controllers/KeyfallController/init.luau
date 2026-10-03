@@ -262,6 +262,9 @@ end
 
 function KeyfallController.Start(self: State)
 	local trove = self._trove :: TroveInstance
+	if not GameConfig.Keyfall.Enabled then
+		return
+	end
 	local localPlayer = Players.LocalPlayer
 	trove:Add(Packets.KeyfallEvent.OnClientEvent:Connect(onEvent))
 	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)

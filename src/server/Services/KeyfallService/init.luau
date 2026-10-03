@@ -436,6 +436,12 @@ end
 
 function KeyfallService.Start(self: State)
 	local trove = self._trove :: TroveInstance
+	if not config.Enabled then
+		Packets.Knock.OnServerInvoke = function()
+			return false
+		end
+		return
+	end
 	local now = os.clock()
 	arena = Arena.Resolve()
 	local folder = Instance.new("Folder")
