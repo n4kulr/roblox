@@ -14,6 +14,9 @@ local modules: { [string]: Types.ScreenModule } = {
 	Keys = require(script.Screens.Keys),
 	Index = require(script.Screens.Index),
 	Settings = require(script.Screens.Settings),
+	Offers = require(script.Screens.Offers),
+	Daily = require(script.Screens.Daily),
+	Shop = require(script.Screens.Shop),
 }
 
 local legacyGuiName = "Hud"

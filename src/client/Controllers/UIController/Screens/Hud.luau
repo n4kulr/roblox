@@ -112,7 +112,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Parent = left,
 		Name = "Tooltip",
 		Size = UDim2.fromOffset(250, 46),
-		Position = UDim2.new(0, 0, 0, -12),
+		Position = UDim2.new(0, 0, 0, -(12 + 58)),
 		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Yellow,
 		Shards = true,
@@ -131,7 +131,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local bounce = Kit.Tween(
 		tooltip,
 		TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = UDim2.new(0, 0, 0, -2) }
+		{ Position = UDim2.new(0, 0, 0, -(2 + 58)) }
 	)
 	bounce:Pause()
 	trove:Add(function()
