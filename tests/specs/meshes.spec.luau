@@ -63,6 +63,10 @@ describe("Mesh skins", function()
 		plots = world.workspace:FindFirstChild("Plots")
 	end
 
+	local function floorCaps(plot: any): { any }
+		return plot.Keys:GetChildren()
+	end
+
 	local function slotCaps(plot: any): { [number]: any }
 		local out = {}
 		for _, child in plot.Keys:GetChildren() do
@@ -101,7 +105,7 @@ describe("Mesh skins", function()
 		expect(#world.meshRequests):toBe(0)
 		local plot = plots.Plot1
 		expect(plot.RollKey.ClassName):toBe("MeshPart")
-		expect(plot:FindFirstChild("BoardCase")).never:toBeNil()
+		expect(plot:FindFirstChild("BoardCase")):toBeNil()
 		for _, cap in slotCaps(plot) do
 			expect(cap.ClassName):toBe("MeshPart")
 		end
@@ -109,7 +113,7 @@ describe("Mesh skins", function()
 
 	it("keeps plain parts when mesh creation fails", function()
 		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" }, nil, { "k", "r", "c" })
-		expect(#world.meshRequests):toBe(3)
+		expect(#world.meshRequests):toBe(2)
 		local plot = plots.Plot1
 		expect(plot.RollKey.ClassName):toBe("Part")
 		expect(plot:FindFirstChild("BoardCase")):toBeNil()
@@ -122,32 +126,66 @@ describe("Mesh skins", function()
 	it("builds mesh caps that keep attributes and state", function()
 		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" })
 		local plot = plots.Plot1
-		local count = 0
-		for slot, cap in slotCaps(plot) do
-			count += 1
-			expect(cap.ClassName):toBe("MeshPart")
-			expect(cap:GetAttribute("Slot")):toBe(slot)
-			expect(cap.CanCollide):toBe(false)
-			expect(cap.CanQuery):toBe(false)
-			expect(cap.CanTouch):toBe(false)
-			expect(cap.Anchored):toBe(true)
-			expect(cap.Transparency):toBe(0.6)
+		local slots = 0
+		local fillers = 0
+		for _, cap in floorCaps(plot) do
+			if cap.Name ~= "Walkway" then
+				expect(cap.ClassName):toBe("MeshPart")
+				expect(cap.CanCollide):toBe(false)
+				expect(cap.CanQuery):toBe(false)
+				expect(cap.CanTouch):toBe(false)
+				expect(cap.Anchored):toBe(true)
+				expect(cap.Transparency):toBe(0)
+				expect(cap.Size):toBe(Vector3.new(3.8, 1, 3.8))
+				expect(cap:GetAttribute("Cell") ~= nil):toBe(true)
+				if cap:GetAttribute("Slot") then
+					slots += 1
+					expect(cap:GetAttribute("Filler")):toBeNil()
+				else
+					fillers += 1
+					expect(cap:GetAttribute("Filler")):toBe(true)
+					expect(cap.Color):toBe(Color3.fromRGB(222, 218, 208))
+					expect(cap.CastShadow):toBe(false)
+				end
+			end
 		end
-		expect(count):toBe(GameConfig.BoardSlots)
-		expect(plot.Keys.Walkway.ClassName):toBe("Part")
+		expect(slots):toBe(GameConfig.BoardSlots)
+		expect(fillers):toBe(58)
 		expect(plot.RollKey.ClassName):toBe("MeshPart")
 		expect(plot.RollKey.Size):toBe(Vector3.new(8, 3, 8))
-		expect(plot.BoardCase.ClassName):toBe("MeshPart")
-		expect(plot.BoardCase.Size):toBe(plot.Board.Size)
+		expect(plot:FindFirstChild("BoardCase")):toBeNil()
 		expect(plot.Board.Transparency):toBe(1)
+		expect(plot.Board.CanCollide):toBe(false)
+		expect(plot:GetAttribute("FloorCell")):toBe(4)
+		expect(plot:GetAttribute("FloorColumns")):toBe(10)
 	end)
 
-	it("sits caps on the case floor", function()
-		setup({ KeyboardCase = "c" })
+	it("covers the whole base with a collidable walkway at cap-top height", function()
+		setup({ Keycap = "k" })
 		local plot = plots.Plot1
+		local walkway = plot.Keys.Walkway
+		expect(walkway.ClassName):toBe("Part")
+		expect(walkway.CanCollide):toBe(true)
+		expect(walkway.CanQuery):toBe(true)
+		expect(walkway.Size.X):toBe(plot.Base.Size.X)
+		expect(walkway.Size.Z):toBe(plot.Base.Size.Z)
+		local top = plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + 1
+		expect(walkway.CFrame.Position.Y + walkway.Size.Y / 2):toBeCloseTo(top, 1e-4)
 		local cap = slotCaps(plot)[1]
-		local expected = plot.Board.CFrame.Position.Y + (-0.75 + 1.1) + 0.5
-		expect(cap.CFrame.Position.Y):toBeCloseTo(expected, 1e-4)
+		expect(cap.CFrame.Position.Y + 0.5):toBeCloseTo(top, 1e-4)
+	end)
+
+	it("returns only the slot caps from GetCaps", function()
+		setup({ Keycap = "k" })
+		local player = world:join({ Name = "Owner" })
+		local caps = registry.PlotService:GetCaps(player)
+		local count = 0
+		for slot, cap in caps do
+			count += 1
+			expect(cap:GetAttribute("Slot")):toBe(slot)
+		end
+		expect(count):toBe(GameConfig.BoardSlots)
+		expect(#registry.PlotService:GetFloorCaps(player)):toBe(88)
 	end)
 
 	it("waits for slow meshes before building plots and assigning players", function()
@@ -166,7 +204,6 @@ describe("Mesh skins", function()
 		expect(slotCaps(registry.PlotService:GetPlot(player))[1] == caps[1]):toBe(true)
 		expect(boardChanges):toEqual({ player })
 		expect(plots.Plot1.RollKey.ClassName):toBe("MeshPart")
-		expect(plots.Plot1.BoardCase.ClassName):toBe("MeshPart")
 	end)
 
 	it("builds plain plots after the timeout and ignores late meshes", function()
@@ -211,7 +248,7 @@ it("skins authored plots marked UseMeshes like placeholder plots", function()
 		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" })
 		local plot = plots.Plot1
 		expect(plot.RollKey.ClassName):toBe("MeshPart")
-		expect(plot:FindFirstChild("BoardCase")).never:toBeNil()
+		expect(plot:FindFirstChild("BoardCase")):toBeNil()
 		for _, cap in slotCaps(plot) do
 			expect(cap.ClassName):toBe("MeshPart")
 		end

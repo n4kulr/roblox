@@ -6,9 +6,9 @@ local ServerStorage = game:GetService("ServerStorage")
 local Meshes = require(ReplicatedStorage.Config.Meshes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-export type Name = "Keycap" | "RollKey" | "KeyboardCase"
+export type Name = "Keycap" | "RollKey"
 
-local names: { Name } = { "Keycap", "RollKey", "KeyboardCase" }
+local names: { Name } = { "Keycap", "RollKey" }
 local templates: { [string]: MeshPart } = {}
 local generation = 0
 local pending = 0
