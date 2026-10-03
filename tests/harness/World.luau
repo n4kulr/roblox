@@ -291,6 +291,18 @@ local function makeFakeServices(world)
 			}
 		end,
 	}
+	services.AssetService = {
+		CreateMeshPartAsync = function(_self, content: any, _options: any)
+			table.insert(world.meshRequests, content)
+			if world.meshDelay > 0 then
+				world.task.wait(world.meshDelay)
+			end
+			if world.meshFailures[content] then
+				error("fake asset service: cannot load " .. tostring(content))
+			end
+			return world:newInstance("MeshPart")
+		end,
+	}
 	services.TextChatService = {}
 	services.ServerStorage = Tree.node("ServerStorage", "ServerStorage")
 	services.TweenService = {
@@ -325,6 +337,9 @@ function World.new(
 		prompts = {} :: { { Kind: string, Player: any, Id: number } },
 		ownedPasses = {} :: { [number]: { [number]: boolean } },
 		passCheckFailures = 0,
+		meshRequests = {} :: { any },
+		meshFailures = {} :: { [any]: boolean },
+		meshDelay = 0,
 		_kicked = {} :: { any },
 	}, World)
 
@@ -534,6 +549,11 @@ function World._environment(self, node: any)
 		delay = function(t: number, f: any, ...)
 			return self.task.delay(t, f, ...)
 		end,
+		Content = {
+			fromUri = function(uri: string)
+				return uri
+			end,
+		},
 		shared = {},
 		_G = {},
 		Instance = {
@@ -656,6 +676,9 @@ end
 function World.newInstance(self, className: string)
 	local node = Tree.node(className, className)
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
+	if className == "Part" or className == "MeshPart" then
+		node.Transparency = 0
+	end
 	if className == "ProximityPrompt" then
 		node.Triggered = Signal.new()
 		node.PromptButtonHoldBegan = Signal.new()

@@ -22,6 +22,17 @@ Previews are written to `previews/*.png` (3/4 flat-shaded views plus extra angle
 
 ## Import in Studio
 
-1. File > Import 3D (or Asset Manager > Bulk Import) and choose the `.obj` files.
-2. Accept the import as MeshParts; set the part Size to the stud size above (or scale per slot), and color with `Color`/`BrickColor`.
-3. After upload, send the resulting MeshIds to the lead.
+1. In Studio, open Asset Manager > Bulk Import (or File > Import 3D) and choose `keycap.obj`, `rollkey.obj` and `keyboard_case.obj`. Accept the defaults (they import as MeshParts).
+2. Once imported and uploaded, select each MeshPart and copy its `MeshId` from Properties (for example `rbxassetid://123456789`). You do not need to scale or color anything in Studio: the game sizes and tints the meshes in code.
+3. Send the three MeshIds to the lead, labelled Keycap, RollKey and KeyboardCase.
+4. The lead pastes them into `src/shared/Config/Meshes.luau`:
+
+```lua
+return table.freeze({
+	Keycap = "rbxassetid://...",
+	RollKey = "rbxassetid://...",
+	KeyboardCase = "rbxassetid://...",
+})
+```
+
+An empty string keeps the plain parts for that mesh. At server start `AssetService:CreateMeshPartAsync` builds one template per id, and plots and the carried key visual clone it; if a mesh fails to load the game falls back to plain parts. Only placeholder plots are re-skinned; plots authored in `workspace.Plots` are left alone.
