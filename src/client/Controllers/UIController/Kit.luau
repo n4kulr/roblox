@@ -194,14 +194,14 @@ function Kit.ScreenGui(
 	gui.IgnoreGuiInset = false
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = displayOrder
-	local scale = Instance.new("UIScale")
-	scale.Name = "ViewportScale"
-	scale.Parent = gui
 	local root = Instance.new("Frame")
 	root.Name = "Root"
 	root.BackgroundTransparency = 1
 	root.BorderSizePixel = 0
 	root.Parent = gui
+	local scale = Instance.new("UIScale")
+	scale.Name = "ViewportScale"
+	scale.Parent = root
 	local function update()
 		local value = viewportScale(gui.AbsoluteSize)
 		scale.Scale = value
