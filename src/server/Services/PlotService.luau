@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
@@ -68,7 +69,7 @@ local function buildPlaceholderPlots(folder: Folder)
 		newPart(
 			model,
 			"Board",
-			Vector3.new(24, 1.5, 10),
+			Vector3.new(31, 1.5, 9.6),
 			origin * CFrame.new(0, 1.25, 12),
 			Color3.fromRGB(35, 36, 42)
 		)
@@ -84,6 +85,8 @@ end
 
 local emptyCapColor = Color3.fromRGB(40, 41, 48)
 local emptyCapTransparency = 0.6
+local lockedCapColor = Color3.fromRGB(60, 60, 64)
+local lockedCapTransparency = 0.85
 
 local function createCaps(info: PlotInfo, trove: TroveInstance)
 	local existing = info.Model:FindFirstChild("Keys")
@@ -133,18 +136,29 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	trove:Add(folder)
 end
 
-local function render(info: PlotInfo, board: { string }?)
+local function render(info: PlotInfo, data: PlayerData.Data?)
+	local unlocked = if data then Stats.Slots(data.Upgrades) else 0
 	for slot, cap in info.Caps do
-		local key = if board then Keys.ById[board[slot]] else nil
+		local key = if data and slot <= unlocked then Keys.ById[data.Board[slot]] else nil
 		if key then
 			local rarity = Keys.GetRarity(key)
 			cap.Color = rarity.Color
 			cap.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
 			cap.Transparency = 0
 			cap:SetAttribute("KeyId", key.Id)
-		else
-			cap.Transparency = 1
+			cap:SetAttribute("Locked", nil)
+		elseif data and slot > unlocked then
+			cap.Color = lockedCapColor
+			cap.Material = Enum.Material.SmoothPlastic
+			cap.Transparency = lockedCapTransparency
 			cap:SetAttribute("KeyId", nil)
+			cap:SetAttribute("Locked", true)
+		else
+			cap.Color = emptyCapColor
+			cap.Material = Enum.Material.SmoothPlastic
+			cap.Transparency = if data then emptyCapTransparency else 1
+			cap:SetAttribute("KeyId", nil)
+			cap:SetAttribute("Locked", nil)
 		end
 	end
 end
@@ -193,7 +207,7 @@ local function assign(player: Player, data: PlayerData.Data)
 	free.Owner = player
 	plotByPlayer[player] = free
 	free.Model:SetAttribute("Owner", player.UserId)
-	render(free, data.Board)
+	render(free, data)
 	local playerTrove = Trove.new()
 	playerTroves[player] = playerTrove
 	playerTrove:Connect(player.CharacterAdded, function(character: Model)
@@ -266,7 +280,7 @@ function PlotService.Start(self: State)
 		local info = plotByPlayer[player]
 		local data = services.DataService:GetData(player) :: PlayerData.Data?
 		if info and data then
-			render(info, data.Board)
+			render(info, data)
 		end
 	end)
 	for _, player in Players:GetPlayers() do
