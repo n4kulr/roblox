@@ -56,8 +56,9 @@ local function onBoardChanged(value: any)
 		local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
 		if key and previous[slot] ~= keyId then
 			local cap = findCap(slot)
-			controllers.SoundController:PlayKey(
-				Keys.GetRarity(key),
+			controllers.SoundController:PlaySwitch(
+				key.Switch,
+				"Press",
 				1,
 				1,
 				if cap then cap.Position else nil,

@@ -38,7 +38,7 @@ local comboMax = 0.3
 local maxPopups = 8
 local lowMaxPopups = 3
 local smallPopupMaxRank = 2
-local pressRarity = Keys.Rarities[1]
+local releaseDelay = 0.07
 local fullPopupSize = Vector2.new(300, 90)
 local smallPopupSize = Vector2.new(200, 44)
 
@@ -63,6 +63,8 @@ local lastComboPress = 0
 local combo = 0
 local buildingCount = 0
 local punching = false
+local holdPitch = 1
+local isHolding = false
 local popups: { Popup } = {}
 local popupGuis: Folder? = nil
 local destroyed = false
@@ -342,7 +344,10 @@ local function reveal(index: number)
 	if destroyed then
 		return
 	end
-	controllers.SoundController:PlayKey(rarity, 1, 1, nil, "Roll")
+	local sounds = controllers.SoundController
+	sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Roll")
+	sounds:PlayFlair(key, nil, "Roll")
+	sounds:PlayReveal(rarity, "Roll")
 	local anchor = popupAnchor()
 	if anchor then
 		showPopup(key, rarity, anchor)
@@ -352,7 +357,7 @@ local function reveal(index: number)
 	end
 end
 
-local function press(): boolean
+local function press(autoRelease: boolean): boolean
 	local now = os.clock()
 	if destroyed or now - lastPress < rollInterval then
 		return false
@@ -365,13 +370,17 @@ local function press(): boolean
 	end
 	lastComboPress = now
 	squash()
-	controllers.SoundController:PlayKey(
-		pressRarity,
-		1 + math.min(combo * comboStep, comboMax),
-		1,
-		nil,
-		"Roll"
-	)
+	holdPitch = 1 + math.min(combo * comboStep, comboMax)
+	local sounds = controllers.SoundController
+	sounds:PlaySwitch(Keys.RollKeySwitch, "Press", holdPitch, 1, nil, "Roll")
+	if autoRelease then
+		local pitch = holdPitch
+		task.delay(releaseDelay, function()
+			if not destroyed then
+				sounds:PlaySwitch(Keys.RollKeySwitch, "Release", pitch, 1, nil, "Roll")
+			end
+		end)
+	end
 	task.spawn(function()
 		local index = Packets.Roll:Fire()
 		if type(index) == "number" and index > 0 and not destroyed then
@@ -401,13 +410,29 @@ local function onInput(input: InputObject, gameProcessed: boolean)
 	end
 	local inputType = input.UserInputType
 	if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
-		if isAimedAtKey(input) then
-			press()
+		if isAimedAtKey(input) and press(false) then
+			isHolding = true
 		end
 	elseif input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.ButtonR2 then
-		if isInRange() then
-			press()
+		if isInRange() and press(false) then
+			isHolding = true
 		end
+	end
+end
+
+local function onInputEnded(input: InputObject, _gameProcessed: boolean)
+	if not isHolding or destroyed then
+		return
+	end
+	local inputType = input.UserInputType
+	if
+		inputType == Enum.UserInputType.MouseButton1
+		or inputType == Enum.UserInputType.Touch
+		or input.KeyCode == Enum.KeyCode.E
+		or input.KeyCode == Enum.KeyCode.ButtonR2
+	then
+		isHolding = false
+		controllers.SoundController:PlaySwitch(Keys.RollKeySwitch, "Release", holdPitch, 1, nil, "Roll")
 	end
 end
 
@@ -481,11 +506,11 @@ local function onRareRoll(playerName: string, index: number)
 			)})!`
 		)
 	end
-	controllers.SoundController:PlayKey(rarity, 1, 0.4, nil, "Other")
+	controllers.SoundController:PlayReveal(rarity, "Other")
 end
 
 function RollController.RequestRoll(_self: State): boolean
-	return press()
+	return press(true)
 end
 
 function RollController.SetAuto(_self: State, isOn: boolean)
@@ -524,9 +549,10 @@ function RollController.Start(self: State)
 	popupGuis = guis
 	trove:Add(guis)
 	trove:Connect(UserInputService.InputBegan, onInput)
+	trove:Connect(UserInputService.InputEnded, onInputEnded)
 	trove:Connect(RunService.Heartbeat, function()
 		if isAuto then
-			press()
+			press(true)
 		end
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
@@ -551,6 +577,7 @@ function RollController.Destroy(self: State)
 	destroyed = true
 	isLowGraphics = false
 	isAuto = false
+	isHolding = false
 	table.clear(squashTweens)
 	plot = nil
 	rollKey = nil

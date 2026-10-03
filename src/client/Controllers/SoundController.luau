@@ -1,9 +1,11 @@
 --!strict
 
+local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local SwitchSounds = require(ReplicatedStorage.Config.SwitchSounds)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
 type TroveInstance = typeof(Trove.new())
@@ -38,8 +40,10 @@ local settingByCategory: { [string]: string } = {
 	Other = "OtherVolume",
 }
 local flatTone: Keys.Tone = table.freeze({ LowGain = 0, MidGain = 0, HighGain = 0 })
+local placeholderPress: Keys.SoundLayer =
+	table.freeze({ SoundId = Keys.SoundAssets.Thock, PlaybackSpeed = 1, Volume = 0.65 })
+local lastTake: { [string]: number } = {}
 local uiSounds: { [string]: Keys.SoundLayer } = {
-	Click = table.freeze({ SoundId = Keys.SoundAssets.Thock, PlaybackSpeed = 1.7, Volume = 0.3 }),
 	Confirm = table.freeze({ SoundId = Keys.SoundAssets.Chime, PlaybackSpeed = 1.1, Volume = 0.35 }),
 	Error = table.freeze({ SoundId = Keys.SoundAssets.Thud, PlaybackSpeed = 0.9, Volume = 0.45 }),
 }
@@ -100,8 +104,71 @@ local function playLayer(
 	sound.SoundId = layer.SoundId
 	sound.PlaybackSpeed = layer.PlaybackSpeed * pitch
 	sound.Volume = layer.Volume * volume
+	sound.PlaybackRegionsEnabled = false
 	sound.TimePosition = 0
 	sound:Play()
+end
+
+local function pickTake(switch: SwitchSounds.Switch): SwitchSounds.Clip
+	local count = #switch.Presses
+	local index = random:NextInteger(1, count)
+	if count > 1 and index == lastTake[switch.Id] then
+		index = index % count + 1
+	end
+	lastTake[switch.Id] = index
+	return switch.Presses[index]
+end
+
+local function playClip(
+	clip: SwitchSounds.Clip,
+	tone: Keys.Tone,
+	pitch: number,
+	volume: number,
+	position: Vector3?
+)
+	local voice = acquire()
+	if not voice then
+		return
+	end
+	prepare(voice, tone, position)
+	local sound = voice.Sound
+	sound.SoundId = SwitchSounds.SpriteId
+	sound.PlaybackSpeed = pitch
+	sound.Volume = volume
+	sound.PlaybackRegionsEnabled = true
+	sound.PlaybackRegion = NumberRange.new(clip.Start, clip.Start + clip.Length)
+	sound.TimePosition = clip.Start
+	sound:Play()
+end
+
+local function playSwitch(
+	switchId: string,
+	kind: string,
+	pitchMultiplier: number?,
+	volumeMultiplier: number?,
+	position: Vector3?,
+	category: string?
+)
+	local volume = (volumeMultiplier or 1) * (volumes[category or "Other"] or 1)
+	if volume <= 0 then
+		return
+	end
+	local pitch = (pitchMultiplier or 1) * (1 + (random:NextNumber() * 2 - 1) * pitchVariance)
+	if SwitchSounds.SpriteId == "" then
+		if kind == "Press" then
+			playLayer(placeholderPress, flatTone, pitch, volume, position)
+		end
+		return
+	end
+	local switch = SwitchSounds.Switches[switchId]
+	if not switch then
+		return
+	end
+	if kind == "Press" then
+		playClip(pickTake(switch), flatTone, pitch, volume, position)
+	elseif switch.Release then
+		playClip(switch.Release, flatTone, pitch, volume, position)
+	end
 end
 
 function SoundController.Init(self: State, registry: { [string]: any })
@@ -129,6 +196,11 @@ function SoundController.Start(self: State)
 	folder.Parent = SoundService
 	home = folder
 	trove:Add(folder)
+	if SwitchSounds.SpriteId ~= "" then
+		task.spawn(function()
+			pcall(ContentProvider.PreloadAsync, ContentProvider, { SwitchSounds.SpriteId })
+		end)
+	end
 	trove:Add(controllers.DataController:Observe({ "Settings" }, function(settings: any)
 		if type(settings) ~= "table" then
 			return
@@ -141,6 +213,10 @@ function SoundController.Start(self: State)
 end
 
 function SoundController.PlayUi(_self: State, name: string)
+	if name == "Click" then
+		playSwitch("MxBrown", "Press", 1, 0.5, nil, "Other")
+		return
+	end
 	local layer = uiSounds[name]
 	local volume = volumes.Other
 	if layer and volume > 0 then
@@ -148,26 +224,47 @@ function SoundController.PlayUi(_self: State, name: string)
 	end
 end
 
-function SoundController.PlayKey(
+function SoundController.PlaySwitch(
 	_self: State,
-	rarity: Keys.Rarity,
-	pitchMultiplier: number?,
-	volumeMultiplier: number?,
+	switchId: string,
+	kind: "Press" | "Release",
+	pitch: number?,
+	volume: number?,
 	position: Vector3?,
 	category: string?
 )
-	local settings = rarity.Sound
-	local pitch = (pitchMultiplier or 1) * (1 + (random:NextNumber() * 2 - 1) * pitchVariance)
-	local volume = (volumeMultiplier or 1) * (volumes[category or "Other"] or 1)
-	if volume <= 0 then
+	playSwitch(switchId, kind, pitch, volume, position, category)
+end
+
+function SoundController.PlayReveal(_self: State, rarity: Keys.Rarity, category: string?)
+	local settings = rarity.Reveal
+	local volume = volumes[category or "Other"] or 1
+	if not settings or volume <= 0 then
 		return
 	end
+	local pitch = 1 + (random:NextNumber() * 2 - 1) * pitchVariance
 	for _, layer in settings.Layers do
 		local delay = layer.Delay
 		if delay and delay > 0 then
-			task.delay(delay, playLayer, layer, settings.Tone, pitch, volume, position)
+			task.delay(delay, playLayer, layer, settings.Tone, pitch, volume, nil)
 		else
-			playLayer(layer, settings.Tone, pitch, volume, position)
+			playLayer(layer, settings.Tone, pitch, volume, nil)
+		end
+	end
+end
+
+function SoundController.PlayFlair(_self: State, key: Keys.Key, position: Vector3?, category: string?)
+	local layers = key.Flair
+	local volume = volumes[category or "Other"] or 1
+	if not layers or volume <= 0 then
+		return
+	end
+	for _, layer in layers do
+		local delay = layer.Delay
+		if delay and delay > 0 then
+			task.delay(delay, playLayer, layer, flatTone, 1, volume, position)
+		else
+			playLayer(layer, flatTone, 1, volume, position)
 		end
 	end
 end
@@ -177,8 +274,11 @@ function SoundController.PlaySwell(_self: State, rarity: Keys.Rarity, seconds: n
 	if scale <= 0 then
 		return
 	end
-	local settings = rarity.Sound
-	local layer = settings.Layers[#settings.Layers]
+	local settings = rarity.Reveal
+	if not settings then
+		return
+	end
+	local layer = settings.Layers[1]
 	local voice = acquire()
 	if not voice then
 		return
@@ -189,6 +289,7 @@ function SoundController.PlaySwell(_self: State, rarity: Keys.Rarity, seconds: n
 	sound.PlaybackSpeed = layer.PlaybackSpeed * 0.5
 	sound.Volume = layer.Volume * 0.5 * scale
 	sound.Looped = true
+	sound.PlaybackRegionsEnabled = false
 	sound.TimePosition = 0
 	sound:Play()
 	local tween = TweenService:Create(
@@ -206,6 +307,7 @@ end
 
 function SoundController.Destroy(self: State)
 	table.clear(pool)
+	table.clear(lastTake)
 	table.clear(controllers)
 	volumes.Roll = 1
 	volumes.Board = 1

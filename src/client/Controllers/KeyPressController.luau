@@ -33,8 +33,8 @@ local pressDepth = 0.35
 local debounceSeconds = 0.12
 local minHeight = -1
 local maxHeight = 7
-local blankVolume = 0.3
-local blankPitch = 0.8
+local blankVolume = 0.35
+local blankSwitch = "MxBlack"
 
 local KeyPressController = {
 	Name = "KeyPressController",
@@ -86,27 +86,35 @@ local function pressCap(cap: CapState)
 	down:Play()
 end
 
+local function capKey(cap: CapState): Keys.Key?
+	local keyId = cap.Part:GetAttribute("KeyId")
+	return if type(keyId) == "string" then Keys.ById[keyId] else nil
+end
+
+local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")
+	local category = if player == Players.LocalPlayer then "Board" else "Other"
+	local key = capKey(cap)
+	controllers.SoundController:PlaySwitch(
+		if key then key.Switch else blankSwitch,
+		kind,
+		1,
+		if key then 1 else blankVolume,
+		cap.Part.Position,
+		category
+	)
+end
+
 local function triggerCap(cap: CapState, player: Player)
+	if cap.Part:GetAttribute("Locked") == true then
+		return
+	end
 	local now = os.clock()
 	if now - cap.LastPress < debounceSeconds then
 		return
 	end
 	cap.LastPress = now
 	pressCap(cap)
-	local category = if player == Players.LocalPlayer then "Board" else "Other"
-	local keyId = cap.Part:GetAttribute("KeyId")
-	local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
-	if key then
-		controllers.SoundController:PlayKey(Keys.GetRarity(key), 1, 1, cap.Part.Position, category)
-	else
-		controllers.SoundController:PlayKey(
-			Keys.Rarities[1],
-			blankPitch,
-			blankVolume,
-			cap.Part.Position,
-			category
-		)
-	end
+	playCap(cap, player, "Press")
 end
 
 local function addCap(state: PlotState, child: Instance)
@@ -272,6 +280,9 @@ local function update()
 				local cap = if isGrounded then findCap(root.Position) else nil
 				local previous = standingOn[player]
 				if cap ~= previous then
+					if previous and previous.Part.Parent and previous.Part:GetAttribute("Locked") ~= true then
+						playCap(previous, player, "Release")
+					end
 					if cap then
 						standingOn[player] = cap
 						triggerCap(cap, player)

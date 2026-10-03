@@ -1,5 +1,7 @@
 --!strict
 
+local SwitchSounds = require(script.Parent.SwitchSounds)
+
 export type SoundLayer = {
 	SoundId: string,
 	PlaybackSpeed: number,
@@ -26,7 +28,7 @@ export type Rarity = {
 	IsNeon: boolean,
 	BuildUpSeconds: number,
 	Announce: boolean,
-	Sound: SoundSettings,
+	Reveal: SoundSettings?,
 }
 
 export type PerkKind = "Luck" | "Speed" | "Income"
@@ -42,6 +44,8 @@ export type Key = {
 	Rarity: string,
 	Index: number,
 	Perk: Perk?,
+	Switch: string,
+	Flair: { SoundLayer }?,
 }
 
 local soundAssets = {
@@ -71,7 +75,7 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = sound({ layer(soundAssets.Thock, 1.0, 0.65) }, 3, -3, -9),
+		Reveal = nil,
 	},
 	{
 		Name = "Uncommon",
@@ -81,10 +85,7 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.97, 0.65),
-			layer(soundAssets.Thud, 0.67, 0.3),
-		}, 4, -2, -8),
+		Reveal = nil,
 	},
 	{
 		Name = "Rare",
@@ -94,10 +95,7 @@ local rarities: { Rarity } = {
 		IsNeon = false,
 		BuildUpSeconds = 0,
 		Announce = false,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.87, 0.7),
-			layer(soundAssets.Thud, 0.6, 0.45, 0.005),
-		}, 4, -2, -6),
+		Reveal = nil,
 	},
 	{
 		Name = "Epic",
@@ -107,9 +105,7 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 0.6,
 		Announce = false,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.87, 0.7),
-			layer(soundAssets.Thud, 0.6, 0.45, 0.005),
+		Reveal = sound({
 			layer(soundAssets.Chime, 1.0, 0.3, 0.015),
 		}, 4, 0, -3),
 	},
@@ -121,9 +117,7 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.0,
 		Announce = true,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.83, 0.75),
-			layer(soundAssets.Thud, 0.57, 0.5, 0.005),
+		Reveal = sound({
 			layer(soundAssets.Chime, 1.08, 0.4, 0.015),
 			layer(soundAssets.Sparkle, 1.0, 0.25, 0.07),
 		}, 3, 0, -1),
@@ -136,9 +130,7 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.8, 0.8),
-			layer(soundAssets.Thud, 0.53, 0.55, 0.005),
+		Reveal = sound({
 			layer(soundAssets.Chime, 1.15, 0.45, 0.015),
 			layer(soundAssets.Sparkle, 1.05, 0.3, 0.07),
 			layer(soundAssets.Chime, 1.62, 0.25, 0.14),
@@ -152,9 +144,7 @@ local rarities: { Rarity } = {
 		IsNeon = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
-		Sound = sound({
-			layer(soundAssets.Thock, 0.75, 0.85),
-			layer(soundAssets.Thud, 0.5, 0.6, 0.005),
+		Reveal = sound({
 			layer(soundAssets.Chime, 1.23, 0.5, 0.015),
 			layer(soundAssets.Sparkle, 1.16, 0.35, 0.07),
 			layer(soundAssets.Chime, 1.85, 0.3, 0.14),
@@ -163,30 +153,64 @@ local rarities: { Rarity } = {
 	},
 }
 
-type Definition = { Id: string, Name: string, Rarity: string, Perk: Perk? }
+type Definition = {
+	Id: string,
+	Name: string,
+	Rarity: string,
+	Switch: string,
+	Perk: Perk?,
+	Flair: { SoundLayer }?,
+}
 
 local function perk(kind: PerkKind, amount: number): Perk
 	return table.freeze({ Kind = kind, Amount = amount })
 end
 
+local lavaFlair: { SoundLayer } = table.freeze({ layer(soundAssets.Thud, 0.5, 0.4) })
+local meowFlair: { SoundLayer } = table.freeze({ layer(soundAssets.Chime, 1.6, 0.35, 0.03) })
+
 local definitions: { Definition } = {
-	{ Id = "PlainClack", Name = "Plain Clack", Rarity = "Common" },
-	{ Id = "BeigeBlock", Name = "Beige Block", Rarity = "Common" },
-	{ Id = "OfficeTap", Name = "Office Tap", Rarity = "Common" },
-	{ Id = "CreamyThock", Name = "Creamy Thock", Rarity = "Uncommon" },
-	{ Id = "MintLinear", Name = "Mint Linear", Rarity = "Uncommon" },
-	{ Id = "GlassTink", Name = "Glass Tink", Rarity = "Rare" },
-	{ Id = "TopazTap", Name = "Topaz Tap", Rarity = "Rare" },
-	{ Id = "CrystalChime", Name = "Crystal Chime", Rarity = "Epic" },
-	{ Id = "AmethystPop", Name = "Amethyst Pop", Rarity = "Epic" },
-	{ Id = "ThunderKey", Name = "Thunder Key", Rarity = "Legendary" },
-	{ Id = "SunburstKey", Name = "Sunburst Key", Rarity = "Legendary" },
-	{ Id = "LavaKey", Name = "Lava Key", Rarity = "Mythic" },
-	{ Id = "MeowKey", Name = "Meow Key", Rarity = "Secret" },
-	{ Id = "CloverCap", Name = "Clover Cap", Rarity = "Uncommon", Perk = perk("Luck", 0.1) },
-	{ Id = "TurboSwitch", Name = "Turbo Switch", Rarity = "Rare", Perk = perk("Speed", 0.15) },
-	{ Id = "GoldPlate", Name = "Gold Plate", Rarity = "Epic", Perk = perk("Income", 0.25) },
-	{ Id = "FourLeafArtisan", Name = "Four-Leaf Artisan", Rarity = "Legendary", Perk = perk("Luck", 0.5) },
+	{ Id = "PlainClack", Name = "Plain Clack", Rarity = "Common", Switch = "MxBlack" },
+	{ Id = "BeigeBlock", Name = "Beige Block", Rarity = "Common", Switch = "MxRed" },
+	{ Id = "OfficeTap", Name = "Office Tap", Rarity = "Common", Switch = "MxBrown" },
+	{ Id = "CreamyThock", Name = "Creamy Thock", Rarity = "Uncommon", Switch = "NkCream" },
+	{ Id = "MintLinear", Name = "Mint Linear", Rarity = "Uncommon", Switch = "Turquoise" },
+	{ Id = "GlassTink", Name = "Glass Tink", Rarity = "Rare", Switch = "MxBlue" },
+	{ Id = "TopazTap", Name = "Topaz Tap", Rarity = "Rare", Switch = "EgOreo" },
+	{ Id = "CrystalChime", Name = "Crystal Chime", Rarity = "Epic", Switch = "EgCrystalPurple" },
+	{ Id = "AmethystPop", Name = "Amethyst Pop", Rarity = "Epic", Switch = "HolyPanda" },
+	{ Id = "ThunderKey", Name = "Thunder Key", Rarity = "Legendary", Switch = "ToprePurple" },
+	{ Id = "SunburstKey", Name = "Sunburst Key", Rarity = "Legendary", Switch = "HolyPanda" },
+	{ Id = "LavaKey", Name = "Lava Key", Rarity = "Mythic", Switch = "ToprePurple", Flair = lavaFlair },
+	{ Id = "MeowKey", Name = "Meow Key", Rarity = "Secret", Switch = "CreamTravel", Flair = meowFlair },
+	{
+		Id = "CloverCap",
+		Name = "Clover Cap",
+		Rarity = "Uncommon",
+		Switch = "CreamTravel",
+		Perk = perk("Luck", 0.1),
+	},
+	{
+		Id = "TurboSwitch",
+		Name = "Turbo Switch",
+		Rarity = "Rare",
+		Switch = "MxBrownPbt",
+		Perk = perk("Speed", 0.15),
+	},
+	{
+		Id = "GoldPlate",
+		Name = "Gold Plate",
+		Rarity = "Epic",
+		Switch = "MxBrown",
+		Perk = perk("Income", 0.25),
+	},
+	{
+		Id = "FourLeafArtisan",
+		Name = "Four-Leaf Artisan",
+		Rarity = "Legendary",
+		Switch = "NkCream",
+		Perk = perk("Luck", 0.5),
+	},
 }
 
 local rarityByName: { [string]: Rarity } = {}
@@ -208,7 +232,10 @@ for index, definition in definitions do
 		Rarity = definition.Rarity,
 		Index = index,
 		Perk = definition.Perk,
+		Switch = definition.Switch,
+		Flair = definition.Flair,
 	}
+	assert(SwitchSounds.Switches[key.Switch] ~= nil, `Unknown switch {key.Switch}`)
 	assert(rarityByName[key.Rarity] ~= nil, `Unknown rarity {key.Rarity}`)
 	table.freeze(key)
 	catalog[index] = key
@@ -221,6 +248,7 @@ end
 
 local Keys = {
 	SoundAssets = table.freeze(soundAssets),
+	RollKeySwitch = "CreamTravel",
 	Rarities = table.freeze(rarities),
 	RarityByName = table.freeze(rarityByName),
 	Catalog = table.freeze(catalog),
