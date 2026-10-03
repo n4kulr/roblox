@@ -2,6 +2,7 @@
 
 local AssetService = game:GetService("AssetService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Meshes = require(ReplicatedStorage.Config.Meshes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
@@ -50,9 +51,16 @@ function MeshTemplates.Load()
 	local current = generation
 	local ids = Meshes :: { [string]: string }
 	local toLoad: { { Name: string, Id: string } } = {}
+	local authored = ServerStorage:FindFirstChild("Meshes")
 	for _, name in names do
+		local source = if authored then authored:FindFirstChild(name) else nil
 		local meshId = ids[name]
-		if meshId ~= "" then
+		if source and source:IsA("BasePart") then
+			local template = source:Clone()
+			template.Name = name
+			template.Anchored = true
+			templates[name] = template :: any
+		elseif meshId ~= "" then
 			table.insert(toLoad, { Name = name, Id = meshId })
 		end
 	end

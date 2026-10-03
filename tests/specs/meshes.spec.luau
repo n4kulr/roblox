@@ -8,8 +8,18 @@ local describe, it, expect, afterEach = H.describe, H.it, H.expect, H.afterEach
 describe("Mesh skins", function()
 	local world, GameConfig, plots, registry, boardChanges
 
-	local function setup(ids: { [string]: string }, delay: number?, failures: { string }?)
+	local function setup(ids: { [string]: string }, delay: number?, failures: { string }?, authored: { string }?)
 		world = H.newWorld()
+		if authored then
+			local folder = world:newInstance("Folder")
+			folder.Name = "Meshes"
+			for _, name in authored do
+				local part = world:newInstance("MeshPart")
+				part.Name = name
+				part.Parent = folder
+			end
+			folder.Parent = world.fakeServices.ServerStorage
+		end
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 		local Signal = world:require("ReplicatedStorage.Packages.Signal")
 		world.workspace = world:newInstance("Folder")
@@ -53,6 +63,21 @@ describe("Mesh skins", function()
 		expect(plot:FindFirstChild("BoardCase")):toBeNil()
 		for _, cap in slotCaps(plot) do
 			expect(cap.ClassName):toBe("Part")
+		end
+	end)
+
+	it("uses authored MeshParts from ServerStorage.Meshes without loading ids", function()
+		setup({ Keycap = "k", RollKey = "r", KeyboardCase = "c" }, nil, { "k", "r", "c" }, {
+			"Keycap",
+			"RollKey",
+			"KeyboardCase",
+		})
+		expect(#world.meshRequests):toBe(0)
+		local plot = plots.Plot1
+		expect(plot.RollKey.ClassName):toBe("MeshPart")
+		expect(plot:FindFirstChild("BoardCase")).never:toBeNil()
+		for _, cap in slotCaps(plot) do
+			expect(cap.ClassName):toBe("MeshPart")
 		end
 	end)
 
