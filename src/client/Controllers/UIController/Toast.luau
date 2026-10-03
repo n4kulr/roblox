@@ -22,14 +22,6 @@ local kinds: { [string]: Color3 } = {
 	Info = Kit.Theme.Blue,
 	Gold = Kit.Theme.Gold,
 }
-local kindGlyphs: { [string]: string } = {
-	Good = "check",
-	Bad = "warn",
-	Info = "clock",
-	Gold = "globe",
-}
-local toastHeight = 40
-local accentWidth = 6
 
 function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, kind: string?) -> ()
 	local _gui, root = Kit.ScreenGui("ThockToasts", 20, playerGui, trove)
@@ -86,50 +78,36 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			remove(entries[1])
 		end
 		order += 1
-		local kindName = if kind and kinds[kind] then kind else "Info"
-		local accent = kinds[kindName]
-		local pill = Instance.new("Frame")
-		pill.Name = "Toast"
-		pill.BackgroundColor3 = accent
-		pill.BorderSizePixel = 0
+		local pill = Kit.Panel({
+			Parent = holder,
+			Name = "Toast",
+			Size = UDim2.fromOffset(0, 46),
+			Color = kinds[kind or "Info"] or kinds.Info,
+			LayoutOrder = order,
+			Shards = true,
+		})
 		pill.AutomaticSize = Enum.AutomaticSize.X
-		pill.Size = UDim2.fromOffset(0, toastHeight)
-		pill.LayoutOrder = order
-		Kit.Corner(pill, toastHeight / 2)
-		Kit.Stroke(pill, Kit.Theme.Line, 2)
-		local body = Instance.new("Frame")
-		body.Name = "Body"
-		body.BackgroundColor3 = Kit.Theme.Surface2
-		body.BorderSizePixel = 0
-		body.AutomaticSize = Enum.AutomaticSize.X
-		body.Position = UDim2.fromOffset(accentWidth, 0)
-		body.Size = UDim2.fromOffset(0, toastHeight)
-		Kit.Corner(body, toastHeight / 2)
-		local list = Instance.new("UIListLayout")
-		list.FillDirection = Enum.FillDirection.Horizontal
-		list.VerticalAlignment = Enum.VerticalAlignment.Center
-		list.SortOrder = Enum.SortOrder.LayoutOrder
-		list.Padding = UDim.new(0, 12)
-		list.Parent = body
+		local content = Instance.new("Frame")
+		content.Name = "Content"
+		content.BackgroundTransparency = 1
+		content.BorderSizePixel = 0
+		content.AutomaticSize = Enum.AutomaticSize.X
+		content.Size = UDim2.fromOffset(0, 46)
 		local padding = Instance.new("UIPadding")
-		padding.PaddingLeft = UDim.new(0, 12)
-		padding.PaddingRight = UDim.new(0, 16)
-		padding.Parent = body
-		body.Parent = pill
-		local glyph = Kit.Glyph(body, kindGlyphs[kindName], 20, accent)
-		glyph.LayoutOrder = 1
+		padding.PaddingLeft = UDim.new(0, 20)
+		padding.PaddingRight = UDim.new(0, 20)
+		padding.Parent = content
+		content.Parent = pill
 		local label = Kit.Label({
-			Parent = body,
+			Parent = content,
 			Name = "Text",
 			Text = text,
-			Size = UDim2.fromOffset(0, toastHeight),
-			TextSize = 16,
-			LayoutOrder = 2,
-			Body = true,
+			Size = UDim2.fromOffset(0, 46),
+			TextSize = 24,
+			Align = Enum.TextXAlignment.Center,
 		})
 		label.AutomaticSize = Enum.AutomaticSize.X
 		label.TextTruncate = Enum.TextTruncate.None
-		pill.Parent = holder
 		local scale = Instance.new("UIScale")
 		scale.Scale = 0.6
 		scale.Parent = pill

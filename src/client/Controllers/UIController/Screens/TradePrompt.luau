@@ -7,9 +7,8 @@ local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
-local popupSize = Vector2.new(408, 72)
-local bottomOffset = -184
-local popupGap = 8
+local popupSize = Vector2.new(380, 150)
+local bottomOffset = -150
 
 local TradePrompt = {}
 
@@ -23,44 +22,34 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 	local pendingTarget: Player? = nil
 	local pendingUserId = 0
 
-	local function popup(name: string, title: string, reserved: number): (Frame, TextLabel)
+	local function popup(name: string, title: string): (Frame, TextLabel)
 		local frame = Kit.Panel({
 			Parent = root,
 			Name = name,
 			Size = UDim2.fromOffset(popupSize.X, popupSize.Y),
 			Position = UDim2.new(0.5, 0, 1, bottomOffset),
 			AnchorPoint = Vector2.new(0.5, 1),
-			Color = theme.Surface,
-			Radius = 16,
-			StrokeThickness = 3,
+			Color = theme.Slate,
+			StrokeThickness = 4,
+			Shards = true,
 		})
 		frame.Visible = false
-		local list = Instance.new("UIListLayout")
-		list.FillDirection = Enum.FillDirection.Horizontal
-		list.VerticalAlignment = Enum.VerticalAlignment.Center
-		list.SortOrder = Enum.SortOrder.LayoutOrder
-		list.Padding = UDim.new(0, 12)
-		list.Parent = frame
-		local padding = Instance.new("UIPadding")
-		padding.PaddingLeft = UDim.new(0, 16)
-		padding.PaddingRight = UDim.new(0, 16)
-		padding.Parent = frame
-		Kit.Icon(frame, "trade", 40).LayoutOrder = 1
 		local label = Kit.Label({
 			Parent = frame,
 			Name = "Title",
 			Text = title,
-			Size = UDim2.new(1, -(32 + reserved), 0, 44),
-			TextSize = 16,
-			LayoutOrder = 2,
-			Wrapped = true,
+			Position = UDim2.fromOffset(12, 10),
+			Size = UDim2.new(1, -24, 0, 44),
+			TextSize = 28,
+			Align = Enum.TextXAlignment.Center,
+			Scaled = true,
 		})
 		return frame, label
 	end
 
-	local sendFrame, sendTitle = popup("Send", "Trade with ?", 196)
-	local inviteFrame, inviteTitle = popup("Invite", "Someone wants to trade!", 268)
-	inviteFrame.Position = UDim2.new(0.5, 0, 1, bottomOffset - popupSize.Y - popupGap)
+	local sendFrame, sendTitle = popup("Send", "🤝 Trade with ?")
+	local inviteFrame, inviteTitle = popup("Invite", "🤝 Someone wants to trade!")
+	inviteFrame.Position = UDim2.new(0.5, 0, 1, bottomOffset - popupSize.Y - 12)
 
 	local function hideSend()
 		sendToken += 1
@@ -77,10 +66,11 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = sendFrame,
 		Name = "SendButton",
 		Text = "SEND",
-		Size = UDim2.fromOffset(80, 40),
+		Size = UDim2.fromOffset(190, 56),
+		Position = UDim2.new(0, 14, 1, -14),
+		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Green,
-		Shards = true,
-		LayoutOrder = 3,
+		TextSize = 28,
 		Callback = function()
 			local target = pendingTarget
 			hideSend()
@@ -93,10 +83,12 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 	Kit.Button(trove, {
 		Parent = sendFrame,
 		Name = "CancelButton",
-		GlyphName = "close",
-		Size = UDim2.fromOffset(40, 40),
+		Text = "X",
+		Size = UDim2.fromOffset(Kit.TouchSize + 20, 56),
+		Position = UDim2.new(1, -14, 1, -14),
+		AnchorPoint = Vector2.new(1, 1),
 		Color = theme.Red,
-		LayoutOrder = 4,
+		TextSize = 30,
 		Callback = hideSend,
 		Sound = playUi,
 	})
@@ -104,10 +96,11 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = inviteFrame,
 		Name = "AcceptButton",
 		Text = "ACCEPT",
-		Size = UDim2.fromOffset(96, 40),
+		Size = UDim2.fromOffset(170, 56),
+		Position = UDim2.new(0, 14, 1, -14),
+		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Green,
-		Shards = true,
-		LayoutOrder = 3,
+		TextSize = 26,
 		Callback = function()
 			hideInvite()
 			controller:Respond(pendingUserId, true)
@@ -118,9 +111,11 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = inviteFrame,
 		Name = "DeclineButton",
 		Text = "DECLINE",
-		Size = UDim2.fromOffset(96, 40),
+		Size = UDim2.fromOffset(170, 56),
+		Position = UDim2.new(1, -14, 1, -14),
+		AnchorPoint = Vector2.new(1, 1),
 		Color = theme.Red,
-		LayoutOrder = 4,
+		TextSize = 26,
 		Callback = function()
 			hideInvite()
 			controller:Respond(pendingUserId, false)
@@ -136,7 +131,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			sendToken += 1
 			local token = sendToken
 			pendingTarget = player
-			sendTitle.Text = `Trade with {player.DisplayName}?`
+			sendTitle.Text = `🤝 Trade with {player.DisplayName}?`
 			sendFrame.Visible = true
 			playUi("Click")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
@@ -156,7 +151,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			inviteToken += 1
 			local token = inviteToken
 			pendingUserId = userId
-			inviteTitle.Text = `{name} wants to trade!`
+			inviteTitle.Text = `🤝 {name} wants to trade!`
 			inviteFrame.Visible = true
 			playUi("Confirm")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
