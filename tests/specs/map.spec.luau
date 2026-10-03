@@ -77,7 +77,17 @@ describe("ThockMap model", function()
 				expect((part.CFrame.LookVector - spec[2].LookVector).Magnitude):toBeCloseTo(0, 1e-4)
 			end
 			expect(model:FindFirstChild("Fence") ~= nil):toBe(true)
-			expect(model:FindFirstChild("Sign") ~= nil):toBe(true)
+			local sign = model:FindFirstChild("Sign")
+			expect(sign ~= nil):toBe(true)
+			expect(sign:FindFirstChild("Key")):toBeNil()
+			expect(sign.Panel.Size):toBe(Vector3.new(10, 5, 0.5))
+			expect(sign.Trim.Size.X > 10 and sign.Trim.Size.Y > 5):toBe(true)
+			local ground = model.Base.CFrame.Position.Y + model.Base.Size.Y / 2
+			expect(sign.Panel.CFrame.Position.Y - 2.5 - ground):toBeCloseTo(4, 1e-3)
+			expect(sign.Post.CFrame.Position.Y + sign.Post.Size.Y / 2):toBeCloseTo(sign.Panel.CFrame.Position.Y - 2.5, 1e-3)
+			local signLocal = model.Base.CFrame:PointToObjectSpace(sign.Panel.CFrame.Position)
+			expect(signLocal.Z < -10 and math.abs(signLocal.X) + 5 <= 21.5):toBe(true)
+			expect(math.abs(signLocal.X) - 5 > 4):toBe(true)
 		end
 	end)
 

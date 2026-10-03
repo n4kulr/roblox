@@ -134,10 +134,9 @@ end
 local function buildSign(model: Part, origin: typeof(CFrame.new()), color: typeof(Color3.new()))
 	local sign = newFolder("Sign", model)
 	local anchor = origin * CFrame.new(-15, 0.5, -17)
-	newPart(sign, "Post", Vector3.new(0.7, 5, 0.7), anchor * CFrame.new(0, 2.5, 0), woodColor)
-	newPart(sign, "Panel", Vector3.new(6, 3, 0.5), anchor * CFrame.new(0, 5.5, 0), color)
-	newPart(sign, "Trim", Vector3.new(6.6, 3.6, 0.3), anchor * CFrame.new(0, 5.5, 0.1), darken(color, 0.35))
-	newPart(sign, "Key", Vector3.new(2.4, 0.4, 2.4), anchor * CFrame.new(0, 5.5, -0.4), lighten(color, 0.6), false)
+	newPart(sign, "Post", Vector3.new(1.2, 4, 1.2), anchor * CFrame.new(0, 2, 0), woodColor)
+	newPart(sign, "Panel", Vector3.new(10, 5, 0.5), anchor * CFrame.new(0, 6.5, 0), color)
+	newPart(sign, "Trim", Vector3.new(10.8, 5.8, 0.3), anchor * CFrame.new(0, 6.5, 0.1), darken(color, 0.35))
 end
 
 local function buildPlots(parent: Part)

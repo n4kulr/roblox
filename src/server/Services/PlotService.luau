@@ -8,6 +8,7 @@ local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
+local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 
 type TroveInstance = typeof(Trove.new())
 type PlotInfo = {
@@ -20,6 +21,7 @@ type PlotInfo = {
 	Placeholder: boolean,
 	Case: BasePart?,
 	Walkway: BasePart?,
+	Sign: OwnerSign.Display?,
 }
 type State = {
 	Name: string,
@@ -264,6 +266,9 @@ local function release(player: Player)
 		info.Owner = nil
 		info.Model:SetAttribute("Owner", nil)
 		render(info, nil)
+		if info.Sign then
+			info.Sign:Set(nil)
+		end
 	end
 end
 
@@ -286,6 +291,9 @@ local function assign(player: Player, data: PlayerData.Data)
 	plotByPlayer[player] = free
 	free.Model:SetAttribute("Owner", player.UserId)
 	render(free, data)
+	if free.Sign then
+		free.Sign:Set(player)
+	end
 	local playerTrove = Trove.new()
 	playerTroves[player] = playerTrove
 	playerTrove:Connect(player.CharacterAdded, function(character: Model)
@@ -323,12 +331,14 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Placeholder = useMeshes,
 				Case = nil,
 				Walkway = nil,
+				Sign = nil,
 			}
 			if useMeshes then
 				skinCase(info)
 				skinRollKey(info)
 			end
 			createCaps(info, trove)
+			info.Sign = OwnerSign.new(model, base, trove)
 			table.insert(plots, info)
 		else
 			warn(
