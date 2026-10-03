@@ -8,7 +8,6 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 type TroveInstance = typeof(Trove.new())
 type SoundPlayer = (name: string) -> ()
-type ShardLayer = { Rotation: number, Bands: { { number } } }
 
 export type PanelProps = {
 	Parent: Instance,
@@ -42,6 +41,7 @@ export type LabelProps = {
 	Scaled: boolean?,
 	Outline: boolean?,
 	RichText: boolean?,
+	Body: boolean?,
 }
 
 export type IconProps = {
@@ -49,10 +49,23 @@ export type IconProps = {
 	Name: string?,
 	Emoji: string,
 	Asset: string?,
+	IconName: string?,
 	Size: UDim2?,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
 	LayoutOrder: number?,
+}
+
+export type CaptionProps = {
+	Parent: Instance,
+	Name: string?,
+	Text: string,
+	Size: UDim2?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	LayoutOrder: number?,
+	Color: Color3?,
+	Align: Enum.TextXAlignment?,
 }
 
 export type ButtonProps = {
@@ -60,8 +73,7 @@ export type ButtonProps = {
 	Name: string?,
 	Text: string?,
 	Icon: string?,
-	IconAsset: string?,
-	IconLeft: boolean?,
+	GlyphName: string?,
 	Size: UDim2?,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
@@ -70,6 +82,8 @@ export type ButtonProps = {
 	TextColor: Color3?,
 	TextSize: number?,
 	Radius: number?,
+	Hero: boolean?,
+	Shards: boolean?,
 	Immediate: boolean?,
 	Callback: (() -> ())?,
 	Sound: SoundPlayer?,
@@ -78,6 +92,7 @@ export type ButtonProps = {
 export type Button = {
 	Instance: TextButton,
 	Face: Frame,
+	Content: Frame,
 	SetDisabled: (disabled: boolean) -> (),
 	SetText: (text: string) -> (),
 	SetColor: (color: Color3) -> (),
@@ -89,11 +104,27 @@ export type ChipProps = {
 	Parent: Instance,
 	Name: string?,
 	Text: string,
-	Size: UDim2,
+	Size: UDim2?,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
+	LayoutOrder: number?,
 	Color: Color3?,
+	TextColor: Color3?,
 	TextSize: number?,
+	GlyphName: string?,
+	AutoWidth: boolean?,
+}
+
+export type PlateProps = {
+	Parent: Instance,
+	Name: string?,
+	Size: UDim2?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	LayoutOrder: number?,
+	Thickness: number?,
+	Lip: boolean?,
+	Class: string?,
 }
 
 export type KeycapProps = {
@@ -101,6 +132,7 @@ export type KeycapProps = {
 	Name: string?,
 	Color: Color3,
 	Glyph: string?,
+	GlyphName: string?,
 	Size: UDim2,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
@@ -195,11 +227,24 @@ export type Toggle = {
 	SetValue: (value: boolean) -> (),
 }
 
+export type TooltipProps = {
+	Parent: Instance,
+	Name: string?,
+	Text: string,
+	GlyphName: string?,
+	GlyphColor: Color3?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Large: boolean?,
+	Side: string?,
+}
+
 export type ModalProps = {
 	Parent: Instance,
 	Name: string,
 	Title: string,
-	Icon: string,
+	Icon: string?,
+	IconName: string?,
 	IconAsset: string?,
 	MaxSize: Vector2,
 	HeaderColor: Color3?,
@@ -212,85 +257,194 @@ export type Modal = {
 	Root: Frame,
 	Panel: Frame,
 	Body: Frame,
+	Content: Frame,
 	HeaderRight: Frame,
 	Show: () -> (),
 	Hide: () -> (),
 }
 
+local white = Color3.new(1, 1, 1)
+local black = Color3.new(0, 0, 0)
+
+local function channel(value: number): number
+	if value <= 0.03928 then
+		return value / 12.92
+	end
+	return ((value + 0.055) / 1.055) ^ 2.4
+end
+
+local function luminance(color: Color3): number
+	return 0.2126 * channel(color.R) + 0.7152 * channel(color.G) + 0.0722 * channel(color.B)
+end
+
+local function contrast(first: Color3, second: Color3): number
+	local high = luminance(first)
+	local low = luminance(second)
+	if high < low then
+		high, low = low, high
+	end
+	return (high + 0.05) / (low + 0.05)
+end
+
+local function fillSafe(color: Color3): Color3
+	local amount = 0
+	while contrast(white, color:Lerp(black, amount)) < 4.5 and amount < 0.8 do
+		amount += 0.03
+	end
+	return color:Lerp(black, amount)
+end
+
+local function textSafe(color: Color3, background: Color3): Color3
+	local amount = 0
+	while contrast(color:Lerp(white, amount), background) < 4.5 and amount < 1 do
+		amount += 0.05
+	end
+	return color:Lerp(white, amount)
+end
+
+local line = Color3.fromRGB(14, 16, 24)
+local surface = Color3.fromRGB(28, 32, 48)
+local surface2 = Color3.fromRGB(38, 43, 63)
+local surface3 = Color3.fromRGB(49, 55, 79)
+local muted = Color3.fromRGB(174, 180, 200)
+local green = Color3.fromRGB(60, 203, 90)
+local red = Color3.fromRGB(240, 67, 90)
+local blue = Color3.fromRGB(58, 141, 255)
+local gold = Color3.fromRGB(255, 194, 51)
+local purple = Color3.fromRGB(155, 92, 255)
+local slate = Color3.fromRGB(107, 116, 148)
+local orange = Color3.fromRGB(255, 138, 31)
+local teal = Color3.fromRGB(18, 181, 176)
+local market = Color3.fromRGB(255, 106, 43)
+
 local theme = {
-	Ink = Color3.fromRGB(20, 20, 25),
-	TextInk = Color3.fromRGB(15, 15, 20),
-	Slate = Color3.fromRGB(45, 52, 64),
-	Cell = Color3.fromRGB(36, 42, 52),
-	Track = Color3.fromRGB(30, 33, 42),
-	Text = Color3.fromRGB(255, 255, 255),
-	TextDim = Color3.fromRGB(214, 218, 230),
-	Good = Color3.fromRGB(96, 230, 84),
-	Bad = Color3.fromRGB(255, 96, 96),
-	Gold = Color3.fromRGB(255, 210, 64),
-	Green = Color3.fromRGB(60, 203, 60),
-	Blue = Color3.fromRGB(30, 144, 255),
-	Purple = Color3.fromRGB(142, 45, 226),
-	Grey = Color3.fromRGB(122, 127, 138),
-	Red = Color3.fromRGB(232, 38, 78),
-	Orange = Color3.fromRGB(255, 140, 20),
-	Yellow = Color3.fromRGB(255, 179, 0),
-	Disabled = Color3.fromRGB(98, 102, 114),
+	Ink = line,
+	TextInk = line,
+	Line = line,
+	Surface = surface,
+	Surface2 = surface2,
+	Surface3 = surface3,
+	Slate = surface,
+	Cell = surface2,
+	Track = surface3,
+	Text = white,
+	TextDim = muted,
+	Muted = muted,
+	Good = textSafe(green, surface2),
+	Bad = textSafe(red, surface2),
+	Gold = gold,
+	Green = green,
+	Blue = blue,
+	Purple = purple,
+	Grey = slate,
+	Red = red,
+	Orange = orange,
+	Yellow = gold,
+	Teal = teal,
+	Market = market,
+	Disabled = Color3.fromRGB(59, 66, 89),
+	DisabledLip = Color3.fromRGB(44, 50, 71),
+	DisabledText = Color3.fromRGB(142, 149, 173),
 }
 
 local Kit = {
-	TabBarTop = 8,
-	TabBarHeight = 56,
+	TabBarTop = 24,
+	TabBarHeight = 64,
 	ClicksGap = 8,
-	ClicksHeight = 40,
+	ClicksHeight = 48,
 	ToastGap = 12,
+	Margin = 24,
 	Theme = table.freeze(theme),
 	Font = Enum.Font.FredokaOne,
-	HeaderHeight = 60,
+	BodyFont = Enum.Font.BuilderSansBold,
+	HeaderHeight = 64,
+	WindowPadding = 24,
 	ButtonHeight = 52,
 	TouchSize = 48,
 }
 
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local popInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local closeInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-local white = Color3.new(1, 1, 1)
-local black = Color3.new(0, 0, 0)
-local windowTop = 70
-local windowBottom = 8
-local cornerRadius = 5
+local slideInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local windowTop = 100
+local windowBottom = 16
+local shardTransparency = 0.88
+local shardTile = 128
+local cardRadius = 12
+local windowRadius = 16
+local chipRadius = 8
 
-local shardLayers: { ShardLayer } = {
-	{
-		Rotation = -35,
-		Bands = {
-			{ 0.08, 0.24, 0.8 },
-			{ 0.3, 0.36, 0.88 },
-			{ 0.5, 0.74, 0.84 },
-			{ 0.8, 0.86, 0.9 },
-		},
-	},
-	{
-		Rotation = 40,
-		Bands = {
-			{ 0.2, 0.32, 0.92 },
-			{ 0.62, 0.9, 0.93 },
-		},
-	},
+local fallbackEmoji: { [string]: string } = {
+	upgrades = "🛒",
+	keys = "🔑",
+	index = "📘",
+	settings = "⚙️",
+	rebirth = "♻️",
+	pass = "🎟️",
+	daily = "📅",
+	shop = "🛒",
+	leaders = "🏆",
+	base = "🏠",
+	clicks = "⌨️",
+	luck = "🍀",
+	speed = "⚡",
+	income = "💰",
+	roll = "🎲",
+	auto = "🔁",
+	gift = "🎁",
+	trade = "🤝",
+	close = "✖",
+	lock = "🔒",
+	check = "✔",
+	market = "🏪",
+	star = "⭐",
+	board = "⌨️",
+	tag = "🏷️",
+	volume = "🔊",
+	people = "👥",
+	monitor = "🖥️",
+	sparkle = "✨",
+	crown = "👑",
+	flask = "🧪",
+	globe = "🌐",
+	warn = "⚠️",
+	clock = "⏰",
+	wall = "🧱",
+	laser = "🔒",
+	plus = "+",
+	minus = "-",
 }
 
-local function bandSequence(bands: { { number } }): NumberSequence
-	local points = { NumberSequenceKeypoint.new(0, 1) }
-	for _, band in bands do
-		table.insert(points, NumberSequenceKeypoint.new(band[1], 1))
-		table.insert(points, NumberSequenceKeypoint.new(band[1] + 0.002, band[3]))
-		table.insert(points, NumberSequenceKeypoint.new(band[2], band[3]))
-		table.insert(points, NumberSequenceKeypoint.new(band[2] + 0.002, 1))
+local legacyIconNames: { [string]: string } = {
+	["🛒"] = "shop",
+	["🔑"] = "keys",
+	["📘"] = "index",
+	["⚙️"] = "settings",
+	["♻️"] = "rebirth",
+	["🎟️"] = "pass",
+	["📅"] = "daily",
+	["🏆"] = "leaders",
+	["🤝"] = "trade",
+	["🏪"] = "market",
+	["🎁"] = "gift",
+	["⌨️"] = "clicks",
+	["🏠"] = "base",
+}
+
+local function collectCells(source: any): { [string]: Vector2 }
+	local cells: { [string]: Vector2 } = {}
+	for name, value in source do
+		local cell: any = value
+		if typeof(cell) == "Vector2" then
+			cells[name] = cell
+		end
 	end
-	table.insert(points, NumberSequenceKeypoint.new(1, 1))
-	return NumberSequence.new(points)
+	return cells
 end
+
+local iconCells = collectCells(UiAssets.Icons)
+local glyphCells = collectCells(UiAssets.Glyphs)
 
 function Kit.Tween(target: Instance, info: TweenInfo, goal: { [string]: any }): Tween
 	local created = TweenService:Create(target, info, goal)
@@ -309,6 +463,14 @@ function Kit.Shade(color: Color3, amount: number): Color3
 	return color:Lerp(black, -amount)
 end
 
+function Kit.FillColor(color: Color3): Color3
+	return fillSafe(color)
+end
+
+function Kit.TextSafe(color: Color3, background: Color3?): Color3
+	return textSafe(color, background or surface2)
+end
+
 function Kit.UiSound(controllers: { [string]: any }): SoundPlayer
 	return function(name: string)
 		local sounds = controllers.SoundController
@@ -320,7 +482,7 @@ end
 
 function Kit.Corner(parent: Instance, radius: number?): UICorner
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius or cornerRadius)
+	corner.CornerRadius = UDim.new(0, radius or cardRadius)
 	corner.Parent = parent
 	return corner
 end
@@ -328,7 +490,7 @@ end
 function Kit.Stroke(parent: Instance, color: Color3?, thickness: number?): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "Stroke"
-	stroke.Color = color or theme.Ink
+	stroke.Color = color or line
 	stroke.Thickness = thickness or 3
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = parent
@@ -342,7 +504,7 @@ end
 function Kit.TextStroke(parent: Instance, thickness: number?): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "TextStroke"
-	stroke.Color = theme.TextInk
+	stroke.Color = line
 	stroke.Thickness = thickness or 2.5
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	stroke.Parent = parent
@@ -350,67 +512,31 @@ function Kit.TextStroke(parent: Instance, thickness: number?): UIStroke
 end
 
 function Kit.Paint(frame: GuiObject, color: Color3)
-	frame.BackgroundColor3 = white
+	frame.BackgroundColor3 = color
 	local existing = frame:FindFirstChild("Paint")
-	local gradient: UIGradient
-	if existing and existing:IsA("UIGradient") then
-		gradient = existing
-	else
-		gradient = Instance.new("UIGradient")
-		gradient.Name = "Paint"
-		gradient.Rotation = 90
-		gradient.Parent = frame
-	end
-	gradient.Color = ColorSequence.new(Kit.Shade(color, 0.26), Kit.Shade(color, -0.1))
-end
-
-function Kit.Shards(parent: GuiObject, radius: number)
-	if UiAssets.Pattern ~= "" then
-		local image = Instance.new("ImageLabel")
-		image.Name = "Shards"
-		image.BackgroundTransparency = 1
-		image.BorderSizePixel = 0
-		image.Size = UDim2.fromScale(1, 1)
-		image.Image = UiAssets.Pattern
-		image.ScaleType = Enum.ScaleType.Tile
-		image.TileSize = UDim2.fromOffset(128, 128)
-		image.ImageColor3 = white
-		image.ImageTransparency = 0.75
-		Kit.Corner(image, radius)
-		image.Parent = parent
-		return
-	end
-	for index, layer in shardLayers do
-		local band = Instance.new("Frame")
-		band.Name = `Shards{index}`
-		band.BackgroundColor3 = white
-		band.BorderSizePixel = 0
-		band.Size = UDim2.fromScale(1, 1)
-		Kit.Corner(band, radius)
-		local gradient = Instance.new("UIGradient")
-		gradient.Rotation = layer.Rotation
-		gradient.Transparency = bandSequence(layer.Bands)
-		gradient.Parent = band
-		band.Parent = parent
+	if existing then
+		existing:Destroy()
 	end
 end
 
-local function addBevel(parent: GuiObject, radius: number)
-	local inner = Instance.new("Frame")
-	inner.Name = "Bevel"
-	inner.BackgroundTransparency = 1
-	inner.BorderSizePixel = 0
-	inner.Position = UDim2.fromOffset(2, 2)
-	inner.Size = UDim2.new(1, -4, 1, -4)
-	Kit.Corner(inner, math.max(radius - 1, 0))
-	local edge = Instance.new("UIStroke")
-	edge.Name = "Edge"
-	edge.Color = white
-	edge.Transparency = 0.5
-	edge.Thickness = 2
-	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	edge.Parent = inner
-	inner.Parent = parent
+function Kit.Shards(parent: GuiObject, radius: number, transparency: number?): ImageLabel?
+	if UiAssets.Pattern == "" then
+		return nil
+	end
+	local image = Instance.new("ImageLabel")
+	image.Name = "Shards"
+	image.BackgroundTransparency = 1
+	image.BorderSizePixel = 0
+	image.Active = false
+	image.Size = UDim2.fromScale(1, 1)
+	image.Image = UiAssets.Pattern
+	image.ScaleType = Enum.ScaleType.Tile
+	image.TileSize = UDim2.fromOffset(shardTile, shardTile)
+	image.ImageColor3 = white
+	image.ImageTransparency = transparency or shardTransparency
+	Kit.Corner(image, radius)
+	image.Parent = parent
+	return image
 end
 
 local function viewportScale(size: Vector2): number
@@ -455,7 +581,7 @@ function Kit.ScreenGui(
 end
 
 function Kit.Panel(props: PanelProps): Frame
-	local radius = props.Radius or cornerRadius
+	local radius = props.Radius or cardRadius
 	local frame = Instance.new("Frame")
 	frame.Name = props.Name or "Panel"
 	frame.BackgroundTransparency = props.Transparency or 0
@@ -464,17 +590,55 @@ function Kit.Panel(props: PanelProps): Frame
 	frame.Position = props.Position or UDim2.new()
 	frame.AnchorPoint = props.AnchorPoint or Vector2.zero
 	frame.LayoutOrder = props.LayoutOrder or 0
-	Kit.Paint(frame, props.Color or theme.Cell)
+	frame.BackgroundColor3 = props.Color or surface2
 	Kit.Corner(frame, radius)
-	Kit.Stroke(frame, props.StrokeColor, props.StrokeThickness or 3)
+	Kit.Stroke(frame, props.StrokeColor, props.StrokeThickness or 2)
 	if props.Shards == true then
 		Kit.Shards(frame, radius)
 	end
-	if props.Bevel ~= false then
-		addBevel(frame, radius)
-	end
 	frame.Parent = props.Parent
 	return frame
+end
+
+function Kit.Card(props: PanelProps): Frame
+	local frame = Kit.Panel(props)
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 16)
+	padding.PaddingBottom = UDim.new(0, 16)
+	padding.PaddingLeft = UDim.new(0, 16)
+	padding.PaddingRight = UDim.new(0, 16)
+	padding.Parent = frame
+	return frame
+end
+
+function Kit.Plate(props: PlateProps): (Frame, Frame)
+	local root: Frame
+	if props.Class == "TextButton" then
+		local button = Instance.new("TextButton")
+		button.AutoButtonColor = false
+		button.Text = ""
+		root = button :: any
+	else
+		root = Instance.new("Frame")
+	end
+	root.Name = props.Name or "Plate"
+	root.BorderSizePixel = 0
+	root.BackgroundColor3 = surface2
+	root.Size = props.Size or UDim2.fromOffset(100, 56)
+	root.Position = props.Position or UDim2.new()
+	root.AnchorPoint = props.AnchorPoint or Vector2.zero
+	root.LayoutOrder = props.LayoutOrder or 0
+	Kit.Corner(root, cardRadius)
+	Kit.Stroke(root, line, props.Thickness or 3)
+	local inner = Instance.new("Frame")
+	inner.Name = "Inner"
+	inner.BorderSizePixel = 0
+	inner.BackgroundColor3 = surface
+	inner.Size = if props.Lip == true then UDim2.new(1, 0, 1, -4) else UDim2.fromScale(1, 1)
+	Kit.Corner(inner, cardRadius)
+	inner.Parent = root
+	root.Parent = props.Parent
+	return root, inner
 end
 
 function Kit.Label(props: LabelProps): TextLabel
@@ -487,8 +651,8 @@ function Kit.Label(props: LabelProps): TextLabel
 	label.Position = props.Position or UDim2.new()
 	label.AnchorPoint = props.AnchorPoint or Vector2.zero
 	label.LayoutOrder = props.LayoutOrder or 0
-	label.Font = Kit.Font
-	label.TextColor3 = props.Color or theme.Text
+	label.Font = if props.Body == true then Kit.BodyFont else Kit.Font
+	label.TextColor3 = props.Color or white
 	label.TextXAlignment = props.Align or Enum.TextXAlignment.Left
 	label.TextYAlignment = props.VerticalAlign or Enum.TextYAlignment.Center
 	label.TextWrapped = props.Wrapped == true
@@ -504,14 +668,136 @@ function Kit.Label(props: LabelProps): TextLabel
 		label.TextSize = textSize
 		label.TextTruncate = if props.Wrapped == true then Enum.TextTruncate.None else Enum.TextTruncate.AtEnd
 	end
-	if props.Outline ~= false then
+	if props.Outline == true then
 		Kit.TextStroke(label, if textSize >= 26 then 3 elseif textSize >= 17 then 2.5 else 2)
 	end
 	label.Parent = props.Parent
 	return label
 end
 
-function Kit.Icon(props: IconProps): GuiObject
+function Kit.Caption(props: CaptionProps): TextLabel
+	return Kit.Label({
+		Parent = props.Parent,
+		Name = props.Name or "Caption",
+		Text = string.upper(props.Text),
+		Size = props.Size or UDim2.new(1, 0, 0, 18),
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		LayoutOrder = props.LayoutOrder,
+		TextSize = 13,
+		Color = props.Color or muted,
+		Align = props.Align,
+		Body = true,
+	})
+end
+
+local function emojiLabel(
+	parent: Instance,
+	name: string,
+	text: string,
+	size: UDim2,
+	position: UDim2?,
+	anchor: Vector2?,
+	order: number?
+): TextLabel
+	return Kit.Label({
+		Parent = parent,
+		Name = name,
+		Text = text,
+		Size = size,
+		Position = position,
+		AnchorPoint = anchor,
+		LayoutOrder = order,
+		TextSize = 60,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+end
+
+local function atlasImage(
+	parent: Instance,
+	name: string,
+	atlas: string,
+	cell: Vector2,
+	cellSize: number,
+	size: UDim2,
+	position: UDim2?,
+	anchor: Vector2?,
+	order: number?
+): ImageLabel
+	local image = Instance.new("ImageLabel")
+	image.Name = name
+	image.BackgroundTransparency = 1
+	image.BorderSizePixel = 0
+	image.Image = atlas
+	image.ImageRectSize = Vector2.new(cellSize, cellSize)
+	image.ImageRectOffset = Vector2.new(cell.X * cellSize, cell.Y * cellSize)
+	image.ScaleType = Enum.ScaleType.Fit
+	image.Size = size
+	image.Position = position or UDim2.new()
+	image.AnchorPoint = anchor or Vector2.zero
+	image.LayoutOrder = order or 0
+	image.Parent = parent
+	return image
+end
+
+function Kit.HasIcon(name: string): boolean
+	local cell: Vector2? = iconCells[name]
+	return UiAssets.IconAtlas ~= "" and cell ~= nil
+end
+
+function Kit.HasGlyph(name: string): boolean
+	local cell: Vector2? = glyphCells[name]
+	return UiAssets.GlyphAtlas ~= "" and cell ~= nil
+end
+
+local function namedIcon(
+	parent: Instance,
+	name: string,
+	size: UDim2,
+	position: UDim2?,
+	anchor: Vector2?,
+	order: number?,
+	instanceName: string?
+): GuiObject
+	local cell = iconCells[name]
+	if UiAssets.IconAtlas ~= "" and cell then
+		return atlasImage(
+			parent,
+			instanceName or "Icon",
+			UiAssets.IconAtlas,
+			cell,
+			UiAssets.IconCell,
+			size,
+			position,
+			anchor,
+			order
+		)
+	end
+	return emojiLabel(
+		parent,
+		instanceName or "Icon",
+		fallbackEmoji[name] or "•",
+		size,
+		position,
+		anchor,
+		order
+	)
+end
+
+local function legacyIcon(props: IconProps): GuiObject
+	local iconName = props.IconName
+	if iconName and iconName ~= "" then
+		return namedIcon(
+			props.Parent,
+			iconName,
+			props.Size or UDim2.fromOffset(48, 48),
+			props.Position,
+			props.AnchorPoint,
+			props.LayoutOrder,
+			props.Name
+		)
+	end
 	local asset = props.Asset
 	if asset and asset ~= "" then
 		local image = Instance.new("ImageLabel")
@@ -527,42 +813,130 @@ function Kit.Icon(props: IconProps): GuiObject
 		image.Parent = props.Parent
 		return image
 	end
-	return Kit.Label({
-		Parent = props.Parent,
-		Name = props.Name or "Icon",
-		Text = props.Emoji,
-		Size = props.Size or UDim2.fromOffset(48, 48),
-		Position = props.Position,
-		AnchorPoint = props.AnchorPoint,
-		LayoutOrder = props.LayoutOrder,
-		TextSize = 60,
+	return emojiLabel(
+		props.Parent,
+		props.Name or "Icon",
+		props.Emoji,
+		props.Size or UDim2.fromOffset(48, 48),
+		props.Position,
+		props.AnchorPoint,
+		props.LayoutOrder
+	)
+end
+
+function Kit.Icon(first: any, name: string?, size: number?): GuiObject
+	if typeof(first) == "Instance" then
+		local dimension = size or 48
+		return namedIcon(
+			first :: Instance,
+			name or "",
+			UDim2.fromOffset(dimension, dimension),
+			nil,
+			nil,
+			nil,
+			nil
+		)
+	end
+	return legacyIcon(first :: IconProps)
+end
+
+function Kit.Glyph(parent: Instance, name: string, size: number, color: Color3?): GuiObject
+	local cell = glyphCells[name]
+	local dimension = UDim2.fromOffset(size, size)
+	if UiAssets.GlyphAtlas ~= "" and cell then
+		local image = atlasImage(
+			parent,
+			"Glyph",
+			UiAssets.GlyphAtlas,
+			cell,
+			UiAssets.GlyphCell,
+			dimension,
+			nil,
+			nil,
+			nil
+		)
+		image.ImageColor3 = color or white
+		return image
+	end
+	local label = Kit.Label({
+		Parent = parent,
+		Name = "Glyph",
+		Text = fallbackEmoji[name] or "•",
+		Size = dimension,
+		TextSize = size,
+		Color = color,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
-		Outline = false,
 	})
+	return label
 end
 
 function Kit.Chip(props: ChipProps): TextLabel
 	local chip = Kit.Panel({
 		Parent = props.Parent,
 		Name = props.Name or "Chip",
-		Size = props.Size,
+		Size = props.Size or UDim2.fromOffset(0, 24),
 		Position = props.Position,
 		AnchorPoint = props.AnchorPoint,
-		Color = props.Color or theme.Red,
-		Radius = 4,
-		StrokeThickness = 2.5,
-		Bevel = false,
+		LayoutOrder = props.LayoutOrder,
+		Color = props.Color or surface3,
+		Radius = chipRadius,
+		StrokeThickness = 2,
 	})
+	local textColor = props.TextColor or white
+	local textSize = props.TextSize or 13
+	if props.AutoWidth == true then
+		chip.AutomaticSize = Enum.AutomaticSize.X
+		local list = Instance.new("UIListLayout")
+		list.FillDirection = Enum.FillDirection.Horizontal
+		list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		list.VerticalAlignment = Enum.VerticalAlignment.Center
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Padding = UDim.new(0, 4)
+		list.Parent = chip
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0, 8)
+		padding.PaddingRight = UDim.new(0, 8)
+		padding.Parent = chip
+		local glyphName = props.GlyphName
+		if glyphName then
+			local glyph = Kit.Glyph(chip, glyphName, 16, textColor)
+			glyph.LayoutOrder = 1
+		end
+		local label = Kit.Label({
+			Parent = chip,
+			Name = "Text",
+			Text = props.Text,
+			Size = UDim2.fromOffset(0, 20),
+			LayoutOrder = 2,
+			TextSize = textSize,
+			Color = textColor,
+			Align = Enum.TextXAlignment.Center,
+			Body = true,
+		})
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.TextTruncate = Enum.TextTruncate.None
+		return label
+	end
+	local inset = 4
+	local glyphName = props.GlyphName
+	if glyphName then
+		local glyph = Kit.Glyph(chip, glyphName, 16, textColor)
+		glyph.AnchorPoint = Vector2.new(0, 0.5)
+		glyph.Position = UDim2.new(0, 6, 0.5, 0)
+		inset = 26
+	end
 	return Kit.Label({
 		Parent = chip,
 		Name = "Text",
 		Text = props.Text,
-		Size = UDim2.new(1, -4, 1, 0),
-		Position = UDim2.fromOffset(2, 0),
-		TextSize = props.TextSize or 16,
+		Size = UDim2.new(1, -(inset + 4), 1, 0),
+		Position = UDim2.fromOffset(inset, 0),
+		TextSize = textSize,
+		Color = textColor,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
+		Body = true,
 	})
 end
 
@@ -570,21 +944,23 @@ function Kit.Badge(parent: Instance, text: string?): Frame
 	local badge = Instance.new("Frame")
 	badge.Name = "Badge"
 	badge.BorderSizePixel = 0
+	badge.BackgroundColor3 = red
 	badge.AnchorPoint = Vector2.new(1, 0)
 	badge.Position = UDim2.new(1, 6, 0, -6)
-	badge.Size = UDim2.fromOffset(26, 26)
-	Kit.Paint(badge, theme.Red)
-	Kit.Corner(badge, 13)
-	Kit.Stroke(badge, theme.Ink, 2.5)
-	Kit.Label({
+	badge.Size = UDim2.fromOffset(20, 20)
+	badge.ZIndex = 5
+	Kit.Corner(badge, 10)
+	Kit.Stroke(badge, line, 2)
+	local label = Kit.Label({
 		Parent = badge,
 		Name = "Text",
 		Text = text or "!",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 20,
+		TextSize = 13,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
+	label.ZIndex = 6
 	badge.Parent = parent
 	return badge
 end
@@ -600,40 +976,57 @@ function Kit.Keycap(props: KeycapProps): Keycap
 	local base = Instance.new("Frame")
 	base.Name = "Base"
 	base.BorderSizePixel = 0
-	base.Position = UDim2.fromScale(0, 0.14)
-	base.Size = UDim2.fromScale(1, 0.86)
-	Kit.Corner(base, 8)
-	Kit.Stroke(base, theme.Ink, 2.5)
+	base.Position = UDim2.fromScale(3 / 64, 10 / 64)
+	base.Size = UDim2.fromScale(58 / 64, 50 / 64)
+	local baseCorner = Kit.Corner(base, 0)
+	baseCorner.CornerRadius = UDim.new(0.26, 0)
+	Kit.Stroke(base, line, 2.5)
 	base.Parent = holder
 	local top = Instance.new("Frame")
 	top.Name = "Top"
 	top.BorderSizePixel = 0
-	top.Position = UDim2.fromScale(0.08, 0)
-	top.Size = UDim2.fromScale(0.84, 0.74)
-	Kit.Corner(top, 6)
-	Kit.Stroke(top, theme.Ink, 2)
+	top.Position = UDim2.fromScale(9 / 64, 4 / 64)
+	top.Size = UDim2.fromScale(46 / 64, 44 / 64)
+	local topCorner = Kit.Corner(top, 0)
+	topCorner.CornerRadius = UDim.new(0.23, 0)
+	Kit.Stroke(top, line, 2.5)
 	top.Parent = holder
 	local shine = Instance.new("Frame")
 	shine.Name = "Shine"
 	shine.BackgroundColor3 = white
-	shine.BackgroundTransparency = 0.7
+	shine.BackgroundTransparency = 0.75
 	shine.BorderSizePixel = 0
-	shine.Position = UDim2.fromScale(0.1, 0.08)
-	shine.Size = UDim2.fromScale(0.5, 0.12)
-	Kit.Corner(shine, 3)
+	shine.Position = UDim2.fromScale(0.08, 0.06)
+	shine.Size = UDim2.fromScale(0.84, 0.16)
+	local shineCorner = Kit.Corner(shine, 0)
+	shineCorner.CornerRadius = UDim.new(0.5, 0)
 	shine.Parent = top
-	local glyph = Kit.Label({
+	local glyphName = props.GlyphName
+	local inkGlyph: GuiObject? = nil
+	if glyphName and UiAssets.GlyphAtlas ~= "" and glyphCells[glyphName] then
+		local ink = Kit.Glyph(top, glyphName, 10, line)
+		ink.AnchorPoint = Vector2.new(0.5, 0.5)
+		ink.Position = UDim2.fromScale(0.5, 0.5)
+		ink.Size = UDim2.fromScale(0.78, 0.78)
+		if ink:IsA("ImageLabel") then
+			ink.ImageTransparency = 0.15
+		end
+		inkGlyph = ink
+	end
+	local letter = Kit.Label({
 		Parent = top,
 		Name = "Glyph",
 		Text = props.Glyph or "",
 		Size = UDim2.fromScale(1, 1),
 		TextSize = 34,
+		Color = line,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
+	letter.Visible = inkGlyph == nil
 	local function paint(color: Color3)
-		base.BackgroundColor3 = Kit.Shade(color, -0.3)
-		Kit.Paint(top, color)
+		base.BackgroundColor3 = Kit.Shade(color, -0.38)
+		top.BackgroundColor3 = color
 	end
 	paint(props.Color)
 	holder.Parent = props.Parent
@@ -641,8 +1034,12 @@ function Kit.Keycap(props: KeycapProps): Keycap
 		Instance = holder,
 		SetColor = paint,
 		SetGlyph = function(text: string, color: Color3?)
-			glyph.Text = text
-			glyph.TextColor3 = color or theme.Text
+			letter.Text = text
+			letter.TextColor3 = color or line
+			letter.Visible = true
+			if inkGlyph then
+				inkGlyph.Visible = false
+			end
 		end,
 	}
 end
@@ -664,7 +1061,7 @@ function Kit.Burst(props: BurstProps): Frame
 		image.Size = UDim2.fromScale(1, 1)
 		image.Image = UiAssets.Burst
 		image.ImageColor3 = tint
-		image.ImageTransparency = 0.45
+		image.ImageTransparency = 0.72
 		image.Parent = holder
 	else
 		for index, fraction in { 1, 0.66, 0.36 } do
@@ -679,24 +1076,6 @@ function Kit.Burst(props: BurstProps): Frame
 			Kit.Corner(glow, props.Diameter)
 			glow.Parent = holder
 		end
-		for index = 0, 3 do
-			local ray = Instance.new("Frame")
-			ray.Name = `Ray{index}`
-			ray.BackgroundColor3 = tint
-			ray.BorderSizePixel = 0
-			ray.AnchorPoint = Vector2.new(0.5, 0.5)
-			ray.Position = UDim2.fromScale(0.5, 0.5)
-			ray.Size = UDim2.fromOffset(props.Diameter * 0.95, 5)
-			ray.Rotation = index * 45
-			local fade = Instance.new("UIGradient")
-			fade.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.5, 0.78),
-				NumberSequenceKeypoint.new(1, 1),
-			})
-			fade.Parent = ray
-			ray.Parent = holder
-		end
 	end
 	holder.Parent = props.Parent
 	return holder
@@ -704,31 +1083,31 @@ end
 
 function Kit.Bar(props: BarProps): Bar
 	local value = math.clamp(props.Value or 0, 0, 1)
-	local track = Kit.Panel({
-		Parent = props.Parent,
-		Name = props.Name or "Bar",
-		Size = props.Size or UDim2.new(1, 0, 0, 26),
-		Position = props.Position,
-		AnchorPoint = props.AnchorPoint,
-		LayoutOrder = props.LayoutOrder,
-		Color = theme.Track,
-		Radius = 4,
-		Bevel = false,
-	})
+	local hasText = props.Text ~= nil and props.Text ~= ""
+	local height = if hasText then 26 else 12
+	local track = Instance.new("Frame")
+	track.Name = props.Name or "Bar"
+	track.BorderSizePixel = 0
+	track.BackgroundColor3 = surface3
+	track.Size = props.Size or UDim2.new(1, 0, 0, height)
+	track.Position = props.Position or UDim2.new()
+	track.AnchorPoint = props.AnchorPoint or Vector2.zero
+	track.LayoutOrder = props.LayoutOrder or 0
+	track.ClipsDescendants = true
+	Kit.Corner(track, 999)
+	Kit.Stroke(track, line, 2)
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.BorderSizePixel = 0
 	fill.Size = UDim2.fromScale(value, 1)
-	Kit.Paint(fill, props.Color or theme.Green)
-	Kit.Corner(fill, 4)
+	local fillColor = props.Color or green
+	fill.BackgroundColor3 = fillColor
+	Kit.Corner(fill, 999)
 	local gloss = Instance.new("Frame")
 	gloss.Name = "Gloss"
-	gloss.BackgroundColor3 = white
-	gloss.BackgroundTransparency = 0.8
+	gloss.BackgroundColor3 = Kit.Shade(fillColor, 0.25)
 	gloss.BorderSizePixel = 0
-	gloss.Position = UDim2.fromScale(0.02, 0.1)
-	gloss.Size = UDim2.fromScale(0.96, 0.32)
-	Kit.Corner(gloss, 3)
+	gloss.Size = UDim2.fromScale(1, 0.3)
 	gloss.Parent = fill
 	fill.Parent = track
 	local label = Kit.Label({
@@ -736,10 +1115,12 @@ function Kit.Bar(props: BarProps): Bar
 		Name = "Text",
 		Text = props.Text or "",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = props.TextSize or 18,
+		TextSize = props.TextSize or 16,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
+		Outline = hasText,
 	})
+	label.ZIndex = 3
 	return {
 		Instance = track,
 		Fill = fill,
@@ -752,20 +1133,34 @@ function Kit.Bar(props: BarProps): Bar
 			label.Text = text
 		end,
 		SetColor = function(color: Color3)
-			Kit.Paint(fill, color)
+			fill.BackgroundColor3 = color
+			gloss.BackgroundColor3 = Kit.Shade(color, 0.25)
 		end,
 	}
 end
 
+local function buttonColors(color: Color3): (Color3, Color3)
+	if color == gold or color == orange then
+		return color, line
+	end
+	return fillSafe(color), white
+end
+
 function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
-	local baseColor = props.Color or theme.Green
-	local baseTextColor = props.TextColor or theme.Text
+	local baseColor = props.Color or green
+	local textColorOverride = props.TextColor
+	local isHero = props.Hero == true
 	local isDisabled = false
 	local isDown = false
 	local isHover = false
 	local isGlowing = false
 	local isSelected = false
 	local glowTween: Tween? = nil
+	local size = props.Size or UDim2.fromOffset(140, Kit.ButtonHeight)
+	local height = if size.Y.Offset > 0 then size.Y.Offset else Kit.ButtonHeight
+	local radius = props.Radius or cardRadius
+	local textSize = props.TextSize or (if isHero then 32 elseif height >= 52 then 22 else 16)
+	local glyphSize = if isHero then 28 elseif height >= 52 then 24 else 20
 
 	local root = Instance.new("TextButton")
 	root.Name = props.Name or "Button"
@@ -773,67 +1168,133 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	root.BorderSizePixel = 0
 	root.BackgroundTransparency = 1
 	root.Text = ""
-	root.Size = props.Size or UDim2.fromOffset(140, Kit.ButtonHeight)
+	root.Size = size
 	root.Position = props.Position or UDim2.new()
 	root.AnchorPoint = props.AnchorPoint or Vector2.zero
 	root.LayoutOrder = props.LayoutOrder or 0
 
-	local face = Kit.Panel({
-		Parent = root,
-		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
-		Color = baseColor,
-		Radius = props.Radius,
-		Shards = true,
-	})
-	local faceStroke = Kit.StrokeOf(face)
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.BorderSizePixel = 0
+	face.Size = UDim2.fromScale(1, 1)
+	Kit.Corner(face, radius)
+	local faceStroke = Kit.Stroke(face, line, 3)
+	face.Parent = root
 
-	local hasIcon = props.Icon ~= nil or props.IconAsset ~= nil
-	local isLeft = props.IconLeft == true
-	if hasIcon then
-		local icon = Kit.Icon({
-			Parent = face,
-			Name = "Icon",
-			Emoji = props.Icon or "",
-			Asset = props.IconAsset,
-			Size = if isLeft then UDim2.fromScale(0, 0.78) else UDim2.fromScale(1, 0.56),
-			Position = if isLeft then UDim2.new(0, 8, 0.5, 0) else UDim2.fromScale(0, 0.06),
-			AnchorPoint = if isLeft then Vector2.new(0, 0.5) else Vector2.zero,
+	local inner = Instance.new("Frame")
+	inner.Name = "Inner"
+	inner.BorderSizePixel = 0
+	inner.Size = UDim2.new(1, 0, 1, -4)
+	Kit.Corner(inner, radius)
+	inner.Parent = face
+
+	local shards: ImageLabel? = nil
+	if isHero or props.Shards == true then
+		shards = Kit.Shards(inner, radius)
+	end
+
+	local highlight = Instance.new("Frame")
+	highlight.Name = "Highlight"
+	highlight.BackgroundColor3 = white
+	highlight.BackgroundTransparency = 0.8
+	highlight.BorderSizePixel = 0
+	highlight.Position = UDim2.fromOffset(4, 3)
+	highlight.Size = UDim2.new(1, -8, 0.15, 0)
+	Kit.Corner(highlight, 99)
+	highlight.Parent = inner
+
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.BackgroundTransparency = 1
+	content.BorderSizePixel = 0
+	content.Size = UDim2.fromScale(1, 1)
+	local contentList = Instance.new("UIListLayout")
+	contentList.FillDirection = Enum.FillDirection.Horizontal
+	contentList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	contentList.VerticalAlignment = Enum.VerticalAlignment.Center
+	contentList.SortOrder = Enum.SortOrder.LayoutOrder
+	contentList.Padding = UDim.new(0, 8)
+	contentList.Parent = content
+	local contentPadding = Instance.new("UIPadding")
+	contentPadding.PaddingLeft = UDim.new(0, if isHero then 24 else 8)
+	contentPadding.PaddingRight = UDim.new(0, if isHero then 24 else 8)
+	contentPadding.Parent = content
+	content.Parent = inner
+
+	local hasText = props.Text ~= nil and props.Text ~= ""
+	local glyphName = props.GlyphName
+	local glyphObject: GuiObject? = nil
+	if glyphName then
+		glyphObject = Kit.Glyph(content, glyphName, if hasText then glyphSize else math.floor(height / 2))
+	elseif props.Icon then
+		glyphObject = Kit.Label({
+			Parent = content,
+			Name = "Glyph",
+			Text = props.Icon,
+			Size = UDim2.fromOffset(glyphSize, glyphSize),
+			TextSize = glyphSize,
+			Align = Enum.TextXAlignment.Center,
+			Scaled = true,
+			Outline = false,
 		})
-		if isLeft then
-			local ratio = Instance.new("UIAspectRatioConstraint")
-			ratio.AspectRatio = 1
-			ratio.DominantAxis = Enum.DominantAxis.Height
-			ratio.Parent = icon
-		end
+	end
+	if glyphObject then
+		glyphObject.LayoutOrder = 1
 	end
 	local text = Kit.Label({
-		Parent = face,
+		Parent = content,
 		Name = "Text",
 		Text = props.Text or "",
-		Position = if hasIcon and isLeft
-			then UDim2.new(0.2, 0, 0, 2)
-			elseif hasIcon then UDim2.fromScale(0, 0.6)
-			else UDim2.fromOffset(6, 2),
-		Size = if hasIcon and isLeft
-			then UDim2.new(0.8, -8, 1, -4)
-			elseif hasIcon then UDim2.fromScale(1, 0.38)
-			else UDim2.new(1, -12, 1, -4),
-		TextSize = props.TextSize or 24,
-		Color = baseTextColor,
+		Size = UDim2.fromOffset(0, height - 8),
+		LayoutOrder = 2,
+		TextSize = textSize,
 		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
+		Outline = isHero,
 	})
+	text.AutomaticSize = Enum.AutomaticSize.X
+	text.TextTruncate = Enum.TextTruncate.None
 	text.Active = false
-
-	local pressScale = Instance.new("UIScale")
-	pressScale.Name = "PressScale"
-	pressScale.Parent = root
+	text.Visible = hasText
 	root.Parent = props.Parent
 
 	local function paint()
-		Kit.Paint(face, if isDisabled then theme.Disabled else baseColor)
-		text.TextColor3 = if isDisabled then theme.TextDim else baseTextColor
+		local fill, textColor = buttonColors(baseColor)
+		if textColorOverride then
+			textColor = textColorOverride
+		end
+		local lip: Color3
+		if isDisabled then
+			fill = theme.Disabled
+			lip = theme.DisabledLip
+			textColor = theme.DisabledText
+		else
+			if isHover and not isDown then
+				fill = Kit.Shade(fill, 0.1)
+			end
+			lip = Kit.Shade(fill, -0.3)
+		end
+		face.BackgroundColor3 = lip
+		inner.BackgroundColor3 = fill
+		text.TextColor3 = textColor
+		local stroke = text:FindFirstChild("TextStroke")
+		if stroke and stroke:IsA("UIStroke") then
+			stroke.Enabled = not isDisabled
+		end
+		if glyphObject then
+			if glyphObject:IsA("ImageLabel") then
+				glyphObject.ImageColor3 = textColor
+			elseif glyphObject:IsA("TextLabel") then
+				glyphObject.TextColor3 = textColor
+			end
+		end
+		highlight.Visible = not isDisabled
+		if shards then
+			shards.Visible = not isDisabled
+		end
+		local goal = if isDown and not isDisabled
+			then { Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 1, -3) }
+			else { Position = UDim2.new(), Size = UDim2.new(1, 0, 1, -4) }
+		Kit.Tween(inner, pressInfo, goal)
 	end
 	paint()
 
@@ -841,18 +1302,14 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 		if isGlowing then
 			return
 		end
-		faceStroke.Color = if isSelected then white else theme.Ink
+		faceStroke.Color = if isSelected then white else line
 		faceStroke.Thickness = if isSelected then 4 else 3
 	end
 
-	local function settle()
-		local goal = if isDown then 0.92 elseif isHover then 1.05 else 1
-		Kit.Tween(pressScale, if isDown then pressInfo else springInfo, { Scale = goal })
-	end
 	local function release()
 		if isDown then
 			isDown = false
-			settle()
+			paint()
 		end
 	end
 	local function fire()
@@ -874,7 +1331,7 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 			return
 		end
 		isDown = true
-		settle()
+		paint()
 		if props.Immediate == true then
 			fire()
 		end
@@ -883,13 +1340,13 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	trove:Connect(root.MouseEnter, function()
 		if UserInputService:GetLastInputType() == Enum.UserInputType.MouseMovement then
 			isHover = true
-			settle()
+			paint()
 		end
 	end)
 	trove:Connect(root.MouseLeave, function()
 		isDown = false
 		isHover = false
-		settle()
+		paint()
 	end)
 	trove:Connect(UserInputService.InputEnded, function(input: InputObject)
 		local inputType = input.UserInputType
@@ -917,6 +1374,7 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	return {
 		Instance = root,
 		Face = face,
+		Content = content,
 		SetDisabled = function(disabled: boolean)
 			if disabled == isDisabled then
 				return
@@ -924,12 +1382,12 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 			isDisabled = disabled
 			if disabled then
 				isDown = false
-				settle()
 			end
 			paint()
 		end,
 		SetText = function(value: string)
 			text.Text = value
+			text.Visible = value ~= ""
 		end,
 		SetColor = function(color: Color3)
 			baseColor = color
@@ -949,6 +1407,7 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 					glowTween:Play()
 				end
 			else
+				faceStroke.Thickness = 3
 				applyStroke()
 			end
 		end,
@@ -968,15 +1427,73 @@ function Kit.CloseButton(
 	return Kit.Button(trove, {
 		Parent = parent,
 		Name = "Close",
-		Text = "X",
-		Size = UDim2.fromOffset(Kit.TouchSize, Kit.TouchSize),
-		Position = UDim2.new(1, -6, 0, 6),
+		GlyphName = "close",
+		Size = UDim2.fromOffset(44, 44),
+		Position = UDim2.new(1, -13, 0, 13),
 		AnchorPoint = Vector2.new(1, 0),
-		Color = theme.Red,
-		TextSize = 30,
+		Color = red,
 		Callback = onClose,
 		Sound = sound,
 	})
+end
+
+function Kit.Tooltip(props: TooltipProps): Frame
+	local isLarge = props.Large == true
+	local isLeft = props.Side == "Left"
+	local holder = Instance.new("Frame")
+	holder.Name = props.Name or "Tooltip"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.AutomaticSize = Enum.AutomaticSize.X
+	holder.Size = UDim2.fromOffset(0, if isLarge then 48 else 40)
+	holder.Position = props.Position or UDim2.new()
+	holder.AnchorPoint = props.AnchorPoint or Vector2.zero
+	local notch = Instance.new("Frame")
+	notch.Name = "Notch"
+	notch.BackgroundColor3 = surface
+	notch.BorderSizePixel = 0
+	notch.Size = UDim2.fromOffset(12, 12)
+	notch.Rotation = 45
+	notch.AnchorPoint = Vector2.new(0.5, 0.5)
+	notch.Position = if isLeft then UDim2.new(0, -3, 0.5, 0) else UDim2.new(0, 26, 1, 3)
+	Kit.Stroke(notch, line, 3)
+	notch.Parent = holder
+	local body = Kit.Panel({
+		Parent = holder,
+		Name = "Body",
+		Size = UDim2.fromScale(0, 1),
+		Color = surface,
+		StrokeThickness = 3,
+	})
+	body.AutomaticSize = Enum.AutomaticSize.X
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Horizontal
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, 8)
+	list.Parent = body
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, if isLarge then 16 else 12)
+	padding.PaddingRight = UDim.new(0, if isLarge then 16 else 12)
+	padding.Parent = body
+	local glyphName = props.GlyphName
+	if glyphName then
+		local glyph = Kit.Glyph(body, glyphName, if isLarge then 20 else 18, props.GlyphColor or green)
+		glyph.LayoutOrder = 1
+	end
+	local label = Kit.Label({
+		Parent = body,
+		Name = "Text",
+		Text = props.Text,
+		Size = UDim2.fromOffset(0, 24),
+		LayoutOrder = 2,
+		TextSize = if isLarge then 16 else 13,
+		Body = not isLarge,
+	})
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.TextTruncate = Enum.TextTruncate.None
+	holder.Parent = props.Parent
+	return holder
 end
 
 function Kit.Scroll(props: ScrollProps): ScrollingFrame
@@ -990,15 +1507,15 @@ function Kit.Scroll(props: ScrollProps): ScrollingFrame
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroll.ScrollBarThickness = 8
-	scroll.ScrollBarImageColor3 = theme.Gold
+	scroll.ScrollBarThickness = 6
+	scroll.ScrollBarImageColor3 = muted
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, props.Padding or 10)
+	list.Padding = UDim.new(0, props.Padding or 8)
 	list.Parent = scroll
 	local padding = Instance.new("UIPadding")
 	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingTop = UDim.new(0, 4)
 	padding.PaddingBottom = UDim.new(0, 8)
 	padding.PaddingLeft = UDim.new(0, 4)
 	padding.Parent = scroll
@@ -1016,12 +1533,12 @@ function Kit.GridScroll(props: GridScrollProps): ScrollingFrame
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroll.ScrollBarThickness = 8
-	scroll.ScrollBarImageColor3 = theme.Gold
+	scroll.ScrollBarThickness = 6
+	scroll.ScrollBarImageColor3 = muted
 	local grid = Instance.new("UIGridLayout")
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.CellSize = props.CellSize
-	grid.CellPadding = props.CellPadding or UDim2.fromOffset(10, 10)
+	grid.CellPadding = props.CellPadding or UDim2.fromOffset(8, 8)
 	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	grid.Parent = scroll
 	local padding = Instance.new("UIPadding")
@@ -1041,35 +1558,43 @@ function Kit.Slider(trove: TroveInstance, props: SliderProps): Slider
 	hit.BackgroundTransparency = 1
 	hit.BorderSizePixel = 0
 	hit.Active = true
-	hit.Size = props.Size or UDim2.new(1, 0, 0, 48)
+	hit.Size = props.Size or UDim2.new(1, 0, 0, 32)
 	hit.Position = props.Position or UDim2.new()
 	hit.AnchorPoint = props.AnchorPoint or Vector2.zero
 	hit.LayoutOrder = props.LayoutOrder or 0
-	local bar = Kit.Bar({
-		Parent = hit,
-		Name = "Track",
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 16, 0.5, 0),
-		Size = UDim2.new(1, -32, 0, 24),
-		Color = props.Color or theme.Green,
-		Value = value,
-	})
-	local track = bar.Instance
-	local knob = Kit.Panel({
-		Parent = track,
-		Name = "Knob",
-		Size = UDim2.fromOffset(20, 40),
-		Position = UDim2.fromScale(value, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Color = theme.Text,
-		Radius = 4,
-		Bevel = false,
-	})
+	local track = Instance.new("Frame")
+	track.Name = "Track"
+	track.BorderSizePixel = 0
+	track.BackgroundColor3 = surface3
+	track.AnchorPoint = Vector2.new(0, 0.5)
+	track.Position = UDim2.new(0, 12, 0.5, 0)
+	track.Size = UDim2.new(1, -24, 0, 8)
+	Kit.Corner(track, 4)
+	Kit.Stroke(track, line, 2)
+	track.Parent = hit
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.BorderSizePixel = 0
+	fill.BackgroundColor3 = props.Color or green
+	fill.Size = UDim2.fromScale(value, 1)
+	Kit.Corner(fill, 4)
+	fill.Parent = track
+	local knob = Instance.new("Frame")
+	knob.Name = "Knob"
+	knob.BorderSizePixel = 0
+	knob.BackgroundColor3 = white
+	knob.Size = UDim2.fromOffset(24, 24)
+	knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	knob.Position = UDim2.fromScale(value, 0.5)
+	knob.ZIndex = 2
+	Kit.Corner(knob, 12)
+	Kit.Stroke(knob, line, 3)
+	knob.Parent = track
 	hit.Parent = props.Parent
 
 	local function show(newValue: number)
 		value = math.clamp(newValue, 0, 1)
-		bar.SetValue(value)
+		fill.Size = UDim2.fromScale(value, 1)
 		knob.Position = UDim2.fromScale(value, 0.5)
 	end
 	local function fromX(x: number): number
@@ -1133,48 +1658,39 @@ function Kit.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 	button.Name = props.Name or "Toggle"
 	button.AutoButtonColor = false
 	button.BorderSizePixel = 0
-	button.BackgroundTransparency = 1
 	button.Text = ""
-	button.Size = UDim2.fromOffset(100, Kit.TouchSize)
+	button.Size = UDim2.fromOffset(56, 32)
 	button.Position = props.Position or UDim2.new()
 	button.AnchorPoint = props.AnchorPoint or Vector2.zero
 	button.LayoutOrder = props.LayoutOrder or 0
-	local face = Kit.Panel({
-		Parent = button,
-		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
-		Color = theme.Disabled,
-		Shards = true,
-	})
-	local state = Kit.Label({
-		Parent = face,
-		Name = "State",
-		Text = "OFF",
-		Size = UDim2.fromScale(1, 1),
-		TextSize = 28,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
-	})
-	local pressScale = Instance.new("UIScale")
-	pressScale.Parent = button
+	Kit.Corner(button, 16)
+	Kit.Stroke(button, line, 2)
+	local knob = Instance.new("Frame")
+	knob.Name = "Knob"
+	knob.BorderSizePixel = 0
+	knob.BackgroundColor3 = white
+	knob.Size = UDim2.fromOffset(24, 24)
+	knob.AnchorPoint = Vector2.new(0, 0.5)
+	knob.Position = UDim2.new(0, 2, 0.5, 0)
+	Kit.Corner(knob, 12)
+	Kit.Stroke(knob, line, 2)
+	knob.Parent = button
 	button.Parent = props.Parent
 
-	local function show()
-		state.Text = if isOn then "ON" else "OFF"
-		Kit.Paint(face, if isOn then theme.Green else theme.Red)
+	local function show(animate: boolean)
+		button.BackgroundColor3 = if isOn then fillSafe(green) else surface3
+		local goal = if isOn then UDim2.new(1, -26, 0.5, 0) else UDim2.new(0, 2, 0.5, 0)
+		if animate then
+			Kit.Tween(knob, slideInfo, { Position = goal })
+		else
+			knob.Position = goal
+		end
 	end
-	show()
+	show(false)
 
-	trove:Connect(button.MouseButton1Down, function()
-		Kit.Tween(pressScale, pressInfo, { Scale = 0.92 })
-	end)
-	trove:Connect(button.MouseLeave, function()
-		Kit.Tween(pressScale, springInfo, { Scale = 1 })
-	end)
 	trove:Connect(button.Activated, function()
 		isOn = not isOn
-		show()
-		Kit.Tween(pressScale, springInfo, { Scale = 1 })
+		show(true)
 		local sound = props.Sound
 		if sound then
 			sound("Click")
@@ -1190,7 +1706,7 @@ function Kit.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 		SetValue = function(value: boolean)
 			if value ~= isOn then
 				isOn = value
-				show()
+				show(false)
 			end
 		end,
 	}
@@ -1230,13 +1746,13 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	local gui, root = Kit.ScreenGui(`Thock{props.Name}`, 10, props.Parent, trove)
 	gui.Enabled = false
 	local token = 0
-	local headerColor = props.HeaderColor or theme.Blue
+	local accent = props.HeaderColor or blue
 	local headerHeight = Kit.HeaderHeight
 	local backdrop = Instance.new("TextButton")
 	backdrop.Name = "Backdrop"
 	backdrop.AutoButtonColor = false
-	backdrop.BackgroundColor3 = black
-	backdrop.BackgroundTransparency = 0.55
+	backdrop.BackgroundColor3 = line
+	backdrop.BackgroundTransparency = 0.36
 	backdrop.BorderSizePixel = 0
 	backdrop.Text = ""
 	backdrop.Position = UDim2.fromOffset(0, windowTop - 6)
@@ -1268,46 +1784,123 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	pop.Name = "Pop"
 	pop.Parent = window
 
-	local body = Kit.Panel({
-		Parent = window,
-		Name = "Body",
-		Position = UDim2.fromOffset(0, headerHeight - 3),
-		Size = UDim2.new(1, 0, 1, -(headerHeight - 3)),
-		Color = theme.Slate,
-		Transparency = 0.1,
-		StrokeThickness = 3,
-	})
-	local header = Kit.Panel({
-		Parent = window,
-		Name = "Header",
-		Size = UDim2.new(1, 0, 0, headerHeight),
-		Color = headerColor,
-		Shards = true,
-	})
-	Kit.Icon({
-		Parent = header,
-		Name = "Icon",
-		Emoji = props.Icon,
-		Asset = props.IconAsset,
-		Size = UDim2.fromOffset(76, 76),
-		Position = UDim2.fromOffset(-14, -14),
-	})
-	Kit.Label({
+	local shadow = Instance.new("Frame")
+	shadow.Name = "Shadow"
+	shadow.BackgroundColor3 = line
+	shadow.BorderSizePixel = 0
+	shadow.Position = UDim2.fromOffset(0, 6)
+	shadow.Size = UDim2.fromScale(1, 1)
+	Kit.Corner(shadow, windowRadius)
+	Kit.Stroke(shadow, line, 3)
+	shadow.Parent = window
+
+	local surfaceFrame = Instance.new("Frame")
+	surfaceFrame.Name = "Surface"
+	surfaceFrame.BackgroundColor3 = surface
+	surfaceFrame.BorderSizePixel = 0
+	surfaceFrame.Size = UDim2.fromScale(1, 1)
+	Kit.Corner(surfaceFrame, windowRadius)
+	Kit.Stroke(surfaceFrame, line, 3)
+	surfaceFrame.Parent = window
+
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.BorderSizePixel = 0
+	body.Position = UDim2.fromOffset(0, headerHeight)
+	body.Size = UDim2.new(1, 0, 1, -headerHeight)
+	body.Parent = window
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.BackgroundTransparency = 1
+	content.BorderSizePixel = 0
+	content.Size = UDim2.fromScale(1, 1)
+	local contentPadding = Instance.new("UIPadding")
+	contentPadding.PaddingTop = UDim.new(0, Kit.WindowPadding)
+	contentPadding.PaddingBottom = UDim.new(0, Kit.WindowPadding)
+	contentPadding.PaddingLeft = UDim.new(0, Kit.WindowPadding)
+	contentPadding.PaddingRight = UDim.new(0, Kit.WindowPadding)
+	contentPadding.Parent = content
+	content.Parent = body
+
+	local header = Instance.new("Frame")
+	header.Name = "Header"
+	header.BackgroundColor3 = accent
+	header.BorderSizePixel = 0
+	header.Size = UDim2.new(1, 0, 0, headerHeight)
+	Kit.Corner(header, windowRadius)
+	header.Parent = window
+	local squareHeader = Instance.new("Frame")
+	squareHeader.Name = "Square"
+	squareHeader.BackgroundColor3 = accent
+	squareHeader.BorderSizePixel = 0
+	squareHeader.Position = UDim2.fromOffset(0, headerHeight / 2)
+	squareHeader.Size = UDim2.new(1, 0, 0, headerHeight / 2)
+	squareHeader.Parent = header
+	Kit.Shards(header, windowRadius)
+	local band = Instance.new("Frame")
+	band.Name = "Highlight"
+	band.BackgroundColor3 = white
+	band.BackgroundTransparency = 0.82
+	band.BorderSizePixel = 0
+	band.Position = UDim2.fromOffset(6, 3)
+	band.Size = UDim2.new(1, -12, 0, 8)
+	Kit.Corner(band, 4)
+	band.Parent = header
+	local rule = Instance.new("Frame")
+	rule.Name = "Rule"
+	rule.BackgroundColor3 = line
+	rule.BorderSizePixel = 0
+	rule.Position = UDim2.new(0, 0, 1, -3)
+	rule.Size = UDim2.new(1, 0, 0, 3)
+	rule.Parent = header
+
+	local iconName = props.IconName
+	local emoji = props.Icon or ""
+	if not iconName then
+		if emoji == "🛒" and props.IconAsset ~= nil then
+			iconName = "upgrades"
+		else
+			iconName = legacyIconNames[emoji]
+		end
+	end
+	local iconSize = UDim2.fromOffset(72, 72)
+	local iconPosition = UDim2.fromOffset(-8, -12)
+	local icon: GuiObject
+	if iconName and Kit.HasIcon(iconName) then
+		icon = Kit.Icon(window, iconName, 72)
+		icon.Position = iconPosition
+	else
+		icon = emojiLabel(
+			window,
+			"Icon",
+			if emoji ~= "" then emoji else (fallbackEmoji[iconName or ""] or "•"),
+			iconSize,
+			iconPosition,
+			nil,
+			nil
+		)
+	end
+	icon.Name = "Icon"
+	icon.ZIndex = 3
+	local title = Kit.Label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(70, 0),
-		Size = UDim2.new(0.5, -70, 1, 0),
-		TextSize = 36,
-		Scaled = true,
+		Position = UDim2.fromOffset(77, 0),
+		Size = UDim2.new(0.5, -77, 1, -3),
+		TextSize = 32,
+		Outline = true,
 	})
+	title.ZIndex = 2
 	local headerRight = Instance.new("Frame")
 	headerRight.Name = "HeaderRight"
 	headerRight.BackgroundTransparency = 1
 	headerRight.BorderSizePixel = 0
 	headerRight.AnchorPoint = Vector2.new(1, 0.5)
-	headerRight.Position = UDim2.new(1, -(Kit.TouchSize + 14), 0.5, 0)
-	headerRight.Size = UDim2.new(0.5, -(Kit.TouchSize + 20), 1, -8)
+	headerRight.Position = UDim2.new(1, -(13 + 44 + 8), 0.5, -1)
+	headerRight.Size = UDim2.new(0.5, -(13 + 44 + 16), 1, -8)
+	headerRight.ZIndex = 2
 	local rightList = Instance.new("UIListLayout")
 	rightList.FillDirection = Enum.FillDirection.Horizontal
 	rightList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -1316,13 +1909,15 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	rightList.Padding = UDim.new(0, 8)
 	rightList.Parent = headerRight
 	headerRight.Parent = header
-	Kit.CloseButton(trove, header, props.OnClose, props.Sound)
+	local closeButton = Kit.CloseButton(trove, header, props.OnClose, props.Sound)
+	closeButton.Instance.ZIndex = 3
 
 	return {
 		Gui = gui,
 		Root = root,
 		Panel = window,
 		Body = body,
+		Content = content,
 		HeaderRight = headerRight,
 		Show = function()
 			token += 1

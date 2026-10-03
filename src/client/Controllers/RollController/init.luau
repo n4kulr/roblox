@@ -29,18 +29,23 @@ local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
 local releaseDelay = 0.07
-local cardHeight = 82
+local cardHeight = 64
+local rowY = 42
+local starSize = 28
+local starGap = 8
 local slotMaxWidth = 440
 local slotShare = 0.45
 local slotGap = 36
-local rowGap = 16
-local nameTextSize = 46
-local subTextSize = 24
+local rowGap = 4
+local subTextSize = 13
+local commonNameSize = 22
+local rareNameSize = 28
+local topNameSize = 32
 local pauseSeconds = 1
 local slideSeconds = 0.3
 local fadeSeconds = 0.25
 local fastFadeSeconds = 0.15
-local cardBottomOffset = 124
+local cardBottomOffset = 104
 local goldColor = Color3.fromRGB(255, 210, 64)
 
 local rarityRank: { [string]: number } = {}
@@ -101,6 +106,8 @@ type View = {
 	Name: TextLabel,
 	NameStroke: UIStroke,
 	NameGradient: UIGradient,
+	NamePadding: UIPadding,
+	Star: GuiObject,
 	Row: Frame,
 	Sub: TextLabel,
 	Info: TextLabel,
@@ -152,16 +159,24 @@ local function buildView(parent: Instance, index: number): View
 	local nameLabel = Kit.Label({
 		Parent = group,
 		Name = "KeyName",
-		Size = UDim2.fromOffset(0, 50),
+		Size = UDim2.fromOffset(0, 36),
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0),
-		TextSize = nameTextSize,
+		TextSize = topNameSize,
 		Align = Enum.TextXAlignment.Center,
+		Outline = true,
 	})
+	local namePadding = Instance.new("UIPadding")
+	namePadding.Parent = nameLabel
+	local star = Kit.Glyph(nameLabel, "star", starSize, Color3.new(1, 1, 1))
+	star.Name = "Star"
+	star.AnchorPoint = Vector2.new(0, 0.5)
+	star.Position = UDim2.new(0, -(starSize + starGap), 0.5, 0)
+	star.Visible = false
 	nameLabel.AutomaticSize = Enum.AutomaticSize.X
 	nameLabel.TextTruncate = Enum.TextTruncate.None
 	local nameStroke = nameLabel:FindFirstChild("TextStroke") :: UIStroke
-	nameStroke.Thickness = 3.5
+	nameStroke.Thickness = 3
 	local nameGradient = Instance.new("UIGradient")
 	nameGradient.Color = ColorSequence.new(Color3.fromRGB(255, 240, 150), Color3.fromRGB(255, 150, 20))
 	nameGradient.Rotation = 90
@@ -172,8 +187,8 @@ local function buildView(parent: Instance, index: number): View
 	row.BackgroundTransparency = 1
 	row.BorderSizePixel = 0
 	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.Position = UDim2.new(0.5, 0, 0, 52)
-	row.Size = UDim2.fromOffset(0, 26)
+	row.Position = UDim2.new(0.5, 0, 0, rowY)
+	row.Size = UDim2.fromOffset(0, 18)
 	row.AutomaticSize = Enum.AutomaticSize.X
 	local rowList = Instance.new("UIListLayout")
 	rowList.FillDirection = Enum.FillDirection.Horizontal
@@ -186,21 +201,24 @@ local function buildView(parent: Instance, index: number): View
 	local sub = Kit.Label({
 		Parent = row,
 		Name = "Sub",
-		Size = UDim2.fromOffset(0, 26),
+		Size = UDim2.fromOffset(0, 18),
 		TextSize = subTextSize,
 		Align = Enum.TextXAlignment.Right,
 		LayoutOrder = 1,
+		Outline = true,
+		Body = true,
 	})
 	sub.AutomaticSize = Enum.AutomaticSize.X
 	sub.TextTruncate = Enum.TextTruncate.None
 	local info = Kit.Label({
 		Parent = row,
 		Name = "Info",
-		Size = UDim2.fromOffset(0, 26),
+		Size = UDim2.fromOffset(0, 18),
 		TextSize = subTextSize,
-		Color = Kit.Theme.Good,
 		Align = Enum.TextXAlignment.Left,
 		LayoutOrder = 2,
+		Outline = true,
+		Body = true,
 	})
 	info.AutomaticSize = Enum.AutomaticSize.X
 	info.TextTruncate = Enum.TextTruncate.None
@@ -211,6 +229,8 @@ local function buildView(parent: Instance, index: number): View
 		Name = nameLabel,
 		NameStroke = nameStroke,
 		NameGradient = nameGradient,
+		NamePadding = namePadding,
+		Star = star,
 		Row = row,
 		Sub = sub,
 		Info = info,
@@ -298,7 +318,7 @@ local function applyLayout(view: View, slot: ResultSlots.Slot)
 	view.Name.AnchorPoint = Vector2.new(anchor, 0)
 	view.Name.Position = UDim2.fromScale(anchor, 0)
 	view.Row.AnchorPoint = Vector2.new(anchor, 0)
-	view.Row.Position = UDim2.new(anchor, 0, 0, 52)
+	view.Row.Position = UDim2.new(anchor, 0, 0, rowY)
 	view.Name.TextXAlignment = slotAlign[slot]
 	view.Sub.TextXAlignment = slotAlign[slot]
 	view.Info.TextXAlignment = slotAlign[slot]
@@ -310,10 +330,11 @@ local function fitView(view: View)
 	local virtualWidth = if gui and scale and scale.Scale > 0 then gui.AbsoluteSize.X / scale.Scale else 1280
 	local maxWidth = math.min(slotMaxWidth, slotShare * virtualWidth)
 	local huge = Vector2.new(100000, 100000)
-	local nameWidth = TextService:GetTextSize(view.Name.Text, nameTextSize, Kit.Font, huge).X
-	local rowWidth = TextService:GetTextSize(view.Sub.Text, subTextSize, Kit.Font, huge).X
+	local nameWidth = TextService:GetTextSize(view.Name.Text, view.Name.TextSize, Kit.Font, huge).X
+		+ view.NamePadding.PaddingLeft.Offset
+	local rowWidth = TextService:GetTextSize(view.Sub.Text, subTextSize, Kit.BodyFont, huge).X
 		+ rowGap
-		+ TextService:GetTextSize(view.Info.Text, subTextSize, Kit.Font, huge).X
+		+ TextService:GetTextSize(view.Info.Text, subTextSize, Kit.BodyFont, huge).X
 	local content = math.max(nameWidth, rowWidth, 1)
 	local fit = math.min(1, maxWidth / content)
 	view.Fit = fit
@@ -335,13 +356,26 @@ local function showView(view: View, slot: ResultSlots.Slot, payload: Payload, is
 		end
 	end
 	local key, rarity, isGolden = payload.Key, payload.Rarity, payload.IsGolden
-	view.Name.Text = if isGolden then `⭐ {key.Name}` else key.Name
+	local rank = rarityRank[rarity.Name] or 1
+	local isTop = rank >= legendaryRank
+	view.Name.Text = key.Name
+	view.Name.TextSize = if isTop
+		then topNameSize
+		elseif rank >= rareRank then rareNameSize
+		else commonNameSize
 	view.Name.TextColor3 = rarity.Color
+	local hasStar = isGolden or isTop
+	view.Star.Visible = hasStar
+	view.NamePadding.PaddingLeft = UDim.new(0, if hasStar then starSize + starGap else 0)
+	if view.Star:IsA("ImageLabel") then
+		view.Star.ImageColor3 = if isGolden then goldColor else rarity.Color
+	elseif view.Star:IsA("TextLabel") then
+		view.Star.TextColor3 = if isGolden then goldColor else rarity.Color
+	end
 	view.NameGradient.Enabled = isGolden
 	view.NameStroke.Color = if isGolden then Color3.new(1, 1, 1) else Kit.Theme.TextInk
-	view.Sub.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
-	view.Sub.TextColor3 = rarity.Color
-	view.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
+	view.Sub.Text = string.upper(`{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`)
+	view.Info.Text = `· +{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
 	fitView(view)
 	applyLayout(view, slot)
 	view.Group.GroupTransparency = 0
@@ -382,7 +416,7 @@ local function slideView(view: View)
 		TweenService:Create(
 			view.Row,
 			info,
-			{ AnchorPoint = Vector2.new(anchor, 0), Position = UDim2.new(anchor, 0, 0, 52) }
+			{ AnchorPoint = Vector2.new(anchor, 0), Position = UDim2.new(anchor, 0, 0, rowY) }
 		),
 	}
 	for _, tween in tweens do

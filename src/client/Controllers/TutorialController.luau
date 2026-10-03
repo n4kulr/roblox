@@ -4,7 +4,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.UIController.Kit)
 
@@ -29,20 +28,21 @@ local controllers: { [string]: any } = {}
 local rollKey: BasePart? = nil
 local hint: BillboardGui? = nil
 local hintLabel: TextLabel? = nil
+local hintSub: TextLabel? = nil
 local shownText = ""
 local sinceScan = scanSeconds
 local elapsed = 0
 
-local function hintText(): string?
+local function hintText(): (string?, string?)
 	if step == 0 then
 		if UserInputService.KeyboardEnabled then
-			return "TAP THE KEY! 👆\nor press E"
+			return "TAP THE KEY!", "OR PRESS E"
 		end
-		return "TAP THE KEY! 👆"
+		return "TAP THE KEY!", nil
 	elseif step == 1 then
-		return "ROLL AGAIN! 🎲"
+		return "ROLL AGAIN!", nil
 	end
-	return nil
+	return nil, nil
 end
 
 local function findRollKey(): BasePart?
@@ -72,10 +72,11 @@ end
 local function update(dt: number)
 	local gui = hint
 	local label = hintLabel
-	if not gui or not label then
+	local sub = hintSub
+	if not gui or not label or not sub then
 		return
 	end
-	local text = hintText()
+	local text, subText = hintText()
 	if not text then
 		gui.Enabled = false
 		return
@@ -90,9 +91,12 @@ local function update(dt: number)
 		gui.Enabled = false
 		return
 	end
-	if text ~= shownText then
-		shownText = text
+	local combined = `{text}|{subText or ""}`
+	if combined ~= shownText then
+		shownText = combined
 		label.Text = text
+		sub.Text = subText or ""
+		sub.Visible = subText ~= nil
 	end
 	if gui.Adornee ~= key then
 		gui.Adornee = key
@@ -112,27 +116,40 @@ function TutorialController.Start(self: State)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "ThockRollHint"
 	gui.AlwaysOnTop = true
-	gui.Size = UDim2.fromOffset(260, 90)
+	gui.Size = UDim2.fromOffset(260, 64)
 	gui.StudsOffset = Vector3.new(0, baseHeight, 0)
 	gui.Enabled = false
 	gui.ResetOnSpawn = false
-	local label = Instance.new("TextLabel")
-	label.Name = "Hint"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Keys.RarityByName.Legendary.Color
-	label.Text = ""
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Kit.Theme.TextInk
-	stroke.Thickness = 3.5
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-	stroke.Parent = label
-	label.Parent = gui
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.Padding = UDim.new(0, 4)
+	list.Parent = gui
+	local label = Kit.Label({
+		Parent = gui,
+		Name = "Hint",
+		Size = UDim2.new(1, 0, 0, 28),
+		TextSize = 22,
+		Align = Enum.TextXAlignment.Center,
+		LayoutOrder = 1,
+		Outline = true,
+	})
+	label.TextTruncate = Enum.TextTruncate.None
+	local sub = Kit.Label({
+		Parent = gui,
+		Name = "Sub",
+		Size = UDim2.new(1, 0, 0, 16),
+		TextSize = 13,
+		Align = Enum.TextXAlignment.Center,
+		LayoutOrder = 2,
+		Outline = true,
+		Body = true,
+	})
 	gui.Parent = workspace
 	hint = gui
 	hintLabel = label
+	hintSub = sub
 	trove:Add(gui)
 	trove:Add(controllers.DataController:Observe({ "Tutorial" }, function(value: any)
 		step = if type(value) == "number" then value else noHintStep
@@ -145,6 +162,7 @@ function TutorialController.Destroy(self: State)
 	rollKey = nil
 	hint = nil
 	hintLabel = nil
+	hintSub = nil
 	shownText = ""
 	if self._trove then
 		self._trove:Destroy()

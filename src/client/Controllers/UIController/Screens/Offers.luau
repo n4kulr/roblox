@@ -19,15 +19,11 @@ type BoostPill = {
 }
 
 local theme = Kit.Theme
-local screenMargin = 24
-local menuHalfHeight = 140
-local dailyWidth = 184
-local dailyHeight = 50
-local menuGap = 8
-local stackWidth = 168
+local margin = Kit.Margin
+local columnWidth = 176
 local effectWidth = 72
-local effectHeight = 56
-local multipliersHeight = 64
+local effectHeight = 62
+local statsHeight = 48
 local refreshSeconds = 0.25
 
 local function multiplierLabel(value: number): string
@@ -54,12 +50,13 @@ function Offers.new(context: Types.Context): Types.Screen
 	local dailyButton = Kit.Button(trove, {
 		Parent = root,
 		Name = "DailyRewards",
-		Text = "📅 DAILY REWARDS",
-		Size = UDim2.fromOffset(dailyWidth, dailyHeight),
-		Position = UDim2.new(0, screenMargin, 0.5, -(menuHalfHeight + menuGap)),
-		AnchorPoint = Vector2.new(0, 1),
-		Color = theme.Green,
-		TextSize = 22,
+		Text = "DAILY REWARDS",
+		GlyphName = "daily",
+		Size = UDim2.fromOffset(columnWidth, 52),
+		Position = UDim2.fromOffset(margin, margin),
+		Color = theme.Blue,
+		TextSize = 16,
+		Shards = true,
 		Callback = function()
 			toggleScreen("Daily")
 		end,
@@ -72,23 +69,25 @@ function Offers.new(context: Types.Context): Types.Screen
 	stack.Name = "Offers"
 	stack.BackgroundTransparency = 1
 	stack.AnchorPoint = Vector2.new(1, 0)
-	stack.Position = UDim2.new(1, -screenMargin, 0.2, 0)
+	stack.Position = UDim2.new(1, -margin, 0, margin)
 	stack.AutomaticSize = Enum.AutomaticSize.Y
-	stack.Size = UDim2.fromOffset(stackWidth, 0)
+	stack.Size = UDim2.fromOffset(columnWidth, 0)
 	local stackList = Instance.new("UIListLayout")
 	stackList.SortOrder = Enum.SortOrder.LayoutOrder
 	stackList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	stackList.Padding = UDim.new(0, 8)
+	stackList.Padding = UDim.new(0, 16)
 	stackList.Parent = stack
 	stack.Parent = root
 
 	local giftButton = Kit.Button(trove, {
 		Parent = stack,
 		Name = "StarterPack",
-		Text = "🎁 STARTER PACK",
-		Size = UDim2.fromOffset(stackWidth, 56),
-		Color = theme.Orange,
-		TextSize = 22,
+		Text = "STARTER PACK",
+		GlyphName = "gift",
+		Size = UDim2.fromOffset(columnWidth, 52),
+		Color = theme.Gold,
+		TextSize = 16,
+		Shards = true,
 		LayoutOrder = 1,
 		Callback = function()
 			context.Open("StarterOffer")
@@ -100,25 +99,43 @@ function Offers.new(context: Types.Context): Types.Screen
 		giftButton.Instance.Visible = value ~= true
 	end))
 
-	local marketButton = Kit.Button(trove, {
+	local marketPlate, marketInner = Kit.Plate({
 		Parent = stack,
 		Name = "MarketStock",
-		Text = "🏪 New stock in 0:00",
-		Size = UDim2.fromOffset(stackWidth, 44),
-		Color = Color3.fromRGB(255, 96, 48),
-		TextSize = 20,
+		Class = "TextButton",
+		Size = UDim2.fromOffset(columnWidth, 56),
 		LayoutOrder = 2,
-		Callback = function()
-			context.Toast("Visit the Key Market in the middle of the map!", "Info")
-		end,
-		Sound = playUi,
+		Lip = true,
 	})
+	local marketButton: TextButton = marketPlate :: any
+	local marketIcon = Kit.Icon(marketInner, "market", 40)
+	marketIcon.AnchorPoint = Vector2.new(0, 0.5)
+	marketIcon.Position = UDim2.new(0, 8, 0.5, 0)
+	Kit.Caption({
+		Parent = marketInner,
+		Name = "Caption",
+		Text = "New stock in",
+		Position = UDim2.fromOffset(56, 6),
+		Size = UDim2.new(1, -60, 0, 18),
+	})
+	local marketTime = Kit.Label({
+		Parent = marketInner,
+		Name = "Time",
+		Text = "0:00",
+		Position = UDim2.fromOffset(56, 24),
+		Size = UDim2.new(1, -60, 0, 22),
+		TextSize = 22,
+	})
+	trove:Connect(marketButton.Activated, function()
+		playUi("Click")
+		context.Toast("Visit the Key Market in the middle of the map!", "Info")
+	end)
 
 	local badges = Instance.new("Frame")
 	badges.Name = "BoostBadges"
 	badges.BackgroundTransparency = 1
 	badges.AnchorPoint = Vector2.new(1, 1)
-	badges.Position = UDim2.new(1, -screenMargin, 1, -(screenMargin + multipliersHeight + menuGap))
+	badges.Position = UDim2.new(1, -margin, 1, -(margin + statsHeight + 16))
 	badges.AutomaticSize = Enum.AutomaticSize.X
 	badges.Size = UDim2.fromOffset(0, effectHeight)
 	local badgeList = Instance.new("UIListLayout")
@@ -126,11 +143,11 @@ function Offers.new(context: Types.Context): Types.Screen
 	badgeList.FillDirection = Enum.FillDirection.Horizontal
 	badgeList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	badgeList.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	badgeList.Padding = UDim.new(0, menuGap)
+	badgeList.Padding = UDim.new(0, 16)
 	badgeList.Parent = badges
 	badges.Parent = root
 
-	local function boostPill(name: string, emoji: string, order: number): BoostPill
+	local function boostPill(name: string, iconName: string, order: number): BoostPill
 		local frame = Instance.new("Frame")
 		frame.Name = name
 		frame.BackgroundTransparency = 1
@@ -139,36 +156,32 @@ function Offers.new(context: Types.Context): Types.Screen
 		frame.LayoutOrder = order
 		frame.Visible = false
 		frame.Parent = badges
-		Kit.Icon({
-			Parent = frame,
-			Name = "Icon",
-			Emoji = emoji,
-			Size = UDim2.fromOffset(32, 32),
-			Position = UDim2.fromOffset(0, 0),
-		})
+		Kit.Icon(frame, iconName, 40).Position = UDim2.fromOffset(2, 0)
 		local multiplierText = Kit.Label({
 			Parent = frame,
 			Name = "Multiplier",
 			Text = "",
-			Size = UDim2.fromOffset(effectWidth - 36, 32),
-			Position = UDim2.fromOffset(36, 0),
-			TextSize = 24,
+			Size = UDim2.fromOffset(effectWidth - 46, 40),
+			Position = UDim2.fromOffset(46, 0),
+			TextSize = 22,
+			Outline = true,
 		})
 		local timer = Kit.Label({
 			Parent = frame,
 			Name = "Timer",
 			Text = "",
-			Size = UDim2.fromOffset(effectWidth, 20),
-			Position = UDim2.fromOffset(0, 36),
-			TextSize = 16,
-			Color = theme.TextDim,
+			Size = UDim2.fromOffset(effectWidth, 18),
+			Position = UDim2.fromOffset(0, 42),
+			TextSize = 13,
 			Align = Enum.TextXAlignment.Center,
+			Outline = true,
+			Body = true,
 		})
 		return { Frame = frame, Multiplier = multiplierText, Timer = timer }
 	end
-	local luckPill = boostPill("LuckPotion", "🍀", 1)
-	local clicksPill = boostPill("ClicksPotion", "💰", 2)
-	local serverPill = boostPill("ServerLuck", "🌟", 3)
+	local luckPill = boostPill("LuckPotion", "luck", 1)
+	local clicksPill = boostPill("ClicksPotion", "clicks", 2)
+	local serverPill = boostPill("ServerLuck", "star", 3)
 
 	local function showPill(pill: BoostPill, multiplier: number, secondsLeft: number)
 		local isActive = secondsLeft > 0
@@ -190,7 +203,7 @@ function Offers.new(context: Types.Context): Types.Screen
 		)
 		local serverUntil = boostState.ServerLuck()
 		showPill(serverPill, GameConfig.Boosts.ServerLuckMultiplier, Boosts.Remaining(serverUntil, now))
-		marketButton.SetText(`🏪 New stock in {TimeFormat.Clock(Market.SecondsLeft(now))}`)
+		marketTime.Text = TimeFormat.Clock(Market.SecondsLeft(now))
 		local dailyData = dataController:Get({ "Daily" })
 		dailyBadge.Visible = type(dailyData) == "table" and Daily.Status(dailyData, now).CanClaim
 	end
@@ -203,8 +216,8 @@ function Offers.new(context: Types.Context): Types.Screen
 		if serverUntil > previous and serverUntil > workspace:GetServerTimeNow() then
 			local name = if by ~= "" then by else "Someone"
 			context.Toast(
-				`🌟 {name} activated Server Luck! {multiplierLabel(GameConfig.Boosts.ServerLuckMultiplier)}x Luck for everyone!`,
-				"Good"
+				`{name} activated Server Luck! {multiplierLabel(GameConfig.Boosts.ServerLuckMultiplier)}x Luck for everyone!`,
+				"Gold"
 			)
 			refresh()
 		end
