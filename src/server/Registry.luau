@@ -8,6 +8,7 @@ local services: { Lifecycle.System } = {
 	require(script.Parent.Services.KeyboardService),
 	require(script.Parent.Services.PlotService),
 	require(script.Parent.Services.StealService),
+	require(script.Parent.Services.KeyfallService),
 	require(script.Parent.Services.PassService),
 	require(script.Parent.Services.UpgradeService),
 	require(script.Parent.Services.SettingsService),

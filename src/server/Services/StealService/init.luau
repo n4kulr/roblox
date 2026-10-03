@@ -104,6 +104,11 @@ local function clearPrompts(owner: Player)
 	prompts[owner] = nil
 end
 
+local function isCarryingKeyfall(player: Player): boolean
+	local keyfall = services.KeyfallService
+	return keyfall ~= nil and keyfall:IsCarrying(player) == true
+end
+
 local function checkSteal(
 	thief: Player,
 	owner: Player,
@@ -120,7 +125,7 @@ local function checkSteal(
 		VictimUserId = owner.UserId,
 		HasThiefData = thiefData ~= nil,
 		HasVictimData = victimData ~= nil,
-		ThiefCarrying = carriers[thief] ~= nil,
+		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief),
 		VictimPlaySeconds = if victimData then victimData.PlaySeconds + pendingPlaySeconds(owner) else 0,
 		VictimLockedUntil = lockedAt or 0,
 		Now = os.time(),

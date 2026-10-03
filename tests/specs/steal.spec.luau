@@ -213,6 +213,22 @@ describe("StealService", function()
 			expect(alertsTo(victim, 9)[1][1]):toBe(Steal.Reasons.Self)
 		end)
 
+		it("cannot steal while carrying keyfall caps", function()
+			local victim, data, thief = setup()
+			local carrying = true
+			world.registry.KeyfallService = {
+				IsCarrying = function(_self: any, player: any)
+					return carrying and player == thief
+				end,
+			}
+			attempt(thief, victim, 1)
+			expect(data.Board[1]):toBe("GlassTink")
+			expect(alertsTo(thief, 9)[1][1]):toBe("You're already carrying a key!")
+			carrying = false
+			attempt(thief, victim, 1)
+			expect(data.Board[1]):toBe("")
+		end)
+
 		it("cannot steal while already carrying", function()
 			local victim, data, thief = setup()
 			attempt(thief, victim, 1)
