@@ -1,5 +1,5 @@
-/Packages/
-/ServerPackages/
+/Packages
+/ServerPackages
 /DevPackages/
 /build/
 /sourcemap.json
