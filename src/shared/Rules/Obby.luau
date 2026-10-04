@@ -3,59 +3,78 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 
-export type Platform = {
-	Stage: number,
-	Index: number,
-	Shape: string,
-	X: number,
-	D0: number,
-	D1: number,
-	Width: number,
-}
-
 export type Area = {
-	Index: number,
 	Kind: string,
 	D0: number,
 	D1: number,
+	Title: string?,
+	Subtitle: string?,
+	SpeedNeeded: number?,
+	HasHome: boolean,
 }
 
-export type Span = {
+export type TapKey = {
 	Index: number,
-	D0: number,
-	D1: number,
+	Letter: string,
+	Row: number,
+	Column: number,
+	X: number,
+	D: number,
+	Size: number,
+	Missing: boolean,
+	Popup: boolean,
+	PopupPhase: number,
+	Section: number,
 }
 
 export type Spawn = {
-	Stage: number,
-	Platform: number,
+	Section: number,
 	X: number,
 	D: number,
 }
 
 export type Layout = {
 	Areas: { Area },
-	Stages: { Span },
-	Platforms: { Platform },
+	Keys: { TapKey },
 	Spawns: { Spawn },
 	Length: number,
 	Width: number,
 	Top: number,
 	LavaTop: number,
+	HazardD0: number,
+	HazardD1: number,
 }
 
 local config = GameConfig.Obby
 
+local rows = table.freeze({
+	table.freeze({ Letters = "QWERTYUIOP", Stagger = 0 }),
+	table.freeze({ Letters = "ASDFGHJKL", Stagger = 0.5 }),
+	table.freeze({ Letters = "ZXCVBNM", Stagger = 1 }),
+	table.freeze({ Letters = " ", Stagger = 0 }),
+})
+
+local missingPattern = table.freeze({
+	[2] = table.freeze({ [3] = true, [7] = true }),
+	[3] = table.freeze({ [2] = true, [5] = true, [8] = true }),
+	[4] = table.freeze({ [4] = true, [6] = true }),
+})
+
+local popupPattern = table.freeze({
+	[2] = table.freeze({ [5] = true }),
+	[3] = table.freeze({ [4] = true }),
+	[4] = table.freeze({ [3] = true, [7] = true }),
+})
+
 local Obby = {}
 
-function Obby.SpeedFor(rolls: number): number
-	local count = if rolls == rolls then math.max(0, rolls) else 0
-	local raw = config.BaseSpeed + config.SpeedPerDecade * math.log10(count + 1)
-	return math.min(config.MaxSpeed, math.floor(raw))
+function Obby.SpeedFor(taps: number): number
+	local count = if taps == taps then math.max(0, taps) else 0
+	return math.min(config.MaxSpeed, config.BaseSpeed + count * config.SpeedPerTap)
 end
 
-function Obby.RarityFor(stage: number, roll: number): string
-	local entry = config.Stages[stage]
+function Obby.RarityFor(section: number, roll: number): string
+	local entry = config.Sections[section]
 	if not entry then
 		return "Rare"
 	end
@@ -94,70 +113,134 @@ function Obby.Entrance(marketPosition: Vector3?): CFrame
 	return CFrame.new(position) * CFrame.Angles(0, math.atan2(-direction.X, -direction.Z), 0)
 end
 
-function Obby.Gap(a: Platform, b: Platform): number
-	local sideways = math.max(0, math.abs(a.X - b.X) - (a.Width + b.Width) / 2)
-	local forward = math.max(0, b.D0 - a.D1)
-	return math.sqrt(sideways * sideways + forward * forward)
+local function pitch(rowCount: number): number
+	return rowCount * config.KeySize + math.max(0, rowCount - 1) * config.RowGap
+end
+
+local function addRowKeys(
+	keys: { TapKey },
+	startD: number,
+	rowOffset: number,
+	rowCount: number,
+	section: number,
+	hazard: boolean
+)
+	local step = config.KeySize + config.KeyGap
+	local index = #keys
+	for rowIndex = 1, rowCount do
+		local template = rows[(rowOffset + rowIndex - 1) % #rows + 1]
+		local letters = template.Letters
+		local count = #letters
+		local width = count * config.KeySize + (count - 1) * config.KeyGap
+		local left = -width / 2 + config.KeySize / 2 + template.Stagger * (config.KeySize * 0.5)
+		local d = startD + (rowIndex - 0.5) * (config.KeySize + config.RowGap)
+		for column = 1, count do
+			local letter = string.sub(letters, column, column)
+			local missing = false
+			local popup = false
+			if hazard then
+				local missRow = missingPattern[rowIndex]
+				local popRow = popupPattern[rowIndex]
+				missing = missRow ~= nil and missRow[column] == true
+				popup = not missing and popRow ~= nil and popRow[column] == true
+			end
+			local size = if letter == " " then config.KeySize * 5 else config.KeySize
+			local x = if letter == " " then 0 else left + (column - 1) * step
+			index += 1
+			table.insert(keys, {
+				Index = index,
+				Letter = letter,
+				Row = rowIndex,
+				Column = column,
+				X = x,
+				D = d,
+				Size = size,
+				Missing = missing,
+				Popup = popup,
+				PopupPhase = (rowIndex + column) * 0.35,
+				Section = section,
+			})
+		end
+	end
 end
 
 function Obby.Layout(): Layout
 	local areas: { Area } = {}
-	local spans: { Span } = {}
-	local platforms: { Platform } = {}
+	local keys: { TapKey } = {}
 	local spawns: { Spawn } = {}
-	local distance = config.RampLength
-	table.insert(areas, { Index = 0, Kind = "Start", D0 = distance, D1 = distance + config.SafeLength })
+	local distance = 0
+
+	table.insert(areas, {
+		Kind = "Start",
+		D0 = distance,
+		D1 = distance + config.StartLength,
+		Title = "KEYBOARD ESCAPE",
+		Subtitle = "LEVEL 1",
+		SpeedNeeded = nil,
+		HasHome = false,
+	})
+	distance += config.StartLength
+
+	local flatD0 = distance
+	local flatLength = pitch(config.FlatRows)
+	addRowKeys(keys, flatD0, 0, config.FlatRows, 1, false)
+	distance = flatD0 + flatLength
+	table.insert(spawns, { Section = 1, X = 0, D = flatD0 + flatLength * 0.55 })
+
+	table.insert(areas, {
+		Kind = "Safe",
+		D0 = distance,
+		D1 = distance + config.SafeLength,
+		Title = "SAFE ZONE",
+		Subtitle = "HOME PAD",
+		SpeedNeeded = nil,
+		HasHome = true,
+	})
 	distance += config.SafeLength
-	local stageCount = #config.Stages
-	for stageIndex, stage in config.Stages do
-		local spanStart = distance
-		distance += stage.Gap
-		for index = 1, stage.Count do
-			local shape = stage.Shapes[(index - 1) % #stage.Shapes + 1]
-			local isBeam = shape == "Beam"
-			local length = if isBeam then stage.BeamLength else stage.Size
-			local width = if isBeam then stage.BeamWidth else stage.Size
-			local side = if index % 2 == 1 then -1 else 1
-			table.insert(platforms, {
-				Stage = stageIndex,
-				Index = index,
-				Shape = shape,
-				X = side * stage.Stagger,
-				D0 = distance,
-				D1 = distance + length,
-				Width = width,
-			})
-			distance += length + stage.Gap
-		end
-		table.insert(spans, { Index = stageIndex, D0 = spanStart, D1 = distance })
-		table.insert(areas, {
-			Index = stageIndex,
-			Kind = if stageIndex < stageCount then "Safe" else "Finish",
-			D0 = distance,
-			D1 = distance + config.SafeLength,
-		})
-		distance += config.SafeLength
-	end
-	for _, platform in platforms do
-		local stage = config.Stages[platform.Stage]
-		if table.find(stage.Spawns, platform.Index) then
-			table.insert(spawns, {
-				Stage = platform.Stage,
-				Platform = platform.Index,
-				X = platform.X,
-				D = (platform.D0 + platform.D1) / 2,
-			})
-		end
-	end
+
+	local hazardD0 = distance
+	local hazardLength = pitch(config.HazardRows)
+	addRowKeys(keys, hazardD0, 1, config.HazardRows, 2, true)
+	distance = hazardD0 + hazardLength
+	table.insert(spawns, { Section = 2, X = -config.KeySize * 1.5, D = hazardD0 + hazardLength * 0.45 })
+
+	table.insert(areas, {
+		Kind = "Gate",
+		D0 = distance,
+		D1 = distance + config.GateLength,
+		Title = `NEED {config.GateSpeed} SPEED`,
+		Subtitle = "KEEP TAPPING",
+		SpeedNeeded = config.GateSpeed,
+		HasHome = false,
+	})
+	distance += config.GateLength
+
+	table.insert(areas, {
+		Kind = "Finish",
+		D0 = distance,
+		D1 = distance + config.FinishLength,
+		Title = "LEVEL 1 COMPLETE",
+		Subtitle = "LEVEL 2 COMING",
+		SpeedNeeded = nil,
+		HasHome = true,
+	})
+	table.insert(spawns, {
+		Section = 3,
+		X = config.KeySize,
+		D = distance + config.FinishLength * 0.45,
+	})
+	distance += config.FinishLength
+
 	return {
 		Areas = areas,
-		Stages = spans,
-		Platforms = platforms,
+		Keys = keys,
 		Spawns = spawns,
 		Length = distance,
 		Width = config.CourseWidth,
-		Top = config.LavaTop + config.Rise,
+		Top = config.KeyTop,
 		LavaTop = config.LavaTop,
+		HazardD0 = hazardD0,
+		HazardD1 = hazardD0 + hazardLength,
 	}
 end
 

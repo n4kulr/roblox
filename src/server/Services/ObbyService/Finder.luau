@@ -26,11 +26,19 @@ function Finder.MarketPosition(): Vector3?
 	return nil
 end
 
+local function numberAttribute(part: BasePart, name: string, fallback: number): number
+	local value = part:GetAttribute(name)
+	return if type(value) == "number" then value else fallback
+end
+
 function Finder.Collect(model: Model): Types.Info?
 	local zone: BasePart? = nil
 	local kills: { BasePart } = {}
 	local checkpoints: { BasePart } = {}
 	local returns: { BasePart } = {}
+	local taps: { Types.TapPart } = {}
+	local popups: { Types.PopupPart } = {}
+	local gates: { Types.GatePart } = {}
 	local spawns: { Types.SpawnPoint } = {}
 	for _, descendant in model:GetDescendants() do
 		local role = descendant:GetAttribute(Finder.RoleAttribute)
@@ -43,12 +51,42 @@ function Finder.Collect(model: Model): Types.Info?
 				table.insert(checkpoints, descendant)
 			elseif role == "Return" then
 				table.insert(returns, descendant)
+			elseif role == "Tap" or role == "Popup" then
+				local letter = descendant:GetAttribute("Letter")
+				table.insert(taps, {
+					Part = descendant,
+					Rest = descendant.CFrame,
+					Letter = if type(letter) == "string" then letter else "",
+				})
+				if role == "Popup" then
+					local upSeconds = numberAttribute(descendant, "PopupUp", 2.2)
+					local downSeconds = numberAttribute(descendant, "PopupDown", 1.6)
+					local phase = numberAttribute(descendant, "PopupPhase", 0)
+					local depth = numberAttribute(descendant, "PopupDepth", 6)
+					table.insert(popups, {
+						Part = descendant,
+						Up = descendant.CFrame,
+						Down = descendant.CFrame * CFrame.new(0, -depth, 0),
+						UpSeconds = upSeconds,
+						DownSeconds = downSeconds,
+						Phase = phase,
+						IsUp = true,
+					})
+				end
+			elseif role == "Gate" then
+				table.insert(gates, {
+					Part = descendant,
+					SpeedNeeded = numberAttribute(descendant, "SpeedNeeded", 40),
+					PushD = numberAttribute(descendant, "PushD", 0),
+				})
 			elseif role == "KeySpawn" then
+				local section = descendant:GetAttribute("Section")
 				local stage = descendant:GetAttribute("Stage")
-				table.insert(
-					spawns,
-					{ Part = descendant, Stage = if type(stage) == "number" then stage else 1 }
-				)
+				local value = if type(section) == "number"
+					then section
+					elseif type(stage) == "number" then stage
+					else 1
+				table.insert(spawns, { Part = descendant, Section = value })
 			end
 		end
 	end
@@ -61,6 +99,9 @@ function Finder.Collect(model: Model): Types.Info?
 		Kills = kills,
 		Checkpoints = checkpoints,
 		Returns = returns,
+		Taps = taps,
+		Popups = popups,
+		Gates = gates,
 		Spawns = spawns,
 	}
 end
