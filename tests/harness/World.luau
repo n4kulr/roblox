@@ -9,6 +9,16 @@ local Tree = require("./Tree")
 local World = {}
 World.__index = World
 
+local guiClasses: { [string]: boolean } = {
+	ScreenGui = true,
+	Frame = true,
+	TextButton = true,
+	TextLabel = true,
+	ImageLabel = true,
+	ScrollingFrame = true,
+	UIScale = true,
+}
+
 local bytecodeCache: { [string]: string } = {}
 local sharedTree: any = nil
 
@@ -365,8 +375,15 @@ local function makeFakeServices(world)
 	services.ServerStorage = Tree.node("ServerStorage", "ServerStorage")
 	services.TweenService = {
 		Create = function()
-			return { Play = function() end, Cancel = function() end }
+			return { Play = function() end, Pause = function() end, Cancel = function() end, Destroy = function() end }
 		end,
+	}
+	services.UserInputService = {
+		InputEnded = world:require("ReplicatedStorage.Packages.Signal").new(),
+		GetLastInputType = function()
+			return roblox.Enum.UserInputType.MouseMovement
+		end,
+		TouchEnabled = false,
 	}
 	return services
 end
@@ -622,6 +639,11 @@ function World._environment(self, node: any)
 			end,
 		},
 	}
+	env.TweenInfo = {
+		new = function(...)
+			return table.pack(...)
+		end,
+	}
 	env.unpack = table.unpack
 	env.assert = assert
 	env.error = error
@@ -747,6 +769,27 @@ function World.newInstance(self, className: string)
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
 	if className == "Part" or className == "MeshPart" then
 		node.Transparency = 0
+	end
+	if guiClasses[className] then
+		node.AbsoluteSize = roblox.Vector2.new(1280, 720)
+		node.Rotation = 0
+		node.Visible = true
+		node.GetPropertyChangedSignal = function()
+			return Signal.new()
+		end
+		if className == "TextButton" or className == "TextLabel" then
+			node.Text = ""
+		end
+		if className == "TextButton" then
+			node.MouseButton1Down = Signal.new()
+			node.MouseButton1Up = Signal.new()
+			node.MouseEnter = Signal.new()
+			node.MouseLeave = Signal.new()
+			node.Activated = Signal.new()
+		end
+		if className == "UIScale" then
+			node.Scale = 1
+		end
 	end
 	if className == "ProximityPrompt" then
 		node.Triggered = Signal.new()

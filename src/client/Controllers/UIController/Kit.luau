@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Glyphs = require(script.Parent.Glyphs)
 
 type TroveInstance = typeof(Trove.new())
 type SoundPlayer = (name: string) -> ()
@@ -47,7 +48,9 @@ export type LabelProps = {
 export type IconProps = {
 	Parent: Instance,
 	Name: string?,
-	Emoji: string,
+	Emoji: string?,
+	Glyph: string?,
+	Color: Color3?,
 	Asset: string?,
 	Size: UDim2?,
 	Position: UDim2?,
@@ -60,6 +63,7 @@ export type ButtonProps = {
 	Name: string?,
 	Text: string?,
 	Icon: string?,
+	Glyph: string?,
 	IconAsset: string?,
 	IconLeft: boolean?,
 	Size: UDim2?,
@@ -361,7 +365,13 @@ function Kit.Paint(frame: GuiObject, color: Color3)
 		gradient.Rotation = 90
 		gradient.Parent = frame
 	end
-	gradient.Color = ColorSequence.new(Kit.Shade(color, 0.26), Kit.Shade(color, -0.1))
+	local skirt = Kit.Shade(color, -0.16)
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, color),
+		ColorSequenceKeypoint.new(0.8, color),
+		ColorSequenceKeypoint.new(0.801, skirt),
+		ColorSequenceKeypoint.new(1, skirt),
+	})
 end
 
 function Kit.Shards(parent: GuiObject, radius: number)
@@ -527,10 +537,22 @@ function Kit.Icon(props: IconProps): GuiObject
 		image.Parent = props.Parent
 		return image
 	end
+	local glyph = props.Glyph
+	if glyph and Glyphs.Has(glyph) then
+		return Glyphs.Build(glyph, {
+			Parent = props.Parent,
+			Name = props.Name or "Icon",
+			Size = props.Size or UDim2.fromOffset(48, 48),
+			Position = props.Position,
+			AnchorPoint = props.AnchorPoint,
+			LayoutOrder = props.LayoutOrder,
+			Color = props.Color,
+		})
+	end
 	return Kit.Label({
 		Parent = props.Parent,
 		Name = props.Name or "Icon",
-		Text = props.Emoji,
+		Text = props.Emoji or "",
 		Size = props.Size or UDim2.fromOffset(48, 48),
 		Position = props.Position,
 		AnchorPoint = props.AnchorPoint,
@@ -784,23 +806,32 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 		Size = UDim2.fromScale(1, 1),
 		Color = baseColor,
 		Radius = props.Radius,
-		Shards = true,
+		StrokeThickness = 2.5,
+		Bevel = false,
 	})
 	local faceStroke = Kit.StrokeOf(face)
 
-	local hasIcon = props.Icon ~= nil or props.IconAsset ~= nil
+	local hasIcon = props.Icon ~= nil or props.IconAsset ~= nil or props.Glyph ~= nil
 	local isLeft = props.IconLeft == true
+	local isIconOnly = hasIcon and (props.Text == nil or props.Text == "")
 	if hasIcon then
 		local icon = Kit.Icon({
 			Parent = face,
 			Name = "Icon",
-			Emoji = props.Icon or "",
+			Emoji = props.Icon,
+			Glyph = props.Glyph,
 			Asset = props.IconAsset,
-			Size = if isLeft then UDim2.fromScale(0, 0.78) else UDim2.fromScale(1, 0.56),
-			Position = if isLeft then UDim2.new(0, 8, 0.5, 0) else UDim2.fromScale(0, 0.06),
-			AnchorPoint = if isLeft then Vector2.new(0, 0.5) else Vector2.zero,
+			Size = if isIconOnly
+				then UDim2.fromScale(0.7, 0.7)
+				elseif isLeft then UDim2.fromScale(0, 0.78)
+				else UDim2.fromScale(1, 0.56),
+			Position = if isIconOnly
+				then UDim2.fromScale(0.15, 0.15)
+				elseif isLeft then UDim2.new(0, 8, 0.5, 0)
+				else UDim2.fromScale(0, 0.06),
+			AnchorPoint = if isLeft and not isIconOnly then Vector2.new(0, 0.5) else Vector2.zero,
 		})
-		if isLeft then
+		if isLeft and not isIconOnly then
 			local ratio = Instance.new("UIAspectRatioConstraint")
 			ratio.AspectRatio = 1
 			ratio.DominantAxis = Enum.DominantAxis.Height
@@ -842,7 +873,7 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 			return
 		end
 		faceStroke.Color = if isSelected then white else theme.Ink
-		faceStroke.Thickness = if isSelected then 4 else 3
+		faceStroke.Thickness = if isSelected then 4 else 2.5
 	end
 
 	local function settle()
@@ -944,7 +975,7 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 			if isOn then
 				faceStroke.Color = Color3.fromRGB(255, 240, 150)
 				local loop = TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-				glowTween = TweenService:Create(faceStroke, loop, { Thickness = 6 })
+				glowTween = TweenService:Create(faceStroke, loop, { Thickness = 4.5 })
 				if glowTween then
 					glowTween:Play()
 				end
