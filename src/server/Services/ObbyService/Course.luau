@@ -6,32 +6,32 @@ local Obby = require(ReplicatedStorage.Rules.Obby)
 
 local config = GameConfig.Obby
 
+local keyColor = Color3.fromRGB(40, 42, 52)
+local legendColor = Color3.fromRGB(226, 230, 238)
+local deckColor = Color3.fromRGB(24, 25, 31)
+local padColor = Color3.fromRGB(58, 61, 74)
 local lavaColor = Color3.fromRGB(96, 22, 30)
-local plinthColor = Color3.fromRGB(240, 228, 196)
-local railColor = Color3.fromRGB(35, 36, 42)
-local postColor = Color3.fromRGB(140, 96, 64)
-local finishColor = Color3.fromRGB(255, 214, 51)
-local signColor = Color3.fromRGB(70, 74, 86)
-local capTopHeight = 0.7
+local railColor = Color3.fromRGB(32, 33, 40)
+local signColor = Color3.fromRGB(46, 49, 60)
+local gateColor = Color3.fromRGB(226, 72, 84)
+local accentColors = {
+	Color3.fromRGB(222, 98, 74),
+	Color3.fromRGB(79, 158, 214),
+	Color3.fromRGB(232, 180, 60),
+	Color3.fromRGB(120, 196, 128),
+}
+local popUpColor = Color3.fromRGB(190, 92, 160)
+local pedestalColor = Color3.fromRGB(255, 214, 51)
+local homeColor = Color3.fromRGB(79, 158, 214)
+local deckTop = 0.1
 local railHeight = 7
 local barrierHeight = 60
 local lavaDepth = 2
+local bannerHeight = 12
 
 local Course = {}
 
 Course.ModelName = "Obby"
-
-local function lighten(color: Color3, amount: number): Color3
-	return Color3.new(
-		color.R + (1 - color.R) * amount,
-		color.G + (1 - color.G) * amount,
-		color.B + (1 - color.B) * amount
-	)
-end
-
-local function darken(color: Color3, amount: number): Color3
-	return Color3.new(color.R * (1 - amount), color.G * (1 - amount), color.B * (1 - amount))
-end
 
 local function newPart(
 	parent: Instance,
@@ -64,154 +64,147 @@ local function hide(part: Part, collide: boolean)
 	part.CanQuery = false
 end
 
-local function addLabel(gui: SurfaceGui, name: string, text: string, y: number, height: number)
+local function addLabel(
+	gui: SurfaceGui,
+	name: string,
+	text: string,
+	y: number,
+	height: number,
+	color: Color3,
+	stroked: boolean
+)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
 	label.Position = UDim2.fromScale(0, y)
 	label.Size = UDim2.fromScale(1, height)
-	label.FontFace = Font.fromEnum(Enum.Font.FredokaOne)
+	label.FontFace = Font.fromEnum(Enum.Font.GothamBold)
 	label.Text = text
-	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextColor3 = color
 	label.TextScaled = true
 	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(20, 20, 25)
-	stroke.Thickness = 2
-	stroke.Parent = label
-end
-
-local function addSign(part: Part, face: Enum.NormalId, title: string, subtitle: string?)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "SignGui"
-	gui.Face = face
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	gui.Parent = part
-	if subtitle then
-		addLabel(gui, "Title", title, 0.05, 0.55)
-		addLabel(gui, "Subtitle", subtitle, 0.62, 0.33)
-	else
-		addLabel(gui, "Title", title, 0.1, 0.8)
+	if stroked then
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(20, 20, 25)
+		stroke.Thickness = 2
+		stroke.Parent = label
 	end
 end
 
-local function buildArea(model: Model, origin: CFrame, layout: Obby.Layout, area: Obby.Area)
-	local width = layout.Width
-	local top = layout.Top
-	local length = area.D1 - area.D0
-	local middle = (area.D0 + area.D1) / 2
-	local isFinish = area.Kind == "Finish"
-	local nextStage = config.Stages[area.Index + 1]
-	local accent = if isFinish then finishColor elseif nextStage then nextStage.Color else plinthColor
-	local bottom = layout.LavaTop - lavaDepth
-	local thickness = top - bottom
-	local role = if isFinish then "Finish" else "Checkpoint"
-	local name = if area.Kind == "Start" then "Start" elseif isFinish then "Finish" else `Safe{area.Index}`
-	local plinth = newPart(
+local function addSign(part: Part, faces: { Enum.NormalId }, title: string, subtitle: string?)
+	for _, face in faces do
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "SignGui"
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		gui.Parent = part
+		if subtitle then
+			addLabel(gui, "Title", title, 0.05, 0.55, Color3.new(1, 1, 1), true)
+			addLabel(gui, "Subtitle", subtitle, 0.62, 0.33, Color3.new(1, 1, 1), true)
+		else
+			addLabel(gui, "Title", title, 0.1, 0.8, Color3.new(1, 1, 1), true)
+		end
+	end
+end
+
+local function addLegend(part: Part, text: string)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Legend"
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 24
+	gui.Parent = part
+	addLabel(gui, "Letter", text, 0.18, 0.64, legendColor, false)
+end
+
+local function buildKey(model: Model, origin: CFrame, layout: Obby.Layout, cell: Obby.Cell)
+	local height = config.Key.Height
+	local isPopUp = cell.Kind == "PopUp"
+	local rise = config.PopUp.RiseHeight
+	local fullHeight = if isPopUp then height + rise else height
+	local color = if isPopUp
+		then popUpColor
+		elseif cell.Kind == "Modifier" then accentColors[(cell.Row - 1) % #accentColors + 1]
+		else keyColor
+	local name = if isPopUp then `PopUp_{cell.Letter}` else `Key_{cell.Section}_{cell.Row}_{cell.Col}`
+	local part = newPart(
 		model,
 		name,
-		Vector3.new(width, thickness, length),
-		origin * CFrame.new(0, bottom + thickness / 2, -middle),
-		plinthColor,
+		Vector3.new(cell.Width, fullHeight, cell.Length),
+		origin * CFrame.new(cell.X, height - fullHeight / 2, -cell.D),
+		color,
+		if isPopUp then "PopUpKey" else "TapKey"
+	)
+	part:SetAttribute("Letter", cell.Letter)
+	if isPopUp then
+		part:SetAttribute("RiseHeight", rise)
+		part:SetAttribute("UpSeconds", config.PopUp.UpSeconds)
+		part:SetAttribute("PeriodSeconds", config.PopUp.PeriodSeconds)
+		part:SetAttribute("PhaseSeconds", cell.Phase)
+	end
+	addLegend(part, cell.Letter)
+end
+
+local function buildPad(
+	model: Model,
+	origin: CFrame,
+	layout: Obby.Layout,
+	name: string,
+	d0: number,
+	d1: number,
+	role: string?
+): Part
+	local thickness = layout.Top + 1
+	return newPart(
+		model,
+		name,
+		Vector3.new(layout.Width, thickness, d1 - d0),
+		origin * CFrame.new(0, layout.Top - thickness / 2, -(d0 + d1) / 2),
+		padColor,
 		role
 	)
-	plinth:SetAttribute("Safe", area.Index)
-	local mat = newPart(
+end
+
+local function buildHome(model: Model, origin: CFrame, layout: Obby.Layout, name: string, d: number)
+	local pad = newPart(
 		model,
-		`{name}Mat`,
-		Vector3.new(width - 6, 0.2, length - 4),
-		origin * CFrame.new(0, top - 0.05, -middle),
-		accent
+		name,
+		Vector3.new(8, 0.3, 8),
+		origin * CFrame.new(layout.Width / 2 - 8, layout.Top + 0.15, -d),
+		homeColor,
+		"Home"
 	)
-	mat.CanCollide = false
+	pad.CanCollide = false
+	addSign(pad, { Enum.NormalId.Top }, "HOME", nil)
+end
+
+local function buildBanner(
+	model: Model,
+	origin: CFrame,
+	layout: Obby.Layout,
+	name: string,
+	d: number,
+	title: string,
+	subtitle: string?
+)
+	local banner = newPart(
+		model,
+		name,
+		Vector3.new(layout.Width - 3, 5, 0.6),
+		origin * CFrame.new(0, layout.Top + bannerHeight, -d),
+		signColor
+	)
+	addSign(banner, { Enum.NormalId.Back }, title, subtitle)
 	for side, x in { -1, 1 } do
 		newPart(
 			model,
 			`{name}Post{side}`,
-			Vector3.new(1, 9, 1),
-			origin * CFrame.new(x * (width / 2 - 0.5), top + 4.5, -middle),
-			postColor
+			Vector3.new(1, bannerHeight + 2.5, 1),
+			origin * CFrame.new(x * (layout.Width / 2 - 0.5), layout.Top + (bannerHeight + 2.5) / 2 - 2.5, -d),
+			railColor
 		)
 	end
-	local banner = newPart(
-		model,
-		`{name}Sign`,
-		Vector3.new(width - 3, 3, 0.6),
-		origin * CFrame.new(0, top + 8.2, -middle),
-		signColor
-	)
-	if area.Kind == "Start" then
-		addSign(banner, Enum.NormalId.Back, "TAP OBBY", "STAGE 1 AHEAD")
-	elseif isFinish then
-		addSign(banner, Enum.NormalId.Back, "FINISH", nil)
-	else
-		addSign(banner, Enum.NormalId.Back, "SAFE ZONE", `STAGE {area.Index + 1} NEXT`)
-	end
-	if area.Kind ~= "Start" then
-		local pad = newPart(
-			model,
-			`{name}Home`,
-			Vector3.new(6, 0.3, 6),
-			origin * CFrame.new(width / 2 - 5, top, -(area.D0 + 4)),
-			darken(accent, 0.15),
-			"Return"
-		)
-		pad.CanCollide = false
-		addSign(pad, Enum.NormalId.Top, "HOME", nil)
-	end
-end
-
-local function buildPlatform(model: Model, origin: CFrame, layout: Obby.Layout, platform: Obby.Platform)
-	local stage = config.Stages[platform.Stage]
-	local length = platform.D1 - platform.D0
-	local middle = (platform.D0 + platform.D1) / 2
-	local top = layout.Top
-	local bodyHeight = top - layout.LavaTop - capTopHeight
-	local name = `Stage{platform.Stage}Cap{platform.Index}`
-	local body = newPart(
-		model,
-		`{name}Body`,
-		Vector3.new(platform.Width, bodyHeight + 0.5, length),
-		origin * CFrame.new(platform.X, layout.LavaTop - 0.5 + (bodyHeight + 0.5) / 2, -middle),
-		darken(stage.Color, 0.25)
-	)
-	body:SetAttribute("Stage", platform.Stage)
-	local inset = if platform.Shape == "Beam" then 0.8 else 0.84
-	local cap = newPart(
-		model,
-		`{name}Top`,
-		Vector3.new(platform.Width * inset, capTopHeight, math.max(length * inset, 1)),
-		origin * CFrame.new(platform.X, top - capTopHeight / 2, -middle),
-		stage.Color
-	)
-	cap:SetAttribute("Stage", platform.Stage)
-	if platform.Shape == "Keycap" then
-		local dish = newPart(
-			model,
-			`{name}Dish`,
-			Vector3.new(platform.Width * 0.5, 0.1, length * 0.5),
-			origin * CFrame.new(platform.X, top + 0.02, -middle),
-			lighten(stage.Color, 0.4)
-		)
-		dish.CanCollide = false
-	end
-end
-
-local function buildRamp(model: Model, origin: CFrame, layout: Obby.Layout)
-	local run = config.RampLength
-	local rise = layout.Top
-	local ramp = newPart(
-		model,
-		"Ramp",
-		Vector3.new(layout.Width, 1, math.sqrt(run * run + rise * rise)),
-		origin
-			* CFrame.new(0, rise / 2, -run / 2)
-			* CFrame.Angles(math.atan2(rise, run), 0, 0)
-			* CFrame.new(0, -0.5, 0),
-		plinthColor
-	)
-	ramp.CanCollide = true
 end
 
 local function buildWalls(model: Model, origin: CFrame, layout: Obby.Layout)
@@ -220,83 +213,141 @@ local function buildWalls(model: Model, origin: CFrame, layout: Obby.Layout)
 	for side, x in { -1, 1 } do
 		newPart(
 			model,
-			`Rail{side}`,
+			`SideWall{side}`,
 			Vector3.new(1.5, railHeight, length),
 			origin * CFrame.new(x * offset, railHeight / 2, -length / 2),
-			railColor,
-			"Wall"
+			railColor
 		)
 		local barrier = newPart(
 			model,
-			`Barrier{side}`,
+			`SideBarrier{side}`,
 			Vector3.new(1.5, barrierHeight, length),
 			origin * CFrame.new(x * offset, barrierHeight / 2, -length / 2),
-			railColor,
-			"Wall"
+			railColor
 		)
 		hide(barrier, true)
 	end
 	newPart(
 		model,
-		"RailEnd",
+		"EndWall",
 		Vector3.new(layout.Width + 3, railHeight, 1.5),
 		origin * CFrame.new(0, railHeight / 2, -(length + 0.75)),
-		railColor,
-		"Wall"
+		railColor
 	)
 	local endBarrier = newPart(
 		model,
-		"BarrierEnd",
+		"EndBarrier",
 		Vector3.new(layout.Width + 3, barrierHeight, 1.5),
 		origin * CFrame.new(0, barrierHeight / 2, -(length + 0.75)),
-		railColor,
-		"Wall"
+		railColor
 	)
 	hide(endBarrier, true)
+end
+
+local function buildGate(model: Model, origin: CFrame, layout: Obby.Layout)
+	local gate = newPart(
+		model,
+		"SpeedGate",
+		Vector3.new(layout.Width, config.Gate.Height, config.Gate.Thickness),
+		origin * CFrame.new(0, config.Gate.Height / 2, -layout.GateD),
+		gateColor,
+		"SpeedGate"
+	)
+	gate.Transparency = 0.45
+	gate.CanQuery = false
+	gate:SetAttribute("RequiredSpeed", config.Gate.RequiredSpeed)
+	addSign(
+		gate,
+		{ Enum.NormalId.Back, Enum.NormalId.Front },
+		`NEED {config.Gate.RequiredSpeed} SPEED`,
+		"TAP KEYS TO GO FASTER"
+	)
 end
 
 function Course.Build(origin: CFrame, name: string): Model
 	local layout = Obby.Layout()
 	local model = Instance.new("Model")
 	model.Name = name
-	buildRamp(model, origin, layout)
+	local run = layout.Runs
+	local areas: { [string]: Obby.Area } = {}
 	for _, area in layout.Areas do
-		buildArea(model, origin, layout, area)
+		areas[area.Name] = area
 	end
-	for _, span in layout.Stages do
-		local length = span.D1 - span.D0
-		local lava = newPart(
-			model,
-			`Lava{span.Index}`,
-			Vector3.new(layout.Width, lavaDepth, length),
-			origin * CFrame.new(0, layout.LavaTop - lavaDepth / 2, -(span.D0 + span.D1) / 2),
-			lavaColor,
-			"Kill"
-		)
-		lava:SetAttribute("Stage", span.Index)
+
+	local start = areas.Start
+	local rampRun = config.Level1.RampLength
+	local rampLength = math.sqrt(rampRun * rampRun + layout.Top * layout.Top)
+	newPart(
+		model,
+		"Ramp",
+		Vector3.new(layout.Width, 1, rampLength),
+		origin
+			* CFrame.new(0, layout.Top / 2, -rampRun / 2)
+			* CFrame.Angles(math.atan2(layout.Top, rampRun), 0, 0)
+			* CFrame.new(0, -0.5, 0),
+		padColor
+	)
+	buildPad(model, origin, layout, "Start", start.D0 + rampRun, start.D1, "Checkpoint")
+	buildPad(model, origin, layout, "Safe1", areas.Safe1.D0, areas.Safe1.D1, "Checkpoint")
+	buildPad(model, origin, layout, "Approach", areas.Approach.D0, areas.Approach.D1, nil)
+	buildPad(model, origin, layout, "End", areas.End.D0, areas.End.D1, "Checkpoint")
+
+	local deckLength = run[1].D1 - run[1].D0
+	newPart(
+		model,
+		"DeckA",
+		Vector3.new(layout.Width, 1, deckLength),
+		origin * CFrame.new(0, deckTop - 0.5, -(run[1].D0 + run[1].D1) / 2),
+		deckColor
+	)
+	local lava = newPart(
+		model,
+		"Lava",
+		Vector3.new(layout.Width, lavaDepth, run[2].D1 - run[2].D0),
+		origin * CFrame.new(0, config.LavaTop - lavaDepth / 2, -(run[2].D0 + run[2].D1) / 2),
+		lavaColor,
+		"Kill"
+	)
+	lava.CanCollide = false
+
+	for _, cell in layout.Cells do
+		buildKey(model, origin, layout, cell)
 	end
-	for _, platform in layout.Platforms do
-		buildPlatform(model, origin, layout, platform)
-	end
-	for index, point in layout.Spawns do
+	for index, pedestal in layout.Pedestals do
 		local marker = newPart(
 			model,
 			`KeySpawn{index}`,
-			Vector3.new(2, 0.2, 2),
-			origin * CFrame.new(point.X, layout.Top + 0.1, -point.D),
-			finishColor,
+			Vector3.new(3, 0.3, 3),
+			origin * CFrame.new(pedestal.X, layout.Top + 0.15, -pedestal.D),
+			pedestalColor,
 			"KeySpawn"
 		)
-		marker:SetAttribute("Stage", point.Stage)
-		hide(marker, false)
+		marker.CanCollide = false
+		marker:SetAttribute("Rarities", pedestal.Rarities)
 	end
+
+	buildBanner(
+		model,
+		origin,
+		layout,
+		"StartSign",
+		start.D0 + rampRun + 4,
+		"THOCK OBBY",
+		"TAP KEYS TO GO FASTER"
+	)
+	buildBanner(model, origin, layout, "Safe1Sign", areas.Safe1.D0 + 4, "SAFE ZONE", "CHECKPOINT")
+	buildBanner(model, origin, layout, "EndSign", areas.End.D0 + 4, "LEVEL 1 COMPLETE", "LEVEL 2 COMING SOON")
+	buildHome(model, origin, layout, "Safe1Home", areas.Safe1.D0 + 12)
+	buildHome(model, origin, layout, "EndHome", areas.End.D0 + 12)
+	buildGate(model, origin, layout)
 	buildWalls(model, origin, layout)
+
 	local zone = newPart(
 		model,
 		"Zone",
 		Vector3.new(layout.Width + 3, config.ZoneHeight, layout.Length),
 		origin * CFrame.new(0, config.ZoneHeight / 2 - 10, -layout.Length / 2),
-		finishColor,
+		pedestalColor,
 		"Zone"
 	)
 	hide(zone, false)

@@ -28,26 +28,36 @@ end
 
 function Finder.Collect(model: Model): Types.Info?
 	local zone: BasePart? = nil
+	local tapKeys: { BasePart } = {}
 	local kills: { BasePart } = {}
 	local checkpoints: { BasePart } = {}
-	local returns: { BasePart } = {}
+	local homes: { BasePart } = {}
 	local spawns: { Types.SpawnPoint } = {}
+	local gates: { BasePart } = {}
+	local popUps: { BasePart } = {}
 	for _, descendant in model:GetDescendants() do
 		local role = descendant:GetAttribute(Finder.RoleAttribute)
 		if descendant:IsA("BasePart") and type(role) == "string" then
 			if role == "Zone" then
 				zone = descendant
+			elseif role == "TapKey" then
+				table.insert(tapKeys, descendant)
+			elseif role == "PopUpKey" then
+				table.insert(tapKeys, descendant)
+				table.insert(popUps, descendant)
 			elseif role == "Kill" then
 				table.insert(kills, descendant)
-			elseif role == "Checkpoint" or role == "Finish" then
+			elseif role == "Checkpoint" then
 				table.insert(checkpoints, descendant)
-			elseif role == "Return" then
-				table.insert(returns, descendant)
+			elseif role == "Home" then
+				table.insert(homes, descendant)
+			elseif role == "SpeedGate" then
+				table.insert(gates, descendant)
 			elseif role == "KeySpawn" then
-				local stage = descendant:GetAttribute("Stage")
+				local rarities = descendant:GetAttribute("Rarities")
 				table.insert(
 					spawns,
-					{ Part = descendant, Stage = if type(stage) == "number" then stage else 1 }
+					{ Part = descendant, Rarities = if type(rarities) == "string" then rarities else "Rare" }
 				)
 			end
 		end
@@ -58,10 +68,13 @@ function Finder.Collect(model: Model): Types.Info?
 	return {
 		Model = model,
 		Zone = zone,
+		TapKeys = tapKeys,
 		Kills = kills,
 		Checkpoints = checkpoints,
-		Returns = returns,
+		Homes = homes,
 		Spawns = spawns,
+		Gates = gates,
+		PopUps = popUps,
 	}
 end
 

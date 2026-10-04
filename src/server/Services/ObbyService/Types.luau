@@ -2,16 +2,19 @@
 
 export type SpawnPoint = {
 	Part: BasePart,
-	Stage: number,
+	Rarities: string,
 }
 
 export type Info = {
 	Model: Model,
 	Zone: BasePart,
+	TapKeys: { BasePart },
 	Kills: { BasePart },
 	Checkpoints: { BasePart },
-	Returns: { BasePart },
+	Homes: { BasePart },
 	Spawns: { SpawnPoint },
+	Gates: { BasePart },
+	PopUps: { BasePart },
 }
 
 export type SpawnState = {
@@ -30,6 +33,10 @@ export type Track = {
 	Character: Model?,
 	IsInside: boolean,
 	Checkpoint: BasePart?,
+	Taps: number,
+	LastKey: BasePart?,
+	LastPosition: Vector3?,
+	GateToastAt: number,
 }
 
 return {}
