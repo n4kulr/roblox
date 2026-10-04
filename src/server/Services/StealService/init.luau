@@ -9,9 +9,10 @@ local Steal = require(ReplicatedStorage.Rules.Steal)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local KeyVisual = require(script.Parent.Parent.Utils.KeyVisual)
+local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Prompts = require(script.Prompts)
 local Types = require(script.Types)
-local Visual = require(script.Visual)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -111,6 +112,11 @@ local function isCarryingKeyfall(player: Player): boolean
 	return keyfall ~= nil and keyfall:IsCarrying(player) == true
 end
 
+local function isCarryingObby(player: Player): boolean
+	local obby = services.ObbyService
+	return obby ~= nil and obby:IsCarrying(player) == true
+end
+
 local function checkSteal(
 	thief: Player,
 	owner: Player,
@@ -128,7 +134,7 @@ local function checkSteal(
 		VictimUserId = owner.UserId,
 		HasThiefData = thiefData ~= nil,
 		HasVictimData = victimData ~= nil,
-		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief),
+		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief) or isCarryingObby(thief),
 		ActiveThiefUserId = if lock then lock.Thief.UserId else 0,
 		VictimPlaySeconds = if victimData then victimData.PlaySeconds + pendingPlaySeconds(owner) else 0,
 		VictimLockedUntil = lockedAt,
@@ -243,17 +249,17 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 		Trove = carryTrove,
 	}
 	carriers[thief] = carrier
-	local visual = Visual.Attach(character, root, keyId)
+	local visual = KeyVisual.Attach(character, root, keyId, "StolenKey")
 	if visual then
 		carryTrove:Add(visual)
 	end
-	Visual.SetSpeed(character, config.CarryWalkSpeed)
 	character:SetAttribute("CarryingKey", keyId)
-	character:SetAttribute("StolenFromUserId", owner.UserId)
+	character:SetAttribute(WalkSpeed.StolenAttribute, owner.UserId)
+	WalkSpeed.Refresh(character)
 	carryTrove:Add(function()
 		character:SetAttribute("CarryingKey", nil)
-		character:SetAttribute("StolenFromUserId", nil)
-		Visual.SetSpeed(character, config.NormalWalkSpeed)
+		character:SetAttribute(WalkSpeed.StolenAttribute, nil)
+		WalkSpeed.Refresh(character)
 	end)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -471,6 +477,10 @@ function StealService.Start(self: State)
 			end
 		end
 	end))
+end
+
+function StealService.IsCarrying(_self: State, player: Player): boolean
+	return carriers[player] ~= nil
 end
 
 function StealService.Destroy(self: State)

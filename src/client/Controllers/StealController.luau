@@ -85,6 +85,10 @@ local function onAlert(name: string, keyIndex: number, phase: number)
 		end
 	elseif phase == 4 then
 		toast(`💔 {name} got away with your {keyName(keyIndex)}!`, "Bad")
+	elseif phase == 10 then
+		toast(name, "Info")
+	elseif phase == 11 then
+		toast(name, "Good")
 	elseif phase == 9 then
 		toast(name, "Bad")
 		local sounds = controllers.SoundController
