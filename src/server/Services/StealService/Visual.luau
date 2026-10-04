@@ -18,7 +18,7 @@ function Visual.Attach(character: Model, root: BasePart, keyId: string): BasePar
 	part.Anchored = false
 	part.Size = Vector3.new(2.4, 1.2, 2.4)
 	part.Color = rarity.Color
-	part.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+	Keys.ApplyFinish(part, rarity)
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false

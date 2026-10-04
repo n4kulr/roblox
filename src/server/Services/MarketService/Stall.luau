@@ -154,7 +154,7 @@ function Stall.Paint(model: Model, slot: number)
 		if cap and cap:IsA("BasePart") and offer then
 			local rarity = Keys.GetRarity(Keys.ById[offer.KeyId])
 			cap.Color = rarity.Color
-			cap.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+			Keys.ApplyFinish(cap, rarity)
 		end
 	end
 end

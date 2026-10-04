@@ -25,7 +25,7 @@ export type Rarity = {
 	Chance: number,
 	Color: Color3,
 	Income: number,
-	IsNeon: boolean,
+	IsShiny: boolean,
 	BuildUpSeconds: number,
 	Announce: boolean,
 	Reveal: SoundSettings?,
@@ -73,7 +73,7 @@ local rarities: { Rarity } = {
 		Chance = 1,
 		Color = Color3.fromRGB(200, 200, 205),
 		Income = 1,
-		IsNeon = false,
+		IsShiny = false,
 		BuildUpSeconds = 0,
 		Announce = false,
 		Reveal = nil,
@@ -83,7 +83,7 @@ local rarities: { Rarity } = {
 		Chance = 8,
 		Color = Color3.fromRGB(110, 220, 120),
 		Income = 4,
-		IsNeon = false,
+		IsShiny = false,
 		BuildUpSeconds = 0,
 		Announce = false,
 		Reveal = nil,
@@ -93,7 +93,7 @@ local rarities: { Rarity } = {
 		Chance = 50,
 		Color = Color3.fromRGB(70, 140, 255),
 		Income = 20,
-		IsNeon = false,
+		IsShiny = false,
 		BuildUpSeconds = 0,
 		Announce = false,
 		Reveal = nil,
@@ -103,7 +103,7 @@ local rarities: { Rarity } = {
 		Chance = 500,
 		Color = Color3.fromRGB(180, 80, 255),
 		Income = 150,
-		IsNeon = true,
+		IsShiny = true,
 		BuildUpSeconds = 0.6,
 		Announce = false,
 		Reveal = sound({
@@ -115,7 +115,7 @@ local rarities: { Rarity } = {
 		Chance = 5000,
 		Color = Color3.fromRGB(255, 190, 40),
 		Income = 1500,
-		IsNeon = true,
+		IsShiny = true,
 		BuildUpSeconds = 1.0,
 		Announce = true,
 		Reveal = sound({
@@ -128,7 +128,7 @@ local rarities: { Rarity } = {
 		Chance = 100000,
 		Color = Color3.fromRGB(255, 60, 90),
 		Income = 40000,
-		IsNeon = true,
+		IsShiny = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
 		Reveal = sound({
@@ -142,7 +142,7 @@ local rarities: { Rarity } = {
 		Chance = 1000000,
 		Color = Color3.fromRGB(40, 240, 235),
 		Income = 500000,
-		IsNeon = true,
+		IsShiny = true,
 		BuildUpSeconds = 1.5,
 		Announce = true,
 		Reveal = sound({
@@ -271,6 +271,11 @@ local Keys = {
 
 function Keys.GetRarity(key: Key): Rarity
 	return rarityByName[key.Rarity]
+end
+
+function Keys.ApplyFinish(part: BasePart, rarity: Rarity)
+	part.Material = Enum.Material.SmoothPlastic
+	part.Reflectance = if rarity.IsShiny then 0.22 else 0
 end
 
 function Keys.GetIncome(keyId: string): number

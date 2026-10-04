@@ -98,6 +98,7 @@ local walkwayThickness = 0.2
 local function applyFiller(cap: BasePart)
 	cap.Color = fillerCapColor
 	cap.Material = Enum.Material.SmoothPlastic
+	cap.Reflectance = 0
 	cap.Transparency = 0
 end
 
@@ -200,19 +201,21 @@ local function render(info: PlotInfo, data: PlayerData.Data?)
 		if key then
 			local rarity = Keys.GetRarity(key)
 			cap.Color = rarity.Color
-			cap.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+			Keys.ApplyFinish(cap, rarity)
 			cap.Transparency = 0
 			cap:SetAttribute("KeyId", key.Id)
 			cap:SetAttribute("Locked", nil)
 		elseif data and slot > unlocked then
 			cap.Color = lockedCapColor
 			cap.Material = Enum.Material.SmoothPlastic
+			cap.Reflectance = 0
 			cap.Transparency = lockedCapTransparency
 			cap:SetAttribute("KeyId", nil)
 			cap:SetAttribute("Locked", true)
 		elseif data then
 			cap.Color = emptyCapColor
 			cap.Material = Enum.Material.SmoothPlastic
+			cap.Reflectance = 0
 			cap.Transparency = emptyCapTransparency
 			cap:SetAttribute("KeyId", nil)
 			cap:SetAttribute("Locked", nil)

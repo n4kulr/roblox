@@ -19,10 +19,11 @@ local function paint(part: Part, keyId: string, isGolden: boolean)
 	local rarity = if key then Keys.GetRarity(key) else nil
 	if isGolden then
 		part.Color = goldenColor
-		part.Material = Enum.Material.Neon
+		part.Material = Enum.Material.SmoothPlastic
+		part.Reflectance = 0.22
 	elseif rarity then
 		part.Color = rarity.Color
-		part.Material = if rarity.IsNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		Keys.ApplyFinish(part, rarity)
 	end
 end
 

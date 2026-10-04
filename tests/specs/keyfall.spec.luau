@@ -712,7 +712,7 @@ describe("KeyfallService", function()
 			expect(#goldenCaps()):toBe(1)
 		end)
 
-		it("announces itself to everyone with kind 1 and is gold neon and large", function()
+		it("announces itself to everyone with kind 1 and is shiny gold and large", function()
 			setup(golden())
 			world:advance(10.5)
 			local events = eventsOf(1)
@@ -722,7 +722,8 @@ describe("KeyfallService", function()
 			expect(events[1].Args[3]):toBe(Keys.ById.GoldenSpacebar.Index)
 			local cap = goldenCaps()[1]
 			expect(cap:GetAttribute("KeyId")):toBe("GoldenSpacebar")
-			expect(cap.Material):toBe(Enum.Material.Neon)
+			expect(cap.Material):toBe(Enum.Material.SmoothPlastic)
+			expect(cap.Reflectance > 0):toBe(true)
 			expect(cap.Size.X):toBeGreaterThan(2.5)
 		end)
 
