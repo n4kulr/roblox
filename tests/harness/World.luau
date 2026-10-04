@@ -798,6 +798,7 @@ function World.newInstance(self, className: string)
 	elseif className == "Humanoid" then
 		node.Died = Signal.new()
 		node.WalkSpeed = 16
+		node.Health = 100
 	end
 	return node
 end
@@ -827,6 +828,7 @@ function World.moveCharacter(_self, player: any, x: number, y: number, z: number
 end
 
 function World.killCharacter(_self, player: any)
+	player.Character.Humanoid.Health = 0
 	player.Character.Humanoid.Died:Fire()
 end
 
