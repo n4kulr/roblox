@@ -12,6 +12,7 @@ local laserColor = Color3.fromRGB(255, 30, 50)
 local laserCount = 5
 local laserThickness = 0.3
 local laserMargin = 0.5
+local minLaserHeight = 6
 local anchorLift = 4
 local verticalSlack = 15
 local depthBelow = 6
@@ -50,7 +51,7 @@ end
 
 function Lock.EntranceCFrame(info: Types.PlotInfo): CFrame
 	local size = info.Base.Size
-	return info.Base.CFrame * CFrame.new(0, size.Y / 2, -(size.Z / 2 - defense.WallThickness / 2))
+	return info.Base.CFrame * CFrame.new(0, size.Y / 2, -(size.Z / 2 - Walls.Inset))
 end
 
 function Lock.Outward(info: Types.PlotInfo): Vector3
@@ -88,7 +89,7 @@ end
 
 function Lock.ShowLasers(info: Types.PlotInfo, state: Types.Defense)
 	Lock.ClearLasers(state)
-	local height = Walls.Height(info.WallLevel)
+	local height = math.max(info.WallHeight, minLaserHeight)
 	local entrance = Lock.EntranceCFrame(info)
 	local folder = Instance.new("Folder")
 	folder.Name = "Lasers"
@@ -182,7 +183,7 @@ end
 function Lock.IsInside(info: Types.PlotInfo, position: Vector3): boolean
 	local relative = info.Base.CFrame:PointToObjectSpace(position)
 	local size = info.Base.Size
-	local top = size.Y / 2 + Walls.Height(info.WallLevel)
+	local top = size.Y / 2 + info.WallHeight
 	return math.abs(relative.X) <= size.X / 2
 		and math.abs(relative.Z) <= size.Z / 2
 		and relative.Y >= -size.Y / 2 - depthBelow

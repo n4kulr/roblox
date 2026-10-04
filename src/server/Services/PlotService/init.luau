@@ -257,7 +257,7 @@ end
 
 local function refreshWalls(info: PlotInfo, data: PlayerData.Data?)
 	local level = wallLevelOf(data)
-	if info.Walls and info.WallLevel == level then
+	if info.WallLevel == level then
 		return
 	end
 	Walls.Apply(info, level)
@@ -350,9 +350,10 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Placeholder = useMeshes,
 				Walkway = nil,
 				Sign = nil,
-				Walls = nil,
-				WallParts = {},
-				WallsAuthored = false,
+				GlassWalls = nil,
+				GlassParts = {},
+				FenceRise = 0,
+				WallHeight = 0,
 				WallLevel = 0,
 				Defense = nil,
 			}
@@ -560,7 +561,7 @@ end
 
 function PlotService.GetWallHeight(_self: State, player: Player): number?
 	local info = plotByPlayer[player]
-	return if info then Walls.Height(info.WallLevel) else nil
+	return if info then info.WallHeight else nil
 end
 
 function PlotService.Destroy(self: State)

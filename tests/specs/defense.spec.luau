@@ -47,8 +47,11 @@ describe("Base defense", function()
 
 	local function wallParts(plot: any): { [string]: any }
 		local out = {}
-		for _, part in plot.Walls:GetChildren() do
-			out[part.Name] = part
+		local folder = plot:FindFirstChild("GlassWalls")
+		if folder then
+			for _, part in folder:GetChildren() do
+				out[part.Name] = part
+			end
 		end
 		return out
 	end
@@ -71,98 +74,140 @@ describe("Base defense", function()
 	end
 
 	describe("walls", function()
-		it("builds base-height walls on every unowned plot", function()
+		local inset = 0.95
+		local function glassOnly(plot: any): { [string]: any }
+			local out = {}
+			for name, part in wallParts(plot) do
+				if part.Material == roblox.Enum.Material.Glass then
+					out[name] = part
+				end
+			end
+			return out
+		end
+
+		it("builds no code walls at level 0", function()
 			expect(#plots:GetChildren()):toBe(GameConfig.PlotCount)
 			for _, plot in plots:GetChildren() do
-				local parts = wallParts(plot)
-				expect(countKeys(parts)):toBe(5)
-				for _, part in parts do
-					expect(part.Size.Y):toBe(defense.WallBaseHeight)
-					expect(part.Anchored):toBe(true)
-					expect(part.CanCollide):toBe(true)
-					expect(part.CastShadow):toBe(false)
-				end
-				expect(plot:GetAttribute("WallHeight")):toBe(defense.WallBaseHeight)
+				expect(plot:FindFirstChild("GlassWalls")):toBeNil()
+				expect(plot:FindFirstChild("Walls")):toBeNil()
+				expect(plot:GetAttribute("WallHeight")):toBe(0)
 			end
 		end)
 
-		it("stands the walls on the base with the configured thickness", function()
-			local plot = plots.Plot1
-			local parts = wallParts(plot)
-			local baseTop = plot.Base.Size.Y / 2
-			for _, part in parts do
-				local position = localPosition(plot, part)
-				expect(position.Y - part.Size.Y / 2):toBeCloseTo(baseTop, 1e-3)
+		it("raises glass by the Walls upgrade step per level starting at the base top", function()
+			local step = Upgrades.ById.Walls.PerLevel
+			expect(step):toBe(3)
+			for level = 1, Upgrades.ById.Walls.MaxLevel do
+				local player = join(`Owner{level}`, { Upgrades = { Walls = level } })
+				local plot = registry.PlotService:GetPlot(player)
+				local height = level * step
+				expect(registry.PlotService:GetWallHeight(player)):toBe(height)
+				expect(plot:GetAttribute("WallHeight")):toBe(height)
+				local glass = glassOnly(plot)
+				expect(countKeys(glass)):toBe(5)
+				for _, part in glass do
+					expect(part.Size.Y):toBe(height)
+					expect(localPosition(plot, part).Y - height / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+				end
+				world:removePlayer(player)
+				expect(plot:FindFirstChild("GlassWalls")):toBeNil()
+				expect(plot:GetAttribute("WallHeight")):toBe(0)
 			end
-			expect(parts.Back.Size.Z):toBe(defense.WallThickness)
-			expect(parts.Left.Size.X):toBe(defense.WallThickness)
-			expect(parts.Right.Size.X):toBe(defense.WallThickness)
-			expect(parts.FrontLeft.Size.Z):toBe(defense.WallThickness)
-			expect(localPosition(plot, parts.Back).Z):toBeCloseTo(22 - defense.WallThickness / 2, 1e-3)
-			expect(localPosition(plot, parts.Left).X):toBeCloseTo(-22 + defense.WallThickness / 2, 1e-3)
-			expect(localPosition(plot, parts.Right).X):toBeCloseTo(22 - defense.WallThickness / 2, 1e-3)
+		end)
+
+		it("styles glass panels as see-through blockers", function()
+			local player = join("Styled", { Upgrades = { Walls = 1 } })
+			local plot = registry.PlotService:GetPlot(player)
+			for _, part in glassOnly(plot) do
+				expect(part.Material == roblox.Enum.Material.Glass):toBe(true)
+				expect(part.Transparency):toBeCloseTo(0.55, 1e-6)
+				expect(part.Reflectance):toBeCloseTo(0.1, 1e-6)
+				expect(part.CastShadow):toBe(false)
+				expect(part.CanCollide):toBe(true)
+				expect(part.CanQuery):toBe(false)
+				expect(part.CanTouch):toBe(false)
+				expect(part.Anchored):toBe(true)
+				expect(math.abs(part.Size.X - 0.6) < 1e-4 or math.abs(part.Size.Z - 0.6) < 1e-4):toBe(true)
+			end
+		end)
+
+		it("places pillars at the four corners and both sides of the entrance", function()
+			local player = join("Pillars", { Upgrades = { Walls = 2 } })
+			local plot = registry.PlotService:GetPlot(player)
+			local parts = wallParts(plot)
+			local cx = 22 - inset
+			local gate = defense.EntranceWidth / 2 + 0.7
+			local expected = {
+				PillarBackLeft = { -cx, cx },
+				PillarBackRight = { cx, cx },
+				PillarFrontLeft = { -cx, -cx },
+				PillarFrontRight = { cx, -cx },
+				PillarGateLeft = { -gate, -cx },
+				PillarGateRight = { gate, -cx },
+			}
+			for name, spot in expected do
+				local pillar = parts[name]
+				expect(pillar ~= nil):toBe(true)
+				local position = localPosition(plot, pillar)
+				expect(position.X):toBeCloseTo(spot[1], 1e-3)
+				expect(position.Z):toBeCloseTo(spot[2], 1e-3)
+				expect(pillar.Size.X):toBeCloseTo(1.4, 1e-4)
+				expect(pillar.Size.Z):toBeCloseTo(1.4, 1e-4)
+				expect(pillar.Size.Y):toBeCloseTo(6.4, 1e-3)
+				expect(position.Y - pillar.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+				expect(pillar.Material == roblox.Enum.Material.Metal):toBe(true)
+				expect(pillar.CastShadow):toBe(true)
+				expect(pillar.CanCollide):toBe(true)
+			end
+			local gap = localPosition(plot, parts.PillarGateRight).X - localPosition(plot, parts.PillarGateLeft).X
+			expect(gap - 1.4):toBeCloseTo(defense.EntranceWidth, 1e-3)
+		end)
+
+		it("tops each glass panel with a thin rail", function()
+			local player = join("Railed", { Upgrades = { Walls = 1 } })
+			local plot = registry.PlotService:GetPlot(player)
+			local parts = wallParts(plot)
+			for _, name in { "Back", "Left", "Right", "FrontLeft", "FrontRight" } do
+				local glass, rail = parts[name], parts[`Rail{name}`]
+				expect(rail ~= nil):toBe(true)
+				expect(rail.Size.Y):toBeCloseTo(0.3, 1e-6)
+				expect(localPosition(plot, rail).Y - rail.Size.Y / 2):toBeCloseTo(
+					localPosition(plot, glass).Y + glass.Size.Y / 2,
+					1e-3
+				)
+			end
 		end)
 
 		it("leaves one centered entrance gap in the front edge facing the map center", function()
-			for _, plot in plots:GetChildren() do
+			for index = 1, 5 do
+				local player = join(`Gate{index}`, { Upgrades = { Walls = 1 } })
+				local plot = registry.PlotService:GetPlot(player)
 				local parts = wallParts(plot)
 				local left, right = localPosition(plot, parts.FrontLeft), localPosition(plot, parts.FrontRight)
 				local leftInner = left.X + parts.FrontLeft.Size.X / 2
 				local rightInner = right.X - parts.FrontRight.Size.X / 2
-				expect(rightInner - leftInner):toBeCloseTo(defense.EntranceWidth, 1e-3)
+				expect(rightInner - leftInner):toBeCloseTo(defense.EntranceWidth + 1.4, 1e-3)
 				expect(leftInner + rightInner):toBeCloseTo(0, 1e-3)
-				expect(left.Z):toBeCloseTo(-22 + defense.WallThickness / 2, 1e-3)
-				expect(right.Z):toBeCloseTo(-22 + defense.WallThickness / 2, 1e-3)
+				expect(left.Z):toBeCloseTo(-22 + inset, 1e-3)
+				expect(localPosition(plot, parts.Back).Z > 0):toBe(true)
 				local front = parts.FrontLeft.CFrame.Position
 				if plot.Name == "Plot1" or plot.Name == "Plot5" then
 					expect(Vector3.new(front.X, 0, front.Z).Magnitude < plot.Base.CFrame.Position.Magnitude):toBe(true)
 				end
-				expect(localPosition(plot, parts.Back).Z > 0):toBe(true)
-				local outerLeft = left.X - parts.FrontLeft.Size.X / 2
-				expect(outerLeft):toBeCloseTo(-22 + defense.WallThickness, 1e-3)
 			end
 		end)
 
-		it("raises the wall by the Walls upgrade step per level", function()
-			local step = Upgrades.ById.Walls.PerLevel
-			expect(step):toBe(3)
-			for level = 0, Upgrades.ById.Walls.MaxLevel do
-				local player = join(`Owner{level}`, { Upgrades = { Walls = level } })
-				local plot = registry.PlotService:GetPlot(player)
-				local height = defense.WallBaseHeight + level * step
-				expect(registry.PlotService:GetWallHeight(player)):toBe(height)
-				for _, part in wallParts(plot) do
-					expect(part.Size.Y):toBe(height)
-				end
-				expect(plot:GetAttribute("WallHeight")):toBe(height)
-				world:removePlayer(player)
-			end
-		end)
-
-		it("rebuilds the walls when the Walls upgrade is bought", function()
+		it("shows glass when the Walls upgrade is bought and hides it when the owner leaves", function()
 			local player, data = join("Builder", { Cash = 1e9 })
 			local plot = registry.PlotService:GetPlot(player)
-			expect(wallParts(plot).Back.Size.Y):toBe(defense.WallBaseHeight)
+			expect(plot:FindFirstChild("GlassWalls")):toBeNil()
 			expect(world:invoke("BuyUpgrade", player, "Walls")):toBe(true)
 			expect(data.Upgrades.Walls):toBe(1)
-			for _, part in wallParts(plot) do
-				expect(part.Size.Y):toBe(defense.WallBaseHeight + 3)
-			end
+			expect(wallParts(plot).Back.Size.Y):toBe(3)
 			expect(world:invoke("BuyUpgrade", player, "Walls")):toBe(true)
-			for _, part in wallParts(plot) do
-				expect(part.Size.Y):toBe(defense.WallBaseHeight + 6)
-			end
-			expect(countKeys(wallParts(plot))):toBe(5)
-		end)
-
-		it("drops back to base height when the owner leaves", function()
-			local player = join("Leaver", { Upgrades = { Walls = 3 } })
-			local plot = registry.PlotService:GetPlot(player)
-			expect(wallParts(plot).Back.Size.Y):toBe(defense.WallBaseHeight + 9)
+			expect(wallParts(plot).Back.Size.Y):toBe(6)
 			world:removePlayer(player)
-			for _, part in wallParts(plot) do
-				expect(part.Size.Y):toBe(defense.WallBaseHeight)
-			end
+			expect(plot:FindFirstChild("GlassWalls")):toBeNil()
 		end)
 	end)
 
@@ -227,49 +272,54 @@ describe("Base defense", function()
 		end
 
 		it("keeps the same wall instances when the board changes", function()
-			local player = join("Stable")
+			local player = join("Stable", { Upgrades = { Walls = 2 } })
 			local plot = registry.PlotService:GetPlot(player)
 			local before = identities(plot)
-			local folder = plot.Walls
+			local folder = plot.GlassWalls
 			for _ = 1, 5 do
 				registry.KeyboardService.BoardChanged:Fire(player)
 			end
-			expect(plot.Walls == folder):toBe(true)
+			expect(plot.GlassWalls == folder):toBe(true)
 			local after = identities(plot)
 			for name, part in before do
 				expect(after[name] == part):toBe(true)
 			end
-			expect(countKeys(after)):toBe(5)
+			expect(countKeys(after)):toBe(countKeys(before))
+			expect(countKeys(after)):toBe(16)
 		end)
 
-		it("resizes the same wall instances in place when the height changes", function()
-			local player, data = join("Grower", { Cash = 1e9 })
+		it("resizes the same instances in place when the level changes", function()
+			local player, data = join("Grower", { Cash = 1e9, Upgrades = { Walls = 1 } })
 			local plot = registry.PlotService:GetPlot(player)
 			local before = identities(plot)
 			expect(world:invoke("BuyUpgrade", player, "Walls")):toBe(true)
-			expect(data.Upgrades.Walls):toBe(1)
+			expect(data.Upgrades.Walls):toBe(2)
 			local after = identities(plot)
 			for name, part in before do
 				expect(after[name] == part):toBe(true)
-				expect(part.Size.Y):toBe(defense.WallBaseHeight + 3)
-				expect(localPosition(plot, part).Y - part.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
 			end
+			expect(before.Back.Size.Y):toBe(6)
+			expect(localPosition(plot, before.Back).Y - 3):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+			expect(before.PillarBackLeft.Size.Y):toBeCloseTo(6.4, 1e-3)
+		end)
+
+		it("reuses the cached instances when a new owner arrives", function()
+			local player = join("First", { Upgrades = { Walls = 1 } })
+			local plot = registry.PlotService:GetPlot(player)
+			local before = identities(plot)
 			world:removePlayer(player)
-			for name, part in before do
-				expect(identities(plot)[name] == part):toBe(true)
-				expect(part.Size.Y):toBe(defense.WallBaseHeight)
+			expect(plot:FindFirstChild("GlassWalls")):toBeNil()
+			local next = join("Second", { Upgrades = { Walls = 1 } })
+			expect(registry.PlotService:GetPlot(next) == plot):toBe(true)
+			for name, part in identities(plot) do
+				expect(before[name] == part):toBe(true)
 			end
 		end)
 
-		it("sets the safe flags on every wall part", function()
-			for _, part in wallParts(plots.Plot1) do
-				expect(part.CanCollide):toBe(true)
-				expect(part.CanTouch):toBe(false)
-				expect(part.CanQuery):toBe(false)
-				expect(part.CastShadow):toBe(false)
-				expect(part.Anchored):toBe(true)
-			end
-			expect(plots.Plot1.Walls.Parent == plots.Plot1):toBe(true)
+		it("keeps the glass inside the plot model", function()
+			local player = join("Parent", { Upgrades = { Walls = 1 } })
+			local plot = registry.PlotService:GetPlot(player)
+			expect(plot.GlassWalls.Parent == plot):toBe(true)
 		end)
 	end)
 
@@ -343,70 +393,69 @@ describe("Base defense", function()
 			return authored
 		end
 
-		it("builds walls from the base alone and never touches nested models", function()
-			local plot = bootAuthored(false, false)
-			for _, part in wallParts(plot) do
-				local position = localPosition(plot, part)
-				expect(math.abs(position.X) <= 22 and math.abs(position.Z) <= 22):toBe(true)
-				expect(position.Y - part.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+		local function snapshot(fence: any): { [any]: { any } }
+			local out = {}
+			for _, part in fence:GetDescendants() do
+				if part:IsA("BasePart") then
+					out[part] = { part.Size, part.CFrame }
+				end
 			end
-			expect(plot.Walls.Parent == plot):toBe(true)
+			return out
+		end
+
+		it("builds nothing at level 0 and leaves the fence untouched", function()
+			local plot = bootAuthored(true, false)
+			local before = snapshot(plot.Fence)
+			expect(plot:FindFirstChild("GlassWalls")):toBeNil()
+			expect(plot:GetAttribute("WallHeight")):toBeCloseTo(3, 1e-3)
+			expect(snapshot(plot.Fence)):toEqual(before)
+		end)
+
+		it("stacks glass on top of the fence without touching authored parts", function()
+			local plot = bootAuthored(true, false)
+			local before = snapshot(plot.Fence)
+			local player = join("Owner", { Upgrades = { Walls = 2 } })
+			expect(registry.PlotService:GetPlot(player) == plot):toBe(true)
+			local parts = wallParts(plot)
+			local fenceTop = 3 + plot.Base.Size.Y / 2
+			for _, name in { "Back", "Left", "Right", "FrontLeft", "FrontRight" } do
+				local part = parts[name]
+				expect(part.Size.Y):toBe(6)
+				expect(localPosition(plot, part).Y - 3):toBeCloseTo(fenceTop, 1e-3)
+			end
+			expect(plot:GetAttribute("WallHeight")):toBeCloseTo(9, 1e-3)
+			expect(registry.PlotService:GetWallHeight(player)):toBeCloseTo(9, 1e-3)
+			local rail = plot.Fence.Rail
+			local railFaceZ = 22 - rail.Size.Z / 2
+			local backZ = localPosition(plot, parts.Back).Z
+			expect(math.abs(backZ + parts.Back.Size.Z / 2 - railFaceZ) > 1e-3):toBe(true)
+			expect(math.abs(backZ - parts.Back.Size.Z / 2 - railFaceZ) > 1e-3):toBe(true)
+			expect(backZ + parts.Back.Size.Z / 2 < 22):toBe(true)
+			expect(snapshot(plot.Fence)):toEqual(before)
+			expect(#plot.Fence:GetChildren()):toBe(1)
+			expect(plot.Fence.Rail.Size.X):toBe(44)
 			expect(#nested:GetChildren()):toBe(1)
 			expect(#nested.Lamp:GetChildren()):toBe(1)
 			expect(nested.Lamp.Post.CFrame.Position.X):toBeCloseTo(400, 1e-3)
 			expect(nested.Lamp.Post.Size.Y):toBe(40)
+			expect(plot.GlassWalls.Parent == plot):toBe(true)
 			expect(plot.Base.Size.X):toBe(44)
-			local player = join("Owner", { Upgrades = { Walls = 2 } })
-			expect(registry.PlotService:GetPlot(player) == plot):toBe(true)
-			expect(wallParts(plot).Back.Size.Y):toBe(defense.WallBaseHeight + 6)
-			expect(#nested:GetChildren()):toBe(1)
-			expect(#nested.Lamp:GetChildren()):toBe(1)
+			world:removePlayer(player)
+			expect(snapshot(plot.Fence)):toEqual(before)
+			expect(plot:GetAttribute("WallHeight")):toBeCloseTo(3, 1e-3)
 		end)
 
-		it("insets the walls from an authored Fence without overlapping the key grid", function()
-			local plot = bootAuthored(true, false)
-			local parts = wallParts(plot)
-			local FloorGrid = world:require("ReplicatedStorage.Rules.FloorGrid")
-			expect(localPosition(plot, parts.Left).X - parts.Left.Size.X / 2 > -22):toBe(true)
-			expect(localPosition(plot, parts.Left).X + parts.Left.Size.X / 2 <= -22 + FloorGrid.EdgeMargin + 1e-3):toBe(
-				true
-			)
-			expect(localPosition(plot, parts.Back).Z + parts.Back.Size.Z / 2 < 22):toBe(true)
-			for _, part in parts do
-				expect(part.CanCollide):toBe(true)
-			end
-			expect(plot.Fence.Rail.Size.X):toBe(44)
-			expect(#plot.Fence:GetChildren()):toBe(1)
-		end)
-
-		it("scales an authored Walls folder instead of creating code walls", function()
+		it("starts the glass at the base top when there is no fence and ignores a legacy Walls folder", function()
 			local plot = bootAuthored(false, true)
 			local walls = plot.Walls
-			expect(#walls:GetChildren()):toBe(2)
-			local before = { walls.Wall1, walls.Wall2 }
-			for _, wall in before do
-				expect(wall.Size.Y):toBe(defense.WallBaseHeight)
-				expect(localPosition(plot, wall).Y - wall.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
-				expect(wall.Size.Z):toBe(44)
-			end
+			local before = { walls.Wall1.Size, walls.Wall2.Size, walls.Wall1.CFrame }
 			local player = join("Owner", { Upgrades = { Walls = 3 } })
 			expect(registry.PlotService:GetPlot(player) == plot):toBe(true)
-			expect(#plot:GetChildren() > 0):toBe(true)
-			local count = 0
-			for _, child in plot:GetChildren() do
-				if child.Name == "Walls" then
-					count += 1
-				end
-			end
-			expect(count):toBe(1)
+			expect(wallParts(plot).Back.Size.Y):toBe(9)
+			expect(localPosition(plot, wallParts(plot).Back).Y - 4.5):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
 			expect(plot.Walls == walls):toBe(true)
 			expect(#walls:GetChildren()):toBe(2)
-			for _, wall in before do
-				expect(wall.Size.Y):toBe(defense.WallBaseHeight + 9)
-				expect(localPosition(plot, wall).Y - wall.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
-			end
-			world:removePlayer(player)
-			expect(walls.Wall1.Size.Y):toBe(defense.WallBaseHeight)
+			expect({ walls.Wall1.Size, walls.Wall2.Size, walls.Wall1.CFrame }):toEqual(before)
 		end)
 	end)
 
@@ -485,7 +534,7 @@ describe("Base defense", function()
 			triggerLock(plot, owner)
 			local lasers = lasersOf(plot)
 			expect(#lasers >= 3):toBe(true)
-			local wallHeight = defense.WallBaseHeight + 3
+			local wallHeight = 6
 			for _, laser in lasers do
 				expect(laser.CanCollide):toBe(false)
 				expect(laser.Anchored):toBe(true)
@@ -493,7 +542,7 @@ describe("Base defense", function()
 				expect(laser.Size.X):toBe(defense.EntranceWidth)
 				local position = localPosition(plot, laser)
 				expect(position.X):toBeCloseTo(0, 1e-3)
-				expect(position.Z):toBeCloseTo(-22 + defense.WallThickness / 2, 1e-3)
+				expect(position.Z):toBeCloseTo(-22 + 0.95, 1e-3)
 				expect(position.Y > plot.Base.Size.Y / 2 and position.Y < plot.Base.Size.Y / 2 + wallHeight):toBe(true)
 			end
 			local label = plot.LockAnchor.LockTimer.Countdown

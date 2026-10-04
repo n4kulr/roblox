@@ -7,18 +7,34 @@ local Types = require(script.Parent.Types)
 
 export type Segment = {
 	Name: string,
+	Kind: string,
 	Size: Vector3,
 	Center: Vector3,
 }
 
 local defense = GameConfig.Defense
-local wallInk = Color3.fromRGB(26, 28, 36)
-local wallMix = 0.5
-local fenceInset = 0.2
-local folderName = "Walls"
+local folderName = "GlassWalls"
 local fenceName = "Fence"
+local edgeInset = 0.25
+local pillarSize = 1.4
+local glassThickness = 0.6
+local railThickness = 0.9
+local railHeight = 0.3
+local pillarOvershoot = 0.4
+local glassColor = Color3.fromRGB(180, 220, 255)
+local glassTransparency = 0.55
+local glassReflectance = 0.1
+local steelColor = Color3.fromRGB(60, 64, 78)
 
-local Walls = {}
+local Walls = {
+	FolderName = folderName,
+	Inset = edgeInset + pillarSize / 2,
+	PillarSize = pillarSize,
+	GlassThickness = glassThickness,
+	RailHeight = railHeight,
+	PillarOvershoot = pillarOvershoot,
+	Kinds = { Glass = "Glass", Rail = "Rail", Pillar = "Pillar" },
+}
 
 function Walls.Level(value: any): number
 	if type(value) ~= "number" or value ~= value then
@@ -27,153 +43,193 @@ function Walls.Level(value: any): number
 	return math.clamp(math.floor(value), 0, Upgrades.ById.Walls.MaxLevel)
 end
 
-function Walls.Height(level: any): number
-	return defense.WallBaseHeight + Walls.Level(level) * Upgrades.ById.Walls.PerLevel
+function Walls.GlassHeight(level: any): number
+	return Walls.Level(level) * Upgrades.ById.Walls.PerLevel
 end
 
-function Walls.Layout(baseSize: Vector3, height: number, inset: number?): { Segment }
-	local gap = math.clamp(inset or 0, 0, defense.WallThickness / 2)
-	local thickness = defense.WallThickness - gap
-	local halfX, halfZ = baseSize.X / 2 - gap, baseSize.Z / 2 - gap
-	local entrance = math.clamp(defense.EntranceWidth, 0, math.max(0, halfX * 2 - thickness * 2))
-	local centerY = baseSize.Y / 2 + height / 2
-	local frontZ = -halfZ + thickness / 2
-	local segments: { Segment } = {
-		{
-			Name = "Back",
-			Size = Vector3.new(halfX * 2 - thickness * 2, height, thickness),
-			Center = Vector3.new(0, centerY, halfZ - thickness / 2),
-		},
-		{
-			Name = "Left",
-			Size = Vector3.new(thickness, height, halfZ * 2),
-			Center = Vector3.new(-halfX + thickness / 2, centerY, 0),
-		},
-		{
-			Name = "Right",
-			Size = Vector3.new(thickness, height, halfZ * 2),
-			Center = Vector3.new(halfX - thickness / 2, centerY, 0),
-		},
-	}
-	local run = halfX - thickness - entrance / 2
-	if run > 0 then
+local function span(
+	name: string,
+	isAlongX: boolean,
+	from: number,
+	to: number,
+	line: number,
+	bottom: number,
+	height: number
+): { Segment }
+	local length = math.abs(to - from)
+	local middle = (from + to) / 2
+	local glassY = bottom + height / 2
+	local railY = bottom + height + railHeight / 2
+	local glass: Segment
+	local rail: Segment
+	if isAlongX then
+		glass = {
+			Name = name,
+			Kind = Walls.Kinds.Glass,
+			Size = Vector3.new(length, height, glassThickness),
+			Center = Vector3.new(middle, glassY, line),
+		}
+		rail = {
+			Name = `Rail{name}`,
+			Kind = Walls.Kinds.Rail,
+			Size = Vector3.new(length, railHeight, railThickness),
+			Center = Vector3.new(middle, railY, line),
+		}
+	else
+		glass = {
+			Name = name,
+			Kind = Walls.Kinds.Glass,
+			Size = Vector3.new(glassThickness, height, length),
+			Center = Vector3.new(line, glassY, middle),
+		}
+		rail = {
+			Name = `Rail{name}`,
+			Kind = Walls.Kinds.Rail,
+			Size = Vector3.new(railThickness, railHeight, length),
+			Center = Vector3.new(line, railY, middle),
+		}
+	end
+	return { glass, rail }
+end
+
+function Walls.Layout(baseSize: Vector3, height: number, bottom: number?): { Segment }
+	local floorY = bottom or baseSize.Y / 2
+	local centerX = math.max(0, baseSize.X / 2 - Walls.Inset)
+	local centerZ = math.max(0, baseSize.Z / 2 - Walls.Inset)
+	local gateX = math.clamp(defense.EntranceWidth, 0, centerX * 2) / 2 + pillarSize / 2
+	local segments: { Segment } = {}
+	local function add(list: { Segment })
+		for _, segment in list do
+			table.insert(segments, segment)
+		end
+	end
+	add(span("Back", true, -centerX, centerX, centerZ, floorY, height))
+	add(span("Left", false, -centerZ, centerZ, -centerX, floorY, height))
+	add(span("Right", false, -centerZ, centerZ, centerX, floorY, height))
+	local hasFront = gateX < centerX
+	if hasFront then
+		add(span("FrontLeft", true, -centerX, -gateX, -centerZ, floorY, height))
+		add(span("FrontRight", true, gateX, centerX, -centerZ, floorY, height))
+	end
+	local pillarHeight = height + pillarOvershoot
+	local pillarY = floorY + pillarHeight / 2
+	local function pillar(name: string, x: number, z: number)
 		table.insert(segments, {
-			Name = "FrontLeft",
-			Size = Vector3.new(run, height, thickness),
-			Center = Vector3.new(-(entrance / 2 + run / 2), centerY, frontZ),
+			Name = `Pillar{name}`,
+			Kind = Walls.Kinds.Pillar,
+			Size = Vector3.new(pillarSize, pillarHeight, pillarSize),
+			Center = Vector3.new(x, pillarY, z),
 		})
-		table.insert(segments, {
-			Name = "FrontRight",
-			Size = Vector3.new(run, height, thickness),
-			Center = Vector3.new(entrance / 2 + run / 2, centerY, frontZ),
-		})
+	end
+	pillar("BackLeft", -centerX, centerZ)
+	pillar("BackRight", centerX, centerZ)
+	pillar("FrontLeft", -centerX, -centerZ)
+	pillar("FrontRight", centerX, -centerZ)
+	if hasFront then
+		pillar("GateLeft", -gateX, -centerZ)
+		pillar("GateRight", gateX, -centerZ)
 	end
 	return segments
 end
 
+local function fenceRise(info: Types.PlotInfo): number
+	local fence = info.Model:FindFirstChild(fenceName)
+	if not fence then
+		return 0
+	end
+	local baseTop = info.Base.Size.Y / 2
+	local top = baseTop
+	local function consider(part: BasePart)
+		local relative = info.Base.CFrame:ToObjectSpace(part.CFrame)
+		local size = part.Size
+		local extent = (
+			math.abs(relative.RightVector.Y) * size.X
+			+ math.abs(relative.UpVector.Y) * size.Y
+			+ math.abs(relative.LookVector.Y) * size.Z
+		) / 2
+		top = math.max(top, relative.Position.Y + extent)
+	end
+	if fence:IsA("BasePart") then
+		consider(fence)
+	end
+	for _, descendant in fence:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			consider(descendant)
+		end
+	end
+	return top - baseTop
+end
+
+local function createPart(segment: Segment): Part
+	local part = Instance.new("Part")
+	part.Name = segment.Name
+	part.Anchored = true
+	part.CanTouch = false
+	if segment.Kind == Walls.Kinds.Glass then
+		part.Material = Enum.Material.Glass
+		part.Color = glassColor
+		part.Transparency = glassTransparency
+		part.Reflectance = glassReflectance
+		part.CastShadow = false
+		part.CanCollide = true
+		part.CanQuery = false
+	else
+		part.Material = Enum.Material.Metal
+		part.Color = steelColor
+		part.CastShadow = segment.Kind == Walls.Kinds.Pillar
+		part.CanCollide = true
+		part.CanQuery = false
+	end
+	return part
+end
+
 function Walls.Clear(info: Types.PlotInfo)
-	local folder = info.Walls
-	local isAuthored = info.WallsAuthored
-	info.Walls = nil
-	info.WallsAuthored = false
-	table.clear(info.WallParts)
-	if folder and not isAuthored then
+	local folder = info.GlassWalls
+	info.GlassWalls = nil
+	table.clear(info.GlassParts)
+	if folder then
 		folder:Destroy()
 	end
 end
 
-local function authoredFolder(model: Model): Folder?
-	local child = model:FindFirstChild(folderName)
-	if not child or not child:IsA("Folder") then
-		return nil
-	end
-	for _, part in child:GetChildren() do
-		if part:IsA("BasePart") then
-			return child
-		end
-	end
-	return nil
-end
-
-local function createParts(info: Types.PlotInfo)
-	local folder = Instance.new("Folder")
-	folder.Name = folderName
-	local inset = if info.Model:FindFirstChild(fenceName) then fenceInset else 0
-	local color = info.Base.Color:Lerp(wallInk, wallMix)
-	for _, segment in Walls.Layout(info.Base.Size, Walls.Height(0), inset) do
-		local part = Instance.new("Part")
-		part.Name = segment.Name
-		part.Anchored = true
-		part.CanCollide = true
-		part.CanTouch = false
-		part.CanQuery = false
-		part.CastShadow = false
-		part.Material = Enum.Material.SmoothPlastic
-		part.Color = color
-		part.Size = segment.Size
-		part.CFrame = info.Base.CFrame * CFrame.new(segment.Center)
-		part.Parent = folder
-		info.WallParts[segment.Name] = part
-	end
-	folder.Parent = info.Model
-	info.Walls = folder
-	info.WallsAuthored = false
-end
-
-local function adoptParts(info: Types.PlotInfo, folder: Folder)
-	for _, part in folder:GetChildren() do
-		if part:IsA("BasePart") then
-			info.WallParts[part.Name] = part
-		end
-	end
-	info.Walls = folder
-	info.WallsAuthored = true
-end
-
-local function setHeight(info: Types.PlotInfo, part: BasePart, height: number)
-	local size = part.Size
-	local relative = info.Base.CFrame:ToObjectSpace(part.CFrame)
-	local centerY = info.Base.Size.Y / 2 + height / 2
-	if size.Y == height and math.abs(relative.Position.Y - centerY) < 1e-4 then
-		return
-	end
-	local rotation = CFrame.new(-relative.Position) * relative
-	part.Size = Vector3.new(size.X, height, size.Z)
-	part.CFrame = info.Base.CFrame * CFrame.new(relative.Position.X, centerY, relative.Position.Z) * rotation
-end
-
 function Walls.Build(info: Types.PlotInfo, level: any)
-	if not info.Walls then
-		local authored = authoredFolder(info.Model)
-		if authored then
-			adoptParts(info, authored)
-		else
-			createParts(info)
-		end
-	end
+	info.FenceRise = fenceRise(info)
 	Walls.Apply(info, level)
 end
 
 function Walls.Apply(info: Types.PlotInfo, level: any)
 	local clamped = Walls.Level(level)
-	local height = Walls.Height(clamped)
-	if info.WallsAuthored then
-		for _, part in info.WallParts do
-			setHeight(info, part, height)
-		end
-	else
-		local inset = if info.Model:FindFirstChild(fenceName) then fenceInset else 0
-		for _, segment in Walls.Layout(info.Base.Size, height, inset) do
-			local part = info.WallParts[segment.Name]
-			if part and part.Size.Y ~= height then
+	local glass = Walls.GlassHeight(clamped)
+	local total = info.FenceRise + glass
+	if clamped > 0 then
+		local folder: Folder = info.GlassWalls or Instance.new("Folder")
+		folder.Name = folderName
+		info.GlassWalls = folder
+		local bottom = info.Base.Size.Y / 2 + info.FenceRise
+		for _, segment in Walls.Layout(info.Base.Size, glass, bottom) do
+			local existing = info.GlassParts[segment.Name]
+			local part: BasePart = existing or createPart(segment)
+			if not existing then
+				info.GlassParts[segment.Name] = part
+			end
+			if not existing or part.Size ~= segment.Size then
 				part.Size = segment.Size
 				part.CFrame = info.Base.CFrame * CFrame.new(segment.Center)
 			end
+			if part.Parent ~= folder then
+				part.Parent = folder
+			end
 		end
+		if folder.Parent ~= info.Model then
+			folder.Parent = info.Model
+		end
+	elseif info.GlassWalls then
+		info.GlassWalls.Parent = nil
 	end
 	info.WallLevel = clamped
-	if info.Model:GetAttribute("WallHeight") ~= height then
-		info.Model:SetAttribute("WallHeight", height)
+	info.WallHeight = total
+	if info.Model:GetAttribute("WallHeight") ~= total then
+		info.Model:SetAttribute("WallHeight", total)
 	end
 end
 

@@ -27,9 +27,10 @@ export type PlotInfo = {
 	Placeholder: boolean,
 	Walkway: BasePart?,
 	Sign: OwnerSign.Display?,
-	Walls: Folder?,
-	WallParts: { [string]: BasePart },
-	WallsAuthored: boolean,
+	GlassWalls: Folder?,
+	GlassParts: { [string]: BasePart },
+	FenceRise: number,
+	WallHeight: number,
 	WallLevel: number,
 	Defense: Defense?,
 }
