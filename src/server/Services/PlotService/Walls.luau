@@ -21,6 +21,8 @@ local glassThickness = 0.6
 local railThickness = 0.9
 local railHeight = 0.3
 local pillarOvershoot = 0.4
+local epsilon = 1e-3
+local squareRatio = 1.5
 local glassColor = Color3.fromRGB(180, 220, 255)
 local glassTransparency = 0.55
 local glassReflectance = 0.1
@@ -92,24 +94,40 @@ local function span(
 	return { glass, rail }
 end
 
-function Walls.Layout(baseSize: Vector3, height: number, bottom: number?): { Segment }
+function Walls.Layout(baseSize: Vector3, height: number, bottom: number?, frame: Types.Frame?): { Segment }
 	local floorY = bottom or baseSize.Y / 2
-	local centerX = math.max(0, baseSize.X / 2 - Walls.Inset)
-	local centerZ = math.max(0, baseSize.Z / 2 - Walls.Inset)
-	local gateX = math.clamp(defense.EntranceWidth, 0, centerX * 2) / 2 + pillarSize / 2
+	local left: number
+	local right: number
+	local front: number
+	local back: number
+	local gateLeft: number
+	local gateRight: number
+	if frame then
+		left, right, front, back = frame.Left, frame.Right, frame.Front, frame.Back
+		gateLeft, gateRight = frame.GateLeft, frame.GateRight
+	else
+		local centerX = math.max(0, baseSize.X / 2 - Walls.Inset)
+		local centerZ = math.max(0, baseSize.Z / 2 - Walls.Inset)
+		local gateX = math.clamp(defense.EntranceWidth, 0, centerX * 2) / 2 + pillarSize / 2
+		left, right, front, back = -centerX, centerX, -centerZ, centerZ
+		gateLeft, gateRight = -gateX, gateX
+	end
 	local segments: { Segment } = {}
 	local function add(list: { Segment })
 		for _, segment in list do
 			table.insert(segments, segment)
 		end
 	end
-	add(span("Back", true, -centerX, centerX, centerZ, floorY, height))
-	add(span("Left", false, -centerZ, centerZ, -centerX, floorY, height))
-	add(span("Right", false, -centerZ, centerZ, centerX, floorY, height))
-	local hasFront = gateX < centerX
-	if hasFront then
-		add(span("FrontLeft", true, -centerX, -gateX, -centerZ, floorY, height))
-		add(span("FrontRight", true, gateX, centerX, -centerZ, floorY, height))
+	add(span("Back", true, left, right, back, floorY, height))
+	add(span("Left", false, front, back, left, floorY, height))
+	add(span("Right", false, front, back, right, floorY, height))
+	local hasLeftFront = gateLeft - left > epsilon
+	local hasRightFront = right - gateRight > epsilon
+	if hasLeftFront then
+		add(span("FrontLeft", true, left, gateLeft, front, floorY, height))
+	end
+	if hasRightFront then
+		add(span("FrontRight", true, gateRight, right, front, floorY, height))
 	end
 	local pillarHeight = height + pillarOvershoot
 	local pillarY = floorY + pillarHeight / 2
@@ -121,15 +139,155 @@ function Walls.Layout(baseSize: Vector3, height: number, bottom: number?): { Seg
 			Center = Vector3.new(x, pillarY, z),
 		})
 	end
-	pillar("BackLeft", -centerX, centerZ)
-	pillar("BackRight", centerX, centerZ)
-	pillar("FrontLeft", -centerX, -centerZ)
-	pillar("FrontRight", centerX, -centerZ)
-	if hasFront then
-		pillar("GateLeft", -gateX, -centerZ)
-		pillar("GateRight", gateX, -centerZ)
+	pillar("BackLeft", left, back)
+	pillar("BackRight", right, back)
+	pillar("FrontLeft", left, front)
+	pillar("FrontRight", right, front)
+	if hasLeftFront then
+		pillar("GateLeft", gateLeft, front)
+	end
+	if hasRightFront then
+		pillar("GateRight", gateRight, front)
 	end
 	return segments
+end
+
+local function collectFenceParts(fence: Instance): { BasePart }
+	local parts: { BasePart } = {}
+	if fence:IsA("BasePart") then
+		table.insert(parts, fence)
+	end
+	for _, descendant in fence:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			table.insert(parts, descendant)
+		end
+	end
+	return parts
+end
+
+type Footprint = { MinX: number, MaxX: number, MinZ: number, MaxZ: number }
+
+local function footprint(base: BasePart, part: BasePart): Footprint
+	local relative = base.CFrame:ToObjectSpace(part.CFrame)
+	local half = part.Size / 2
+	local result: Footprint = { MinX = math.huge, MaxX = -math.huge, MinZ = math.huge, MaxZ = -math.huge }
+	for _, sx in { -1, 1 } do
+		for _, sy in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				local corner = relative * Vector3.new(sx * half.X, sy * half.Y, sz * half.Z)
+				result.MinX = math.min(result.MinX, corner.X)
+				result.MaxX = math.max(result.MaxX, corner.X)
+				result.MinZ = math.min(result.MinZ, corner.Z)
+				result.MaxZ = math.max(result.MaxZ, corner.Z)
+			end
+		end
+	end
+	return result
+end
+
+local function median(values: { number }): number
+	table.sort(values)
+	local count = #values
+	if count % 2 == 1 then
+		return values[(count + 1) / 2]
+	end
+	return (values[count / 2] + values[count / 2 + 1]) / 2
+end
+
+local function largestGap(
+	footprints: { Footprint },
+	minX: number,
+	maxX: number,
+	frontLimit: number
+): { number }?
+	local intervals: { { number } } = {}
+	for _, item in footprints do
+		if item.MinZ <= frontLimit then
+			table.insert(intervals, { item.MinX, item.MaxX })
+		end
+	end
+	table.sort(intervals, function(a: { number }, b: { number })
+		return a[1] < b[1]
+	end)
+	local bestFrom: number? = nil
+	local bestTo = 0
+	local cursor = minX
+	local function consider(from: number, to: number)
+		local width = to - from
+		if width >= pillarSize and (not bestFrom or width > bestTo - bestFrom + epsilon) then
+			bestFrom = from
+			bestTo = to
+		end
+	end
+	for _, interval in intervals do
+		if interval[1] > cursor then
+			consider(cursor, interval[1])
+		end
+		cursor = math.max(cursor, interval[2])
+	end
+	if maxX > cursor then
+		consider(cursor, maxX)
+	end
+	if bestFrom then
+		return { bestFrom, bestTo }
+	end
+	return nil
+end
+
+function Walls.Measure(info: Types.PlotInfo): Types.Frame?
+	local fence = info.Model:FindFirstChild(fenceName)
+	if not fence then
+		return nil
+	end
+	local footprints: { Footprint } = {}
+	local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+	for _, part in collectFenceParts(fence) do
+		local item = footprint(info.Base, part)
+		table.insert(footprints, item)
+		minX = math.min(minX, item.MinX)
+		maxX = math.max(maxX, item.MaxX)
+		minZ = math.min(minZ, item.MinZ)
+		maxZ = math.max(maxZ, item.MaxZ)
+	end
+	if #footprints == 0 then
+		return nil
+	end
+	local thicknesses: { number } = {}
+	for _, item in footprints do
+		local width = item.MaxX - item.MinX
+		local depth = item.MaxZ - item.MinZ
+		local thin = math.min(width, depth)
+		local long = math.max(width, depth)
+		if thin > epsilon and long >= thin * squareRatio then
+			table.insert(thicknesses, thin)
+		end
+	end
+	local thickness = if #thicknesses > 0 then median(thicknesses) else 1
+	local left = minX + thickness / 2
+	local right = maxX - thickness / 2
+	local front = minZ + thickness / 2
+	local back = maxZ - thickness / 2
+	if right - left < pillarSize or back - front < pillarSize then
+		return nil
+	end
+	local gap = largestGap(footprints, minX, maxX, minZ + thickness + epsilon)
+	local gapFrom: number
+	local gapTo: number
+	if gap then
+		gapFrom, gapTo = gap[1], gap[2]
+	else
+		local middle = (left + right) / 2
+		local half = math.clamp(defense.EntranceWidth, 0, right - left) / 2
+		gapFrom, gapTo = middle - half, middle + half
+	end
+	return {
+		Left = left,
+		Right = right,
+		Front = front,
+		Back = back,
+		GateLeft = math.clamp(gapFrom, left, right),
+		GateRight = math.clamp(gapTo, left, right),
+	}
 end
 
 local function fenceRise(info: Types.PlotInfo): number
@@ -194,6 +352,7 @@ end
 
 function Walls.Build(info: Types.PlotInfo, level: any)
 	info.FenceRise = fenceRise(info)
+	info.Frame = Walls.Measure(info)
 	Walls.Apply(info, level)
 end
 
@@ -206,7 +365,7 @@ function Walls.Apply(info: Types.PlotInfo, level: any)
 		folder.Name = folderName
 		info.GlassWalls = folder
 		local bottom = info.Base.Size.Y / 2 + info.FenceRise
-		for _, segment in Walls.Layout(info.Base.Size, glass, bottom) do
+		for _, segment in Walls.Layout(info.Base.Size, glass, bottom, info.Frame) do
 			local existing = info.GlassParts[segment.Name]
 			local part: BasePart = existing or createPart(segment)
 			if not existing then

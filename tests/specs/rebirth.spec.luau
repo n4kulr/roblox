@@ -78,14 +78,14 @@ describe("RebirthService", function()
 		expect(data.Rebirths):toBe(1)
 	end)
 
-	it("resets the Income upgrade but keeps the base defense upgrades", function()
+	it("resets the Income and base defense upgrades", function()
 		join({
 			Cash = 5000000,
 			IncomeAt = world.now,
 			Upgrades = { Luck = 1, Speed = 1, Slots = 1, Income = 6, Walls = 2, LockTime = 3 },
 		})
 		expect(rebirth()):toBe(true)
-		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 2, LockTime = 3 })
+		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0 })
 	end)
 
 	it("keeps keys, discoveries and everything else", function()
@@ -189,5 +189,41 @@ describe("RebirthService", function()
 			join({ Board = S.fill("PlainClack", 3) })
 			expect(services.KeyboardService:GetRate(player)):toBe(3)
 		end)
+	end)
+end)
+
+describe("RebirthService with plots", function()
+	it("removes the glass walls after a rebirth", function()
+		local world = H.newWorld({ Time = 1700000000 })
+		world.workspace = world:newInstance("Folder")
+		local plotService = world:require("ServerScriptService.Services.PlotService")
+		world:boot(
+			{ "KeyboardService", "PassService", "PlotService", "RebirthService" },
+			{ PlotService = plotService }
+		)
+		local plots = world.workspace:FindFirstChild("Plots")
+		local player, data = world:join(nil, {
+			Cash = 5000000,
+			IncomeAt = world.now,
+			Upgrades = { Walls = 2, LockTime = 1 },
+		}, true)
+		world:flush()
+		local function glassVisible(): boolean
+			for _, plot in plots:GetChildren() do
+				local folder = plot:FindFirstChild("GlassWalls")
+				if folder and folder.Parent ~= nil and plot:GetAttribute("Owner") == player.UserId then
+					return true
+				end
+			end
+			return false
+		end
+		expect(glassVisible()):toBe(true)
+		expect(world:invoke("Rebirth", player)):toBe(true)
+		world:flush()
+		expect(data.Upgrades.Walls):toBe(0)
+		expect(data.Upgrades.LockTime):toBe(0)
+		expect(glassVisible()):toBe(false)
+		expect(world.errors):toEqual({})
+		world:destroy()
 	end)
 end)

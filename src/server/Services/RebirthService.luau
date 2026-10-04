@@ -19,7 +19,7 @@ local function rebirth(player: Player): boolean
 		return false
 	end
 	replica:SetValues({}, { Cash = 0, IncomeAt = os.time(), Rebirths = data.Rebirths + 1 })
-	replica:SetValues({ "Upgrades" }, { Luck = 0, Speed = 0, Slots = 0, Income = 0 })
+	replica:SetValues({ "Upgrades" }, { Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0 })
 	services.KeyboardService:Normalize(player)
 	services.KeyboardService.BoardChanged:Fire(player)
 	services.DataService:RequestSave(player)

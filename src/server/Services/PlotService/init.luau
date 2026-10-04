@@ -235,6 +235,15 @@ local function teleport(player: Player, character: Model)
 	end)
 end
 
+local function applyWalkSpeed(character: Model)
+	task.spawn(function()
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.WalkSpeed = GameConfig.Steal.NormalWalkSpeed
+		end
+	end)
+end
+
 local function presentLock(info: PlotInfo)
 	local state = info.Defense
 	if state then
@@ -314,9 +323,11 @@ local function assign(player: Player, data: PlayerData.Data)
 	local playerTrove = Trove.new()
 	playerTroves[player] = playerTrove
 	playerTrove:Connect(player.CharacterAdded, function(character: Model)
+		applyWalkSpeed(character)
 		teleport(player, character)
 	end)
 	if player.Character then
+		applyWalkSpeed(player.Character)
 		teleport(player, player.Character)
 	end
 end
@@ -353,6 +364,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				GlassWalls = nil,
 				GlassParts = {},
 				FenceRise = 0,
+				Frame = nil,
 				WallHeight = 0,
 				WallLevel = 0,
 				Defense = nil,

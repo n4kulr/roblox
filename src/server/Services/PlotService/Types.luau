@@ -15,6 +15,15 @@ export type Defense = {
 	Status: string,
 }
 
+export type Frame = {
+	Left: number,
+	Right: number,
+	Front: number,
+	Back: number,
+	GateLeft: number,
+	GateRight: number,
+}
+
 export type PlotInfo = {
 	Model: Model,
 	Base: BasePart,
@@ -30,6 +39,7 @@ export type PlotInfo = {
 	GlassWalls: Folder?,
 	GlassParts: { [string]: BasePart },
 	FenceRise: number,
+	Frame: Frame?,
 	WallHeight: number,
 	WallLevel: number,
 	Defense: Defense?,

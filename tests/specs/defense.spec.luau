@@ -29,12 +29,12 @@ describe("Base defense", function()
 		world:destroy()
 	end)
 
-	local function join(name: string, overrides: any?)
+	local function join(name: string, overrides: any?, fireLoaded: boolean?)
 		local data: any = { PlaySeconds = 5000, Board = S.board("GlassTink", "PlainClack"), TheftLessonDone = true }
 		for key, value in overrides or {} do
 			data[key] = value
 		end
-		return world:join({ Name = name }, data, true)
+		return world:join({ Name = name }, data, fireLoaded ~= false)
 	end
 
 	local function countKeys(table_: { [any]: any }): number
@@ -211,6 +211,33 @@ describe("Base defense", function()
 		end)
 	end)
 
+	describe("walk speed", function()
+		it("uses the configured normal speed", function()
+			expect(GameConfig.Steal.NormalWalkSpeed):toBe(24)
+			expect(GameConfig.Steal.CarryWalkSpeed):toBe(18)
+		end)
+
+		it("sets every spawned character to the normal speed", function()
+			local player = join("Runner")
+			world:spawnCharacter(player, 0, 3, 0)
+			world:flush()
+			expect(world:walkSpeed(player)):toBe(GameConfig.Steal.NormalWalkSpeed)
+			world:resetCharacter(player)
+			world:spawnCharacter(player, 0, 3, 0)
+			world:flush()
+			expect(world:walkSpeed(player)):toBe(GameConfig.Steal.NormalWalkSpeed)
+		end)
+
+		it("fixes a character that spawned before the data loaded", function()
+			local player, data = join("Early", { Upgrades = {} }, false)
+			world:spawnCharacter(player, 0, 3, 0)
+			expect(world:walkSpeed(player)):toBe(16)
+			world.Data.Service.PlayerLoaded:Fire(player, data)
+			world:flush()
+			expect(world:walkSpeed(player)):toBe(GameConfig.Steal.NormalWalkSpeed)
+		end)
+	end)
+
 	describe("lock base button", function()
 		local function hasPad(plot: any): boolean
 			for _, descendant in plot:GetDescendants() do
@@ -327,7 +354,7 @@ describe("Base defense", function()
 		local authored: any
 		local nested: any
 
-		local function bootAuthored(withFence: boolean, withWalls: boolean)
+		local function bootAuthored(withFence: boolean, withWalls: boolean, options: any?)
 			world:destroy()
 			world = H.newWorld({ Time = 1700000000 })
 			world.workspace = world:newInstance("Folder")
@@ -335,7 +362,7 @@ describe("Base defense", function()
 			folder.Name = "Plots"
 			authored = world:newInstance("Model")
 			authored.Name = "Plot1"
-			local origin = roblox.CFrame.new(300, 0.5, 0)
+			local origin = if options and options.Origin then options.Origin else roblox.CFrame.new(300, 0.5, 0)
 			for name, size in
 				{
 					Base = Vector3.new(44, 1, 44),
@@ -364,11 +391,28 @@ describe("Base defense", function()
 			if withFence then
 				local fence = world:newInstance("Folder")
 				fence.Name = "Fence"
-				local post = world:newInstance("Part")
-				post.Name = "Rail"
-				post.Size = Vector3.new(44, 3, 0.5)
-				post.CFrame = origin * roblox.CFrame.new(0, 2, 22)
-				post.Parent = fence
+				if options and options.Specs then
+					local groups: { any } = { fence }
+					for depth = 1, 2 do
+						local group = world:newInstance("Model")
+						group.Name = `Group{depth}`
+						group.Parent = groups[depth]
+						groups[depth + 1] = group
+					end
+					for index, spec in options.Specs do
+						local part = world:newInstance("Part")
+						part.Name = `Part{index}`
+						part.Size = spec.Size
+						part.CFrame = origin * roblox.CFrame.new(spec.Position)
+						part.Parent = groups[(spec.Depth or 0) + 1]
+					end
+				else
+					local post = world:newInstance("Part")
+					post.Name = "Rail"
+					post.Size = Vector3.new(44, 3, 0.5)
+					post.CFrame = origin * roblox.CFrame.new(0, 2, 22)
+					post.Parent = fence
+				end
 				fence.Parent = authored
 			end
 			if withWalls then
@@ -443,6 +487,102 @@ describe("Base defense", function()
 			world:removePlayer(player)
 			expect(snapshot(plot.Fence)):toEqual(before)
 			expect(plot:GetAttribute("WallHeight")):toBeCloseTo(3, 1e-3)
+		end)
+
+		local function railSpecs(hasGap: boolean, depth: number): { any }
+			local function spec(size: any, position: any, level: number?)
+				return { Size = size, Position = position, Depth = level or depth }
+			end
+			local specs = {
+				spec(Vector3.new(40, 3, 1), Vector3.new(0, 2, 18.5)),
+				spec(Vector3.new(1, 3, 38), Vector3.new(-19.5, 2, 0)),
+				spec(Vector3.new(1, 3, 38), Vector3.new(19.5, 2, 0)),
+				spec(Vector3.new(1.5, 4, 1.5), Vector3.new(-19.25, 2.5, -18.25), 0),
+				spec(Vector3.new(1.5, 4, 1.5), Vector3.new(19.25, 2.5, -18.25), 0),
+				spec(Vector3.new(1.5, 4, 1.5), Vector3.new(-19.25, 2.5, 18.25), 0),
+				spec(Vector3.new(1.5, 4, 1.5), Vector3.new(19.25, 2.5, 18.25), 0),
+			}
+			if hasGap then
+				table.insert(specs, spec(Vector3.new(14, 3, 1), Vector3.new(-13, 2, -18.5)))
+				table.insert(specs, spec(Vector3.new(16, 3, 1), Vector3.new(12, 2, -18.5)))
+			else
+				table.insert(specs, spec(Vector3.new(40, 3, 1), Vector3.new(0, 2, -18.5)))
+			end
+			return specs
+		end
+
+		local function expectFramed(plot: any, gateLeft: number, gateRight: number)
+			local parts = wallParts(plot)
+			local expected = {
+				PillarBackLeft = { -19.5, 18.5 },
+				PillarBackRight = { 19.5, 18.5 },
+				PillarFrontLeft = { -19.5, -18.5 },
+				PillarFrontRight = { 19.5, -18.5 },
+				PillarGateLeft = { gateLeft, -18.5 },
+				PillarGateRight = { gateRight, -18.5 },
+			}
+			for name, spot in expected do
+				expect(parts[name] ~= nil):toBe(true)
+				local position = localPosition(plot, parts[name])
+				expect(position.X):toBeCloseTo(spot[1], 1e-3)
+				expect(position.Z):toBeCloseTo(spot[2], 1e-3)
+			end
+			local function glass(name: string, x: number, z: number, lengthX: number, lengthZ: number)
+				local part = parts[name]
+				expect(part ~= nil):toBe(true)
+				local position = localPosition(plot, part)
+				expect(position.X):toBeCloseTo(x, 1e-3)
+				expect(position.Z):toBeCloseTo(z, 1e-3)
+				expect(part.Size.X):toBeCloseTo(lengthX, 1e-3)
+				expect(part.Size.Z):toBeCloseTo(lengthZ, 1e-3)
+			end
+			glass("Back", 0, 18.5, 39, 0.6)
+			glass("Left", -19.5, 0, 0.6, 37)
+			glass("Right", 19.5, 0, 0.6, 37)
+			glass(
+				"FrontLeft",
+				(-19.5 + gateLeft) / 2,
+				-18.5,
+				gateLeft + 19.5,
+				0.6
+			)
+			glass("FrontRight", (gateRight + 19.5) / 2, -18.5, 19.5 - gateRight, 0.6)
+		end
+
+		it("centers pillars on the fence centerline corners and the off-center front gap", function()
+			local plot = bootAuthored(true, false, { Specs = railSpecs(true, 0) })
+			join("Owner", { Upgrades = { Walls = 2 } })
+			expectFramed(plot, -6, 4)
+			expect(wallParts(plot).Back.Size.Y):toBe(6)
+		end)
+
+		it("measures a rotated plot in base-local space", function()
+			local origin = roblox.CFrame.new(300, 0.5, 40) * roblox.CFrame.Angles(0, math.rad(45), 0)
+			local plot = bootAuthored(true, false, { Specs = railSpecs(true, 0), Origin = origin })
+			join("Owner", { Upgrades = { Walls = 1 } })
+			expectFramed(plot, -6, 4)
+		end)
+
+		it("measures fences made of nested models", function()
+			for _, depth in { 1, 2 } do
+				local plot = bootAuthored(true, false, { Specs = railSpecs(true, depth) })
+				join(`Owner{depth}`, { Upgrades = { Walls = 1 } })
+				expectFramed(plot, -6, 4)
+			end
+		end)
+
+		it("falls back to the configured entrance centered when the front has no gap", function()
+			local plot = bootAuthored(true, false, { Specs = railSpecs(false, 0) })
+			join("Owner", { Upgrades = { Walls = 1 } })
+			local half = defense.EntranceWidth / 2
+			expectFramed(plot, -half, half)
+		end)
+
+		it("leaves the measured fence parts untouched", function()
+			local plot = bootAuthored(true, false, { Specs = railSpecs(true, 1) })
+			local before = snapshot(plot.Fence)
+			join("Owner", { Upgrades = { Walls = 3 } })
+			expect(snapshot(plot.Fence)):toEqual(before)
 		end)
 
 		it("starts the glass at the base top when there is no fence and ignores a legacy Walls folder", function()
