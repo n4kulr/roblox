@@ -24,6 +24,7 @@ local pillarOvershoot = 0.4
 local epsilon = 1e-3
 local squareRatio = 1.5
 local fenceBlend = 0.5
+local postSnap = 0.75
 local glassColor = Color3.fromRGB(180, 220, 255)
 local glassTransparency = 0.55
 local glassReflectance = 0.1
@@ -285,6 +286,27 @@ function Walls.Measure(info: Types.PlotInfo): Types.Frame?
 		local middle = (left + right) / 2
 		local half = math.clamp(defense.EntranceWidth, 0, right - left) / 2
 		gapFrom, gapTo = middle - half, middle + half
+	end
+	local frontLimit = minZ + thickness + epsilon
+	local function postCenter(edge: number, isLeft: boolean): number
+		local best = edge
+		local bestDistance = postSnap
+		for _, item in footprints do
+			local width = item.MaxX - item.MinX
+			local depth = item.MaxZ - item.MinZ
+			local isPost = math.max(width, depth) < math.min(width, depth) * squareRatio
+			local face = if isLeft then item.MaxX else item.MinX
+			local distance = math.abs(face - edge)
+			if isPost and item.MinZ <= frontLimit and distance < bestDistance then
+				best = (item.MinX + item.MaxX) / 2
+				bestDistance = distance
+			end
+		end
+		return best
+	end
+	if gap then
+		gapFrom = postCenter(gapFrom, true)
+		gapTo = postCenter(gapTo, false)
 	end
 	return {
 		Left = left,
