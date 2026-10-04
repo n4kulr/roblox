@@ -30,7 +30,7 @@ describe("UpgradeService", function()
 	it("only touches the purchased upgrade", function()
 		local player, data = world:join(nil, { Cash = 10000, Upgrades = { Speed = 2 } })
 		buy(player, "Slots")
-		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 2, Slots = 1, Income = 0, Walls = 0, LockTime = 0 })
+		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 2, Slots = 1, Income = 0, Walls = 0, LockTime = 0, Golden = 0 })
 	end)
 
 	it("accepts an exact-cost purchase and rejects one coin short", function()

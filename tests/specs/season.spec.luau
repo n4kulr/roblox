@@ -145,7 +145,7 @@ describe("SeasonService", function()
 		it("gives golden XP on the golden roll", function()
 			join(
 				{ Id = GameConfig.Season.Id, Xp = 0, ClaimedFree = 0, ClaimedPremium = 0 },
-				{ Rolls = GameConfig.GoldenRollEvery - 1 }
+				{ Rolls = 500, GoldenProgress = GameConfig.GoldenRollEvery - 1 }
 			)
 			local _, isGolden = world:invoke("Roll", player)
 			expect(isGolden):toBe(true)

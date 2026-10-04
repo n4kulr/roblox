@@ -12,6 +12,7 @@ export type Levels = {
 	Income: number?,
 	Walls: number?,
 	LockTime: number?,
+	Golden: number?,
 }
 
 export type Stats = {
@@ -32,6 +33,11 @@ end
 function Stats.Slots(levels: any): number
 	local slots = GameConfig.BaseSlots + level(levels, "Slots") * Upgrades.ById.Slots.PerLevel
 	return math.clamp(slots, GameConfig.BaseSlots, GameConfig.BoardSlots)
+end
+
+function Stats.GoldenEvery(levels: any): number
+	local every = GameConfig.GoldenRollEvery - level(levels, "Golden") * Upgrades.ById.Golden.PerLevel
+	return math.max(1, every)
 end
 
 export type Modifiers = { Luck: number?, Income: number? }

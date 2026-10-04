@@ -4,13 +4,14 @@ local S = require("../support")
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
 describe("RollService handler", function()
-	local world, Keys, GameConfig
+	local world, Keys, GameConfig, Upgrades
 
 	beforeEach(function()
 		world = H.newWorld({ Seed = 7 })
 		world:boot({ "KeyboardService", "RollService" })
 		Keys = world:require("ReplicatedStorage.Config.Keys")
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
+		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
 	end)
 
 	local function roll(player: any): (number, boolean)
@@ -137,25 +138,53 @@ describe("RollService handler", function()
 			end
 		end)
 
-		it("flags every GoldenRollEvery-th roll as golden", function()
+		it("flags the roll that completes GoldenRollEvery as golden and resets progress", function()
 			local player, data = world:join()
 			for _, rolls in { 99, 199, 999 } do
 				data.Rolls = rolls
+				data.GoldenProgress = GameConfig.GoldenRollEvery - 1
 				world:advance(1)
 				local index, golden = roll(player)
 				expect(index > 0):toBe(true)
 				expect(golden):toBe(true)
+				expect(data.GoldenProgress):toBe(0)
 			end
 		end)
 
-		it("does not flag other rolls as golden", function()
+		it("does not flag other rolls as golden and counts progress up", function()
 			local player, data = world:join()
-			for _, rolls in { 0, 1, 3, 50, 98, 100, 101, 198 } do
-				data.Rolls = rolls
+			for _, progress in { 0, 1, 3, 50, 97, 98 } do
+				data.Rolls = 500
+				data.GoldenProgress = progress
 				world:advance(1)
 				local _, golden = roll(player)
 				expect(golden):toBe(false)
+				expect(data.GoldenProgress):toBe(progress + 1)
 			end
+		end)
+
+		it("reaches a golden roll sooner with Golden Touch", function()
+			local player, data = world:join()
+			data.Upgrades.Golden = 4
+			local every = GameConfig.GoldenRollEvery - 4 * Upgrades.ById.Golden.PerLevel
+			data.Rolls = 500
+			data.GoldenProgress = every - 2
+			world:advance(1)
+			local _, first = roll(player)
+			expect(first):toBe(false)
+			world:advance(1)
+			local _, second = roll(player)
+			expect(second):toBe(true)
+			expect(data.GoldenProgress):toBe(0)
+		end)
+
+		it("never needs fewer than one roll at max Golden Touch", function()
+			local Stats = world:require("ReplicatedStorage.Rules.Stats")
+			expect(Stats.GoldenEvery({ Golden = Upgrades.ById.Golden.MaxLevel })):toBe(
+				GameConfig.GoldenRollEvery - Upgrades.ById.Golden.MaxLevel * Upgrades.ById.Golden.PerLevel
+			)
+			expect(Stats.GoldenEvery({ Golden = 1000 })):toBe(1)
+			expect(Stats.GoldenEvery({})):toBe(GameConfig.GoldenRollEvery)
 		end)
 
 		it("counts rolls exactly through a whole golden cycle", function()
@@ -175,10 +204,11 @@ describe("RollService handler", function()
 
 		it("boosts luck on golden rolls", function()
 			local player, data = world:join()
-			local function rareOrBetter(startRolls: number, trials: number): number
+			local function rareOrBetter(progress: number, trials: number): number
 				local hits = 0
 				for _ = 1, trials do
-					data.Rolls = startRolls
+					data.Rolls = 500
+					data.GoldenProgress = progress
 					world:advance(1)
 					local index = roll(player)
 					local chance = Keys.RarityByName[rarityOf(index)].Chance
@@ -189,7 +219,7 @@ describe("RollService handler", function()
 				return hits
 			end
 			local normal = rareOrBetter(10, 1500)
-			local golden = rareOrBetter(99, 1500)
+			local golden = rareOrBetter(GameConfig.GoldenRollEvery - 1, 1500)
 			expect(normal):toBeLessThan(120)
 			expect(golden):toBeGreaterThan(normal * 4)
 			expect(golden):toBeGreaterThan(150)
@@ -218,6 +248,7 @@ describe("RollService handler", function()
 			local announcedKeys = {}
 			for _ = 1, 600 do
 				data.Rolls = 99
+				data.GoldenProgress = GameConfig.GoldenRollEvery - 1
 				world:advance(1)
 				local index = roll(player)
 				if Keys.RarityByName[rarityOf(index)].Announce then

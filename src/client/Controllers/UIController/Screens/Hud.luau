@@ -7,6 +7,7 @@ local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Season = require(ReplicatedStorage.Rules.Season)
+local Stats = require(ReplicatedStorage.Rules.Stats)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
@@ -430,14 +431,18 @@ function Hud.new(context: Types.Context): Types.Screen
 			goldenPulse = nil
 		end
 	end)
-	trove:Add(dataController:Observe({ "Rolls" }, function(value: any)
-		local rolls = if type(value) == "number" then value else 0
-		local count = rolls % GameConfig.GoldenRollEvery
-		local isNext = count == GameConfig.GoldenRollEvery - 1
-		goldenLabel.Text = if isNext then "NEXT!" else `{count}/{GameConfig.GoldenRollEvery}`
-		goldenFill.Size = UDim2.fromScale(1, if isNext then 1 else count / GameConfig.GoldenRollEvery)
+	local function refreshGolden()
+		local progress = dataController:Get({ "GoldenProgress" })
+		local count = if type(progress) == "number" then progress else 0
+		local every = Stats.GoldenEvery(dataController:Get({ "Upgrades" }))
+		count = math.min(count, every - 1)
+		local isNext = count >= every - 1
+		goldenLabel.Text = if isNext then "NEXT!" else `{count}/{every}`
+		goldenFill.Size = UDim2.fromScale(1, if isNext then 1 else count / every)
 		setGoldenNext(isNext)
-	end))
+	end
+	trove:Add(dataController:Observe({ "GoldenProgress" }, refreshGolden))
+	trove:Add(dataController:Observe({ "Upgrades", "Golden" }, refreshGolden))
 
 	local function setHinting(value: boolean)
 		if value == isHinting then

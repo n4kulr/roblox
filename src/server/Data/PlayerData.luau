@@ -11,7 +11,16 @@ export type Data = {
 	Inventory: { [string]: number },
 	Discovered: { [string]: number },
 	Rolls: number,
-	Upgrades: { Luck: number, Speed: number, Slots: number, Income: number, Walls: number, LockTime: number },
+	GoldenProgress: number,
+	Upgrades: {
+		Luck: number,
+		Speed: number,
+		Slots: number,
+		Income: number,
+		Walls: number,
+		LockTime: number,
+		Golden: number,
+	},
 	Settings: {
 		LowGraphics: boolean,
 		AutoPlace: boolean,
@@ -53,7 +62,8 @@ PlayerData.Template = {
 	Inventory = {},
 	Discovered = {},
 	Rolls = 0,
-	Upgrades = { Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0 },
+	GoldenProgress = 0,
+	Upgrades = { Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0, Golden = 0 },
 	Settings = {
 		LowGraphics = false,
 		AutoPlace = true,
@@ -90,7 +100,17 @@ function PlayerData.Validate(data: any): boolean
 		return false
 	end
 	for _, key in
-		{ "Cash", "IncomeAt", "Rolls", "Tutorial", "PlaySeconds", "Rebirths", "TotalEarned", "LastSeenAt" }
+		{
+			"Cash",
+			"IncomeAt",
+			"Rolls",
+			"GoldenProgress",
+			"Tutorial",
+			"PlaySeconds",
+			"Rebirths",
+			"TotalEarned",
+			"LastSeenAt",
+		}
 	do
 		if data[key] ~= nil and not natural(data[key]) then
 			return false

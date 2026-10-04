@@ -1,6 +1,6 @@
 --!strict
 
-export type UpgradeId = "Luck" | "Speed" | "Slots" | "Income" | "Walls" | "LockTime"
+export type UpgradeId = "Luck" | "Speed" | "Slots" | "Income" | "Walls" | "LockTime" | "Golden"
 
 export type Category = "Keys" | "Defense"
 
@@ -60,6 +60,17 @@ local list: { Upgrade } = {
 		BaseCost = 400,
 		Growth = 1.25,
 		PerLevel = 0.1,
+	},
+	{
+		Id = "Golden",
+		Name = "Golden Touch",
+		Description = "Reach your Golden Roll sooner!",
+		Effect = "-5 rolls to a Golden Roll each level",
+		Category = "Keys",
+		MaxLevel = 10,
+		BaseCost = 1500,
+		Growth = 1.6,
+		PerLevel = 5,
 	},
 	{
 		Id = "Walls",

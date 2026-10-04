@@ -60,11 +60,13 @@ local function handleRoll(player: Player): (number, boolean)
 		return 0, false
 	end
 	local isGuaranteed = data.Rolls + 1 == GameConfig.GuaranteedRareRoll
-	local isGolden = not isGuaranteed and (data.Rolls + 1) % GameConfig.GoldenRollEvery == 0
+	local goldenProgress = (data.GoldenProgress or 0) + 1
+	local isGolden = not isGuaranteed and goldenProgress >= Stats.GoldenEvery(data.Upgrades)
 	local key = if isGuaranteed
 		then Roll.PickInRarity(rng, "Rare")
 		else Roll.Pick(rng, if isGolden then stats.Luck * GameConfig.GoldenRollLuck else stats.Luck)
 	services.DataService:Set(player, { "Rolls" }, data.Rolls + 1)
+	services.DataService:Set(player, { "GoldenProgress" }, if isGolden then 0 else goldenProgress)
 	if not services.KeyboardService:AddKey(player, key.Id) then
 		return 0, false
 	end
