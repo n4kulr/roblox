@@ -23,6 +23,7 @@ local railHeight = 0.3
 local pillarOvershoot = 0.4
 local epsilon = 1e-3
 local squareRatio = 1.5
+local fenceBlend = 0.5
 local glassColor = Color3.fromRGB(180, 220, 255)
 local glassTransparency = 0.55
 local glassReflectance = 0.1
@@ -263,10 +264,15 @@ function Walls.Measure(info: Types.PlotInfo): Types.Frame?
 		end
 	end
 	local thickness = if #thicknesses > 0 then median(thicknesses) else 1
-	local left = minX + thickness / 2
-	local right = maxX - thickness / 2
-	local front = minZ + thickness / 2
-	local back = maxZ - thickness / 2
+	local insetX = math.max(0, info.Base.Size.X / 2 - Walls.Inset)
+	local insetZ = math.max(0, info.Base.Size.Z / 2 - Walls.Inset)
+	local function blend(measured: number, inset: number): number
+		return inset + (measured - inset) * fenceBlend
+	end
+	local left = blend(minX + thickness / 2, -insetX)
+	local right = blend(maxX - thickness / 2, insetX)
+	local front = blend(minZ + thickness / 2, -insetZ)
+	local back = blend(maxZ - thickness / 2, insetZ)
 	if right - left < pillarSize or back - front < pillarSize then
 		return nil
 	end

@@ -513,13 +513,16 @@ describe("Base defense", function()
 
 		local function expectFramed(plot: any, gateLeft: number, gateRight: number)
 			local parts = wallParts(plot)
+			local inset = 22 - 0.95
+			local sx = (19.5 + inset) / 2
+			local sz = (18.5 + inset) / 2
 			local expected = {
-				PillarBackLeft = { -19.5, 18.5 },
-				PillarBackRight = { 19.5, 18.5 },
-				PillarFrontLeft = { -19.5, -18.5 },
-				PillarFrontRight = { 19.5, -18.5 },
-				PillarGateLeft = { gateLeft, -18.5 },
-				PillarGateRight = { gateRight, -18.5 },
+				PillarBackLeft = { -sx, sz },
+				PillarBackRight = { sx, sz },
+				PillarFrontLeft = { -sx, -sz },
+				PillarFrontRight = { sx, -sz },
+				PillarGateLeft = { gateLeft, -sz },
+				PillarGateRight = { gateRight, -sz },
 			}
 			for name, spot in expected do
 				expect(parts[name] ~= nil):toBe(true)
@@ -536,20 +539,14 @@ describe("Base defense", function()
 				expect(part.Size.X):toBeCloseTo(lengthX, 1e-3)
 				expect(part.Size.Z):toBeCloseTo(lengthZ, 1e-3)
 			end
-			glass("Back", 0, 18.5, 39, 0.6)
-			glass("Left", -19.5, 0, 0.6, 37)
-			glass("Right", 19.5, 0, 0.6, 37)
-			glass(
-				"FrontLeft",
-				(-19.5 + gateLeft) / 2,
-				-18.5,
-				gateLeft + 19.5,
-				0.6
-			)
-			glass("FrontRight", (gateRight + 19.5) / 2, -18.5, 19.5 - gateRight, 0.6)
+			glass("Back", 0, sz, sx * 2, 0.6)
+			glass("Left", -sx, 0, 0.6, sz * 2)
+			glass("Right", sx, 0, 0.6, sz * 2)
+			glass("FrontLeft", (-sx + gateLeft) / 2, -sz, gateLeft + sx, 0.6)
+			glass("FrontRight", (gateRight + sx) / 2, -sz, sx - gateRight, 0.6)
 		end
 
-		it("centers pillars on the fence centerline corners and the off-center front gap", function()
+		it("centers pillars between the fence centerline and the plot edge inset and the off-center front gap", function()
 			local plot = bootAuthored(true, false, { Specs = railSpecs(true, 0) })
 			join("Owner", { Upgrades = { Walls = 2 } })
 			expectFramed(plot, -6, 4)
