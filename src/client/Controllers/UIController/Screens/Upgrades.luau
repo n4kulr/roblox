@@ -165,13 +165,13 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local balance = tracker.Balance()
+		local price = NumberFormat.Compact(cost)
 		if balance ~= nil and balance >= cost then
-			row.Buy.SetText(`BUY\n{NumberFormat.Compact(cost)}`)
+			row.Buy.SetText(price)
 			row.Buy.SetColor(theme.Green)
 		else
-			local missing = cost - (balance or 0)
-			row.Buy.SetText(`NEED {NumberFormat.Compact(missing)}`)
-			row.Buy.SetColor(theme.Red)
+			row.Buy.SetText(price)
+			row.Buy.SetColor(theme.Disabled)
 		end
 	end
 

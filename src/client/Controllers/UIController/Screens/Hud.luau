@@ -248,11 +248,18 @@ function Hud.new(context: Types.Context): Types.Screen
 
 	local money = Instance.new("Frame")
 	money.Name = "Currency"
-	money.BackgroundTransparency = 1
+	money.BorderSizePixel = 0
+	money.BackgroundColor3 = theme.Track
 	money.AnchorPoint = Vector2.new(0.5, 0)
 	money.Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap)
 	money.AutomaticSize = Enum.AutomaticSize.X
-	money.Size = UDim2.fromOffset(0, Kit.ClicksHeight)
+	money.Size = UDim2.fromOffset(0, Kit.ClicksHeight + 12)
+	Kit.Corner(money, 12)
+	Kit.Stroke(money, theme.Ink, 2.5)
+	local moneyPad = Instance.new("UIPadding")
+	moneyPad.PaddingLeft = UDim.new(0, 10)
+	moneyPad.PaddingRight = UDim.new(0, 14)
+	moneyPad.Parent = money
 	local moneyList = Instance.new("UIListLayout")
 	moneyList.SortOrder = Enum.SortOrder.LayoutOrder
 	moneyList.FillDirection = Enum.FillDirection.Horizontal
@@ -390,7 +397,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 	local function showAuto(isOn: boolean)
-		autoButton.SetText(if isOn then "AUTO: ON" else "AUTO: OFF")
+		autoButton.SetText(if isOn then "ON" else "OFF")
 		autoButton.SetColor(if isOn then theme.Green else theme.Grey)
 		autoButton.SetGlow(isOn)
 	end
