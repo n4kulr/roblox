@@ -374,11 +374,31 @@ local function makeFakeServices(world)
 	services.TextChatService = {}
 	services.ServerStorage = Tree.node("ServerStorage", "ServerStorage")
 	services.TweenService = {
-		Create = function()
-			return { Play = function() end, Pause = function() end, Cancel = function() end, Destroy = function() end }
+		Create = function(_self, target: any, info: any, goal: { [string]: any })
+			local isLooping = type(info) == "table" and info[4] == -1
+			local tween: any = { Completed = world:require("ReplicatedStorage.Packages.Signal").new() }
+			function tween.Play()
+				if isLooping then
+					return
+				end
+				for key, value in goal do
+					pcall(function()
+						target[key] = value
+					end)
+				end
+				world.task.defer(function()
+					tween.Completed:Fire()
+				end)
+			end
+			function tween.Pause() end
+			function tween.Cancel() end
+			function tween.Destroy() end
+			return tween
 		end,
 	}
 	services.UserInputService = {
+		InputBegan = world:require("ReplicatedStorage.Packages.Signal").new(),
+		InputChanged = world:require("ReplicatedStorage.Packages.Signal").new(),
 		InputEnded = world:require("ReplicatedStorage.Packages.Signal").new(),
 		GetLastInputType = function()
 			return roblox.Enum.UserInputType.MouseMovement
@@ -389,7 +409,14 @@ local function makeFakeServices(world)
 end
 
 function World.new(
-	options: { Seed: number?, Time: number?, Clock: number?, PrintErrors: boolean?, AssetIds: { [string]: number }? }?
+	options: {
+		Seed: number?,
+		Time: number?,
+		Clock: number?,
+		PrintErrors: boolean?,
+		AssetIds: { [string]: number }?,
+		GuiSize: any?,
+	}?
 )
 	options = options or {}
 	local opts = options :: any
@@ -403,6 +430,7 @@ function World.new(
 		warnings = {} :: { string },
 		logs = {} :: { string },
 		printErrors = opts.PrintErrors,
+		guiSize = opts.GuiSize or roblox.Vector2.new(1280, 720),
 		cache = {} :: { [any]: any },
 		overrides = {} :: { [any]: any },
 		fired = {} :: { { Packet: string, Target: any, Args: { any } } },
@@ -771,12 +799,15 @@ function World.newInstance(self, className: string)
 		node.Transparency = 0
 	end
 	if guiClasses[className] then
-		node.AbsoluteSize = roblox.Vector2.new(1280, 720)
+		node.AbsoluteSize = self.guiSize
 		node.Rotation = 0
 		node.Visible = true
 		node.GetPropertyChangedSignal = function()
 			return Signal.new()
 		end
+		node.InputBegan = Signal.new()
+		node.InputChanged = Signal.new()
+		node.InputEnded = Signal.new()
 		if className == "TextButton" or className == "TextLabel" then
 			node.Text = ""
 		end

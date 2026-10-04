@@ -10,3 +10,4 @@
 *.rbxlx.lock
 .DS_Store
 /.claude/worktrees/
+/tools/ui_preview/.cache/
