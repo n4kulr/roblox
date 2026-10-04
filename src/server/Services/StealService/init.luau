@@ -112,11 +112,6 @@ local function isCarryingKeyfall(player: Player): boolean
 	return keyfall ~= nil and keyfall:IsCarrying(player) == true
 end
 
-local function isCarryingObby(player: Player): boolean
-	local obby = services.ObbyService
-	return obby ~= nil and obby:IsCarrying(player) == true
-end
-
 local function checkSteal(
 	thief: Player,
 	owner: Player,
@@ -134,7 +129,7 @@ local function checkSteal(
 		VictimUserId = owner.UserId,
 		HasThiefData = thiefData ~= nil,
 		HasVictimData = victimData ~= nil,
-		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief) or isCarryingObby(thief),
+		ThiefCarrying = carriers[thief] ~= nil or isCarryingKeyfall(thief),
 		ActiveThiefUserId = if lock then lock.Thief.UserId else 0,
 		VictimPlaySeconds = if victimData then victimData.PlaySeconds + pendingPlaySeconds(owner) else 0,
 		VictimLockedUntil = lockedAt,

@@ -7,16 +7,11 @@ local config = GameConfig.Steal
 
 local WalkSpeed = {}
 
-WalkSpeed.TapAttribute = "TapSpeed"
 WalkSpeed.StolenAttribute = "StolenFromUserId"
 
 function WalkSpeed.Resolve(character: Model): number
 	if character:GetAttribute(WalkSpeed.StolenAttribute) ~= nil then
 		return config.CarryWalkSpeed
-	end
-	local tap = character:GetAttribute(WalkSpeed.TapAttribute)
-	if type(tap) == "number" then
-		return tap
 	end
 	return config.NormalWalkSpeed
 end
