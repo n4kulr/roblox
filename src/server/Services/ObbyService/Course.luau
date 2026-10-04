@@ -39,7 +39,6 @@ local function newPart(
 	local part = Instance.new("Part")
 	part.Name = name
 	part.Anchored = true
-	part.CanCollide = true
 	part.Size = size
 	part.CFrame = cframe
 	part.Color = color

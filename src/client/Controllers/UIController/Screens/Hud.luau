@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
@@ -223,11 +222,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		TextSize = 28,
 		LayoutOrder = 1,
 		Callback = function()
-			local character = Players.LocalPlayer.Character
-			if character and character:GetAttribute("CarryingKey") ~= nil then
-				context.Toast("Finish carrying that key first!", "Bad")
-				return
-			end
 			if not rollController:TeleportToBase() then
 				context.Toast("Your base isn't ready yet!", "Bad")
 			end
@@ -245,11 +239,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		TextSize = 28,
 		LayoutOrder = 2,
 		Callback = function()
-			local character = Players.LocalPlayer.Character
-			if character and character:GetAttribute("CarryingKey") ~= nil then
-				context.Toast("Finish carrying that key first!", "Bad")
-				return
-			end
 			if not rollController:TeleportToShop() then
 				context.Toast("Shop isn't ready yet!", "Bad")
 			end

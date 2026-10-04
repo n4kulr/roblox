@@ -85,6 +85,12 @@ describe("ObbyService", function()
 		world:advance(config.TickSeconds)
 	end
 
+	local function standAtSpawn(player: any, index: number)
+		local marker = course:FindFirstChild(`KeySpawn{index}`)
+		moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(0, 3, 0)))
+		world:advance(config.TickSeconds)
+	end
+
 	local function pickups(): { any }
 		local out = {}
 		for _, child in course:GetChildren() do
@@ -114,40 +120,6 @@ describe("ObbyService", function()
 		return player.Character:GetAttribute("CarryingKey")
 	end
 
-	local function capAt(index: number): any
-		local marker = course:FindFirstChild(`KeySpawn{index}`)
-		for _, cap in pickups() do
-			if (cap.CFrame.Position - marker.CFrame.Position).Magnitude < config.PickupHover + 0.01 then
-				return cap
-			end
-		end
-		return nil
-	end
-
-	local function takeAt(player: any, index: number): any
-		local marker = course:FindFirstChild(`KeySpawn{index}`)
-		moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(0, 3, 0)))
-		world:advance(config.TickSeconds)
-		local cap = capAt(index)
-		expect(cap ~= nil):toBe(true)
-		expect(carried(player)):toBeNil()
-		local keyId = cap:GetAttribute("KeyId")
-		cap:FindFirstChild("ObbyTakePrompt").Triggered:Fire(player)
-		return keyId
-	end
-
-	local function gainTaps(player: any, times: number)
-		local part = course:FindFirstChild("Key1Body")
-		moveTo(player, above(part, 2))
-		local guard = 0
-		while services.ObbyService:GetTaps(player) < times and guard < times * 8 do
-			guard += 1
-			world:advance(config.TapCooldown)
-			moveTo(player, above(part, 2))
-		end
-		expect(services.ObbyService:GetTaps(player) >= times):toBe(true)
-	end
-
 	describe("course placement", function()
 		local function placedAngle(): number
 			local zone = course:FindFirstChild("Zone")
@@ -156,9 +128,7 @@ describe("ObbyService", function()
 		end
 
 		local function expectOpposite(market: any)
-			local expected = math.deg(
-				math.atan2(market.Z - config.MapCenter.Z, market.X - config.MapCenter.X)
-			) + 180
+			local expected = math.deg(math.atan2(market.Z - config.MapCenter.Z, market.X - config.MapCenter.X)) + 180
 			local diff = math.abs(placedAngle() - expected) % 360
 			expect(math.min(diff, 360 - diff) <= 1):toBe(true)
 		end
@@ -200,7 +170,7 @@ describe("ObbyService", function()
 			local authored = world:newInstance("Model")
 			authored.Name = "Obby"
 			local zone = world:newPart("Zone", 300, 20, 300)
-			zone.Size = Vector3.new(80, 80, 80)
+			zone.Size = Vector3.new(60, 60, 60)
 			zone:SetAttribute("ObbyRole", "Zone")
 			zone.Parent = authored
 			local spawnPart = world:newPart("Mine", 300, 3, 300)
@@ -210,18 +180,23 @@ describe("ObbyService", function()
 			authored.Parent = world.workspace
 			boot()
 			expect(course == authored):toBe(true)
-			expect(authored:FindFirstChild("Lava")):toBeNil()
+			local count = 0
+			for _, child in world.workspace:GetChildren() do
+				if string.sub(child.Name, 1, 4) == "Obby" then
+					count += 1
+				end
+			end
+			expect(count):toBe(1)
+			expect(authored:FindFirstChild("Lava1")):toBeNil()
 			expect(authored:FindFirstChild("Start")):toBeNil()
 			local caps = pickups()
 			expect(#caps):toBe(1)
-			local rarity = Keys.ById[caps[1]:GetAttribute("KeyId")].Rarity
-			expect(rarity == "Epic" or rarity == "Legendary"):toBe(true)
+			expect(Keys.ById[caps[1]:GetAttribute("KeyId")].Rarity):toBe("Epic")
+			expect(caps[1].CFrame.Position.X):toBe(300)
 			local player = join("Edge")
-			moveTo(player, Vector3.new(300, 5, 300))
+			moveTo(player, Vector3.new(300, 3, 300))
 			world:advance(config.TickSeconds)
 			expect(world:walkSpeed(player)):toBe(Obby.SpeedFor(0))
-			expect(carried(player)):toBeNil()
-			caps[1]:FindFirstChild("ObbyTakePrompt").Triggered:Fire(player)
 			expect(carried(player) ~= nil):toBe(true)
 		end)
 
@@ -235,134 +210,66 @@ describe("ObbyService", function()
 			expect(world.workspace:FindFirstChild("ObbyPlaceholder"):FindFirstChild("Zone") ~= nil):toBe(true)
 			world.warnings = {}
 		end)
-
-		it("reads studio role aliases", function()
-			local authored = world:newInstance("Model")
-			authored.Name = "Obby"
-			local zone = world:newPart("Zone", 0, 20, 0)
-			zone.Size = Vector3.new(200, 80, 200)
-			zone:SetAttribute("ObbyRole", "Zone")
-			zone.Parent = authored
-			local home = world:newPart("Pad", 0, 3, 0)
-			home.Size = Vector3.new(8, 1, 8)
-			home:SetAttribute("ObbyRole", "Home")
-			home.Parent = authored
-			local gate = world:newPart("Barrier", 0, 8, -30)
-			gate.Size = Vector3.new(20, 12, 2)
-			gate:SetAttribute("ObbyRole", "SpeedGate")
-			gate:SetAttribute("SpeedNeeded", 40)
-			gate.Parent = authored
-			local tap = world:newPart("Cap", 0, 3, 20)
-			tap.Size = Vector3.new(6, 2, 6)
-			tap.CanCollide = true
-			tap:SetAttribute("ObbyRole", "TapKey")
-			tap.Parent = authored
-			authored.Parent = world.workspace
-			boot()
-			local player = join("Author")
-			moveTo(player, above(tap, 2))
-			world:advance(config.TickSeconds)
-			expect(services.ObbyService:GetTaps(player)):toBe(1)
-			expect(type(tap:GetAttribute("PressedAt"))):toBe("number")
-			local blocked = above(gate, 2)
-			moveTo(player, blocked)
-			world:advance(config.TickSeconds)
-			local root = player.Character.HumanoidRootPart.CFrame.Position
-			expect((root - blocked).Magnitude > 1):toBe(true)
-			expect(toasts(player, 9)[1]):toBe("Need 40 speed!")
-			moveTo(player, above(home, 2))
-			world:advance(config.TickSeconds)
-			expect(fake.Homed[player]):toBe(1)
-		end)
 	end)
 
 	describe("tap speed", function()
-		it("starts at 24 inside the zone and restores 24 outside", function()
+		it("sets the speed from lifetime rolls inside the zone and restores 24 outside", function()
 			boot()
-			local player = join("Tapper")
+			local player = join("Tapper", { Rolls = 99 })
 			standOn(player, "Start")
-			expect(world:walkSpeed(player)):toBe(24)
-			expect(player.Character:GetAttribute("TapSpeed")):toBe(24)
-			expect(player.Character:GetAttribute("ObbyTaps")):toBe(0)
+			expect(world:walkSpeed(player)):toBe(32)
+			expect(player.Character:GetAttribute("TapSpeed")):toBe(32)
 			walkOut(player)
 			expect(world:walkSpeed(player)):toBe(24)
 			expect(player.Character:GetAttribute("TapSpeed")):toBeNil()
-			expect(player.Character:GetAttribute("ObbyTaps")):toBeNil()
 		end)
 
-		it("gains speed from taps and caps at 80", function()
+		it("uses 24 inside the zone for a player with no rolls and caps at 44", function()
 			boot()
-			local player = join("Sprinter")
-			gainTaps(player, 4)
-			expect(services.ObbyService:GetTaps(player) >= 4):toBe(true)
-			expect(world:walkSpeed(player)):toBe(Obby.SpeedFor(services.ObbyService:GetTaps(player)))
-			gainTaps(player, 64)
-			expect(services.ObbyService:GetTaps(player) >= 64):toBe(true)
-			expect(world:walkSpeed(player)):toBe(Obby.SpeedFor(services.ObbyService:GetTaps(player)))
-			expect(world:walkSpeed(player) >= config.GateSpeed):toBe(true)
+			local fresh = join("Fresh", { Rolls = 0 })
+			local veteran = join("Veteran", { Rolls = 5000000 })
+			standOn(fresh, "Start")
+			standOn(veteran, "Start")
+			expect(world:walkSpeed(fresh)):toBe(24)
+			expect(world:walkSpeed(veteran)):toBe(44)
 		end)
 
-		it("counts a key the player crosses between ticks", function()
+		it("follows new rolls while the player stays inside", function()
 			boot()
-			local player = join("Dasher")
-			local key = course:FindFirstChild("Key1Body")
-			local gap = key.Size.Z / 2 + 0.5
-			local before = key.CFrame:PointToWorldSpace(Vector3.new(0, key.Size.Y / 2 + 3, gap))
-			local after = key.CFrame:PointToWorldSpace(Vector3.new(0, key.Size.Y / 2 + 3, -gap))
-			moveTo(player, before)
-			world:advance(config.TickSeconds)
-			local startTaps = services.ObbyService:GetTaps(player)
-			moveTo(player, after)
-			world:advance(config.TickSeconds)
-			expect(services.ObbyService:GetTaps(player) > startTaps):toBe(true)
-		end)
-
-		it("presses the key and the letter cap, then lets it rise", function()
-			boot()
-			local player = join("Click")
-			local body = course:FindFirstChild("Key1Body")
-			local top = course:FindFirstChild("Key1Top")
-			local rest = body.CFrame
-			local topRest = top.CFrame
-			moveTo(player, above(body, 2))
-			world:advance(config.TickSeconds)
-			expect(body.CFrame.Position.Y < rest.Position.Y - 0.5):toBe(true)
-			expect(top.CFrame.Position.Y < topRest.Position.Y - 0.5):toBe(true)
-			walkOut(player)
-			world:advance(config.PressSeconds)
-			expect(body.CFrame.Position.Y):toBeCloseTo(rest.Position.Y, 1e-3)
-			expect(top.CFrame.Position.Y):toBeCloseTo(topRest.Position.Y, 1e-3)
-		end)
-
-		it("announces the course once, then speed on the first tap", function()
-			boot()
-			local player = join("Toast")
+			local player, data = join("Roller", { Rolls = 8 })
 			standOn(player, "Start")
-			expect(toasts(player, 10)):toEqual({ "Step on the keys. Speed opens the gate!" })
+			expect(world:walkSpeed(player)):toBe(27)
+			data.Rolls = 9
+			world:advance(config.TickSeconds)
+			expect(world:walkSpeed(player)):toBe(28)
+		end)
+
+		it("announces the speed once on entering", function()
+			boot()
+			local player = join("Toast", { Rolls = 99 })
+			standOn(player, "Start")
+			world:advance(1)
+			expect(toasts(player, 10)):toEqual({ "Tap speed: 32" })
 			walkOut(player)
 			standOn(player, "Start")
-			expect(#toasts(player, 10)):toBe(1)
-			gainTaps(player, 1)
-			expect(toasts(player, 10)[2]):toBe(`Speed {Obby.SpeedFor(1)}  (+1 taps)`)
+			expect(#toasts(player, 10)):toBe(2)
 		end)
 
-		it("remembers the obby hint after the upgrade tutorial", function()
+		it("applies the new speed to every player independently", function()
 			boot()
-			local player, data = join("Guide", { Tutorial = 3 })
-			standOn(player, "Start")
-			expect(data.Tutorial):toBe(4)
-			expect(toasts(player, 10)[1]):toBe("Step on the keys. Speed opens the gate!")
+			local slow = join("Slow", { Rolls = 0 })
+			local fast = join("Fast", { Rolls = 999 })
+			local outside = join("Outside")
+			standOn(slow, "Start")
+			standOn(fast, "Start")
+			expect(world:walkSpeed(slow)):toBe(24)
+			expect(world:walkSpeed(fast)):toBe(36)
+			expect(world:walkSpeed(outside)):toBe(16)
 		end)
 
-		it("skips the hint once it has been stored", function()
-			boot()
-			local player = join("Veteran", { Tutorial = 4 })
-			standOn(player, "Start")
-			expect(#toasts(player, 10)):toBe(0)
-		end)
-
-		it("keeps stolen-key carry speed over the tap speed", function()
+		it("keeps stolen key carry speed on top of the tap speed", function()
 			local plots = fake.Bases
+			fake.Plots = {}
 			local caps: { [any]: any } = {}
 			function fake.GetCaps(_self, player: any)
 				return caps[player]
@@ -376,11 +283,7 @@ describe("ObbyService", function()
 			end
 			boot({ "StealService" })
 			local function assign(name: string, board: any, x: number)
-				local player, data = world:join(
-					{ Name = name },
-					{ PlaySeconds = 5000, Board = board, Settings = { AutoPlace = false } },
-					false
-				)
+				local player, data = world:join({ Name = name }, { PlaySeconds = 5000, Board = board, Settings = { AutoPlace = false } }, false)
 				local list = {}
 				for slot = 1, GameConfig.BoardSlots do
 					list[slot] = world:newPart(`Slot{slot}`, x + slot, 1, 10)
@@ -388,39 +291,33 @@ describe("ObbyService", function()
 				caps[player] = list
 				plots[player] = world:newPart("Base", x, 0, 0)
 				world.Data.Service.PlayerLoaded:Fire(player, data)
-				return player
+				return player, data
 			end
 			local victim = assign("Vic", S.board("GlassTink", "PlainClack"), -5000)
-			local thief = assign("Bob", S.board("OfficeTap"), 5000)
+			local thief, thiefData = assign("Bob", S.board("OfficeTap"), 5000)
+			thiefData.Rolls = 99
 			world:spawnCharacter(victim, -5000, 3, 0)
 			world:spawnCharacter(thief, -5000, 3, 10)
 			local prompt = caps[victim][1]:FindFirstChild("StealPrompt")
+			moveTo(thief, above(course:FindFirstChild("Start")))
+			world:advance(config.TickSeconds)
+			expect(world:walkSpeed(thief)):toBe(32)
+			moveTo(thief, Vector3.new(-5000, 3, 10))
+			world:advance(config.TickSeconds)
+			expect(world:walkSpeed(thief)):toBe(24)
 			prompt.PromptButtonHoldBegan:Fire(thief)
 			prompt.Triggered:Fire(thief)
 			prompt.PromptButtonHoldEnded:Fire(thief)
 			expect(thief.Character:GetAttribute("CarryingKey")):toBe("GlassTink")
-			standOn(thief, "Start")
+			expect(world:walkSpeed(thief)):toBe(GameConfig.Steal.CarryWalkSpeed)
+			moveTo(thief, above(course:FindFirstChild("Start")))
+			world:advance(config.TickSeconds * 4)
 			expect(world:walkSpeed(thief)):toBe(GameConfig.Steal.CarryWalkSpeed)
 			expect(services.ObbyService:IsCarrying(thief)):toBe(false)
-		end)
-	end)
-
-	describe("speed gate", function()
-		it("pushes a slow player back and lets a fast player through", function()
-			boot()
-			local player = join("Racer")
-			local gate = course:FindFirstChild("SpeedGate")
-			local blocked = above(gate, 2)
-			moveTo(player, blocked)
+			plots[thief].CFrame = CFrame.new(above(course:FindFirstChild("Start")))
 			world:advance(config.TickSeconds)
-			expect((player.Character.HumanoidRootPart.CFrame.Position - blocked).Magnitude > 1):toBe(true)
-			expect(toasts(player, 9)[1]):toBe("Need 40 speed!")
-			world:advance(config.TickSeconds * 3)
-			expect(#toasts(player, 9)):toBe(1)
-			gainTaps(player, 64)
-			moveTo(player, blocked)
-			world:advance(config.TickSeconds)
-			expect((player.Character.HumanoidRootPart.CFrame.Position - blocked).Magnitude < 1):toBe(true)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBeNil()
+			expect(world:walkSpeed(thief)):toBe(32)
 		end)
 	end)
 
@@ -429,7 +326,7 @@ describe("ObbyService", function()
 			return #Obby.Layout().Spawns
 		end
 
-		it("floats one key over every spawn and waits for the hold prompt", function()
+		it("floats one key over every spawn point when the course starts", function()
 			boot()
 			local caps = pickups()
 			expect(#caps):toBe(spawnCount())
@@ -439,23 +336,25 @@ describe("ObbyService", function()
 				expect(cap.Anchored):toBe(true)
 				expect(cap.CanCollide):toBe(false)
 				expect(cap.Material ~= roblox.Enum.Material.Neon):toBe(true)
-				local prompt = cap:FindFirstChild("ObbyTakePrompt")
-				expect(prompt.HoldDuration > 0):toBe(true)
 			end
-			local player = join("Looker")
-			local marker = course:FindFirstChild("KeySpawn1")
-			moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(0, 3, 0)))
-			world:advance(config.TickSeconds * 3)
-			expect(carried(player)):toBeNil()
-			expect(#pickups()):toBe(spawnCount())
+			for index, point in Obby.Layout().Spawns do
+				local marker = course:FindFirstChild(`KeySpawn{index}`)
+				local found = false
+				for _, cap in caps do
+					if (cap.CFrame.Position - marker.CFrame.Position).Magnitude < config.PickupHover + 0.01 then
+						found = found or cap:GetAttribute("Stage") == point.Stage
+					end
+				end
+				expect(found):toBe(true)
+			end
 		end)
 
-		it("paints each key in its rarity color using only the section rarities", function()
+		it("paints each key in its rarity color using only the stage rarities", function()
 			boot()
 			for _, cap in pickups() do
 				local key = Keys.ById[cap:GetAttribute("KeyId")]
 				local allowed = {}
-				for _, option in config.Sections[cap:GetAttribute("Section")].Rarities do
+				for _, option in config.Stages[cap:GetAttribute("Stage")].Rarities do
 					allowed[option.Name] = true
 				end
 				expect(allowed[key.Rarity]):toBe(true)
@@ -464,27 +363,39 @@ describe("ObbyService", function()
 			end
 		end)
 
-		it("gives the key when the prompt is held in range", function()
+		it("hands the nearest key to a player within range", function()
 			boot()
 			local player = join("Grabber")
-			local keyId = takeAt(player, 1)
+			local before = pickups()
+			local marker = course:FindFirstChild("KeySpawn1")
+			local target
+			for _, cap in before do
+				if (cap.CFrame.Position - marker.CFrame.Position).Magnitude < config.PickupHover + 0.01 then
+					target = cap
+				end
+			end
+			local keyId = target:GetAttribute("KeyId")
+			standAtSpawn(player, 1)
 			expect(carried(player)):toBe(keyId)
 			expect(#pickups()):toBe(spawnCount() - 1)
+			expect(target.Parent):toBeNil()
 			expect(services.ObbyService:IsCarrying(player)):toBe(true)
 			expect(player.Character:FindFirstChild("ObbyKeyCarried") ~= nil):toBe(true)
+			expect(#toasts(player, 11)):toBe(1)
 			expect(string.find(toasts(player, 11)[1], Keys.ById[keyId].Name, 1, true) ~= nil):toBe(true)
 		end)
 
-		it("ignores a prompt fired from out of range or outside the zone", function()
+		it("ignores players that are out of range", function()
 			boot()
 			local player = join("Far")
-			local cap = capAt(1)
 			local marker = course:FindFirstChild("KeySpawn1")
-			moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(40, 3, 0)))
-			world:advance(config.TickSeconds)
-			cap:FindFirstChild("ObbyTakePrompt").Triggered:Fire(player)
+			moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(config.PickupRange + 2, 3, 0)))
+			world:advance(config.TickSeconds * 4)
 			expect(carried(player)):toBeNil()
 			expect(#pickups()):toBe(spawnCount())
+			moveTo(player, marker.CFrame:PointToWorldSpace(Vector3.new(4, 3, 0)))
+			world:advance(config.TickSeconds)
+			expect(carried(player) ~= nil):toBe(true)
 		end)
 
 		it("does not hand out keys outside the obby zone", function()
@@ -500,94 +411,136 @@ describe("ObbyService", function()
 			authored.Parent = world.workspace
 			boot()
 			local player = join("Outside")
-			moveTo(player, Vector3.new(340, 6, 300))
-			world:advance(config.TickSeconds)
-			local cap = pickups()[1]
-			cap:FindFirstChild("ObbyTakePrompt").Triggered:Fire(player)
+			moveTo(player, Vector3.new(340, 3, 300))
+			world:advance(config.TickSeconds * 3)
 			expect(carried(player)):toBeNil()
 		end)
 
 		it("empties the spawn and refills it after the respawn time", function()
 			boot()
 			local player = join("Waiter")
-			expect(capAt(1) ~= nil):toBe(true)
-			takeAt(player, 1)
-			expect(capAt(1)):toBeNil()
+			local marker = course:FindFirstChild("KeySpawn1")
+			local function hasKeyAt(): boolean
+				for _, cap in pickups() do
+					if (cap.CFrame.Position - marker.CFrame.Position).Magnitude < config.PickupHover + 0.01 then
+						return true
+					end
+				end
+				return false
+			end
+			expect(hasKeyAt()):toBe(true)
+			standAtSpawn(player, 1)
+			expect(hasKeyAt()):toBe(false)
 			world:killCharacter(player)
 			world:advance(config.RespawnSeconds - 1)
-			expect(capAt(1)):toBeNil()
+			expect(hasKeyAt()):toBe(false)
 			expect(#pickups()):toBe(spawnCount() - 1)
 			world:advance(1.5)
-			expect(capAt(1) ~= nil):toBe(true)
+			expect(hasKeyAt()):toBe(true)
 			expect(#pickups()):toBe(spawnCount())
 			expect(config.RespawnSeconds):toBe(60)
+		end)
+
+		it("only respawns the spawn that was emptied", function()
+			boot()
+			local player = join("Picky")
+			standAtSpawn(player, 3)
+			world:advance(config.RespawnSeconds / 2)
+			expect(#pickups()):toBe(spawnCount() - 1)
+			world:advance(config.RespawnSeconds)
+			expect(#pickups()):toBe(spawnCount())
 		end)
 
 		it("lets a player hold only one obby key at a time", function()
 			boot()
 			local player = join("Greedy")
-			local first = takeAt(player, 1)
-			local second = capAt(2)
-			moveTo(player, second.CFrame.Position + Vector3.new(0, 2, 0))
-			world:advance(config.TickSeconds)
-			second:FindFirstChild("ObbyTakePrompt").Triggered:Fire(player)
+			standAtSpawn(player, 1)
+			local first = carried(player)
+			expect(first ~= nil):toBe(true)
+			standAtSpawn(player, 2)
+			world:advance(config.TickSeconds * 4)
 			expect(carried(player)):toBe(first)
 			expect(#pickups()):toBe(spawnCount() - 1)
+			expect(#toasts(player, 11)):toBe(1)
 		end)
 
 		it("gives different players different keys from separate spawns", function()
 			boot()
 			local a = join("Ann")
 			local b = join("Ben")
-			takeAt(a, 1)
-			takeAt(b, 2)
+			standAtSpawn(a, 1)
+			standAtSpawn(b, 2)
 			expect(carried(a) ~= nil and carried(b) ~= nil):toBe(true)
 			expect(#pickups()):toBe(spawnCount() - 2)
 		end)
 
-		it("rolls a later-section rarity for the finish pedestal", function()
+		it("rolls a key of the later-stage rarities for later spawns", function()
 			boot()
+			local lastStage = #config.Stages
 			local allowed = {}
-			for _, option in config.Sections[3].Rarities do
+			for _, option in config.Stages[lastStage].Rarities do
 				allowed[option.Name] = true
 			end
-			local player = join("Late")
-			local keyId = takeAt(player, 3)
-			expect(allowed[Keys.ById[keyId].Rarity]):toBe(true)
+			local checked = 0
+			for index, point in Obby.Layout().Spawns do
+				if point.Stage == lastStage then
+					local player = join(`Late{index}`)
+					standAtSpawn(player, index)
+					expect(allowed[Keys.ById[carried(player)].Rarity]):toBe(true)
+					checked += 1
+				end
+			end
+			expect(checked >= 2):toBe(true)
 		end)
 	end)
 
 	describe("delivery", function()
 		it("adds the key to the inventory and discoveries at the player's own base", function()
 			boot()
-			local player, data = join("Courier")
-			local keyId = takeAt(player, 1)
-			world:advance(config.TickSeconds)
+			local player, data = join("Courier", { Rolls = 12 })
+			standAtSpawn(player, 1)
+			local keyId = carried(player)
+			world:advance(config.TickSeconds * 4)
 			expect(data.Inventory[keyId]):toBeNil()
 			walkOut(player)
 			expect(data.Inventory[keyId]):toBe(1)
 			expect(data.Discovered[keyId]):toBe(1)
+			expect(data.Rolls):toBe(12)
 			expect(carried(player)):toBeNil()
 			expect(services.ObbyService:IsCarrying(player)):toBe(false)
+			expect(player.Character:FindFirstChild("ObbyKeyCarried")):toBeNil()
 			expect((world.saves[player] or 0) > 0):toBe(true)
 			expect(#toasts(player, 11)):toBe(2)
+			walkOut(player)
+			expect(data.Inventory[keyId]):toBe(1)
 		end)
 
 		it("auto places the key like a roll does", function()
 			boot()
 			local player, data = join("Placer", { Settings = { AutoPlace = true } })
-			local keyId = takeAt(player, 1)
+			standAtSpawn(player, 1)
+			local keyId = carried(player)
 			walkOut(player)
 			expect(data.Board[1]):toBe(keyId)
 			expect(S.totals(data)[keyId]):toBe(1)
 			expect(data.Discovered[keyId]):toBe(1)
 		end)
 
+		it("counts repeat deliveries of the same key", function()
+			boot()
+			local player, data = join("Repeat")
+			standAtSpawn(player, 1)
+			local keyId = carried(player)
+			data.Discovered[keyId] = 4
+			walkOut(player)
+			expect(data.Discovered[keyId]):toBe(5)
+		end)
+
 		it("needs the player's own base, not any base", function()
 			boot()
 			local player, data = join("Lost")
 			local other = join("Other")
-			takeAt(player, 1)
+			standAtSpawn(player, 1)
 			fake.Bases[other].CFrame = CFrame.new(60, 0, 60)
 			moveTo(player, Vector3.new(60, 3, 60))
 			world:advance(config.TickSeconds * 3)
@@ -597,44 +550,68 @@ describe("ObbyService", function()
 	end)
 
 	describe("losing the key", function()
-		it("drops the key on death without granting it", function()
+		it("drops the key on death without returning or granting it", function()
 			boot()
 			local player, data = join("Faller")
-			takeAt(player, 1)
+			standAtSpawn(player, 1)
 			local count = #pickups()
 			world:killCharacter(player)
 			expect(services.ObbyService:IsCarrying(player)):toBe(false)
+			expect(carried(player)):toBeNil()
 			expect(#toasts(player, 9)):toBe(1)
 			world:advance(config.TickSeconds * 4)
 			expect(#pickups()):toBe(count)
+			expect(next(data.Inventory)):toBeNil()
+			expect(next(data.Discovered)):toBeNil()
+			world:resetCharacter(player)
+			world:spawnCharacter(player, homeX, 3, homeZ)
+			world:advance(config.TickSeconds * 4)
 			expect(next(data.Inventory)):toBeNil()
 		end)
 
 		it("drops the key when the character is removed", function()
 			boot()
 			local player, data = join("Resetter")
-			takeAt(player, 1)
+			standAtSpawn(player, 1)
 			world:resetCharacter(player)
 			expect(services.ObbyService:IsCarrying(player)):toBe(false)
 			expect(next(data.Inventory)):toBeNil()
 		end)
 
+		it("drops the key when the player leaves", function()
+			boot()
+			local player = join("Leaver")
+			standAtSpawn(player, 1)
+			world:removePlayer(player)
+			expect(services.ObbyService:IsCarrying(player)):toBe(false)
+			world:advance(config.TickSeconds * 4)
+			expect(#pickups()):toBe(#Obby.Layout().Spawns - 1)
+		end)
+
 		it("kills a player who falls into the lava", function()
 			boot()
 			local player = join("Diver")
-			local lava = course:FindFirstChild("Lava")
+			local lava = course:FindFirstChild("Lava1")
 			moveTo(player, Vector3.new(lava.CFrame.Position.X, config.LavaTop + 2, lava.CFrame.Position.Z))
 			world:advance(config.TickSeconds)
 			expect(player.Character.Humanoid.Health):toBe(0)
 		end)
 
-		it("does not kill players on the pads or the keys", function()
+		it("does not kill players on platforms or safe areas", function()
 			boot()
 			local player = join("Hopper")
-			for _, name in { "Start", "Safe", "Key1Body", "Finish" } do
+			for _, name in { "Start", "Safe1", "Stage1Cap2Top", "Stage2Cap1Top", "Safe3", "Finish" } do
 				standOn(player, name)
 				expect(player.Character.Humanoid.Health):toBe(100)
 			end
+		end)
+
+		it("does not kill players outside the zone", function()
+			boot()
+			local player = join("Walker")
+			moveTo(player, Vector3.new(0, config.LavaTop + 2, 0))
+			world:advance(config.TickSeconds * 3)
+			expect(player.Character.Humanoid.Health):toBe(100)
 		end)
 	end)
 
@@ -683,7 +660,9 @@ describe("ObbyService", function()
 		end
 
 		it("blocks starting a steal while carrying an obby key", function()
-			local keyId = takeAt(thief, 1)
+			standAtSpawn(thief, 1)
+			local keyId = carried(thief)
+			expect(keyId ~= nil):toBe(true)
 			moveTo(thief, Vector3.new(-5000, 3, 10))
 			trySteal()
 			local reasons = world:require("ReplicatedStorage.Rules.Steal").Reasons
@@ -701,11 +680,10 @@ describe("ObbyService", function()
 
 		it("blocks picking up an obby key while carrying a stolen one", function()
 			trySteal()
+			expect(services.StealService:IsCarrying(thief)):toBe(true)
 			expect(carried(thief)):toBe("GlassTink")
-			local cap = capAt(1)
-			moveTo(thief, cap.CFrame.Position + Vector3.new(0, 2, 0))
-			world:advance(config.TickSeconds)
-			cap:FindFirstChild("ObbyTakePrompt").Triggered:Fire(thief)
+			standAtSpawn(thief, 1)
+			world:advance(config.TickSeconds * 4)
 			expect(carried(thief)):toBe("GlassTink")
 			expect(#pickups()):toBe(#Obby.Layout().Spawns)
 			expect(services.ObbyService:IsCarrying(thief)):toBe(false)
@@ -728,63 +706,76 @@ describe("ObbyService", function()
 			return position ~= nil and (position - checkpointOf(name)).Magnitude < 1e-3
 		end
 
-		it("sets the respawn on the start, the safe zone and the finish", function()
+		it("sets the respawn point when standing in a safe area", function()
 			boot()
 			local player = join("Checker")
 			expect(respawnPosition(player)):toBeNil()
+			standOn(player, "Safe1")
+			expect(isAt(player, "Safe1")):toBe(true)
+			standOn(player, "Safe2")
+			expect(isAt(player, "Safe2")):toBe(true)
+		end)
+
+		it("treats the start platform and the finish as safe areas too", function()
+			boot()
+			local player = join("Edges")
 			standOn(player, "Start")
 			expect(isAt(player, "Start")):toBe(true)
-			standOn(player, "Safe")
-			expect(isAt(player, "Safe")):toBe(true)
 			standOn(player, "Finish")
 			expect(isAt(player, "Finish")):toBe(true)
 		end)
 
-		it("keeps the checkpoint while running on the keys", function()
+		it("keeps the checkpoint while hopping across stage platforms", function()
 			boot()
 			local player = join("Climber")
-			standOn(player, "Safe")
-			standOn(player, "Key1Body")
-			expect(isAt(player, "Safe")):toBe(true)
+			standOn(player, "Safe1")
+			standOn(player, "Stage2Cap1Top")
+			standOn(player, "Stage2Cap2Top")
+			expect(isAt(player, "Safe1")):toBe(true)
 		end)
 
-		it("keeps the checkpoint through death even if the new character appears outside", function()
+		it("keeps the checkpoint through death and the respawn outside the zone", function()
 			boot()
 			local player = join("Retry")
-			standOn(player, "Safe")
-			gainTaps(player, 4)
-			local taps = services.ObbyService:GetTaps(player)
+			standOn(player, "Safe2")
 			world:killCharacter(player)
 			world:resetCharacter(player)
 			world:spawnCharacter(player, homeX, 3, homeZ)
 			world:advance(config.TickSeconds * 4)
-			expect(isAt(player, "Safe")):toBe(true)
-			expect(services.ObbyService:GetTaps(player)):toBe(taps)
+			expect(isAt(player, "Safe2")):toBe(true)
 		end)
 
-		it("clears the checkpoint and the speed when the player walks out", function()
+		it("clears the checkpoint when the player leaves the zone", function()
 			boot()
 			local player = join("Quitter")
-			standOn(player, "Safe")
-			gainTaps(player, 4)
+			standOn(player, "Safe3")
 			expect(respawnPosition(player) ~= nil):toBe(true)
 			walkOut(player)
 			expect(respawnPosition(player)):toBeNil()
-			expect(services.ObbyService:GetTaps(player)):toBe(0)
-			expect(player.Character:GetAttribute("TapSpeed")):toBeNil()
+		end)
+
+		it("keeps checkpoints separate per player", function()
+			boot()
+			local a = join("Alpha")
+			local b = join("Beta")
+			standOn(a, "Safe1")
+			standOn(b, "Safe3")
+			expect(isAt(a, "Safe1")):toBe(true)
+			expect(isAt(b, "Safe3")):toBe(true)
+			walkOut(a)
+			expect(respawnPosition(a)):toBeNil()
+			expect(respawnPosition(b) ~= nil):toBe(true)
 		end)
 
 		it("sends a player home from a home pad and clears the checkpoint", function()
 			boot()
 			local player = join("Homebody")
-			standOn(player, "Safe")
-			gainTaps(player, 4)
-			moveTo(player, above(course:FindFirstChild("SafeHome"), 2))
+			standOn(player, "Safe2")
+			moveTo(player, above(course:FindFirstChild("Safe2Home"), 2))
 			world:advance(config.TickSeconds)
 			expect(fake.Homed[player]):toBe(1)
 			world:advance(config.TickSeconds)
 			expect(respawnPosition(player)):toBeNil()
-			expect(services.ObbyService:GetTaps(player)):toBe(0)
 			expect(course:FindFirstChild("StartHome")):toBeNil()
 		end)
 	end)
@@ -830,10 +821,7 @@ describe("ObbyService", function()
 		beforeEach(function()
 			world.workspace = world:newInstance("Folder")
 			local plotService = world:require("ServerScriptService.Services.PlotService")
-			services = world:boot(
-				{ "KeyboardService", "PlotService", "ObbyService" },
-				{ PlotService = plotService }
-			)
+			services = world:boot({ "KeyboardService", "PlotService", "ObbyService" }, { PlotService = plotService })
 			course = world.workspace:FindFirstChild("Obby")
 		end)
 
@@ -844,21 +832,18 @@ describe("ObbyService", function()
 
 		it("respawns at the checkpoint after dying inside the obby", function()
 			local player = joinReal("Real")
-			standOn(player, "Safe")
-			gainTaps(player, 4)
-			local taps = services.ObbyService:GetTaps(player)
+			standOn(player, "Safe2")
 			die(player)
-			local part = course:FindFirstChild("Safe")
+			local part = course:FindFirstChild("Safe2")
 			local expected = part.CFrame:PointToWorldSpace(Vector3.new(0, part.Size.Y / 2 + 4, 0))
-			expect((rootPosition(player) - expected).Magnitude < 1):toBe(true)
-			world:advance(config.TickSeconds * 2)
-			expect(world:walkSpeed(player)):toBe(Obby.SpeedFor(taps))
+			expect((rootPosition(player) - expected).Magnitude < 1e-3):toBe(true)
+			expect(world:walkSpeed(player)):toBe(24)
 			expect(nearBase(player)):toBe(false)
 		end)
 
 		it("respawns at the base again once the checkpoint is cleared", function()
 			local player = joinReal("Real2")
-			standOn(player, "Safe")
+			standOn(player, "Safe1")
 			walkOut(player)
 			die(player)
 			expect(nearBase(player)):toBe(true)
@@ -866,26 +851,36 @@ describe("ObbyService", function()
 
 		it("sends a player home from a home pad with the real plot service", function()
 			local player = joinReal("Real3")
-			standOn(player, "Safe")
-			moveTo(player, above(course:FindFirstChild("SafeHome"), 2))
+			standOn(player, "Safe1")
+			moveTo(player, above(course:FindFirstChild("Safe1Home"), 2))
 			world:advance(config.TickSeconds)
 			expect(nearBase(player)):toBe(true)
 			world:advance(config.TickSeconds)
 			die(player)
 			expect(nearBase(player)):toBe(true)
 		end)
+
+		it("forgets the checkpoint when the player leaves", function()
+			local player = joinReal("Real4")
+			standOn(player, "Safe1")
+			world:removePlayer(player)
+			world:advance(config.TickSeconds * 2)
+			expect(world.errors):toEqual({})
+		end)
 	end)
 
 	describe("cleanup", function()
 		it("removes the built course, pickups and speed bonus on Destroy", function()
 			boot()
-			local player = join("Cleaner")
-			gainTaps(player, 4)
-			expect(world:walkSpeed(player)):toBe(25)
+			local player = join("Cleaner", { Rolls = 99 })
+			standAtSpawn(player, 1)
+			expect(world:walkSpeed(player)):toBe(32)
 			services.ObbyService:Destroy()
 			expect(world.workspace:FindFirstChild("Obby")):toBeNil()
 			expect(world:walkSpeed(player)):toBe(24)
 			expect(player.Character:GetAttribute("TapSpeed")):toBeNil()
+			expect(carried(player)):toBeNil()
+			expect(player.Character:FindFirstChild("ObbyKeyCarried")):toBeNil()
 			world:advance(config.RespawnSeconds * 2)
 			expect(world.workspace:FindFirstChild("Obby")):toBeNil()
 		end)
@@ -893,10 +888,31 @@ describe("ObbyService", function()
 		it("clears checkpoints on Destroy", function()
 			boot()
 			local player = join("Cleaner2")
-			standOn(player, "Safe")
+			standOn(player, "Safe1")
 			expect(fake.Respawns[player] ~= nil):toBe(true)
 			services.ObbyService:Destroy()
 			expect(fake.Respawns[player]):toBeNil()
+		end)
+
+		it("stops respawning keys after Destroy", function()
+			local authored = world:newInstance("Model")
+			authored.Name = "Obby"
+			local zone = world:newPart("Zone", 300, 20, 300)
+			zone.Size = Vector3.new(60, 60, 60)
+			zone:SetAttribute("ObbyRole", "Zone")
+			zone.Parent = authored
+			local marker = world:newPart("Mine", 300, 3, 300)
+			marker:SetAttribute("ObbyRole", "KeySpawn")
+			marker.Parent = authored
+			authored.Parent = world.workspace
+			boot()
+			local player = join("Late")
+			moveTo(player, Vector3.new(300, 3, 300))
+			world:advance(config.TickSeconds)
+			expect(#pickups()):toBe(0)
+			services.ObbyService:Destroy()
+			world:advance(config.RespawnSeconds * 3)
+			expect(#pickups()):toBe(0)
 		end)
 
 		it("keeps an authored course but removes its pickups on Destroy", function()
@@ -914,6 +930,27 @@ describe("ObbyService", function()
 			services.ObbyService:Destroy()
 			expect(world.workspace:FindFirstChild("Obby") == authored):toBe(true)
 			expect(#pickups()):toBe(0)
+			expect(authored:FindFirstChild("Zone") ~= nil):toBe(true)
+		end)
+
+		it("forgets players who leave and keeps serving the others", function()
+			boot()
+			local gone = join("Gone", { Rolls = 99 })
+			local stays = join("Stays", { Rolls = 99 })
+			standOn(gone, "Start")
+			standOn(stays, "Start")
+			world:removePlayer(gone)
+			world:advance(config.TickSeconds * 4)
+			expect(world:walkSpeed(stays)):toBe(32)
+		end)
+
+		it("does nothing for players without data or a character", function()
+			boot()
+			local stranger = world:newPlayer()
+			local noData = world:newPlayer()
+			world:spawnCharacter(noData, 0, 3, 0)
+			world:advance(config.TickSeconds * 4)
+			expect(stranger.Character):toBeNil()
 		end)
 	end)
 end)

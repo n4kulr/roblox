@@ -825,15 +825,10 @@ function RollController.IsAuto(_self: State): boolean
 	return isAuto
 end
 
-local function isCarrying(): boolean
-	local character = Players.LocalPlayer.Character
-	return character ~= nil and character:GetAttribute("CarryingKey") ~= nil
-end
-
 function RollController.TeleportToBase(_self: State): boolean
 	local base = if plot then plot:FindFirstChild("Base") else nil
 	local character = Players.LocalPlayer.Character
-	if isCarrying() or not base or not base:IsA("BasePart") or not character then
+	if not base or not base:IsA("BasePart") or not character then
 		return false
 	end
 	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + FloorGrid.CapHeight + 3, 0))
@@ -843,7 +838,7 @@ end
 function RollController.TeleportToShop(_self: State): boolean
 	local market = workspace:FindFirstChild("Market")
 	local character = Players.LocalPlayer.Character
-	if isCarrying() or not market or not character then
+	if not market or not character then
 		return false
 	end
 	local counter = market:FindFirstChild("Counter", true)

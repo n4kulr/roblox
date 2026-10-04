@@ -30,39 +30,20 @@ The preview step needs Pillow (`pip install pillow`). `tests/specs/map.spec.luau
 
 `assets/map/Market.rbxm` is the Key Market stall on its own (regenerate with `lune run tools/export_market` after `lune run tools/build_map`). In Studio: right-click Workspace → Insert from File… → `Market.rbxm`. Keep the model named `Market` directly in Workspace and keep its `Counter` part (the shop prompt goes there) and the display caps `Cap1`–`Cap6`. Move, rotate and decorate it freely, keep everything anchored, then save.
 
-## Keyboard Escape
+## Tap Obby only
 
-Level 1 is a +1 speed keyboard course, not a jump obby. The server builds it at runtime when `Workspace.Obby` is missing or has no `Zone` part. It sits opposite the Key Market (`GameConfig.Obby.EntranceDistance`, 90 studs from the map center). The run is about 96 studs wide: a start pad, flat QWERTY rows to build speed, a safe zone with a HOME pad, hazard rows (missing keys over maroon lava, plus pop-up keys), a speed gate, then a finish pad with HOME and a "LEVEL 1 COMPLETE" sign.
+`assets/map/Obby.rbxm` is the Tap Obby on its own: a 4-stage lava course (gaps, thin beams, staggered keycaps, a mixed gauntlet) with a safe area between stages, a start ramp and a finish platform. Regenerate it with `lune run tools/export_obby` (it runs the same `Course.luau` the server uses, so nothing needs building first).
 
-Stepping on a key presses it and adds `SpeedPerTap` (0.25) to walk speed, from 24 up to 80. The gate stays shut until speed reaches `GateSpeed` (40). Leaving the zone or taking HOME resets that speed. Dying and respawning on a checkpoint keeps it. Rare keys sit on three pedestals; hold the prompt to take one, then carry it to your base. They are not auto-grabbed.
+In Studio: right-click Workspace → Insert from File… → `Obby.rbxm`. Keep the model named `Obby` directly in Workspace. When it exists the server uses it as-is; when it is missing (or has no `Zone` part) the server builds the same course at runtime opposite the Key Market, 64 studs from the map center (`GameConfig.Obby`).
 
-`lune run tools/export_obby` writes `assets/map/Obby.rbxm` from the same builder. That file is optional and is not part of the repo. In Studio: right-click Workspace → Insert from File… → `Obby.rbxm`, or build the parts yourself. Keep the model named `Obby` directly in Workspace. When a `Zone` part exists, the server uses your model as-is.
+The server finds parts by the `ObbyRole` attribute, so move, resize, recolor and decorate freely but keep the roles:
 
-### Roles
+- `Zone`: invisible box covering the whole course. Inside it players get the tap walk speed, key pickups work and checkpoints are tracked.
+- `Kill`: lava slabs. A player whose root is inside one (plus 4.5 studs above it) dies. Keep them dark red and non-neon.
+- `Checkpoint`: safe area plinths (and the start platform). Standing on one sets the respawn point until the player leaves the zone.
+- `Finish`: the final safe platform (also a checkpoint).
+- `Return`: home pads; stepping on one sends the player to their own base.
+- `KeySpawn` with a numeric `Stage` attribute (1-4): marker where a rare keycap floats. Stage picks the rarity table.
+- `Wall`: side and end barriers that stop players walking around the lava. Keep them if you move the course.
 
-The server walks every descendant and reads `ObbyRole`. These names all work (the second name is the Studio alias):
-
-| Role | Alias | What it does |
-| --- | --- | --- |
-| `Zone` | | Invisible box around the course. Inside it, taps count, pickups work, and checkpoints stick. |
-| `Tap` | `TapKey` | A key the player can step on. Optional `Letter` attribute. A sibling named `KeyNTop` presses with a part named `KeyNBody`. |
-| `Popup` | `PopUpKey` | A tap key that also rises and sinks. `PopupUp`, `PopupDown`, `PopupPhase`, `PopupDepth` are seconds / studs. While it is down it does not collide. |
-| `Kill` | | Lava. A root inside it, plus 4.5 studs above, dies. Keep it dark red and non-neon. |
-| `Checkpoint` | | Sets the respawn until the player walks out of the zone. |
-| `Finish` | | Same as a checkpoint, for the end pad. |
-| `Return` | `Home` | Stepping on it sends the player to their base and clears obby speed. |
-| `Gate` | `SpeedGate` | `SpeedNeeded` (number). Below that speed the player is pushed back and told the requirement. The wall stays non-solid so each player is judged on their own speed. |
-| `KeySpawn` | | A pedestal. `Section` (or the older `Stage`) picks the rarity table in `GameConfig.Obby.Sections`. |
-| `Wall` | | Solid sides and the far end so the lava cannot be walked around. |
-
-Keep every part anchored.
-
-### Level 2 without code
-
-1. Duplicate the finish pad further down the run, or add new parts under `Workspace.Obby`.
-2. Tag the new keys `Tap` / `TapKey`, holes in the floor as `Kill`, and the next barrier `SpeedGate` with a higher `SpeedNeeded`.
-3. Add a `KeySpawn` with `Section` 1, 2, or 3.
-4. Stretch the `Zone` so it covers the new parts.
-5. Save the place. The server discovers nested roles on its own.
-
-To change the generated level 1 instead, edit `FlatRows`, `HazardRows`, and `GateSpeed` in `GameConfig.Obby`. `Rules/Obby.Layout` places the rows; `ObbyService/Course` builds the parts.
+Keep everything anchored. The default placement is on the opposite side of the map center from the Market (the Market's `Counter` part is used to find its angle), so the plot directly opposite the Market (plot 3 in the default map) must stay removed or the course will overlap it.
