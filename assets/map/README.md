@@ -25,3 +25,7 @@ python3 tools/render_preview.py footprints.json assets/map/preview.png
 ```
 
 The preview step needs Pillow (`pip install pillow`). `tests/specs/map.spec.luau` validates the generated file.
+
+## Key Market stall only
+
+`assets/map/Market.rbxm` is the Key Market stall on its own (regenerate with `lune run tools/export_market` after `lune run tools/build_map`). In Studio: right-click Workspace → Insert from File… → `Market.rbxm`. Keep the model named `Market` directly in Workspace and keep its `Counter` part (the shop prompt goes there) and the display caps `Cap1`–`Cap6`. Move, rotate and decorate it freely, keep everything anchored, then save.
