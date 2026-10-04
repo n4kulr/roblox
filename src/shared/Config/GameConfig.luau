@@ -120,7 +120,7 @@ return table.freeze({
 		ZoneHeight = 90,
 		TickSeconds = 0.1,
 		BaseSpeed = 24,
-		SpeedPerTap = 0.25,
+		SpeedPerTap = 1,
 		MaxSpeed = 80,
 		RespawnSeconds = 60,
 		KillReach = 4,

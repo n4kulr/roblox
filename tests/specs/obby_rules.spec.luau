@@ -29,22 +29,18 @@ describe("Obby rules", function()
 	end)
 
 	describe("SpeedFor", function()
-		it("starts at the normal walk speed and adds a quarter per tap", function()
+		it("starts at the normal walk speed and adds one per tap", function()
 			expect(Obby.SpeedFor(0)):toBe(24)
 			expect(GameConfig.Steal.NormalWalkSpeed):toBe(24)
-			expect(Obby.SpeedFor(4)):toBe(25)
-			expect(Obby.SpeedFor(8)):toBe(26)
-			expect(Obby.SpeedFor(64)):toBe(40)
-		end)
-
-		it("floors between whole speeds", function()
-			expect(Obby.SpeedFor(1)):toBe(24)
-			expect(Obby.SpeedFor(3)):toBe(24)
-			expect(Obby.SpeedFor(7)):toBe(25)
-			expect(Obby.SpeedFor(63)):toBe(39)
+			expect(Obby.SpeedFor(1)):toBe(25)
+			expect(Obby.SpeedFor(16)):toBe(40)
 			for taps = 0, 400, 7 do
 				expect(Obby.SpeedFor(taps) % 1):toBe(0)
 			end
+		end)
+
+		it("reaches the level 1 gate on a straight run across both key sections", function()
+			expect(Obby.SpeedFor(24) >= 40):toBe(true)
 		end)
 
 		it("never decreases as taps grow", function()
@@ -62,7 +58,7 @@ describe("Obby rules", function()
 			expect(Obby.SpeedFor(1e9)):toBe(80)
 			expect(Obby.SpeedFor(math.huge)):toBe(80)
 			expect(config.MaxSpeed):toBe(80)
-			expect(config.SpeedPerTap):toBe(0.25)
+			expect(config.SpeedPerTap):toBe(1)
 		end)
 
 		it("treats negative and invalid taps as zero", function()
