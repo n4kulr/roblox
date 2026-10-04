@@ -9,6 +9,8 @@ export type TapPart = {
 	Part: BasePart,
 	Rest: CFrame,
 	Letter: string,
+	Face: BasePart?,
+	FaceRest: CFrame?,
 }
 
 export type PopupPart = {
@@ -57,6 +59,9 @@ export type Track = {
 	Checkpoint: BasePart?,
 	Taps: number,
 	Pressed: { [BasePart]: number },
+	LastPosition: Vector3?,
+	IntroShown: boolean,
+	GateToastAt: number,
 }
 
 return {}

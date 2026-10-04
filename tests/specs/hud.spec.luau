@@ -120,7 +120,7 @@ describe("HUD", function()
 		expect(base.Size.Y.Offset):toBe(shop.Size.Y.Offset)
 		expect(base.Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(shop.Face:FindFirstChild("Icon") ~= nil):toBe(true)
-		expect(base.Face.Text.Text):toBe("BASE")
+		expect(base.Face.Text.Text):toBe("MY BASE")
 		expect(shop.Face.Text.Text):toBe("SHOP")
 	end)
 
@@ -183,6 +183,16 @@ describe("HUD", function()
 		expect(find(offersGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(find(offersGui, "StarterPack").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(find(hudGui, "Settings").Face:FindFirstChild("Icon") ~= nil):toBe(true)
+	end)
+
+	it("gives every upgrade a glyph and a plain name", function()
+		local Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+		for _, upgrade in Upgrades.List do
+			expect(hasEmoji(upgrade.Name)):toBe(false)
+			expect(type(upgrade.Glyph)):toBe("string")
+			expect(Glyphs.Has(upgrade.Glyph)):toBe(true)
+		end
+		expect(Upgrades.ById.Golden.Glyph):toBe("Golden")
 	end)
 
 	it("builds every glyph with children", function()

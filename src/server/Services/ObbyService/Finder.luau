@@ -6,6 +6,22 @@ local Finder = {}
 
 Finder.RoleAttribute = "ObbyRole"
 
+local canonical: { [string]: string } = {
+	Zone = "Zone",
+	Kill = "Kill",
+	Checkpoint = "Checkpoint",
+	Finish = "Finish",
+	Return = "Return",
+	Home = "Return",
+	Tap = "Tap",
+	TapKey = "Tap",
+	Popup = "Popup",
+	PopUpKey = "Popup",
+	Gate = "Gate",
+	SpeedGate = "Gate",
+	KeySpawn = "KeySpawn",
+}
+
 function Finder.MarketPosition(): Vector3?
 	local market = workspace:FindFirstChild("Market")
 	if not market then
@@ -41,8 +57,9 @@ function Finder.Collect(model: Model): Types.Info?
 	local gates: { Types.GatePart } = {}
 	local spawns: { Types.SpawnPoint } = {}
 	for _, descendant in model:GetDescendants() do
-		local role = descendant:GetAttribute(Finder.RoleAttribute)
-		if descendant:IsA("BasePart") and type(role) == "string" then
+		local raw = descendant:GetAttribute(Finder.RoleAttribute)
+		local role = if type(raw) == "string" then canonical[raw] else nil
+		if descendant:IsA("BasePart") and role then
 			if role == "Zone" then
 				zone = descendant
 			elseif role == "Kill" then
@@ -53,10 +70,21 @@ function Finder.Collect(model: Model): Types.Info?
 				table.insert(returns, descendant)
 			elseif role == "Tap" or role == "Popup" then
 				local letter = descendant:GetAttribute("Letter")
+				local cap: BasePart? = nil
+				local faceName = string.gsub(descendant.Name, "Body$", "Top")
+				local parent = descendant.Parent
+				if faceName ~= descendant.Name and parent then
+					local found = parent:FindFirstChild(faceName)
+					if found and found:IsA("BasePart") then
+						cap = found
+					end
+				end
 				table.insert(taps, {
 					Part = descendant,
 					Rest = descendant.CFrame,
 					Letter = if type(letter) == "string" then letter else "",
+					Face = cap,
+					FaceRest = if cap then cap.CFrame else nil,
 				})
 				if role == "Popup" then
 					local upSeconds = numberAttribute(descendant, "PopupUp", 2.2)

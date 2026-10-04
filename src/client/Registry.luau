@@ -10,6 +10,7 @@ local controllers: { Lifecycle.System } = {
 	require(script.Parent.Controllers.RollController),
 	require(script.Parent.Controllers.KeyboardController),
 	require(script.Parent.Controllers.KeyPressController),
+	require(script.Parent.Controllers.ObbyController),
 	require(script.Parent.Controllers.TutorialController),
 	require(script.Parent.Controllers.UIController),
 	require(script.Parent.Controllers.StealController),

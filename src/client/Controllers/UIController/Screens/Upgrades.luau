@@ -34,19 +34,9 @@ local cardColors: { [string]: Color3 } = {
 	Speed = theme.Yellow,
 	Slots = theme.Blue,
 	Income = theme.Gold,
-	Golden = theme.Yellow,
+	Golden = theme.Purple,
 	Walls = theme.Orange,
 	LockTime = theme.Red,
-}
-
-local cardGlyphs: { [string]: string } = {
-	Luck = "Luck",
-	Speed = "Speed",
-	Slots = "Slots",
-	Income = "Coin",
-	Golden = "Golden",
-	Walls = "Walls",
-	LockTime = "Lock",
 }
 
 local sections: { { Category: Upgrades.Category, Caption: string } } = {
@@ -154,7 +144,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			if isMaxed then
 				return string.format("Now: every %d rolls", nowEvery)
 			end
-			return string.format("every %d → %d rolls", nowEvery, afterEvery)
+			return string.format("Golden every %d → %d rolls", nowEvery, afterEvery)
 		end
 		if isMaxed then
 			return string.format("Now: %d slots", now.Slots)
@@ -280,7 +270,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = iconTile,
 			Name = "Icon",
-			Glyph = cardGlyphs[upgrade.Id] or "Upgrades",
+			Glyph = upgrade.Glyph,
 			Size = UDim2.fromScale(0.72, 0.72),
 			Position = UDim2.fromScale(0.14, 0.14),
 		})

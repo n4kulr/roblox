@@ -145,7 +145,7 @@ return table.freeze({
 		RowGap = 1.2,
 		KeyHeight = 2.4,
 		StemHeight = 0.8,
-		FlatRows = 4,
+		FlatRows = 12,
 		HazardRows = 4,
 		PopupUpSeconds = 2.2,
 		PopupDownSeconds = 1.6,

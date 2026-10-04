@@ -26,6 +26,8 @@ local infoPhase = 10
 local goodPhase = 11
 local badPhase = 9
 local tapsAttribute = "ObbyTaps"
+local gateToastGap = 2
+local introToast = "Step on the keys. Speed opens the gate!"
 
 local ObbyService = {
 	Name = "ObbyService",
@@ -58,6 +60,9 @@ local function trackOf(player: Player): Types.Track
 			Checkpoint = nil,
 			Taps = 0,
 			Pressed = {},
+			LastPosition = nil,
+			IntroShown = false,
+			GateToastAt = 0,
 		}
 		tracks[player] = track
 	end
@@ -128,6 +133,12 @@ local function spawnPickup(state: Types.SpawnState, info: Types.Info)
 			then
 				return
 			end
+			if not Obby.Contains(info.Zone.CFrame, info.Zone.Size, root.CFrame.Position, 0) then
+				return
+			end
+			if (root.CFrame.Position - cap.CFrame.Position).Magnitude > config.PickupRange + 6 then
+				return
+			end
 			local taken = cap:GetAttribute("KeyId")
 			state.Pickup = nil
 			state.Trove:Clean()
@@ -191,35 +202,72 @@ local function isInsideAny(parts: { BasePart }, position: Vector3, reach: number
 	return nil
 end
 
+local function moveTap(tap: Types.TapPart, offset: CFrame)
+	tap.Part.CFrame = tap.Rest * offset
+	local face = tap.Face
+	local faceRest = tap.FaceRest
+	if face and faceRest and face.Parent then
+		face.CFrame = faceRest * offset
+	end
+end
+
 local function pressKey(tap: Types.TapPart)
-	local part = tap.Part
-	part.CFrame = tap.Rest * CFrame.new(0, -config.PressDepth, 0)
+	local drop = CFrame.new(0, -config.PressDepth, 0)
+	moveTap(tap, drop)
+	tap.Part:SetAttribute("PressedAt", os.clock())
 	task.delay(config.PressSeconds, function()
-		if part.Parent then
-			part.CFrame = tap.Rest
+		if tap.Part.Parent then
+			moveTap(tap, CFrame.new())
 		end
 	end)
 end
 
-local function tryTap(player: Player, track: Types.Track, root: BasePart, info: Types.Info)
+local function hitsTap(part: BasePart, point: Vector3): boolean
+	return part.CanCollide ~= false and Obby.Contains(part.CFrame, part.Size, point, config.TapReach)
+end
+
+local function segmentHits(part: BasePart, from: Vector3, to: Vector3): boolean
+	if hitsTap(part, to) then
+		return true
+	end
+	local span = (to - from).Magnitude
+	if span <= 0.05 then
+		return false
+	end
+	local steps = math.clamp(math.ceil(span / 3), 1, 8)
+	for step = 1, steps - 1 do
+		if hitsTap(part, from:Lerp(to, step / steps)) then
+			return true
+		end
+	end
+	return false
+end
+
+local function tryTap(player: Player, track: Types.Track, root: BasePart, info: Types.Info, from: Vector3?)
 	local now = os.clock()
 	local position = root.CFrame.Position
+	local before = track.Taps
 	for _, tap in info.Taps do
 		local part = tap.Part
-		if part.CanCollide and Obby.Contains(part.CFrame, part.Size, position, config.TapReach) then
-			local last = track.Pressed[part]
-			if last and now - last < config.TapCooldown then
-				continue
-			end
-			track.Pressed[part] = now
-			track.Taps += 1
-			pressKey(tap)
-			applySpeed(root.Parent :: Model, track.Taps, true)
-			if track.Taps == 1 or track.Taps % 10 == 0 then
-				toast(player, `Speed {Obby.SpeedFor(track.Taps)}  (+{track.Taps} taps)`, infoPhase)
-			end
-			return
+		local touched = if from then segmentHits(part, from, position) else hitsTap(part, position)
+		if not touched then
+			continue
 		end
+		local last = track.Pressed[part]
+		if last and now - last < config.TapCooldown then
+			continue
+		end
+		track.Pressed[part] = now
+		track.Taps += 1
+		pressKey(tap)
+	end
+	if track.Taps == before then
+		return
+	end
+	applySpeed(root.Parent :: Model, track.Taps, true)
+	local marked = (before < 1 and track.Taps >= 1) or math.floor(track.Taps / 10) > math.floor(before / 10)
+	if marked then
+		toast(player, `Speed {Obby.SpeedFor(track.Taps)}  (+{track.Taps} taps)`, infoPhase)
 	end
 end
 
@@ -239,9 +287,26 @@ local function updatePopups(info: Types.Info, now: number)
 	end
 end
 
+local function showIntro(player: Player, track: Types.Track)
+	if track.IntroShown then
+		return
+	end
+	track.IntroShown = true
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local tutorial = if data and type(data.Tutorial) == "number" then data.Tutorial else 0
+	if tutorial >= 4 then
+		return
+	end
+	toast(player, introToast, infoPhase)
+	if data and tutorial == 3 then
+		services.DataService:Set(player, { "Tutorial" }, 4)
+	end
+end
+
 local function enforceGates(player: Player, track: Types.Track, root: BasePart, info: Types.Info)
 	local speed = Obby.SpeedFor(track.Taps)
 	local position = root.CFrame.Position
+	local now = os.clock()
 	for _, gate in info.Gates do
 		if speed >= gate.SpeedNeeded then
 			continue
@@ -250,7 +315,10 @@ local function enforceGates(player: Player, track: Types.Track, root: BasePart, 
 			local behind = gate.Part.CFrame
 				* CFrame.new(0, -gate.Part.Size.Y / 2 + 4, gate.Part.Size.Z / 2 + 6)
 			root.CFrame = CFrame.new(behind.Position) * (root.CFrame - root.CFrame.Position)
-			toast(player, `Need {gate.SpeedNeeded} speed!`, badPhase)
+			if now - track.GateToastAt >= gateToastGap then
+				track.GateToastAt = now
+				toast(player, `Need {gate.SpeedNeeded} speed!`, badPhase)
+			end
 			return
 		end
 	end
@@ -265,21 +333,17 @@ local function update(
 	info: Types.Info
 )
 	local position = root.CFrame.Position
+	local previous = track.LastPosition
 	local isInside = Obby.Contains(info.Zone.CFrame, info.Zone.Size, position, 0)
-	if isInside ~= track.IsInside then
-		track.IsInside = isInside
-		if isInside then
-			toast(player, "Tap keys to gain speed!", infoPhase)
-		else
-			track.Taps = 0
-			table.clear(track.Pressed)
-			setCheckpoint(player, track, nil)
-		end
-	end
-	applySpeed(character, track.Taps, isInside)
 	if isInside then
+		if not track.IsInside then
+			track.IsInside = true
+			showIntro(player, track)
+		end
+		applySpeed(character, track.Taps, true)
 		if isInsideAny(info.Kills, position, config.KillReach) then
 			humanoid.Health = 0
+			track.LastPosition = nil
 			return
 		end
 		local checkpoint = isInsideAny(info.Checkpoints, position, config.CheckpointReach)
@@ -289,8 +353,18 @@ local function update(
 		if isInsideAny(info.Returns, position, config.ReturnReach) then
 			services.PlotService:SendHome(player)
 		end
-		tryTap(player, track, root, info)
+		tryTap(player, track, root, info, if track.IsInside then previous else nil)
 		enforceGates(player, track, root, info)
+		track.LastPosition = root.CFrame.Position
+	else
+		applySpeed(character, track.Taps, false)
+		track.LastPosition = nil
+		if track.IsInside then
+			track.IsInside = false
+			track.Taps = 0
+			table.clear(track.Pressed)
+			setCheckpoint(player, track, nil)
+		end
 	end
 	tryDeliver(player, root)
 end
@@ -313,6 +387,7 @@ local function step()
 		if character ~= track.Character then
 			track.Character = character
 			track.IsInside = false
+			track.LastPosition = nil
 		end
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
 		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil

@@ -802,10 +802,20 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	root.AnchorPoint = props.AnchorPoint or Vector2.zero
 	root.LayoutOrder = props.LayoutOrder or 0
 
+	local lipDrop = 5
+	local lip = Instance.new("Frame")
+	lip.Name = "Lip"
+	lip.BorderSizePixel = 0
+	lip.Position = UDim2.fromOffset(0, lipDrop)
+	lip.Size = UDim2.new(1, 0, 1, -lipDrop)
+	lip.Parent = root
+	Kit.Corner(lip, props.Radius or cornerRadius)
+
 	local face = Kit.Panel({
 		Parent = root,
 		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.new(1, 0, 1, -lipDrop),
 		Color = baseColor,
 		Radius = props.Radius,
 		StrokeThickness = 2.5,
@@ -865,7 +875,9 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	root.Parent = props.Parent
 
 	local function paint()
-		Kit.Paint(face, if isDisabled then theme.Disabled else baseColor)
+		local color = if isDisabled then theme.Disabled else baseColor
+		Kit.Paint(face, color)
+		lip.BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.38)
 		text.TextColor3 = if isDisabled then theme.TextDim else baseTextColor
 	end
 	paint()
@@ -879,7 +891,8 @@ function Kit.Button(trove: TroveInstance, props: ButtonProps): Button
 	end
 
 	local function settle()
-		local goal = if isDown then 0.92 elseif isHover then 1.05 else 1
+		face.Position = UDim2.fromOffset(0, if isDown then lipDrop - 1 else 0)
+		local goal = if isDown then 0.96 elseif isHover then 1.04 else 1
 		Kit.Tween(pressScale, if isDown then pressInfo else springInfo, { Scale = goal })
 	end
 	local function release()

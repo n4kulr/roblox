@@ -313,6 +313,10 @@ local drawers: { [string]: Drawer } = {
 		rect(art, "Face", 0.14, 0.12, 0.72, 0.72, palette.Body, 0.5)
 		letter(art, "$", 0.3, 0.26, 0.4, 0.44, palette.Ink)
 	end,
+	Key = function(art, palette)
+		keycap(art, 0.16, 0.1, 0.68, palette.Shade, palette.Body, 0.16)
+		letter(art, "K", 0.32, 0.2, 0.36, 0.4, palette.Ink)
+	end,
 }
 
 local names = {
@@ -338,6 +342,7 @@ local names = {
 	"Luck",
 	"Speed",
 	"Coin",
+	"Key",
 }
 
 local Glyphs = {

@@ -336,7 +336,7 @@ local function showView(view: View, slot: ResultSlots.Slot, payload: Payload, is
 		end
 	end
 	local key, rarity, isGolden = payload.Key, payload.Rarity, payload.IsGolden
-	view.Name.Text = if isGolden then `⭐ {key.Name}` else key.Name
+	view.Name.Text = if isGolden then `GOLDEN {key.Name}` else key.Name
 	view.Name.TextColor3 = rarity.Color
 	view.NameGradient.Enabled = isGolden
 	view.NameStroke.Color = if isGolden then Color3.new(1, 1, 1) else Kit.Theme.TextInk
@@ -825,10 +825,15 @@ function RollController.IsAuto(_self: State): boolean
 	return isAuto
 end
 
+local function isCarrying(): boolean
+	local character = Players.LocalPlayer.Character
+	return character ~= nil and character:GetAttribute("CarryingKey") ~= nil
+end
+
 function RollController.TeleportToBase(_self: State): boolean
 	local base = if plot then plot:FindFirstChild("Base") else nil
 	local character = Players.LocalPlayer.Character
-	if not base or not base:IsA("BasePart") or not character then
+	if isCarrying() or not base or not base:IsA("BasePart") or not character then
 		return false
 	end
 	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + FloorGrid.CapHeight + 3, 0))
@@ -838,7 +843,7 @@ end
 function RollController.TeleportToShop(_self: State): boolean
 	local market = workspace:FindFirstChild("Market")
 	local character = Players.LocalPlayer.Character
-	if not market or not character then
+	if isCarrying() or not market or not character then
 		return false
 	end
 	local counter = market:FindFirstChild("Counter", true)

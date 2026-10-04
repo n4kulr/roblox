@@ -40,7 +40,7 @@ function Pill.Build(trove: TroveInstance, root: Frame): (count: number) -> ()
 	trove:Add(panel)
 	return function(count: number)
 		panel.Visible = count > 0
-		label.Text = `🔑 {count}/{GameConfig.Keyfall.CarryLimit} — run home!`
+		label.Text = `{count}/{GameConfig.Keyfall.CarryLimit}  run home!`
 	end
 end
 
