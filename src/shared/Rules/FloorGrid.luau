@@ -29,8 +29,9 @@ export type Layout = {
 }
 
 local FloorGrid = {
-	CellSize = 4.0,
-	CellGap = 0.2,
+	CellSize = 3.4,
+	CellGap = 0.12,
+	CapHeight = 2.2,
 	EdgeMargin = 1.0,
 	RollKeyMargin = 1.0,
 }

@@ -29,7 +29,7 @@ type State = {
 local viewRange = 60
 local lowViewRange = 30
 local maxCharacters = 8
-local pressDepth = 0.35
+local pressDepth = 0.6
 local debounceSeconds = 0.12
 local minHeight = -1
 local maxHeight = 7
@@ -37,7 +37,7 @@ local blankVolume = 0.35
 local blankSwitch = "MxBlack"
 local fillerVolume = 0.55
 local fillerSwitch = "CreamTravel"
-local capHeight = 1
+local capHeight = FloorGrid.CapHeight
 
 local KeyPressController = {
 	Name = "KeyPressController",

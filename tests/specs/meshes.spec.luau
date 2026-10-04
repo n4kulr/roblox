@@ -6,7 +6,7 @@ local Vector3, Color3, CFrame = roblox.Vector3, roblox.Color3, roblox.CFrame
 local describe, it, expect, afterEach = H.describe, H.it, H.expect, H.afterEach
 
 describe("Mesh skins", function()
-	local world, GameConfig, plots, registry, boardChanges
+	local world, GameConfig, FloorGrid, plots, registry, boardChanges
 	local authoredPlots = false
 	local authoredUseMeshes = false
 
@@ -23,6 +23,7 @@ describe("Mesh skins", function()
 			folder.Parent = world.fakeServices.ServerStorage
 		end
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
+		FloorGrid = world:require("ReplicatedStorage.Rules.FloorGrid")
 		local Signal = world:require("ReplicatedStorage.Packages.Signal")
 		world.workspace = world:newInstance("Folder")
 		if authoredPlots then
@@ -136,7 +137,7 @@ describe("Mesh skins", function()
 				expect(cap.CanTouch):toBe(false)
 				expect(cap.Anchored):toBe(true)
 				expect(cap.Transparency):toBe(0)
-				expect(cap.Size):toBe(Vector3.new(3.8, 1, 3.8))
+				expect(cap.Size):toBe(Vector3.new(FloorGrid.CapSize(), FloorGrid.CapHeight, FloorGrid.CapSize()))
 				expect(cap:GetAttribute("Cell") ~= nil):toBe(true)
 				if cap:GetAttribute("Slot") then
 					slots += 1
@@ -150,14 +151,15 @@ describe("Mesh skins", function()
 			end
 		end
 		expect(slots):toBe(GameConfig.BoardSlots)
-		expect(fillers):toBe(88 - GameConfig.BoardSlots)
+		expect(fillers):toBe(#plot.Keys:GetChildren() - 1 - GameConfig.BoardSlots)
+		expect(fillers > 0):toBe(true)
 		expect(plot.RollKey.ClassName):toBe("MeshPart")
 		expect(plot.RollKey.Size):toBe(Vector3.new(8, 3, 8))
 		expect(plot:FindFirstChild("BoardCase")):toBeNil()
 		expect(plot.Board.Transparency):toBe(1)
 		expect(plot.Board.CanCollide):toBe(false)
-		expect(plot:GetAttribute("FloorCell")):toBe(4)
-		expect(plot:GetAttribute("FloorColumns")):toBe(10)
+		expect(plot:GetAttribute("FloorCell")):toBe(FloorGrid.CellSize)
+		expect(plot:GetAttribute("FloorColumns")):toBe(math.floor((44 - FloorGrid.EdgeMargin * 2) / FloorGrid.CellSize))
 	end)
 
 	it("covers the whole base with a collidable walkway at cap-top height", function()
@@ -169,10 +171,10 @@ describe("Mesh skins", function()
 		expect(walkway.CanQuery):toBe(true)
 		expect(walkway.Size.X):toBe(plot.Base.Size.X)
 		expect(walkway.Size.Z):toBe(plot.Base.Size.Z)
-		local top = plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + 1
+		local top = plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight
 		expect(walkway.CFrame.Position.Y + walkway.Size.Y / 2):toBeCloseTo(top, 1e-4)
 		local cap = slotCaps(plot)[1]
-		expect(cap.CFrame.Position.Y + 0.5):toBeCloseTo(top, 1e-4)
+		expect(cap.CFrame.Position.Y + FloorGrid.CapHeight / 2):toBeCloseTo(top, 1e-4)
 	end)
 
 	it("returns only the slot caps from GetCaps", function()
@@ -185,7 +187,7 @@ describe("Mesh skins", function()
 			expect(cap:GetAttribute("Slot")):toBe(slot)
 		end
 		expect(count):toBe(GameConfig.BoardSlots)
-		expect(#registry.PlotService:GetFloorCaps(player)):toBe(88)
+		expect(#registry.PlotService:GetFloorCaps(player)):toBe(#registry.PlotService:GetPlot(player).Keys:GetChildren() - 1)
 	end)
 
 	it("waits for slow meshes before building plots and assigning players", function()

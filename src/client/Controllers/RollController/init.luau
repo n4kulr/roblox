@@ -9,6 +9,7 @@ local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Stats = require(ReplicatedStorage.Rules.Stats)
@@ -830,7 +831,7 @@ function RollController.TeleportToBase(_self: State): boolean
 	if not base or not base:IsA("BasePart") or not character then
 		return false
 	end
-	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + 3, 0))
+	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + FloorGrid.CapHeight + 3, 0))
 	return true
 end
 

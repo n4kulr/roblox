@@ -92,7 +92,7 @@ local emptyCapTransparency = 0.6
 local lockedCapColor = Color3.fromRGB(60, 60, 64)
 local lockedCapTransparency = 0.85
 local fillerCapColor = Color3.fromRGB(222, 218, 208)
-local capHeight = 1.0
+local capHeight = FloorGrid.CapHeight
 local walkwayThickness = 0.2
 
 local function applyFiller(cap: BasePart)
@@ -231,7 +231,7 @@ local function teleport(player: Player, character: Model)
 		if not root or not info or character.Parent == nil then
 			return
 		end
-		character:PivotTo(info.Base.CFrame * CFrame.new(0, info.Base.Size.Y / 2 + 3, 0))
+		character:PivotTo(info.Base.CFrame * CFrame.new(0, info.Base.Size.Y / 2 + capHeight + 3, 0))
 	end)
 end
 
