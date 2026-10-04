@@ -29,6 +29,14 @@ local productColors: { [string]: Color3 } = {
 	Clicks = theme.Blue,
 }
 
+local productGlyphs: { [string]: string } = {
+	StarterPack = "Gift",
+	LuckPotion = "Luck",
+	ClicksPotion = "Clicks",
+	ServerLuck = "Star",
+	Clicks = "Coin",
+}
+
 local ShopScreen = {}
 
 function ShopScreen.new(context: Types.Context): Types.Screen
@@ -43,9 +51,9 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Shop",
-		Title = "SHOP",
-		Icon = "🛒",
-		MaxSize = Vector2.new(700, 560),
+		Title = "STORE",
+		Glyph = "Shop",
+		MaxSize = Vector2.new(720, 580),
 		HeaderColor = theme.Red,
 		OnClose = function()
 			context.Close("Shop")
@@ -62,14 +70,25 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 
 	local function section(title: string)
 		order += 1
-		Kit.Label({
+		local strip = Kit.Panel({
 			Parent = scroll,
 			Name = `{title}Header`,
-			Text = title,
 			Size = UDim2.new(1, 0, 0, 34),
-			TextSize = 28,
-			Color = theme.Gold,
+			Color = theme.Track,
 			LayoutOrder = order,
+			Radius = 6,
+			StrokeThickness = 2,
+			Bevel = false,
+		})
+		Kit.Label({
+			Parent = strip,
+			Name = "Text",
+			Text = title,
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.new(1, -24, 1, 0),
+			TextSize = 26,
+			Color = theme.Gold,
+			Scaled = true,
 		})
 	end
 
@@ -78,10 +97,10 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		name: string,
 		description: string,
 		color: Color3,
+		glyph: string,
 		callback: () -> ()
 	): Kit.Button
 		order += 1
-		local emoji, title = string.match(name, "^(%S+)%s+(.+)$")
 		local frame = Kit.Panel({
 			Parent = scroll,
 			Name = id,
@@ -89,6 +108,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			Color = color,
 			LayoutOrder = order,
 			Shards = true,
+			Radius = Kit.CardRadius,
 		})
 		local iconTile = Kit.Panel({
 			Parent = frame,
@@ -96,22 +116,25 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			Position = UDim2.fromOffset(10, (cardHeight - iconSize) / 2),
 			Size = UDim2.fromOffset(iconSize, iconSize),
 			Color = theme.Cell,
-			Transparency = 0.15,
+			Transparency = 0.08,
+			Radius = 10,
+			StrokeThickness = 2.5,
+			Bevel = false,
 		})
 		Kit.Burst({ Parent = iconTile, Diameter = iconSize - 8 })
 		Kit.Icon({
 			Parent = iconTile,
 			Name = "Icon",
-			Emoji = emoji or "🛒",
-			Size = UDim2.fromScale(0.8, 0.8),
-			Position = UDim2.fromScale(0.1, 0.1),
+			Glyph = glyph,
+			Size = UDim2.fromScale(0.72, 0.72),
+			Position = UDim2.fromScale(0.14, 0.14),
 		})
 		local textLeft = iconSize + 22
 		local textWidth = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 30)
 		Kit.Label({
 			Parent = frame,
 			Name = "Name",
-			Text = title or name,
+			Text = Kit.PlainTitle(name),
 			Position = UDim2.fromOffset(textLeft, 8),
 			Size = textWidth,
 			TextSize = 28,
@@ -144,13 +167,13 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 
 	local function comingSoon()
 		playUi("Error")
-		context.Toast("Coming soon! 🚧", "Info")
+		context.Toast("Coming soon!", "Info")
 	end
 
 	local function addPass(pass: Monetization.Pass)
-		local button = card(pass.Id, pass.Name, pass.Description, theme.Blue, function()
+		local button = card(pass.Id, pass.Name, pass.Description, theme.Blue, "Pass", function()
 			if boostState.Owns(pass.Id) then
-				context.Toast("You already own this! ✅", "Good")
+				context.Toast("You already own this!", "Good")
 			elseif not Purchases.PromptPass(pass) then
 				comingSoon()
 			end
@@ -164,9 +187,10 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			product.Name,
 			product.Description,
 			productColors[product.Kind] or theme.Green,
+			productGlyphs[product.Kind] or "Shop",
 			function()
 				if product.OneTime and dataController:Get({ "StarterPackBought" }) == true then
-					context.Toast("You already bought this! ✅", "Good")
+					context.Toast("You already bought this!", "Good")
 				elseif not Purchases.PromptProduct(product) then
 					comingSoon()
 				end
@@ -195,7 +219,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		end
 		button.SetDisabled(isOwned)
 		if isOwned then
-			button.SetText(if row.Pass then "OWNED ✓" else "BOUGHT ✓")
+			button.SetText(if row.Pass then "OWNED" else "BOUGHT")
 		elseif item.AssetId == 0 then
 			button.SetColor(theme.Grey)
 			button.SetText("SOON")

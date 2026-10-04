@@ -20,9 +20,9 @@ local codeHeight = 112
 local lowQualityMax = 3
 
 local volumes: { { Setting: string, Title: string } } = {
-	{ Setting = "RollVolume", Title = "🔊 Roll Sounds" },
-	{ Setting = "BoardVolume", Title = "🎹 Keyboard Sounds" },
-	{ Setting = "OtherVolume", Title = "👥 Other Players" },
+	{ Setting = "RollVolume", Title = "Roll Sounds" },
+	{ Setting = "BoardVolume", Title = "Keyboard Sounds" },
+	{ Setting = "OtherVolume", Title = "Other Players" },
 }
 
 local function send(name: string, value: number)
@@ -50,7 +50,7 @@ function Settings.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Settings",
 		Title = "SETTINGS",
-		Icon = "⚙️",
+		Glyph = "Settings",
 		IconAsset = UiAssets.Icons.Settings,
 		MaxSize = Vector2.new(620, 520),
 		HeaderColor = theme.Grey,
@@ -155,8 +155,8 @@ function Settings.new(context: Types.Context): Types.Screen
 		table.insert(sliderRows, { Setting = setting, Slider = slider, Percent = percent })
 	end
 
-	addToggle("LowGraphics", "📉 Low Graphics", "(faster on phones)")
-	addToggle("AutoPlace", "✨ Auto-Equip New Keys", "New keys jump onto your keyboard!")
+	addToggle("LowGraphics", "Low Graphics", "(faster on phones)")
+	addToggle("AutoPlace", "Auto-Equip New Keys", "New keys jump onto your keyboard!")
 	for _, volume in volumes do
 		addSlider(volume.Setting, volume.Title)
 	end
@@ -165,7 +165,7 @@ function Settings.new(context: Types.Context): Types.Screen
 	Kit.Label({
 		Parent = codeRow,
 		Name = "Title",
-		Text = "🎟️ CODES",
+		Text = "CODES",
 		Position = UDim2.fromOffset(14, 8),
 		Size = UDim2.new(1, -28, 0, 34),
 		TextSize = 26,
@@ -217,7 +217,7 @@ function Settings.new(context: Types.Context): Types.Screen
 				if result == 1 then
 					codeBox.Text = ""
 					playUi("Confirm")
-					context.Toast("🎉 Code redeemed!", "Good")
+					context.Toast("Code redeemed!", "Good")
 					return
 				end
 				playUi("Error")
@@ -226,7 +226,7 @@ function Settings.new(context: Types.Context): Types.Screen
 				elseif result == 4 then
 					context.Toast("That code expired", "Bad")
 				else
-					context.Toast("❌ That code doesn't exist", "Bad")
+					context.Toast("That code doesn't exist", "Bad")
 				end
 			end)
 		end,

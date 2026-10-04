@@ -36,9 +36,9 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Index",
 		Title = "INDEX",
-		Icon = "📘",
+		Glyph = "Index",
 		IconAsset = UiAssets.Icons.Index,
-		MaxSize = Vector2.new(700, 520),
+		MaxSize = Vector2.new(720, 560),
 		HeaderColor = theme.Blue,
 		OnClose = function()
 			context.Close("Index")

@@ -71,6 +71,9 @@ describe("HUD", function()
 			TeleportToBase = function()
 				return true
 			end,
+			TeleportToShop = function()
+				return true
+			end,
 			RequestRoll = function() end,
 		}
 		local context = {
@@ -108,16 +111,21 @@ describe("HUD", function()
 		expect(#world.errors):toBe(0)
 	end)
 
-	it("makes MY BASE a text-only button", function()
-		local button = find(hudGui, "MyBase")
-		expect(button ~= nil):toBe(true)
-		expect(button.Face:FindFirstChild("Icon")):toBeNil()
-		expect(button:FindFirstChild("Icon", true)):toBeNil()
-		expect(button.Face.Text.Text):toBe("MY BASE")
+	it("puts equal Base and Shop travel buttons on top", function()
+		local base = find(hudGui, "MyBase")
+		local shop = find(hudGui, "TravelShop")
+		expect(base ~= nil):toBe(true)
+		expect(shop ~= nil):toBe(true)
+		expect(base.Size.X.Offset):toBe(shop.Size.X.Offset)
+		expect(base.Size.Y.Offset):toBe(shop.Size.Y.Offset)
+		expect(base.Face:FindFirstChild("Icon") ~= nil):toBe(true)
+		expect(shop.Face:FindFirstChild("Icon") ~= nil):toBe(true)
+		expect(base.Face.Text.Text):toBe("BASE")
+		expect(shop.Face.Text.Text):toBe("SHOP")
 	end)
 
-	it("puts Shop, Leaderboard and Pass on the right", function()
-		for _, name in { "Shop", "Leaderboard", "Pass" } do
+	it("puts Store, Leaderboard and Pass on the right", function()
+		for _, name in { "Store", "Leaderboard", "Pass" } do
 			local button = find(hudGui, name)
 			expect(button ~= nil):toBe(true)
 			expect(isOnRight(button)):toBe(true)
@@ -133,11 +141,11 @@ describe("HUD", function()
 	end)
 
 	it("matches the right stack sizes", function()
-		local shop = find(hudGui, "Shop").Size
+		local store = find(hudGui, "Store").Size
 		for _, name in { "Leaderboard", "Pass" } do
 			local size = find(hudGui, name).Size
-			expect(size.X.Offset):toBe(shop.X.Offset)
-			expect(size.Y.Offset):toBe(shop.Y.Offset)
+			expect(size.X.Offset):toBe(store.X.Offset)
+			expect(size.Y.Offset):toBe(store.Y.Offset)
 		end
 	end)
 
@@ -169,7 +177,7 @@ describe("HUD", function()
 	end)
 
 	it("adds glyph icons to the menu buttons", function()
-		for _, name in { "Upgrades", "Keys", "Index", "Rebirth", "Shop", "Leaderboard", "Pass", "Auto" } do
+		for _, name in { "Upgrades", "Keys", "Index", "Rebirth", "Store", "Leaderboard", "Pass", "Auto" } do
 			expect(find(hudGui, name).Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		end
 		expect(find(offersGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)

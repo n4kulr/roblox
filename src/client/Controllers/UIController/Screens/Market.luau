@@ -75,7 +75,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Market",
 		Title = "KEY MARKET",
-		Icon = "🏪",
+		Glyph = "Shop",
 		MaxSize = Vector2.new(700, 640),
 		HeaderColor = accent,
 		OnClose = function()
@@ -148,7 +148,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		if balance < offer.Price then
 			playUi("Error")
 			Kit.Shake(card.Panel)
-			context.Toast(`Need {NumberFormat.Compact(offer.Price - balance)} more! 💵`, "Bad")
+			context.Toast(`Need {NumberFormat.Compact(offer.Price - balance)} more!`, "Bad")
 			return
 		end
 		if not isNearCounter() then
@@ -166,7 +166,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 				if sounds then
 					sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Other")
 				end
-				context.Toast(`🛒 Bought {key.Name}!`, "Good")
+				context.Toast(`Bought {key.Name}!`, "Good")
 			else
 				playUi("Error")
 				context.Toast(
@@ -220,7 +220,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		local priceText = Kit.Chip({
 			Parent = panel,
 			Name = "Price",
-			Text = `💵 {NumberFormat.Commas(offer.Price)}`,
+			Text = NumberFormat.Commas(offer.Price),
 			Size = UDim2.fromOffset(170, 28),
 			Position = UDim2.fromOffset(15, 176),
 			Color = theme.Yellow,
@@ -299,7 +299,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		if slot ~= currentSlot then
 			currentSlot = slot
 			rebuild(true)
-			context.Toast("🔄 New stock!", "Info")
+			context.Toast("New stock!", "Info")
 		end
 		timer.Text = `New stock in {TimeFormat.Clock(Market.SecondsLeft(now))}`
 		refreshCards()

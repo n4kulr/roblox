@@ -27,11 +27,11 @@ local claimDelay = 0.3
 local lockedColor = Color3.fromRGB(58, 64, 80)
 local reachedColor = Color3.fromRGB(88, 96, 120)
 
-local rewardEmoji: { [string]: string } = {
-	Clicks = "💵",
-	LuckPotion = "🍀",
-	ClicksPotion = "💰",
-	Key = "🔑",
+local rewardGlyphs: { [string]: string } = {
+	Clicks = "Coin",
+	LuckPotion = "Luck",
+	ClicksPotion = "Clicks",
+	Key = "Keys",
 }
 
 local SeasonScreen = {}
@@ -50,7 +50,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Season",
 		Title = "SEASON PASS",
-		Icon = "🎟️",
+		Glyph = "Pass",
 		MaxSize = Vector2.new(860, 520),
 		HeaderColor = theme.Orange,
 		OnClose = function()
@@ -62,17 +62,19 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local passButton = Kit.Button(trove, {
 		Parent = modal.HeaderRight,
 		Name = "PremiumPass",
-		Text = "Premium Pass",
+		Glyph = "Pass",
+		IconLeft = true,
+		Text = "PREMIUM",
 		Size = UDim2.fromOffset(190, 44),
 		Color = theme.Purple,
-		TextSize = 22,
+		TextSize = 20,
 		Callback = function()
 			if boostState.Owns(GameConfig.Season.PremiumPassId) then
 				return
 			end
 			if not premiumPass or not Purchases.PromptPass(premiumPass) then
 				playUi("Error")
-				context.Toast("Coming soon! 🚧", "Info")
+				context.Toast("Coming soon!", "Info")
 			end
 		end,
 		Sound = playUi,
@@ -137,7 +139,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = panel,
 			Name = "Icon",
-			Emoji = rewardEmoji[reward.Kind] or "🎁",
+			Glyph = rewardGlyphs[reward.Kind] or "Gift",
 			Position = UDim2.fromScale(0.2, 0.06),
 			Size = UDim2.fromScale(0.6, 0.45),
 		})
@@ -246,23 +248,23 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			local isLockedByPass = tile.Premium and not owns
 			if isClaimed then
 				Kit.Paint(tile.Panel, theme.Grey)
-				tile.Mark.Text = "✓"
+				tile.Mark.Text = "OK"
 			elseif isLockedByPass then
 				Kit.Paint(tile.Panel, lockedColor)
-				tile.Mark.Text = "🔒"
+				tile.Mark.Text = "--"
 			elseif isReached then
 				local isNext = tile.Level == Season.Claimed(season, tile.Premium) + 1
 				Kit.Paint(tile.Panel, if isNext then theme.Green else reachedColor)
 				tile.Mark.Text = ""
 			else
 				Kit.Paint(tile.Panel, lockedColor)
-				tile.Mark.Text = "🔒"
+				tile.Mark.Text = "--"
 			end
 		end
 		passButton.SetText(
 			if owns
-				then "OWNED ✓"
-				elseif premiumPass and Purchases.IsAvailable(premiumPass) then "Premium Pass"
+				then "OWNED"
+				elseif premiumPass and Purchases.IsAvailable(premiumPass) then "PREMIUM"
 				else "SOON"
 		)
 		passButton.SetColor(if owns then theme.Green else theme.Purple)
@@ -303,10 +305,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				isBusy = false
 				if granted > 0 then
 					playUi("Confirm")
-					context.Toast(
-						`🎟️ Claimed {granted} reward{if granted == 1 then "" else "s"}!`,
-						"Good"
-					)
+					context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
 				else
 					playUi("Error")
 					context.Toast("Couldn't claim that!", "Bad")

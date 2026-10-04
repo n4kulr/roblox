@@ -145,7 +145,7 @@ function Hud.new(context: Types.Context): Types.Screen
 			Sound = playUi,
 		})
 	end
-	sideButton("Shop", "Shop", "SHOP", theme.Red, 1, "Shop")
+	sideButton("Store", "Shop", "STORE", theme.Red, 1, "Shop")
 	sideButton("Leaderboard", "Leaderboard", "LEADERBOARD", theme.Gold, 2, "Leaderboards")
 	local passButton = sideButton("Pass", "Pass", "PASS", theme.Orange, 3, "Season")
 	local passBadge = Kit.Badge(passButton.Instance, "!")
@@ -195,18 +195,52 @@ function Hud.new(context: Types.Context): Types.Screen
 		bounce:Destroy()
 	end)
 
+	local tabWidth = 168
+	local tabGap = 10
+	local tabs = Instance.new("Frame")
+	tabs.Name = "Travel"
+	tabs.BackgroundTransparency = 1
+	tabs.AnchorPoint = Vector2.new(0.5, 0)
+	tabs.Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop)
+	tabs.Size = UDim2.fromOffset(tabWidth * 2 + tabGap, Kit.TabBarHeight)
+	tabs.Parent = root
+	local tabList = Instance.new("UIListLayout")
+	tabList.FillDirection = Enum.FillDirection.Horizontal
+	tabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tabList.VerticalAlignment = Enum.VerticalAlignment.Center
+	tabList.Padding = UDim.new(0, tabGap)
+	tabList.SortOrder = Enum.SortOrder.LayoutOrder
+	tabList.Parent = tabs
 	Kit.Button(trove, {
-		Parent = root,
+		Parent = tabs,
 		Name = "MyBase",
-		Text = "MY BASE",
-		Size = UDim2.fromOffset(196, Kit.TabBarHeight),
-		Position = UDim2.new(0.5, 0, 0, Kit.TabBarTop),
-		AnchorPoint = Vector2.new(0.5, 0),
+		Glyph = "Base",
+		IconLeft = true,
+		Text = "BASE",
+		Size = UDim2.fromOffset(tabWidth, Kit.TabBarHeight),
 		Color = theme.Blue,
-		TextSize = 30,
+		TextSize = 28,
+		LayoutOrder = 1,
 		Callback = function()
 			if not rollController:TeleportToBase() then
 				context.Toast("Your base isn't ready yet!", "Bad")
+			end
+		end,
+		Sound = playUi,
+	})
+	Kit.Button(trove, {
+		Parent = tabs,
+		Name = "TravelShop",
+		Glyph = "Shop",
+		IconLeft = true,
+		Text = "SHOP",
+		Size = UDim2.fromOffset(tabWidth, Kit.TabBarHeight),
+		Color = theme.Orange,
+		TextSize = 28,
+		LayoutOrder = 2,
+		Callback = function()
+			if not rollController:TeleportToShop() then
+				context.Toast("Shop isn't ready yet!", "Bad")
 			end
 		end,
 		Sound = playUi,
