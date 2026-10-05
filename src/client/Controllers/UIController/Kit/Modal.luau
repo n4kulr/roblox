@@ -33,17 +33,21 @@ export type Modal = {
 
 local colors = Theme.Colors
 local black = Color3.new(0, 0, 0)
-local popInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local closeInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-local windowTop = 84
-local windowBottom = 12
-local headerHeight = 58
-local frameGap = 10
-local closeReserve = 52
+local openInfo = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local fadeInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local closeInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+local dimTransparency = 0.45
+local headerHeight = 60
+local frameGap = 12
+local closeReserve = 44
+local badgeSize = 72
+local areaTop = 40
+local areaBottom = 20
+local areaSide = 24
 
 local Modal = {
 	HeaderHeight = headerHeight,
-	WindowTop = windowTop,
+	AreaTop = areaTop,
 }
 
 local function viewportScale(size: Vector2): number
@@ -51,7 +55,7 @@ local function viewportScale(size: Vector2): number
 	if shortest <= 0 then
 		return 1
 	end
-	return math.clamp(shortest / 850, 0.75, 1.2)
+	return math.clamp(shortest / 800, 0.5, 1.25)
 end
 
 function Modal.ScreenGui(
@@ -97,11 +101,10 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	backdrop.Name = "Backdrop"
 	backdrop.AutoButtonColor = false
 	backdrop.BackgroundColor3 = black
-	backdrop.BackgroundTransparency = 0.45
+	backdrop.BackgroundTransparency = dimTransparency
 	backdrop.BorderSizePixel = 0
 	backdrop.Text = ""
-	backdrop.Position = UDim2.fromOffset(0, windowTop - 10)
-	backdrop.Size = UDim2.new(1, 0, 1, -(windowTop - 10))
+	backdrop.Size = UDim2.fromScale(1, 1)
 	backdrop.Parent = root
 	trove:Connect(backdrop.Activated, props.OnClose)
 
@@ -109,8 +112,8 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	area.Name = "Area"
 	area.BackgroundTransparency = 1
 	area.BorderSizePixel = 0
-	area.Position = UDim2.fromOffset(0, windowTop)
-	area.Size = UDim2.new(1, 0, 1, -(windowTop + windowBottom))
+	area.Position = UDim2.fromOffset(0, areaTop)
+	area.Size = UDim2.new(1, 0, 1, -(areaTop + areaBottom))
 	area.Parent = root
 
 	local window = Instance.new("Frame")
@@ -118,7 +121,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	window.BackgroundTransparency = 1
 	window.BorderSizePixel = 0
 	window.Active = true
-	window.Size = UDim2.new(1, -2 * Theme.Space.Xl, 1, 0)
+	window.Size = UDim2.new(1, -2 * areaSide, 1, 0)
 	window.Position = UDim2.fromScale(0.5, 0.5)
 	window.AnchorPoint = Vector2.new(0.5, 0.5)
 	window.Parent = area
@@ -142,19 +145,23 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	local panel = Core.Panel({
 		Parent = window,
 		Name = "Panel",
-		Color = colors.Panel,
+		Color = colors.PanelDeep,
 		Radius = Theme.Radius.Panel,
 		StrokeThickness = Theme.Stroke.Heavy,
-		Shards = true,
 	})
+	local paint = panel:FindFirstChild("Paint")
+	if paint and paint:IsA("UIGradient") then
+		paint.Color = ColorSequence.new(colors.Panel, colors.PanelDeep)
+	end
 
 	local body = Core.Panel({
 		Parent = panel,
 		Name = "Body",
 		Position = UDim2.fromOffset(frameGap, headerHeight + frameGap * 2),
 		Size = UDim2.new(1, -2 * frameGap, 1, -(headerHeight + frameGap * 3)),
-		Color = colors.Well,
+		Color = colors.Inset,
 		Radius = Theme.Radius.L,
+		StrokeColor = colors.InsetEdge,
 		Flat = true,
 	})
 	body.ClipsDescendants = true
@@ -172,27 +179,31 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	local badge = Core.Panel({
 		Parent = header,
 		Name = "IconBadge",
-		Position = UDim2.fromOffset(-6, -12),
-		Size = UDim2.fromOffset(headerHeight + 8, headerHeight + 8),
-		Color = Theme.Shade(headerColor, -0.45),
-		Radius = Theme.Radius.L,
+		Position = UDim2.new(0, -20, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Size = UDim2.fromOffset(badgeSize, badgeSize),
+		Color = Theme.Shade(headerColor, -0.2),
+		Pill = true,
 		StrokeThickness = Theme.Stroke.Heavy,
+		Gloss = true,
 	})
-	Core.Icon({
+	badge.ZIndex = 3
+	local badgeIcon = Core.Icon({
 		Parent = badge,
 		Name = "Icon",
 		Glyph = props.Glyph,
 		Asset = props.IconAsset,
-		Size = UDim2.fromScale(0.82, 0.82),
-		Position = UDim2.fromScale(0.09, 0.09),
+		Size = UDim2.fromScale(0.72, 0.72),
+		Position = UDim2.fromScale(0.14, 0.14),
 	})
+	badgeIcon.ZIndex = 4
 	Core.Label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(headerHeight + 18, 0),
-		Size = UDim2.new(0.5, -(headerHeight + 18), 1, 0),
-		TextSize = 36,
+		Position = UDim2.fromOffset(badgeSize - 6, 0),
+		Size = UDim2.new(0.55, -(badgeSize - 6), 1, 0),
+		TextSize = 34,
 		Scaled = true,
 		Title = true,
 	})
@@ -202,7 +213,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	headerRight.BorderSizePixel = 0
 	headerRight.AnchorPoint = Vector2.new(1, 0.5)
 	headerRight.Position = UDim2.new(1, -closeReserve, 0.5, 0)
-	headerRight.Size = UDim2.new(0.5, -closeReserve, 1, -10)
+	headerRight.Size = UDim2.new(0.45, -closeReserve, 1, -12)
 	local rightList = Instance.new("UIListLayout")
 	rightList.FillDirection = Enum.FillDirection.Horizontal
 	rightList.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -211,7 +222,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	rightList.Padding = UDim.new(0, Theme.Space.S)
 	rightList.Parent = headerRight
 	headerRight.Parent = header
-	Controls.CloseButton(trove, panel, props.OnClose, props.Sound)
+	Controls.CloseButton(trove, panel, props.OnClose, props.Sound).Instance.ZIndex = 6
 
 	return {
 		Gui = gui,
@@ -221,9 +232,11 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		HeaderRight = headerRight,
 		Show = function()
 			token += 1
-			pop.Scale = 0.85
+			pop.Scale = 0.7
+			backdrop.BackgroundTransparency = 1
 			gui.Enabled = true
-			Controls.Tween(pop, popInfo, { Scale = 1 })
+			Controls.Tween(pop, openInfo, { Scale = 1 })
+			Controls.Tween(backdrop, fadeInfo, { BackgroundTransparency = dimTransparency })
 		end,
 		Hide = function()
 			if not gui.Enabled then
@@ -231,7 +244,8 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 			end
 			token += 1
 			local mine = token
-			local closing = Controls.Tween(pop, closeInfo, { Scale = 0.85 })
+			Controls.Tween(backdrop, closeInfo, { BackgroundTransparency = 1 })
+			local closing = Controls.Tween(pop, closeInfo, { Scale = 0.8 })
 			closing.Completed:Once(function()
 				if token == mine then
 					gui.Enabled = false

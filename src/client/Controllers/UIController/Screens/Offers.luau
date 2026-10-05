@@ -5,7 +5,6 @@ local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
-local Daily = require(ReplicatedStorage.Rules.Daily)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local BoostState = require(script.Parent.Parent.BoostState)
 local Kit = require(script.Parent.Parent.Kit)
@@ -13,19 +12,16 @@ local Types = require(script.Parent.Parent.Types)
 
 type BoostPill = {
 	Frame: Frame,
-	Multiplier: TextLabel,
+	Caption: Kit.Pill,
 	Timer: TextLabel,
 }
 
-local theme = Kit.Theme
-local screenMargin = 24
-local menuHalfHeight = 92
-local offerWidth = 184
-local offerHeight = 52
-local menuGap = 8
-local effectWidth = 72
-local effectHeight = 56
-local multipliersHeight = 148
+local margin = Kit.ScreenMargin
+local statWidth = 150
+local statHeight = 46
+local statGap = 16
+local chipWidth = 140
+local chipGap = 14
 local refreshSeconds = 0.25
 
 local function multiplierLabel(value: number): string
@@ -36,119 +32,54 @@ local Offers = {}
 
 function Offers.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
 	local boostState = BoostState.Track(dataController, trove)
 	local gui, root = Kit.ScreenGui("ThockOffers", 1, context.PlayerGui, trove)
 
-	local function toggleScreen(target: string)
-		if context.IsOpen(target) then
-			context.Close(target)
-		else
-			context.Open(target)
-		end
-	end
+	local stack = Instance.new("Frame")
+	stack.Name = "BoostBadges"
+	stack.BackgroundTransparency = 1
+	stack.AnchorPoint = Vector2.new(1, 1)
+	stack.Position = UDim2.new(1, -(margin + statWidth + chipGap + 10), 1, -margin)
+	stack.Size = UDim2.fromOffset(chipWidth, 3 * statHeight + 2 * statGap)
+	local stackList = Instance.new("UIListLayout")
+	stackList.SortOrder = Enum.SortOrder.LayoutOrder
+	stackList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	stackList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	stackList.Padding = UDim.new(0, statGap)
+	stackList.Parent = stack
+	stack.Parent = root
 
-	local dailyButton = Kit.Button(trove, {
-		Parent = root,
-		Name = "DailyRewards",
-		Glyph = "Daily",
-		IconLeft = true,
-		Text = "DAILY",
-		Size = UDim2.fromOffset(offerWidth, offerHeight),
-		Position = UDim2.new(0, screenMargin, 0.5, -(menuHalfHeight + menuGap)),
-		AnchorPoint = Vector2.new(0, 1),
-		Color = theme.Green,
-		TextSize = 22,
-		Callback = function()
-			toggleScreen("Daily")
-		end,
-		Sound = playUi,
-	})
-	local dailyBadge = Kit.Badge(dailyButton.Instance, "!")
-	dailyBadge.Visible = false
-
-	local giftButton = Kit.Button(trove, {
-		Parent = root,
-		Name = "StarterPack",
-		Glyph = "Gift",
-		IconLeft = true,
-		Text = "STARTER PACK",
-		Size = UDim2.fromOffset(offerWidth, offerHeight),
-		Position = UDim2.new(0, screenMargin, 0.5, menuHalfHeight + menuGap),
-		Color = theme.Orange,
-		TextSize = 22,
-		Callback = function()
-			context.Open("StarterOffer")
-		end,
-		Sound = playUi,
-	})
-	giftButton.SetGlow(true)
-	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
-		giftButton.Instance.Visible = value ~= true
-	end))
-
-	local badges = Instance.new("Frame")
-	badges.Name = "BoostBadges"
-	badges.BackgroundTransparency = 1
-	badges.AnchorPoint = Vector2.new(1, 1)
-	badges.Position = UDim2.new(1, -screenMargin, 1, -(screenMargin + multipliersHeight + menuGap))
-	badges.AutomaticSize = Enum.AutomaticSize.X
-	badges.Size = UDim2.fromOffset(0, effectHeight)
-	local badgeList = Instance.new("UIListLayout")
-	badgeList.SortOrder = Enum.SortOrder.LayoutOrder
-	badgeList.FillDirection = Enum.FillDirection.Horizontal
-	badgeList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	badgeList.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	badgeList.Padding = UDim.new(0, menuGap)
-	badgeList.Parent = badges
-	badges.Parent = root
-
-	local function boostPill(name: string, glyph: string, order: number): BoostPill
-		local frame = Instance.new("Frame")
-		frame.Name = name
-		frame.BackgroundTransparency = 1
-		frame.BorderSizePixel = 0
-		frame.Size = UDim2.fromOffset(effectWidth, effectHeight)
-		frame.LayoutOrder = order
-		frame.Visible = false
-		frame.Parent = badges
-		Kit.Icon({
-			Parent = frame,
-			Name = "Icon",
+	local function boostPill(
+		name: string,
+		caption: string,
+		glyph: string,
+		color: Color3,
+		order: number
+	): BoostPill
+		local pill = Kit.Pill({
+			Parent = stack,
+			Name = name,
 			Glyph = glyph,
-			Size = UDim2.fromOffset(32, 32),
-			Position = UDim2.fromOffset(0, 0),
-		})
-		local multiplierText = Kit.Label({
-			Parent = frame,
-			Name = "Multiplier",
+			Caption = caption,
 			Text = "",
-			Size = UDim2.fromOffset(effectWidth - 36, 32),
-			Position = UDim2.fromOffset(36, 0),
-			TextSize = 24,
+			DiscColor = color,
+			Size = UDim2.fromOffset(chipWidth - 10, statHeight),
+			LayoutOrder = order,
+			TextSize = 22,
 		})
-		local timer = Kit.Label({
-			Parent = frame,
-			Name = "Timer",
-			Text = "",
-			Size = UDim2.fromOffset(effectWidth, 20),
-			Position = UDim2.fromOffset(0, 36),
-			TextSize = 16,
-			Color = theme.TextDim,
-			Align = Enum.TextXAlignment.Center,
-		})
-		return { Frame = frame, Multiplier = multiplierText, Timer = timer }
+		pill.Instance.Visible = false
+		return { Frame = pill.Instance, Caption = pill, Timer = pill.Label }
 	end
-	local luckPill = boostPill("LuckPotion", "Flask", 1)
-	local clicksPill = boostPill("ClicksPotion", "Coin", 2)
-	local serverPill = boostPill("ServerLuck", "Globe", 3)
+	local luckPill = boostPill("LuckPotion", "LUCK", "Potion", Kit.Theme.Green, 1)
+	local clicksPill = boostPill("ClicksPotion", "CLICKS", "Coin", Kit.Theme.Gold, 2)
+	local serverPill = boostPill("ServerLuck", "SERVER", "Globe", Kit.Theme.Blue, 3)
 
 	local function showPill(pill: BoostPill, multiplier: number, secondsLeft: number)
 		local isActive = secondsLeft > 0
 		pill.Frame.Visible = isActive
 		if isActive then
-			pill.Multiplier.Text = `{multiplierLabel(multiplier)}x`
+			pill.Caption.SetCaption(`{multiplierLabel(multiplier)}x BOOST`)
 			pill.Timer.Text = TimeFormat.Clock(secondsLeft)
 		end
 	end
@@ -164,8 +95,6 @@ function Offers.new(context: Types.Context): Types.Screen
 		)
 		local serverUntil = boostState.ServerLuck()
 		showPill(serverPill, GameConfig.Boosts.ServerLuckMultiplier, Boosts.Remaining(serverUntil, now))
-		local dailyData = dataController:Get({ "Daily" })
-		dailyBadge.Visible = type(dailyData) == "table" and Daily.Status(dailyData, now).CanClaim
 	end
 
 	local lastServerUntil = boostState.ServerLuck()

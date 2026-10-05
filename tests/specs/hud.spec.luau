@@ -172,8 +172,8 @@ describe("HUD", function()
 		for _, name in { "Upgrades", "Keys", "Index", "Rebirth" } do
 			expect(isOnRight(find(hudGui, name))):toBe(false)
 		end
-		expect(isOnRight(find(offersGui, "DailyRewards"))):toBe(false)
-		expect(isOnRight(find(offersGui, "StarterPack"))):toBe(false)
+		expect(isOnRight(find(hudGui, "DailyRewards"))):toBe(false)
+		expect(isOnRight(find(hudGui, "StarterPack"))):toBe(false)
 	end)
 
 	it("matches the right stack sizes", function()
@@ -216,8 +216,8 @@ describe("HUD", function()
 		for _, name in { "Upgrades", "Keys", "Index", "Rebirth", "Store", "Leaderboard", "Pass", "Auto" } do
 			expect(find(hudGui, name).Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		end
-		expect(find(offersGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)
-		expect(find(offersGui, "StarterPack").Face:FindFirstChild("Icon") ~= nil):toBe(true)
+		expect(find(hudGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)
+		expect(find(hudGui, "StarterPack").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(find(hudGui, "Settings").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 	end)
 

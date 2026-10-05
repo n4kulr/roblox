@@ -662,6 +662,29 @@ local drawers: { [string]: Drawer } = {
 	end,
 }
 
+local aliases: { [string]: { Target: string, Color: Color3? } } = {
+	Shop = { Target = "Market" },
+	Roll = { Target = "Dice" },
+	Potion = { Target = "Flask" },
+	Music = { Target = "Sound", Color = Color3.fromRGB(255, 120, 200) },
+	Gem = { Target = "Sparkle", Color = Color3.fromRGB(110, 220, 255) },
+	Season = { Target = "Pass" },
+	Unlock = { Target = "Lock", Color = Color3.fromRGB(110, 238, 96) },
+	Info = { Target = "Sparkle", Color = Color3.fromRGB(120, 190, 255) },
+	Fire = { Target = "Burst", Color = Color3.fromRGB(255, 120, 50) },
+	Heart = { Target = "Star", Color = Color3.fromRGB(255, 90, 130) },
+	Bell = { Target = "Warning" },
+	Search = { Target = "Index" },
+	Sell = { Target = "Coin" },
+	Equip = { Target = "Check" },
+	Megaphone = { Target = "Warning", Color = Color3.fromRGB(255, 120, 72) },
+}
+
+for alias, info in aliases do
+	drawers[alias] = drawers[info.Target]
+	defaultColors[alias] = info.Color or defaultColors[info.Target]
+end
+
 local names = {
 	"Keys",
 	"Upgrades",

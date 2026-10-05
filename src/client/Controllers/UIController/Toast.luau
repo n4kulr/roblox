@@ -5,21 +5,29 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.Kit)
 
 type TroveInstance = typeof(Trove.new())
+type FadeTarget = {
+	Target: Instance,
+	Property: string,
+	Original: number,
+}
 type Entry = {
-	Frame: Frame,
-	Scale: UIScale,
+	Wrapper: Frame,
+	Pill: Frame,
+	Fades: { FadeTarget },
 	Thread: thread?,
 }
 
 local Toast = {}
 
 local toastTop = Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap + Kit.ClicksHeight + Kit.ToastGap
+local toastHeight = 54
+local slideDistance = 28
 local maxStacked = 3
-local lifetime = 1.6
+local lifetime = 2.2
 local glyphs: { [string]: string } = {
 	Good = "Check",
 	Bad = "Warning",
-	Info = "Sparkle",
+	Info = "Info",
 	Gold = "Star",
 }
 local kinds: { [string]: Color3 } = {
@@ -28,6 +36,36 @@ local kinds: { [string]: Color3 } = {
 	Info = Kit.Theme.Blue,
 	Gold = Kit.Theme.Gold,
 }
+local showInfo = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local fadeInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local hideInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+local function collectFades(root: Instance): { FadeTarget }
+	local list: { FadeTarget } = {}
+	local function add(target: Instance, property: string, value: any)
+		if type(value) == "number" and value < 1 then
+			table.insert(list, { Target = target, Property = property, Original = value })
+		end
+	end
+	local function visit(item: Instance)
+		if item:IsA("TextLabel") then
+			add(item, "TextTransparency", item.TextTransparency)
+			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+		elseif item:IsA("ImageLabel") then
+			add(item, "ImageTransparency", item.ImageTransparency)
+			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+		elseif item:IsA("Frame") then
+			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+		elseif item:IsA("UIStroke") then
+			add(item, "Transparency", item.Transparency)
+		end
+	end
+	visit(root)
+	for _, item in root:GetDescendants() do
+		visit(item)
+	end
+	return list
+end
 
 function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, kind: string?) -> ()
 	local _gui, root = Kit.ScreenGui("ThockToasts", 20, playerGui, trove)
@@ -41,7 +79,7 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.VerticalAlignment = Enum.VerticalAlignment.Top
-	list.Padding = UDim.new(0, 8)
+	list.Padding = UDim.new(0, Kit.Space.S)
 	list.Parent = holder
 	holder.Parent = root
 
@@ -59,13 +97,12 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			task.cancel(thread)
 			entry.Thread = nil
 		end
-		local closing = Kit.Tween(
-			entry.Scale,
-			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Scale = 0.6 }
-		)
+		for _, fade in entry.Fades do
+			Kit.Tween(fade.Target, hideInfo, { [fade.Property] = 1 })
+		end
+		local closing = Kit.Tween(entry.Pill, hideInfo, { Position = UDim2.fromOffset(0, -slideDistance) })
 		closing.Completed:Once(function()
-			entry.Frame:Destroy()
+			entry.Wrapper:Destroy()
 		end)
 	end
 
@@ -84,25 +121,34 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			remove(entries[1])
 		end
 		order += 1
+		local wrapper = Instance.new("Frame")
+		wrapper.Name = "ToastSlot"
+		wrapper.BackgroundTransparency = 1
+		wrapper.BorderSizePixel = 0
+		wrapper.AutomaticSize = Enum.AutomaticSize.X
+		wrapper.Size = UDim2.fromOffset(0, toastHeight)
+		wrapper.LayoutOrder = order
+		wrapper.Parent = holder
 		local pill = Kit.Panel({
-			Parent = holder,
+			Parent = wrapper,
 			Name = "Toast",
-			Size = UDim2.fromOffset(0, 50),
+			Size = UDim2.fromOffset(0, toastHeight - 4),
 			Color = kinds[kind or "Info"] or kinds.Info,
-			LayoutOrder = order,
 			Shards = true,
-			Radius = 25,
+			Gloss = true,
+			Pill = true,
 		})
 		pill.AutomaticSize = Enum.AutomaticSize.X
+		pill.Position = UDim2.fromOffset(0, -slideDistance)
 		local content = Instance.new("Frame")
 		content.Name = "Content"
 		content.BackgroundTransparency = 1
 		content.BorderSizePixel = 0
 		content.AutomaticSize = Enum.AutomaticSize.X
-		content.Size = UDim2.fromOffset(0, 50)
+		content.Size = UDim2.fromOffset(0, toastHeight - 4)
 		local padding = Instance.new("UIPadding")
-		padding.PaddingLeft = UDim.new(0, 12)
-		padding.PaddingRight = UDim.new(0, 22)
+		padding.PaddingLeft = UDim.new(0, 14)
+		padding.PaddingRight = UDim.new(0, 24)
 		padding.Parent = content
 		local row = Instance.new("UIListLayout")
 		row.FillDirection = Enum.FillDirection.Horizontal
@@ -122,18 +168,22 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			Parent = content,
 			Name = "Text",
 			Text = text,
-			Size = UDim2.fromOffset(0, 50),
+			Size = UDim2.fromOffset(0, toastHeight - 4),
 			TextSize = 24,
 			Align = Enum.TextXAlignment.Center,
 			LayoutOrder = 2,
 		})
 		label.AutomaticSize = Enum.AutomaticSize.X
 		label.TextTruncate = Enum.TextTruncate.None
-		local scale = Instance.new("UIScale")
-		scale.Scale = 0.6
-		scale.Parent = pill
-		Kit.Tween(scale, Kit.PopInfo(), { Scale = 1 })
-		local entry: Entry = { Frame = pill, Scale = scale, Thread = nil }
+		local fades = collectFades(pill)
+		for _, fade in fades do
+			(fade.Target :: any)[fade.Property] = 1
+		end
+		for _, fade in fades do
+			Kit.Tween(fade.Target, fadeInfo, { [fade.Property] = fade.Original })
+		end
+		Kit.Tween(pill, showInfo, { Position = UDim2.new() })
+		local entry: Entry = { Wrapper = wrapper, Pill = pill, Fades = fades, Thread = nil }
 		table.insert(entries, entry)
 		entry.Thread = task.delay(lifetime, function()
 			entry.Thread = nil
