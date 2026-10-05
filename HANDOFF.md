@@ -64,7 +64,7 @@ THOCK is a Roblox game about mechanical keyboards. It's an RNG game with income 
 
 Five Sonnet agents were started in parallel, each in its own git worktree under `.claude/worktrees/`. Their work is **not merged yet**. If the cloud session is gone, that work is lost and must be redone from these specs.
 
-1. **Icon atlas:**
+1. **Icon atlas (DONE, merged; generator `tools/icons/icons.svg.mjs`; owner must upload `assets/ui/icons.png` and paste the id into IconAtlas.luau Image):**
    - A Node script draws about 52 SVG icons in the Stud style (thick #1A1530 outline, gradient, gloss, drop shadow) into a 1024x1024 PNG of 128px cells at `assets/ui/icons.png`.
    - It also writes `src/client/Controllers/UIController/IconAtlas.luau`, which holds `Image` (empty until the owner uploads the PNG), `CellSize`, `Rects` and `Apply(label, name)`.
    - The preview renderer supports the atlas through the image id `rbxassetid://preview-atlas`.
