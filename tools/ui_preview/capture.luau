@@ -13,6 +13,7 @@ local outDir = process.args[1] or "ui-preview"
 local width = tonumber(process.args[2]) or 1280
 local height = tonumber(process.args[3]) or 720
 local only = process.args[4]
+local useAtlas = process.env.PREVIEW_ATLAS == "1"
 
 local screensPath = "StarterPlayer.StarterPlayerScripts.Controllers.UIController"
 local viewport = roblox.Vector2.new(width, height)
@@ -50,6 +51,9 @@ local leaderboardRows = {
 }
 
 local function newScenario(world: any)
+	if useAtlas then
+		world.tree.ReplicatedStorage:SetAttribute("IconAtlasPreview", "rbxassetid://preview-atlas")
+	end
 	local Signal = world:require("ReplicatedStorage.Packages.Signal")
 	local Trove = world:require("ReplicatedStorage.Packages.Trove")
 	local Keys = world:require("ReplicatedStorage.Config.Keys")
