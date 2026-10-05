@@ -142,7 +142,7 @@ function Hud.new(context: Types.Context): Types.Screen
 			Text = label,
 			Color = color,
 			Size = UDim2.fromOffset(sideButtonWidth, sideRowHeight),
-			TextSize = 22,
+			TextSize = 20,
 			LayoutOrder = order,
 			Callback = function()
 				toggleScreen(target)

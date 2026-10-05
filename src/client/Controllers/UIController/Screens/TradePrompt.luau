@@ -7,7 +7,7 @@ local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
-local popupSize = Vector2.new(380, 150)
+local popupSize = Vector2.new(400, 160)
 local bottomOffset = -150
 
 local TradePrompt = {}
@@ -29,17 +29,25 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(popupSize.X, popupSize.Y),
 			Position = UDim2.new(0.5, 0, 1, bottomOffset),
 			AnchorPoint = Vector2.new(0.5, 1),
-			Color = theme.Slate,
+			Color = theme.Panel,
+			Radius = Kit.Radius.Panel,
 			StrokeThickness = 4,
 			Shards = true,
+		})
+		Kit.Icon({
+			Parent = frame,
+			Name = "Icon",
+			Glyph = "Trade",
+			Position = UDim2.fromOffset(Kit.Space.M, Kit.Space.M),
+			Size = UDim2.fromOffset(48, 48),
 		})
 		frame.Visible = false
 		local label = Kit.Label({
 			Parent = frame,
 			Name = "Title",
 			Text = title,
-			Position = UDim2.fromOffset(12, 10),
-			Size = UDim2.new(1, -24, 0, 44),
+			Position = UDim2.fromOffset(68, 10),
+			Size = UDim2.new(1, -80, 0, 48),
 			TextSize = 28,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -47,8 +55,8 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		return frame, label
 	end
 
-	local sendFrame, sendTitle = popup("Send", "🤝 Trade with ?")
-	local inviteFrame, inviteTitle = popup("Invite", "🤝 Someone wants to trade!")
+	local sendFrame, sendTitle = popup("Send", "Trade with ?")
+	local inviteFrame, inviteTitle = popup("Invite", "Someone wants to trade!")
 	inviteFrame.Position = UDim2.new(0.5, 0, 1, bottomOffset - popupSize.Y - 12)
 
 	local function hideSend()
@@ -66,6 +74,8 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = sendFrame,
 		Name = "SendButton",
 		Text = "SEND",
+		Glyph = "Arrow",
+		IconLeft = true,
 		Size = UDim2.fromOffset(190, 56),
 		Position = UDim2.new(0, 14, 1, -14),
 		AnchorPoint = Vector2.new(0, 1),
@@ -83,7 +93,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 	Kit.Button(trove, {
 		Parent = sendFrame,
 		Name = "CancelButton",
-		Text = "X",
+		Glyph = "Close",
 		Size = UDim2.fromOffset(Kit.TouchSize + 20, 56),
 		Position = UDim2.new(1, -14, 1, -14),
 		AnchorPoint = Vector2.new(1, 1),
@@ -96,6 +106,8 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = inviteFrame,
 		Name = "AcceptButton",
 		Text = "ACCEPT",
+		Glyph = "Check",
+		IconLeft = true,
 		Size = UDim2.fromOffset(170, 56),
 		Position = UDim2.new(0, 14, 1, -14),
 		AnchorPoint = Vector2.new(0, 1),
@@ -111,6 +123,8 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Parent = inviteFrame,
 		Name = "DeclineButton",
 		Text = "DECLINE",
+		Glyph = "Close",
+		IconLeft = true,
 		Size = UDim2.fromOffset(170, 56),
 		Position = UDim2.new(1, -14, 1, -14),
 		AnchorPoint = Vector2.new(1, 1),
@@ -131,7 +145,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			sendToken += 1
 			local token = sendToken
 			pendingTarget = player
-			sendTitle.Text = `🤝 Trade with {player.DisplayName}?`
+			sendTitle.Text = `Trade with {player.DisplayName}?`
 			sendFrame.Visible = true
 			playUi("Click")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
@@ -151,7 +165,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			inviteToken += 1
 			local token = inviteToken
 			pendingUserId = userId
-			inviteTitle.Text = `🤝 {name} wants to trade!`
+			inviteTitle.Text = `{name} wants to trade!`
 			inviteFrame.Visible = true
 			playUi("Confirm")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()

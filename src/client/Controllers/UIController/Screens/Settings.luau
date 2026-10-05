@@ -14,15 +14,15 @@ type SliderRow = {
 }
 
 local theme = Kit.Theme
-local toggleHeight = 78
-local sliderHeight = 92
-local codeHeight = 112
+local toggleHeight = 84
+local sliderHeight = 100
+local codeHeight = 124
 local lowQualityMax = 3
 
-local volumes: { { Setting: string, Title: string } } = {
-	{ Setting = "RollVolume", Title = "🔊 Roll Sounds" },
-	{ Setting = "BoardVolume", Title = "🎹 Keyboard Sounds" },
-	{ Setting = "OtherVolume", Title = "👥 Other Players" },
+local volumes: { { Setting: string, Title: string, Glyph: string } } = {
+	{ Setting = "RollVolume", Title = "Roll Sounds", Glyph = "Dice" },
+	{ Setting = "BoardVolume", Title = "Keyboard Sounds", Glyph = "Sound" },
+	{ Setting = "OtherVolume", Title = "Other Players", Glyph = "People" },
 }
 
 local function send(name: string, value: number)
@@ -50,9 +50,9 @@ function Settings.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Settings",
 		Title = "SETTINGS",
-		Icon = "⚙️",
+		Glyph = "Settings",
 		IconAsset = UiAssets.Icons.Settings,
-		MaxSize = Vector2.new(620, 520),
+		MaxSize = Vector2.new(780, 620),
 		HeaderColor = theme.Grey,
 		OnClose = function()
 			context.Close("Settings")
@@ -62,9 +62,9 @@ function Settings.new(context: Types.Context): Types.Screen
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(10, 8),
-		Size = UDim2.new(1, -20, 1, -16),
-		Padding = 10,
+		Position = UDim2.fromOffset(6, 4),
+		Size = UDim2.new(1, -12, 1, -8),
+		Padding = 12,
 	})
 
 	local toggles: { [string]: Kit.Toggle } = {}
@@ -77,28 +77,47 @@ function Settings.new(context: Types.Context): Types.Screen
 			Parent = scroll,
 			Name = setting,
 			Size = UDim2.new(1, 0, 0, height),
-			Color = theme.Cell,
+			Color = theme.Panel,
 			LayoutOrder = order,
+			Radius = Kit.Radius.L,
 		})
 	end
 
-	local function addToggle(setting: string, title: string, detail: string)
+	local function addIcon(row: Frame, glyph: string)
+		local plate = Kit.Plate({
+			Parent = row,
+			Name = "IconPlate",
+			Position = UDim2.fromOffset(Kit.Space.M, Kit.Space.M),
+			Size = UDim2.fromOffset(52, 52),
+		})
+		Kit.Icon({
+			Parent = plate,
+			Name = "Icon",
+			Glyph = glyph,
+			Size = UDim2.fromScale(0.82, 0.82),
+			Position = UDim2.fromScale(0.09, 0.09),
+		})
+	end
+
+	local function addToggle(setting: string, title: string, detail: string, glyph: string)
 		local row = addRow(setting, toggleHeight)
+		addIcon(row, glyph)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
 			Text = title,
-			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -150, 0, 34),
-			TextSize = 26,
+			Position = UDim2.fromOffset(78, 8),
+			Size = UDim2.new(1, -230, 0, 36),
+			TextSize = 28,
 			Scaled = true,
+			Title = true,
 		})
 		Kit.Label({
 			Parent = row,
 			Name = "Detail",
 			Text = detail,
-			Position = UDim2.fromOffset(14, 42),
-			Size = UDim2.new(1, -150, 0, 26),
+			Position = UDim2.fromOffset(78, 46),
+			Size = UDim2.new(1, -230, 0, 26),
 			TextSize = 17,
 			Color = theme.TextDim,
 			Scaled = true,
@@ -116,16 +135,18 @@ function Settings.new(context: Types.Context): Types.Screen
 		})
 	end
 
-	local function addSlider(setting: string, title: string)
+	local function addSlider(setting: string, title: string, glyph: string)
 		local row = addRow(setting, sliderHeight)
+		addIcon(row, glyph)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
 			Text = title,
-			Position = UDim2.fromOffset(14, 8),
-			Size = UDim2.new(1, -120, 0, 34),
-			TextSize = 26,
+			Position = UDim2.fromOffset(78, 6),
+			Size = UDim2.new(1, -230, 0, 36),
+			TextSize = 28,
 			Scaled = true,
+			Title = true,
 		})
 		local percent = Kit.Label({
 			Parent = row,
@@ -141,8 +162,8 @@ function Settings.new(context: Types.Context): Types.Screen
 		local slider = Kit.Slider(trove, {
 			Parent = row,
 			Name = "Slider",
-			Position = UDim2.new(0, 0, 0, 40),
-			Size = UDim2.new(1, 0, 0, 48),
+			Position = UDim2.new(0, 64, 0, 44),
+			Size = UDim2.new(1, -76, 0, 48),
 			Value = 1,
 			Color = theme.Green,
 			OnChanged = function(value: number)
@@ -155,30 +176,32 @@ function Settings.new(context: Types.Context): Types.Screen
 		table.insert(sliderRows, { Setting = setting, Slider = slider, Percent = percent })
 	end
 
-	addToggle("LowGraphics", "📉 Low Graphics", "(faster on phones)")
-	addToggle("AutoPlace", "✨ Auto-Equip New Keys", "New keys jump onto your keyboard!")
+	addToggle("LowGraphics", "Low Graphics", "Faster on phones", "Graphics")
+	addToggle("AutoPlace", "Auto-Equip New Keys", "New keys jump onto your keyboard!", "Sparkle")
 	for _, volume in volumes do
-		addSlider(volume.Setting, volume.Title)
+		addSlider(volume.Setting, volume.Title, volume.Glyph)
 	end
 
 	local codeRow = addRow("Codes", codeHeight)
 	Kit.Label({
 		Parent = codeRow,
 		Name = "Title",
-		Text = "🎟️ CODES",
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -28, 0, 34),
-		TextSize = 26,
+		Text = "CODES",
+		Position = UDim2.fromOffset(78, 8),
+		Size = UDim2.new(1, -92, 0, 36),
+		TextSize = 28,
 		Scaled = true,
+		Title = true,
 	})
+	addIcon(codeRow, "Code")
 	local codeField = Kit.Panel({
 		Parent = codeRow,
 		Name = "Field",
-		Position = UDim2.fromOffset(14, 48),
-		Size = UDim2.new(1, -190, 0, 48),
+		Position = UDim2.fromOffset(78, 56),
+		Size = UDim2.new(1, -270, 0, 50),
 		Color = theme.Track,
-		Radius = 4,
-		Bevel = false,
+		Radius = Kit.Radius.M,
+		Flat = true,
 	})
 	local codeBox = Instance.new("TextBox")
 	codeBox.Name = "Input"
@@ -200,9 +223,11 @@ function Settings.new(context: Types.Context): Types.Screen
 		Parent = codeRow,
 		Name = "Redeem",
 		Text = "REDEEM",
-		Position = UDim2.new(1, -14, 0, 48),
+		Glyph = "Check",
+		IconLeft = true,
+		Position = UDim2.new(1, -14, 0, 54),
 		AnchorPoint = Vector2.new(1, 0),
-		Size = UDim2.fromOffset(150, 48),
+		Size = UDim2.fromOffset(170, 56),
 		Color = theme.Green,
 		TextSize = 24,
 		Callback = function()
@@ -217,7 +242,7 @@ function Settings.new(context: Types.Context): Types.Screen
 				if result == 1 then
 					codeBox.Text = ""
 					playUi("Confirm")
-					context.Toast("🎉 Code redeemed!", "Good")
+					context.Toast("Code redeemed!", "Good")
 					return
 				end
 				playUi("Error")
@@ -226,7 +251,7 @@ function Settings.new(context: Types.Context): Types.Screen
 				elseif result == 4 then
 					context.Toast("That code expired", "Bad")
 				else
-					context.Toast("❌ That code doesn't exist", "Bad")
+					context.Toast("That code doesn't exist", "Bad")
 				end
 			end)
 		end,

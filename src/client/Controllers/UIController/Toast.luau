@@ -16,6 +16,12 @@ local Toast = {}
 local toastTop = Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap + Kit.ClicksHeight + Kit.ToastGap
 local maxStacked = 3
 local lifetime = 1.6
+local glyphs: { [string]: string } = {
+	Good = "Check",
+	Bad = "Warning",
+	Info = "Sparkle",
+	Gold = "Star",
+}
 local kinds: { [string]: Color3 } = {
 	Good = Kit.Theme.Green,
 	Bad = Kit.Theme.Red,
@@ -81,10 +87,11 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 		local pill = Kit.Panel({
 			Parent = holder,
 			Name = "Toast",
-			Size = UDim2.fromOffset(0, 46),
+			Size = UDim2.fromOffset(0, 50),
 			Color = kinds[kind or "Info"] or kinds.Info,
 			LayoutOrder = order,
 			Shards = true,
+			Radius = 25,
 		})
 		pill.AutomaticSize = Enum.AutomaticSize.X
 		local content = Instance.new("Frame")
@@ -92,19 +99,33 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 		content.BackgroundTransparency = 1
 		content.BorderSizePixel = 0
 		content.AutomaticSize = Enum.AutomaticSize.X
-		content.Size = UDim2.fromOffset(0, 46)
+		content.Size = UDim2.fromOffset(0, 50)
 		local padding = Instance.new("UIPadding")
-		padding.PaddingLeft = UDim.new(0, 20)
-		padding.PaddingRight = UDim.new(0, 20)
+		padding.PaddingLeft = UDim.new(0, 12)
+		padding.PaddingRight = UDim.new(0, 22)
 		padding.Parent = content
+		local row = Instance.new("UIListLayout")
+		row.FillDirection = Enum.FillDirection.Horizontal
+		row.VerticalAlignment = Enum.VerticalAlignment.Center
+		row.SortOrder = Enum.SortOrder.LayoutOrder
+		row.Padding = UDim.new(0, Kit.Space.S)
+		row.Parent = content
+		Kit.Icon({
+			Parent = content,
+			Name = "Icon",
+			Glyph = glyphs[kind or "Info"] or glyphs.Info,
+			Size = UDim2.fromOffset(32, 32),
+			LayoutOrder = 1,
+		})
 		content.Parent = pill
 		local label = Kit.Label({
 			Parent = content,
 			Name = "Text",
 			Text = text,
-			Size = UDim2.fromOffset(0, 46),
+			Size = UDim2.fromOffset(0, 50),
 			TextSize = 24,
 			Align = Enum.TextXAlignment.Center,
+			LayoutOrder = 2,
 		})
 		label.AutomaticSize = Enum.AutomaticSize.X
 		label.TextTruncate = Enum.TextTruncate.None

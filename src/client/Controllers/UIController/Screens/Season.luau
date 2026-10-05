@@ -17,7 +17,7 @@ type Tile = {
 	Level: number,
 	Premium: boolean,
 	Panel: Frame,
-	Mark: TextLabel,
+	Mark: GuiObject,
 }
 
 local theme = Kit.Theme
@@ -27,11 +27,14 @@ local claimDelay = 0.3
 local lockedColor = Color3.fromRGB(58, 64, 80)
 local reachedColor = Color3.fromRGB(88, 96, 120)
 
-local rewardEmoji: { [string]: string } = {
-	Clicks = "💵",
-	LuckPotion = "🍀",
-	ClicksPotion = "💰",
-	Key = "🔑",
+local rewardGlyph: { [string]: string } = {
+	Clicks = "Coin",
+	LuckPotion = "Flask",
+	ClicksPotion = "Flask",
+	Key = "Keys",
+}
+local rewardTint: { [string]: Color3? } = {
+	ClicksPotion = Color3.fromRGB(255, 190, 40),
 }
 
 local SeasonScreen = {}
@@ -50,8 +53,8 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Season",
 		Title = "SEASON PASS",
-		Icon = "🎟️",
-		MaxSize = Vector2.new(860, 520),
+		Glyph = "Pass",
+		MaxSize = Vector2.new(1000, 620),
 		HeaderColor = theme.Orange,
 		OnClose = function()
 			context.Close("Season")
@@ -63,16 +66,18 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Parent = modal.HeaderRight,
 		Name = "PremiumPass",
 		Text = "Premium Pass",
-		Size = UDim2.fromOffset(190, 44),
+		Glyph = "Crown",
+		IconLeft = true,
+		Size = UDim2.fromOffset(230, 46),
 		Color = theme.Purple,
-		TextSize = 22,
+		TextSize = 20,
 		Callback = function()
 			if boostState.Owns(GameConfig.Season.PremiumPassId) then
 				return
 			end
 			if not premiumPass or not Purchases.PromptPass(premiumPass) then
 				playUi("Error")
-				context.Toast("Coming soon! 🚧", "Info")
+				context.Toast("Coming soon!", "Info")
 			end
 		end,
 		Sound = playUi,
@@ -137,9 +142,10 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = panel,
 			Name = "Icon",
-			Emoji = rewardEmoji[reward.Kind] or "🎁",
-			Position = UDim2.fromScale(0.2, 0.06),
-			Size = UDim2.fromScale(0.6, 0.45),
+			Glyph = rewardGlyph[reward.Kind] or "Gift",
+			Color = rewardTint[reward.Kind],
+			Position = UDim2.fromScale(0.2, 0.08),
+			Size = UDim2.fromScale(0.6, 0.42),
 		})
 		Kit.Label({
 			Parent = panel,
@@ -152,16 +158,13 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Wrapped = true,
 			Scaled = true,
 		})
-		local mark = Kit.Label({
+		local mark = Kit.Icon({
 			Parent = panel,
 			Name = "Mark",
-			Text = "",
+			Glyph = "Lock",
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -4, 0, 2),
-			Size = UDim2.fromOffset(34, 34),
-			TextSize = 28,
-			Align = Enum.TextXAlignment.Center,
-			Scaled = true,
+			Position = UDim2.new(1, -4, 0, 4),
+			Size = UDim2.fromOffset(30, 30),
 		})
 		table.insert(tiles, { Level = entry.Level, Premium = premium, Panel = panel, Mark = mark })
 	end
@@ -246,22 +249,31 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			local isLockedByPass = tile.Premium and not owns
 			if isClaimed then
 				Kit.Paint(tile.Panel, theme.Grey)
-				tile.Mark.Text = "✓"
+				tile.Mark.Visible = true
+				tile.Mark:Destroy()
+				tile.Mark = Kit.Icon({
+					Parent = tile.Panel,
+					Name = "Mark",
+					Glyph = "Check",
+					AnchorPoint = Vector2.new(1, 0),
+					Position = UDim2.new(1, -4, 0, 4),
+					Size = UDim2.fromOffset(30, 30),
+				})
 			elseif isLockedByPass then
 				Kit.Paint(tile.Panel, lockedColor)
-				tile.Mark.Text = "🔒"
+				tile.Mark.Visible = true
 			elseif isReached then
 				local isNext = tile.Level == Season.Claimed(season, tile.Premium) + 1
 				Kit.Paint(tile.Panel, if isNext then theme.Green else reachedColor)
-				tile.Mark.Text = ""
+				tile.Mark.Visible = false
 			else
 				Kit.Paint(tile.Panel, lockedColor)
-				tile.Mark.Text = "🔒"
+				tile.Mark.Visible = true
 			end
 		end
 		passButton.SetText(
 			if owns
-				then "OWNED ✓"
+				then "OWNED"
 				elseif premiumPass and Purchases.IsAvailable(premiumPass) then "Premium Pass"
 				else "SOON"
 		)
@@ -303,10 +315,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				isBusy = false
 				if granted > 0 then
 					playUi("Confirm")
-					context.Toast(
-						`🎟️ Claimed {granted} reward{if granted == 1 then "" else "s"}!`,
-						"Good"
-					)
+					context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
 				else
 					playUi("Error")
 					context.Toast("Couldn't claim that!", "Bad")

@@ -15,11 +15,11 @@ type Picker = { Wrapper: Frame, Cell: Cells.Cell }
 local theme = Kit.Theme
 local teal = Color3.fromRGB(0, 168, 168)
 local warnRarity = "Epic"
-local pickerCellSize = UDim2.fromOffset(120, 176)
+local pickerCellSize = UDim2.fromOffset(124, 196)
 local panelHeight = 0.4
 local offerTexts = {
 	Open = "Both players press READY to trade!",
-	Warning = "⚠️ Make sure this is a fair trade!",
+	Warning = "Make sure this is a fair trade!",
 }
 
 local TradeScreen = {}
@@ -48,8 +48,8 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Trade",
 		Title = "TRADE",
-		Icon = "🤝",
-		MaxSize = Vector2.new(780, 600),
+		Glyph = "Trade",
+		MaxSize = Vector2.new(920, 700),
 		HeaderColor = teal,
 		OnClose = function()
 			context.Close("Trade")
@@ -76,7 +76,15 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Name = name,
 			Position = position,
 			Size = UDim2.new(0.5, -9, panelHeight, 0),
-			Color = theme.Slate,
+			Color = theme.Panel,
+			Radius = Kit.Radius.L,
+		})
+		Kit.Icon({
+			Parent = panel,
+			Name = "Icon",
+			Glyph = if name == "YOU" then "Keys" else "People",
+			Position = UDim2.fromOffset(Kit.Space.S, 2),
+			Size = UDim2.fromOffset(28, 28),
 		})
 		local title = Kit.Label({
 			Parent = panel,
@@ -113,6 +121,8 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Parent = readyRow,
 		Name = "Ready",
 		Text = "READY?",
+		Glyph = "Check",
+		IconLeft = true,
 		Size = UDim2.new(0.5, -9, 1, 0),
 		Color = theme.Grey,
 		TextSize = 28,
@@ -130,6 +140,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0.5, 3, 0, 0),
 		Size = UDim2.new(0.5, -3, 1, 0),
 		Color = theme.Grey,
+		Radius = Kit.Radius.M,
 	})
 	local theirReadyLabel = Kit.Label({
 		Parent = theirReady,
@@ -202,9 +213,9 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Kit.Button(trove, {
 			Parent = wrapper,
 			Name = "Minus",
-			Text = "-",
-			Size = UDim2.fromOffset(56, 30),
-			Position = UDim2.fromOffset(0, 144),
+			Glyph = "Minus",
+			Size = UDim2.fromOffset(58, 36),
+			Position = UDim2.fromOffset(0, 152),
 			Color = theme.Red,
 			TextSize = 24,
 			Callback = function()
@@ -215,9 +226,9 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Kit.Button(trove, {
 			Parent = wrapper,
 			Name = "Plus",
-			Text = "+",
-			Size = UDim2.fromOffset(56, 30),
-			Position = UDim2.fromOffset(64, 144),
+			Glyph = "Plus",
+			Size = UDim2.fromOffset(58, 36),
+			Position = UDim2.fromOffset(66, 152),
 			Color = theme.Green,
 			TextSize = 24,
 			Callback = function()
@@ -296,10 +307,10 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			banner.Text = offerTexts.Open
 			banner.TextColor3 = theme.Gold
 		end
-		readyButton.SetText(if state.MyReady then "✅ READY!" else "READY?")
+		readyButton.SetText(if state.MyReady then "READY!" else "READY?")
 		readyButton.SetColor(if state.MyReady then theme.Green else theme.Grey)
 		Kit.Paint(theirReady, if state.TheirReady then theme.Green else theme.Grey)
-		theirReadyLabel.Text = if state.TheirReady then `✅ {state.Partner} is ready!` else "Waiting..."
+		theirReadyLabel.Text = if state.TheirReady then `{state.Partner} is ready!` else "Waiting..."
 		refreshPicker()
 	end
 

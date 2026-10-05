@@ -30,8 +30,8 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Rebirth",
 		Title = "REBIRTH",
-		Icon = "♻️",
-		MaxSize = Vector2.new(620, 500),
+		Glyph = "Rebirth",
+		MaxSize = Vector2.new(760, 560),
 		HeaderColor = theme.Purple,
 		OnClose = function()
 			context.Close("Rebirth")
@@ -91,17 +91,13 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 	end
 	local currentValue = tile("Current", 0, theme.Grey, "NOW")
 	local nextValue = tile("Next", 1, theme.Green, "AFTER")
-	Kit.Label({
+	Kit.Icon({
 		Parent = tiles,
 		Name = "Arrow",
-		Text = "➜",
+		Glyph = "Arrow",
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.fromOffset(60, 60),
-		TextSize = 48,
-		Color = theme.Gold,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
+		Size = UDim2.fromOffset(64, 64),
 	})
 
 	Kit.Label({
@@ -127,7 +123,10 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 	local action = Kit.Button(trove, {
 		Parent = modal.Body,
 		Name = "Rebirth",
-		Text = "♻️ REBIRTH",
+		Text = "REBIRTH",
+		Glyph = "Rebirth",
+		IconLeft = true,
+		Title = true,
 		Position = UDim2.new(0.5, 0, 0, 290),
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(300, 70),
@@ -150,7 +149,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 				isBusy = false
 				if done == true then
 					playUi("Confirm")
-					context.Toast(`♻️ Rebirth {reached}! Clicks are now stronger!`, "Good")
+					context.Toast(`Rebirth {reached}! Clicks are now stronger!`, "Good")
 				else
 					playUi("Error")
 					context.Toast("Couldn't rebirth right now!", "Bad")

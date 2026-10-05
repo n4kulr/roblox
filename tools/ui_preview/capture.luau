@@ -401,6 +401,9 @@ local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (
 		Name = "trade_prompt",
 		Screens = { "TradePrompt" },
 		Run = function(scene)
+			scene.Context.Controllers.TradeController.GetState = function()
+				return nil
+			end
 			scene.Context.Controllers.TradeController.TargetPicked:Fire({ DisplayName = "PixelPete" })
 			scene.Context.Controllers.TradeController.InviteReceived:Fire("ClackQueen", 2002)
 			tick(scene, 0.2)

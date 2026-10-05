@@ -22,11 +22,14 @@ local refreshSeconds = 0.5
 local claimedColor = theme.Grey
 local lockedColor = Color3.fromRGB(70, 78, 96)
 
-local rewardEmoji: { [string]: string } = {
-	Clicks = "💵",
-	LuckPotion = "🍀",
-	ClicksPotion = "💰",
-	Key = "🔑",
+local rewardGlyph: { [string]: string } = {
+	Clicks = "Coin",
+	LuckPotion = "Flask",
+	ClicksPotion = "Flask",
+	Key = "Keys",
+}
+local rewardTint: { [string]: Color3? } = {
+	ClicksPotion = Color3.fromRGB(255, 190, 40),
 }
 
 local DailyScreen = {}
@@ -43,8 +46,8 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Daily",
 		Title = "DAILY REWARDS",
-		Icon = "📅",
-		MaxSize = Vector2.new(780, 470),
+		Glyph = "Daily",
+		MaxSize = Vector2.new(900, 560),
 		HeaderColor = theme.Blue,
 		OnClose = function()
 			context.Close("Daily")
@@ -136,7 +139,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			if state.StreakBroken and (stored.LastClaim or 0) > 0 then
 				status.Text = "Streak reset! Back to Day 1!"
 			else
-				status.Text = "Your reward is ready! 🎉"
+				status.Text = "Your reward is ready!"
 			end
 		else
 			status.Text = `Next reward in {TimeFormat.Hours(state.SecondsLeft)}`
@@ -159,7 +162,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if type(day) == "number" and day > 0 then
 				playUi("Confirm")
-				context.Toast(`📅 Day {day}: {reward.Label}!`, "Good")
+				context.Toast(`Day {day}: {reward.Label}!`, "Good")
 			else
 				playUi("Error")
 				context.Toast("Oops, couldn't claim that!", "Bad")
@@ -191,8 +194,9 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = panel,
 			Name = "Icon",
-			Emoji = rewardEmoji[reward.Kind] or "🎁",
-			Position = UDim2.fromScale(if isBig then 0.2 else 0.25, if isBig then 0.2 else 0.18),
+			Glyph = if isBig then "Gift" else rewardGlyph[reward.Kind] or "Gift",
+			Color = rewardTint[reward.Kind],
+			Position = UDim2.fromScale(if isBig then 0.2 else 0.25, if isBig then 0.18 else 0.2),
 			Size = UDim2.fromScale(if isBig then 0.6 else 0.5, if isBig then 0.36 else 0.3),
 		})
 		Kit.Label({

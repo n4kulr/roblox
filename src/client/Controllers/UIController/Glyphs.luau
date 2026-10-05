@@ -339,12 +339,10 @@ local drawers: { [string]: Drawer } = {
 		c:Letter("A", 0.22, 0.2, 0.56, 0.4, ink)
 	end,
 	Clicks = function(c)
-		keycap(c, 0.08, 0.18, 0.84, c.Shade, c.Body, 0.22)
-		c:Rect("Shine", 0.24, 0.26, 0.3, 0.07, c.Light, 0.5)
-		c:Rect("Dot", 0.4, 0.4, 0.2, 0.2, c.Light, 0.5)
-		c:Spin("Tick", 0.22, 0.1, 0.16, 0.07, c.Body, 0.5, 40)
-		c:Spin("Tick", 0.5, 0.05, 0.16, 0.07, c.Body, 0.5, 90)
-		c:Spin("Tick", 0.78, 0.1, 0.16, 0.07, c.Body, 0.5, -40)
+		keycap(c, 0.05, 0.08, 0.9, c.Shade, c.Body, 0.24)
+		c:Rect("Shine", 0.2, 0.17, 0.32, 0.07, c.Light, 0.5)
+		c:Rect("Dish", 0.28, 0.27, 0.44, 0.3, c.Shade, 0.5)
+		c:Rect("DishFace", 0.3, 0.26, 0.4, 0.28, c.Light, 0.5)
 	end,
 	Upgrades = function(c)
 		for index = 0, 2 do

@@ -15,10 +15,10 @@ local oldPrice = "R$ 99"
 local contentHeight = 464
 local margin = 16
 
-local contents: { string } = {
-	"⌨️ 10,000 Clicks",
-	"🍀 2x Luck potion (15 min)",
-	"🗝️ Epic Key",
+local contents: { { Glyph: string, Text: string, Color: Color3? } } = {
+	{ Glyph = "Clicks", Text = "10,000 Clicks" },
+	{ Glyph = "Flask", Text = "2x Luck potion (15 min)" },
+	{ Glyph = "Keys", Text = "Epic Key", Color = Color3.fromRGB(180, 80, 255) },
 }
 
 local StarterOffer = {}
@@ -36,8 +36,8 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "StarterOffer",
 		Title = "STARTER PACK",
-		Icon = "🎁",
-		MaxSize = Vector2.new(520, 560),
+		Glyph = "Gift",
+		MaxSize = Vector2.new(600, 600),
 		HeaderColor = theme.Orange,
 		OnClose = function()
 			context.Close("StarterOffer")
@@ -56,24 +56,25 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
 	scroll.Parent = modal.Body
 
-	local timerChip = Kit.Chip({
+	local timerPill = Kit.Pill({
 		Parent = scroll,
 		Name = "Timer",
-		Text = "⏰ 15:00",
-		Size = UDim2.fromOffset(168, 40),
-		Position = UDim2.fromOffset(margin, 16),
-		Color = theme.Purple,
+		Glyph = "Clock",
+		Text = "15:00",
+		Size = UDim2.fromOffset(170, 40),
+		Position = UDim2.fromOffset(margin + 12, 18),
 		TextSize = 24,
 	})
+	local timerChip = timerPill.Label
 	local ribbon = Kit.Chip({
 		Parent = scroll,
 		Name = "Ribbon",
 		Text = "50% OFF!",
-		Size = UDim2.fromOffset(136, 40),
+		Size = UDim2.fromOffset(150, 44),
 		Position = UDim2.new(1, -margin, 0, 16),
 		AnchorPoint = Vector2.new(1, 0),
 		Color = theme.Red,
-		TextSize = 24,
+		TextSize = 26,
 	})
 	local ribbonFrame = ribbon.Parent
 	if ribbonFrame and ribbonFrame:IsA("GuiObject") then
@@ -85,16 +86,25 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Name = "Contents",
 		Position = UDim2.fromOffset(margin, 72),
 		Size = UDim2.new(1, -2 * margin, 0, 168),
-		Color = theme.Cell,
+		Color = theme.Panel,
+		Radius = Kit.Radius.L,
 	})
 	for index, line in contents do
+		Kit.Icon({
+			Parent = list,
+			Name = `Icon{index}`,
+			Glyph = line.Glyph,
+			Color = line.Color,
+			Position = UDim2.fromOffset(16, 10 + (index - 1) * 50),
+			Size = UDim2.fromOffset(40, 40),
+		})
 		Kit.Label({
 			Parent = list,
 			Name = `Line{index}`,
-			Text = line,
-			Position = UDim2.fromOffset(16, 8 + (index - 1) * 48),
-			Size = UDim2.new(1, -32, 0, 48),
-			TextSize = 26,
+			Text = line.Text,
+			Position = UDim2.fromOffset(68, 8 + (index - 1) * 50),
+			Size = UDim2.new(1, -84, 0, 44),
+			TextSize = 28,
 			Scaled = true,
 		})
 	end
@@ -132,6 +142,8 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Parent = scroll,
 		Name = "Buy",
 		Text = if Purchases.IsAvailable(starterPack) then "BUY" else "SOON",
+		Title = true,
+		Lip = 9,
 		Size = UDim2.fromOffset(320, 72),
 		Position = UDim2.new(0.5, 0, 0, 328),
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -170,7 +182,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		if not target then
 			return
 		end
-		timerChip.Text = `⏰ {TimeFormat.Clock(target - os.clock())}`
+		timerChip.Text = TimeFormat.Clock(target - os.clock())
 	end
 
 	trove:Connect(RunService.Heartbeat, function()
@@ -192,7 +204,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		StartsOpen = false,
 		Open = function(_self: Types.Screen)
 			if isBought then
-				context.Toast("You already bought this! ✅", "Good")
+				context.Toast("You already bought this!", "Good")
 				context.Close("StarterOffer")
 				return
 			end

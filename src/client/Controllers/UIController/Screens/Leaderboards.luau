@@ -11,14 +11,14 @@ local Types = require(script.Parent.Parent.Types)
 type Row = { Name: string, Value: number }
 
 local theme = Kit.Theme
-local rowHeight = 56
+local rowHeight = 60
 local silverColor = Color3.fromRGB(190, 198, 212)
 local bronzeColor = Color3.fromRGB(205, 127, 70)
 
-local tabs: { { Title: string, Compact: boolean } } = {
-	{ Title = "💰 Clicks Earned", Compact = true },
-	{ Title = "🎲 Rolls", Compact = false },
-	{ Title = "♻️ Rebirths", Compact = false },
+local tabs: { { Title: string, Glyph: string, Color: Color3, Compact: boolean } } = {
+	{ Title = "Clicks Earned", Glyph = "Coin", Color = theme.Green, Compact = true },
+	{ Title = "Rolls", Glyph = "Dice", Color = theme.Blue, Compact = false },
+	{ Title = "Rebirths", Glyph = "Rebirth", Color = theme.Pink, Compact = false },
 }
 
 local function rankColor(rank: number): Color3
@@ -39,14 +39,14 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 	local playUi = Kit.UiSound(context.Controllers)
 	local selected = 1
 	local requestToken = 0
-	local tabButtons: { Kit.Button } = {}
+	local tabBar: Kit.TabBar
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Leaderboards",
 		Title = "LEADERBOARDS",
-		Icon = "🏆",
-		MaxSize = Vector2.new(700, 540),
+		Glyph = "Trophy",
+		MaxSize = Vector2.new(860, 620),
 		HeaderColor = theme.Gold,
 		OnClose = function()
 			context.Close("Leaderboards")
@@ -54,24 +54,32 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 
-	local tabBar = Instance.new("Frame")
-	tabBar.Name = "Tabs"
-	tabBar.BackgroundTransparency = 1
-	tabBar.Position = UDim2.fromOffset(10, 10)
-	tabBar.Size = UDim2.new(1, -20, 0, 52)
-	local tabList = Instance.new("UIListLayout")
-	tabList.FillDirection = Enum.FillDirection.Horizontal
-	tabList.SortOrder = Enum.SortOrder.LayoutOrder
-	tabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	tabList.Padding = UDim.new(0, 8)
-	tabList.Parent = tabBar
-	tabBar.Parent = modal.Body
+	local tabEntries: { Kit.Tab } = {}
+	for index, tab in tabs do
+		table.insert(
+			tabEntries,
+			{ Id = tostring(index), Text = tab.Title, Glyph = tab.Glyph, Color = tab.Color }
+		)
+	end
+	local load: (tab: number) -> ()
+	tabBar = Kit.TabBar(trove, {
+		Parent = modal.Body,
+		Name = "Tabs",
+		Tabs = tabEntries,
+		Selected = "1",
+		Position = UDim2.fromOffset(Kit.Space.M, Kit.Space.M),
+		Size = UDim2.new(1, -2 * Kit.Space.M, 0, 54),
+		OnSelect = function(id: string)
+			load(tonumber(id) or 1)
+		end,
+		Sound = playUi,
+	})
 
 	local list = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(10, 70),
-		Size = UDim2.new(1, -20, 1, -80),
+		Position = UDim2.fromOffset(Kit.Space.S, 74),
+		Size = UDim2.new(1, -2 * Kit.Space.S, 1, -82),
 		Padding = 8,
 	})
 	local status = Kit.Label({
@@ -110,29 +118,55 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 				StrokeColor = if isMe then theme.Text else nil,
 				StrokeThickness = if isMe then 4 else nil,
 				Shards = rank <= 3,
+				Radius = Kit.Radius.L,
 			})
-			local textColor = if rank <= 3 then theme.TextInk else theme.Text
-			Kit.Label({
+			local medal = Kit.Panel({
 				Parent = panel,
-				Name = "Rank",
-				Text = `#{rank}`,
-				Position = UDim2.fromOffset(12, 0),
-				Size = UDim2.fromOffset(70, rowHeight),
-				TextSize = 30,
-				Color = textColor,
-				Scaled = true,
-				Outline = rank > 3,
+				Name = "Medal",
+				Position = UDim2.fromOffset(Kit.Space.M, (rowHeight - 44) / 2),
+				Size = UDim2.fromOffset(44, 44),
+				Color = if rank <= 3 then Kit.Shade(rankColor(rank), -0.3) else theme.Track,
+				Radius = 22,
+				Flat = true,
 			})
+			Kit.Label({
+				Parent = medal,
+				Name = "Rank",
+				Text = tostring(rank),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 26,
+				Align = Enum.TextXAlignment.Center,
+				Scaled = true,
+				Title = true,
+			})
+			if rank == 1 then
+				Kit.Icon({
+					Parent = panel,
+					Name = "Crown",
+					Glyph = "Crown",
+					Position = UDim2.fromOffset(Kit.Space.M + 10, 1),
+					Size = UDim2.fromOffset(26, 22),
+				})
+			end
+			local textColor = if rank <= 3 then theme.TextInk else theme.Text
 			Kit.Label({
 				Parent = panel,
 				Name = "Name",
 				Text = if isMe then `{row.Name} (you)` else row.Name,
-				Position = UDim2.fromOffset(90, 0),
-				Size = UDim2.new(1, -260, 0, rowHeight),
+				Position = UDim2.fromOffset(72, 0),
+				Size = UDim2.new(1, -250, 0, rowHeight),
 				TextSize = 26,
 				Color = textColor,
 				Scaled = true,
 				Outline = rank > 3,
+			})
+			Kit.Icon({
+				Parent = panel,
+				Name = "ValueIcon",
+				Glyph = tabs[tab].Glyph,
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -150, 0.5, 0),
+				Size = UDim2.fromOffset(30, 30),
 			})
 			Kit.Label({
 				Parent = panel,
@@ -142,7 +176,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 					else NumberFormat.Commas(row.Value),
 				AnchorPoint = Vector2.new(1, 0),
 				Position = UDim2.new(1, -14, 0, 0),
-				Size = UDim2.fromOffset(150, rowHeight),
+				Size = UDim2.fromOffset(130, rowHeight),
 				TextSize = 28,
 				Color = textColor,
 				Align = Enum.TextXAlignment.Right,
@@ -152,11 +186,9 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	local function load(tab: number)
+	load = function(tab: number)
 		selected = tab
-		for index, button in tabButtons do
-			button.SetSelected(index == tab)
-		end
+		tabBar.Select(tostring(tab))
 		requestToken += 1
 		local token = requestToken
 		clearRows()
@@ -172,22 +204,6 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 				status.Text = "Couldn't load the board!"
 			end
 		end)
-	end
-
-	for index, tab in tabs do
-		tabButtons[index] = Kit.Button(trove, {
-			Parent = tabBar,
-			Name = `Tab{index}`,
-			Text = tab.Title,
-			Size = UDim2.new(0.32, 0, 1, 0),
-			Color = theme.Blue,
-			TextSize = 22,
-			LayoutOrder = index,
-			Callback = function()
-				load(index)
-			end,
-			Sound = playUi,
-		})
 	end
 
 	return {

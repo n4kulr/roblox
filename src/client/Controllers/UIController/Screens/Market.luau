@@ -29,7 +29,7 @@ type Stored = { Slot: number?, Bought: { [string]: number }? }
 local theme = Kit.Theme
 local config = GameConfig.Market
 local accent = Color3.fromRGB(255, 96, 48)
-local cardSize = Vector2.new(200, 266)
+local cardSize = Vector2.new(210, 290)
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
@@ -75,22 +75,23 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Market",
 		Title = "KEY MARKET",
-		Icon = "🏪",
-		MaxSize = Vector2.new(700, 640),
+		Glyph = "Market",
+		MaxSize = Vector2.new(900, 660),
 		HeaderColor = accent,
 		OnClose = function()
 			context.Close("Market")
 		end,
 		Sound = playUi,
 	})
-	local timer = Kit.Chip({
+	local timerPill = Kit.Pill({
 		Parent = modal.HeaderRight,
 		Name = "Timer",
+		Glyph = "Clock",
 		Text = "New stock in 0:00",
-		Size = UDim2.fromOffset(240, 38),
-		Color = theme.Slate,
-		TextSize = 24,
+		Size = UDim2.fromOffset(260, 40),
+		TextSize = 20,
 	})
+	local timer = timerPill.Label
 	local grid = Kit.GridScroll({
 		Parent = modal.Body,
 		Name = "Offers",
@@ -148,7 +149,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		if balance < offer.Price then
 			playUi("Error")
 			Kit.Shake(card.Panel)
-			context.Toast(`Need {NumberFormat.Compact(offer.Price - balance)} more! 💵`, "Bad")
+			context.Toast(`Need {NumberFormat.Compact(offer.Price - balance)} more!`, "Bad")
 			return
 		end
 		if not isNearCounter() then
@@ -166,7 +167,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 				if sounds then
 					sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Other")
 				end
-				context.Toast(`🛒 Bought {key.Name}!`, "Good")
+				context.Toast(`Bought {key.Name}!`, "Good")
 			else
 				playUi("Error")
 				context.Toast(
@@ -185,24 +186,25 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Parent = grid,
 			Name = `Offer{offer.Index}`,
 			Size = UDim2.fromOffset(cardSize.X, cardSize.Y),
-			Color = theme.Slate,
+			Color = theme.Panel,
 			StrokeColor = if offer.IsDeal then theme.Gold else nil,
+			StrokeThickness = if offer.IsDeal then 5 else nil,
 			LayoutOrder = offer.Index,
+			Radius = Kit.Radius.L,
 			Shards = true,
 		})
 		cardsTrove:Add(panel)
 		local cell = Cells.New(cardsTrove, { Parent = panel, Key = key })
 		cell.Instance.AnchorPoint = Vector2.new(0.5, 0)
-		cell.Instance.Position = UDim2.new(0.5, 0, 0, 6)
-		cell.Name.TextColor3 = rarity.Color
+		cell.Instance.Position = UDim2.new(0.5, 0, 0, 8)
 		cell.Info.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
 		cell.Info.TextColor3 = theme.TextDim
 		Kit.Label({
 			Parent = panel,
 			Name = "Income",
 			Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`,
-			Position = UDim2.fromOffset(10, 150),
-			Size = UDim2.fromOffset(92, 22),
+			Position = UDim2.fromOffset(12, 170),
+			Size = UDim2.fromOffset(94, 24),
 			TextSize = 20,
 			Color = theme.Good,
 			Scaled = true,
@@ -211,8 +213,8 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Parent = panel,
 			Name = "Stock",
 			Text = "",
-			Size = UDim2.fromOffset(84, 22),
-			Position = UDim2.new(1, -10, 0, 150),
+			Size = UDim2.fromOffset(88, 24),
+			Position = UDim2.new(1, -12, 0, 170),
 			AnchorPoint = Vector2.new(1, 0),
 			Color = theme.Blue,
 			TextSize = 16,
@@ -220,11 +222,18 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		local priceText = Kit.Chip({
 			Parent = panel,
 			Name = "Price",
-			Text = `💵 {NumberFormat.Commas(offer.Price)}`,
-			Size = UDim2.fromOffset(170, 28),
-			Position = UDim2.fromOffset(15, 176),
-			Color = theme.Yellow,
+			Text = NumberFormat.Commas(offer.Price),
+			Size = UDim2.fromOffset(180, 30),
+			Position = UDim2.fromOffset(15, 198),
+			Color = theme.Track,
 			TextSize = 22,
+		})
+		Kit.Icon({
+			Parent = priceText.Parent,
+			Name = "PriceIcon",
+			Glyph = "Clicks",
+			Size = UDim2.fromOffset(28, 28),
+			Position = UDim2.fromOffset(4, 1),
 		})
 		if offer.IsDeal then
 			local ribbonText = Kit.Chip({
@@ -245,9 +254,9 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Parent = panel,
 			Name = "Buy",
 			Text = "BUY",
-			Position = UDim2.new(0.5, 0, 1, -8),
+			Position = UDim2.new(0.5, 0, 1, -10),
 			AnchorPoint = Vector2.new(0.5, 1),
-			Size = UDim2.new(0.86, 0, 0, 46),
+			Size = UDim2.new(0.88, 0, 0, 50),
 			Color = theme.Green,
 			TextSize = 24,
 			Callback = function()
@@ -266,6 +275,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		table.insert(cards, card)
 		if animate then
 			local scale = Instance.new("UIScale")
+			scale.Name = "Intro"
 			scale.Scale = 0.7
 			scale.Parent = panel
 			Kit.Tween(
@@ -299,7 +309,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		if slot ~= currentSlot then
 			currentSlot = slot
 			rebuild(true)
-			context.Toast("🔄 New stock!", "Info")
+			context.Toast("New stock!", "Info")
 		end
 		timer.Text = `New stock in {TimeFormat.Clock(Market.SecondsLeft(now))}`
 		refreshCards()
