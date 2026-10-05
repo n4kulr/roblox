@@ -285,11 +285,11 @@ function Hud.new(context: Types.Context): Types.Screen
 			Sound = playUi,
 		})
 	end
-	jumpButton("MyBase", "Home", "MY BASE", theme.Blue, 0, function()
-		return rollController:TeleportToBase()
-	end)
-	jumpButton("Shop", "Shop", "SHOP", theme.Orange, topButtonWidth + topGap, function()
+	jumpButton("Shop", "Shop", "SHOP", theme.Orange, 0, function()
 		return rollController:TeleportToMarket()
+	end)
+	jumpButton("MyBase", "Home", "MY BASE", theme.Blue, topButtonWidth + topGap, function()
+		return rollController:TeleportToBase()
 	end)
 
 	local money = Kit.Panel({

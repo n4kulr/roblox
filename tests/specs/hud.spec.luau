@@ -125,7 +125,7 @@ describe("HUD", function()
 		expect(#world.errors):toBe(0)
 	end)
 
-	it("puts MY BASE and SHOP side by side at the top center with identical sizes", function()
+	it("puts SHOP left of MY BASE at the top center with identical sizes", function()
 		local myBase = find(hudGui, "MyBase")
 		local shop = find(hudGui, "Shop")
 		expect(myBase ~= nil):toBe(true)
@@ -138,10 +138,22 @@ describe("HUD", function()
 		expect(myBase.Parent.Name):toBe("TopBar")
 		expect(myBase.Parent.AnchorPoint.X):toBe(0.5)
 		expect(myBase.Parent.Position.X.Scale):toBe(0.5)
-		expect(myBase.Position.X.Offset < shop.Position.X.Offset):toBe(true)
+		expect(shop.Position.X.Offset < myBase.Position.X.Offset):toBe(true)
 		expect(isOnRight(myBase.Parent)):toBe(true)
 		expect(find(hudGui, "MyBase"):FindFirstChild("Icon", true) ~= nil):toBe(true)
 		expect(find(hudGui, "Shop"):FindFirstChild("Icon", true) ~= nil):toBe(true)
+	end)
+
+	it("blocks the SHOP teleport while carrying a key and allows it otherwise", function()
+		local Travel = world:require("StarterPlayer.StarterPlayerScripts.Controllers.RollController.Travel")
+		local carrier = world:newInstance("Model")
+		carrier:SetAttribute("CarryingKey", "GlassTink")
+		local blocked, message = Travel.ToMarket(carrier, world:newInstance("Folder"))
+		expect(blocked):toBe(false)
+		expect(message):toBe(Travel.CarryMessage)
+		local freeBlocked, freeMessage = Travel.ToMarket(world:newInstance("Model"), world:newInstance("Folder"))
+		expect(freeBlocked):toBe(false)
+		expect(freeMessage):toBe(Travel.MarketMessage)
 	end)
 
 	it("sends MY BASE and SHOP presses to the matching teleports", function()
@@ -219,6 +231,24 @@ describe("HUD", function()
 		expect(find(hudGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(find(hudGui, "StarterPack").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		expect(find(hudGui, "Settings").Face:FindFirstChild("Icon") ~= nil):toBe(true)
+	end)
+
+	it("falls back to Glyphs when the icon atlas has no image", function()
+		local Core = world:require(`{screens}.Kit.Core`)
+		local IconAtlas = world:require(`{screens}.IconAtlas`)
+		local holder = world:newInstance("Frame")
+		local original = IconAtlas.Apply
+		local wasUnfrozen = pcall(function()
+			IconAtlas.Apply = function()
+				return false
+			end
+		end)
+		local icon = Core.Icon({ Parent = holder, Glyph = "Keys" })
+		expect(icon.ClassName):toBe("Frame")
+		expect(icon:FindFirstChild("Art") ~= nil):toBe(true)
+		if wasUnfrozen then
+			IconAtlas.Apply = original
+		end
 	end)
 
 	it("builds every glyph with children", function()

@@ -213,6 +213,27 @@ describe("UI screens", function()
 		end)
 	end
 
+	for _, name in modals do
+		it(`closes {name} when the dim backdrop is clicked`, function()
+			local closed = 0
+			context.Close = function(target: string)
+				if target == name then
+					closed += 1
+				end
+			end
+			local screen = boot(name)
+			screen:Open()
+			world:flush()
+			local gui = playerGui:FindFirstChild(`Thock{name}`)
+			local backdrop = gui:FindFirstChild("Backdrop", true)
+			expect(backdrop ~= nil):toBe(true)
+			expect(backdrop.Size.X.Scale):toBe(1)
+			press(backdrop)
+			expect(closed):toBe(1)
+			screen:Destroy()
+		end)
+	end
+
 	it("keeps emojis out of every label and button on every screen", function()
 		for _, name in allScreens do
 			local screen = boot(name)
