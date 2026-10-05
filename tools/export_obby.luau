@@ -6,6 +6,7 @@ local outputPath = "assets/map/Obby.rbxm"
 
 local services = { Config = {}, Rules = {} }
 local env: { [string]: any } = {
+	script = { Parent = services.Config },
 	Instance = roblox.Instance,
 	Vector3 = roblox.Vector3,
 	CFrame = roblox.CFrame,
@@ -30,6 +31,8 @@ local function load(path: string): any
 end
 
 services.Config.GameConfig = load("src/shared/Config/GameConfig.luau")
+services.Config.SwitchSounds = load("src/shared/Config/SwitchSounds.luau")
+services.Config.Keys = load("src/shared/Config/Keys.luau")
 local obby = load("src/shared/Rules/Obby.luau")
 services.Rules.Obby = obby
 local course = load("src/server/Services/ObbyService/Course.luau")

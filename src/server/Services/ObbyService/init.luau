@@ -12,7 +12,10 @@ local KeyVisual = require(script.Parent.Parent.Utils.KeyVisual)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Course = require(script.Course)
 local Finder = require(script.Finder)
+local Gates = require(script.Gates)
 local Pickups = require(script.Pickups)
+local PopUps = require(script.PopUps)
+local Taps = require(script.Taps)
 local Types = require(script.Types)
 
 type TroveInstance = typeof(Trove.new())
@@ -22,7 +25,6 @@ type State = {
 }
 
 local config = GameConfig.Obby
-local infoPhase = 10
 local goodPhase = 11
 local badPhase = 9
 
@@ -36,6 +38,7 @@ local course: Types.Info? = nil
 local spawnStates: { Types.SpawnState } = {}
 local carriers: { [Player]: Types.Carrier } = {}
 local tracks: { [Player]: Types.Track } = {}
+local popUps: { PopUps.State } = {}
 
 local function toast(player: Player, text: string, phase: number)
 	Packets.StealAlert:FireClient(player, text, 0, phase)
@@ -51,7 +54,15 @@ end
 local function trackOf(player: Player): Types.Track
 	local track = tracks[player]
 	if not track then
-		track = { Character = nil, IsInside = false, Checkpoint = nil }
+		track = {
+			Character = nil,
+			IsInside = false,
+			Checkpoint = nil,
+			Taps = 0,
+			LastKey = nil,
+			LastPosition = nil,
+			GateToastAt = 0,
+		}
 		tracks[player] = track
 	end
 	return track
@@ -92,12 +103,17 @@ local function startCarry(player: Player, character: Model, root: BasePart, huma
 	end)
 end
 
+local onTriggered: (state: Types.SpawnState, player: Player) -> ()
+
 local function spawnPickup(state: Types.SpawnState, info: Types.Info)
-	local keyId = Pickups.PickKey(rng, state.Point.Stage)
-	local cap = Pickups.Create(state.Point, keyId, info.Model)
-	if cap then
+	local keyId = Pickups.PickKey(rng, state.Point.Rarities)
+	local cap, prompt = Pickups.Create(state.Point, keyId, info.Model)
+	if cap and prompt then
 		state.Pickup = cap
 		state.Trove:Add(cap)
+		state.Trove:Connect(prompt.Triggered, function(player: Player)
+			onTriggered(state, player)
+		end)
 	end
 end
 
@@ -113,22 +129,29 @@ local function takePickup(state: Types.SpawnState): string?
 	return if type(keyId) == "string" then keyId else nil
 end
 
-local function tryPickup(player: Player, character: Model, root: BasePart, humanoid: Humanoid)
-	if carriers[player] or isStealing(player) then
+function onTriggered(state: Types.SpawnState, player: Player)
+	local cap = state.Pickup
+	local track = tracks[player]
+	if not cap or not track or not track.IsInside or carriers[player] or isStealing(player) then
 		return
 	end
-	local position = root.CFrame.Position
-	for _, state in spawnStates do
-		local cap = state.Pickup
-		if cap and (cap.CFrame.Position - position).Magnitude <= config.PickupRange then
-			local keyId = takePickup(state)
-			local key = if keyId then Keys.ById[keyId] else nil
-			if keyId and key then
-				startCarry(player, character, root, humanoid, keyId)
-				toast(player, `You grabbed {key.Name}! Run home to keep it!`, goodPhase)
-			end
-			return
-		end
+	local character = player.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+	if not character or not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+	if
+		(cap.CFrame.Position - root.CFrame.Position).Magnitude
+		> config.Pickup.Distance + config.Pickup.Slack
+	then
+		return
+	end
+	local keyId = takePickup(state)
+	local key = if keyId then Keys.ById[keyId] else nil
+	if keyId and key then
+		startCarry(player, character, root, humanoid, keyId)
+		toast(player, `You grabbed {key.Name}! Run home to keep it!`, goodPhase)
 	end
 end
 
@@ -159,6 +182,14 @@ local function applySpeed(character: Model, speed: number?)
 	end
 end
 
+local function clearTaps(character: Model, track: Types.Track)
+	track.Taps = 0
+	track.LastKey = nil
+	track.LastPosition = nil
+	character:SetAttribute("ObbyTaps", nil)
+	applySpeed(character, nil)
+end
+
 local function setCheckpoint(player: Player, track: Types.Track, part: BasePart?)
 	if track.Checkpoint == part then
 		return
@@ -179,38 +210,52 @@ end
 
 local function update(
 	player: Player,
-	data: PlayerData.Data,
 	character: Model,
 	root: BasePart,
 	humanoid: Humanoid,
 	track: Types.Track,
-	info: Types.Info
+	info: Types.Info,
+	now: number
 )
 	local position = root.CFrame.Position
 	local isInside = Obby.Contains(info.Zone.CFrame, info.Zone.Size, position, 0)
-	if isInside ~= track.IsInside then
-		track.IsInside = isInside
-		if isInside then
-			toast(player, `Tap speed: {Obby.SpeedFor(data.Rolls)}`, infoPhase)
-		else
-			setCheckpoint(player, track, nil)
+	track.IsInside = isInside
+	if not isInside then
+		setCheckpoint(player, track, nil)
+		clearTaps(character, track)
+		tryDeliver(player, root)
+		return
+	end
+	if isInsideAny(info.Kills, position, config.KillReach) then
+		humanoid.Health = 0
+		return
+	end
+	local checkpoint = isInsideAny(info.Checkpoints, position, config.CheckpointReach)
+	if checkpoint then
+		setCheckpoint(player, track, checkpoint)
+	end
+	if isInsideAny(info.Homes, position, config.HomeReach) then
+		services.PlotService:SendHome(player)
+		return
+	end
+	local gate = Gates.Check(info.Gates, root.CFrame, Obby.SpeedFor(track.Taps))
+	if gate then
+		if gate.Passed and gate.Destination then
+			root.CFrame = gate.Destination
+			position = gate.Destination.Position
+			track.LastPosition = nil
+			track.LastKey = nil
+			toast(player, "Speed gate open!", goodPhase)
+		elseif now >= track.GateToastAt then
+			track.GateToastAt = now + config.Gate.ToastSeconds
+			toast(player, `Need {gate.Required} speed!`, badPhase)
 		end
 	end
-	applySpeed(character, if isInside then Obby.SpeedFor(data.Rolls) else nil)
-	if isInside then
-		if isInsideAny(info.Kills, position, config.KillReach) then
-			humanoid.Health = 0
-			return
-		end
-		local checkpoint = isInsideAny(info.Checkpoints, position, config.CheckpointReach)
-		if checkpoint then
-			setCheckpoint(player, track, checkpoint)
-		end
-		if isInsideAny(info.Returns, position, config.ReturnReach) then
-			services.PlotService:SendHome(player)
-		end
-		tryPickup(player, character, root, humanoid)
+	track.Taps += Taps.Advance(info.TapKeys, track, position)
+	if character:GetAttribute("ObbyTaps") ~= track.Taps then
+		character:SetAttribute("ObbyTaps", track.Taps)
 	end
+	applySpeed(character, Obby.SpeedFor(track.Taps))
 	tryDeliver(player, root)
 end
 
@@ -220,6 +265,9 @@ local function step()
 		return
 	end
 	local now = os.clock()
+	for _, state in popUps do
+		PopUps.Step(state, now)
+	end
 	for _, state in spawnStates do
 		if not state.Pickup and now >= state.RespawnAt then
 			spawnPickup(state, info)
@@ -231,12 +279,13 @@ local function step()
 		if character ~= track.Character then
 			track.Character = character
 			track.IsInside = false
+			track.LastKey = nil
+			track.LastPosition = nil
 		end
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
 		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
-		if character and data and root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
-			update(player, data, character, root, humanoid, track, info)
+		if character and root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
+			update(player, character, root, humanoid, track, info, now)
 		end
 	end
 end
@@ -277,6 +326,9 @@ function ObbyService.Start(self: State)
 		trove:Add(state.Trove)
 		spawnPickup(state, info)
 	end
+	for _, part in info.PopUps do
+		table.insert(popUps, PopUps.New(part))
+	end
 	trove:Connect(Players.PlayerRemoving, forget)
 	trove:Add(task.spawn(function()
 		while true do
@@ -297,6 +349,7 @@ function ObbyService.Destroy(self: State)
 	for player, track in table.clone(tracks) do
 		local character = track.Character
 		if character then
+			character:SetAttribute("ObbyTaps", nil)
 			character:SetAttribute(WalkSpeed.TapAttribute, nil)
 			WalkSpeed.Refresh(character)
 		end
@@ -305,6 +358,10 @@ function ObbyService.Destroy(self: State)
 		end
 	end
 	table.clear(tracks)
+	for _, state in popUps do
+		PopUps.Reset(state)
+	end
+	table.clear(popUps)
 	table.clear(spawnStates)
 	course = nil
 	if self._trove then

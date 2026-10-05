@@ -374,8 +374,17 @@ local function makeFakeServices(world)
 	services.TextChatService = {}
 	services.ServerStorage = Tree.node("ServerStorage", "ServerStorage")
 	services.TweenService = {
-		Create = function()
-			return { Play = function() end, Pause = function() end, Cancel = function() end, Destroy = function() end }
+		Create = function(_self, instance: any, _info: any, goal: any)
+			return {
+				Play = function()
+					for property, value in goal or {} do
+						instance[property] = value
+					end
+				end,
+				Pause = function() end,
+				Cancel = function() end,
+				Destroy = function() end,
+			}
 		end,
 	}
 	services.UserInputService = {

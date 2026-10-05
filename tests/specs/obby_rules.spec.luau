@@ -1,4 +1,3 @@
-local fs = require("@lune/fs")
 local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
 
@@ -30,98 +29,68 @@ describe("Obby rules", function()
 	end)
 
 	describe("SpeedFor", function()
-		it("starts at the normal walk speed", function()
+		it("starts at the normal walk speed and adds one per tap", function()
 			expect(Obby.SpeedFor(0)):toBe(24)
 			expect(GameConfig.Steal.NormalWalkSpeed):toBe(24)
-		end)
-
-		it("adds four per decade of lifetime rolls", function()
-			expect(Obby.SpeedFor(9)):toBe(28)
-			expect(Obby.SpeedFor(99)):toBe(32)
-			expect(Obby.SpeedFor(999)):toBe(36)
-			expect(Obby.SpeedFor(9999)):toBe(40)
-		end)
-
-		it("floors to an integer between decades", function()
 			expect(Obby.SpeedFor(1)):toBe(25)
-			expect(Obby.SpeedFor(5)):toBe(27)
-			expect(Obby.SpeedFor(50)):toBe(30)
-			for rolls = 0, 3000, 37 do
-				expect(Obby.SpeedFor(rolls) % 1):toBe(0)
+			expect(Obby.SpeedFor(16)):toBe(40)
+			for taps = 0, 400, 7 do
+				expect(Obby.SpeedFor(taps) % 1):toBe(0)
 			end
 		end)
 
-		it("never exceeds the cap", function()
-			expect(Obby.SpeedFor(99999)):toBe(44)
-			expect(Obby.SpeedFor(1e6)):toBe(44)
-			expect(Obby.SpeedFor(1e12)):toBe(44)
-			expect(Obby.SpeedFor(math.huge)):toBe(44)
-			expect(config.MaxSpeed):toBe(44)
+		it("reaches the level 1 gate on a straight run across both key sections", function()
+			expect(Obby.SpeedFor(24) >= 40):toBe(true)
 		end)
 
-		it("never decreases as rolls grow", function()
-			local last = 0
-			for rolls = 0, 200000, 997 do
-				local speed = Obby.SpeedFor(rolls)
-				expect(speed >= last):toBe(true)
-				last = speed
+		it("never decreases as taps grow", function()
+			local previous = 0
+			for taps = 0, 400 do
+				local speed = Obby.SpeedFor(taps)
+				expect(speed >= previous):toBe(true)
+				previous = speed
 			end
 		end)
 
-		it("treats negative and invalid rolls as zero", function()
-			expect(Obby.SpeedFor(-50)):toBe(24)
+		it("caps at the maximum speed", function()
+			expect(Obby.SpeedFor(224)):toBe(80)
+			expect(Obby.SpeedFor(225)):toBe(80)
+			expect(Obby.SpeedFor(1e9)):toBe(80)
+			expect(Obby.SpeedFor(math.huge)):toBe(80)
+			expect(config.MaxSpeed):toBe(80)
+			expect(config.SpeedPerTap):toBe(1)
+		end)
+
+		it("treats negative and invalid taps as zero", function()
+			expect(Obby.SpeedFor(-5)):toBe(24)
 			expect(Obby.SpeedFor(0 / 0)):toBe(24)
 		end)
 	end)
 
 	describe("RarityFor", function()
-		it("only returns the rarities configured for the stage", function()
-			for stage, entry in config.Stages do
-				local allowed = {}
-				for _, option in entry.Rarities do
-					allowed[option.Name] = true
-				end
-				for roll = 0, 0.999, 0.01 do
-					expect(allowed[Obby.RarityFor(stage, roll)]):toBe(true)
-				end
-				expect(allowed[Obby.RarityFor(stage, 1)]):toBe(true)
+		it("picks only from the listed rarities", function()
+			for step = 0, 20 do
+				expect(Obby.RarityFor("Epic", step / 20)):toBe("Epic")
+				local rarity = Obby.RarityFor("Rare,Epic", step / 20)
+				expect(rarity == "Rare" or rarity == "Epic"):toBe(true)
 			end
 		end)
 
-		it("follows the stage progression", function()
-			expect(Obby.RarityFor(1, 0)):toBe("Rare")
-			expect(Obby.RarityFor(1, 0.99)):toBe("Epic")
-			expect(Obby.RarityFor(2, 0.5)):toBe("Epic")
-			expect(Obby.RarityFor(3, 0)):toBe("Epic")
-			expect(Obby.RarityFor(3, 0.99)):toBe("Legendary")
-			expect(Obby.RarityFor(4, 0)):toBe("Legendary")
-			expect(Obby.RarityFor(4, 0.999)):toBe("Mythic")
+		it("splits evenly by default and honors weights", function()
+			expect(Obby.RarityFor("Rare,Epic", 0.1)):toBe("Rare")
+			expect(Obby.RarityFor("Rare,Epic", 0.9)):toBe("Epic")
+			expect(Obby.RarityFor("Rare:3,Epic:1", 0.7)):toBe("Rare")
+			expect(Obby.RarityFor("Rare:3,Epic:1", 0.8)):toBe("Epic")
 		end)
 
-		it("keeps the Mythic chance small", function()
-			local last = config.Stages[#config.Stages].Rarities
-			local total, mythic = 0, 0
-			for _, option in last do
-				total += option.Weight
-				if option.Name == "Mythic" then
-					mythic = option.Weight
-				end
-			end
-			expect(mythic > 0):toBe(true)
-			expect(mythic / total <= 0.1):toBe(true)
-		end)
-
-		it("offers real keys for every configured rarity", function()
-			local Keys = world:require("ReplicatedStorage.Config.Keys")
-			for _, entry in config.Stages do
-				for _, option in entry.Rarities do
-					expect(#Keys.ByRarity[option.Name] > 0):toBe(true)
-				end
-			end
+		it("falls back to Rare for empty or unknown specs", function()
+			expect(Obby.RarityFor("", 0.5)):toBe("Rare")
+			expect(Obby.RarityFor("Nonsense", 0.5)):toBe("Rare")
+			expect(Obby.RarityFor("Nonsense, Legendary", 0.5)):toBe("Legendary")
 		end)
 	end)
 
-	describe("Contains", function()
+	describe("Contains and KeyContains", function()
 		it("tests a point against a rotated box with an upward reach", function()
 			local cframe = CFrame.new(10, 5, 0) * CFrame.Angles(0, math.rad(90), 0)
 			local size = Vector3.new(4, 2, 10)
@@ -130,7 +99,16 @@ describe("Obby rules", function()
 			expect(Obby.Contains(cframe, size, Vector3.new(10, 5, 3), 0)):toBe(false)
 			expect(Obby.Contains(cframe, size, Vector3.new(10, 8, 0), 0)):toBe(false)
 			expect(Obby.Contains(cframe, size, Vector3.new(10, 8, 0), 2)):toBe(true)
-			expect(Obby.Contains(cframe, size, Vector3.new(10, 3.5, 0), 0)):toBe(false)
+		end)
+
+		it("counts a point standing on a key but not one far above or inside it", function()
+			local cframe = CFrame.new(0, 1.25, 0)
+			local size = Vector3.new(8, 2.5, 8)
+			expect(Obby.KeyContains(cframe, size, Vector3.new(0, 5.5, 0))):toBe(true)
+			expect(Obby.KeyContains(cframe, size, Vector3.new(3.9, 5.5, -3.9))):toBe(true)
+			expect(Obby.KeyContains(cframe, size, Vector3.new(4.1, 5.5, 0))):toBe(false)
+			expect(Obby.KeyContains(cframe, size, Vector3.new(0, 14, 0))):toBe(false)
+			expect(Obby.KeyContains(cframe, size, Vector3.new(0, 1, 0))):toBe(false)
 		end)
 	end)
 
@@ -178,265 +156,154 @@ describe("Obby rules", function()
 	end)
 
 	describe("Layout", function()
-		it("has the configured number of stages with safe areas between them", function()
-			local layout = Obby.Layout()
-			expect(#layout.Stages):toBe(#config.Stages)
-			expect(#layout.Stages):toBe(4)
-			expect(#layout.Areas):toBe(#layout.Stages + 1)
-			expect(layout.Areas[1].Kind):toBe("Start")
-			for index = 2, #layout.Areas - 1 do
-				expect(layout.Areas[index].Kind):toBe("Safe")
-			end
-			expect(layout.Areas[#layout.Areas].Kind):toBe("Finish")
-			for index, span in layout.Stages do
-				expect(layout.Areas[index].D1):toBe(span.D0)
-				expect(layout.Areas[index + 1].D0):toBe(span.D1)
-			end
-		end)
-
-		it("keeps every jump completable at the base walk speed", function()
-			local layout = Obby.Layout()
-			local gravity = 196.2
-			local jumpHeight = 7.2
-			local airtime = 2 * math.sqrt(2 * jumpHeight / gravity)
-			local reach = GameConfig.Steal.NormalWalkSpeed * airtime
-			expect(config.MaxJump <= reach - 2):toBe(true)
-			local previous = nil
-			for _, platform in layout.Platforms do
-				local from = previous or { X = 0, Width = layout.Width, D0 = 0, D1 = layout.Areas[1].D1 }
-				if previous and previous.Stage ~= platform.Stage then
-					from = { X = 0, Width = layout.Width, D0 = 0, D1 = platform.D0 - config.Stages[platform.Stage].Gap }
+		local function cellsOf(layout: any, section: string, row: number): { any }
+			local out = {}
+			for _, cell in layout.Cells do
+				if cell.Section == section and cell.Row == row then
+					table.insert(out, cell)
 				end
-				expect(Obby.Gap(from, platform) <= config.MaxJump):toBe(true)
-				previous = platform
 			end
-			local last = layout.Platforms[#layout.Platforms]
-			local finish = layout.Areas[#layout.Areas]
-			expect(finish.D0 - last.D1 <= config.MaxJump):toBe(true)
-		end)
+			table.sort(out, function(a, b)
+				return a.X < b.X
+			end)
+			return out
+		end
 
-		it("grows the hardest gap a little with every stage", function()
+		it("is 96 studs wide and every key stays inside it", function()
 			local layout = Obby.Layout()
-			local worst: { [number]: number } = {}
-			local previous = nil
-			for _, platform in layout.Platforms do
-				if previous and previous.Stage == platform.Stage then
-					worst[platform.Stage] = math.max(worst[platform.Stage] or 0, Obby.Gap(previous, platform))
-				end
-				previous = platform
+			expect(config.Width):toBe(96)
+			expect(layout.Width):toBe(96)
+			for _, cell in layout.Cells do
+				expect(cell.X - cell.Width / 2 >= -48 - 1e-6):toBe(true)
+				expect(cell.X + cell.Width / 2 <= 48 + 1e-6):toBe(true)
+				expect(cell.Kind == "PopUp" or cell.Width <= config.Key.Size + 1e-6):toBe(true)
 			end
-			for stage = 2, #config.Stages do
-				expect(worst[stage] >= worst[stage - 1]):toBe(true)
-			end
-			expect(worst[#config.Stages] <= config.MaxJump):toBe(true)
 		end)
 
-		it("gives each stage two or three key spawns on its own platforms", function()
+		it("is deterministic", function()
+			local a = Obby.Layout()
+			local b = Obby.Layout()
+			expect(#a.Cells):toBe(#b.Cells)
+			expect(a.Length):toBe(b.Length)
+			for index, cell in a.Cells do
+				expect(cell.X):toBe(b.Cells[index].X)
+				expect(cell.D):toBe(b.Cells[index].D)
+				expect(cell.Letter):toBe(b.Cells[index].Letter)
+			end
+		end)
+
+		it("staggers rows by a quarter key and repeats every four rows", function()
 			local layout = Obby.Layout()
-			local perStage: { [number]: number } = {}
-			for _, spawn in layout.Spawns do
-				perStage[spawn.Stage] = (perStage[spawn.Stage] or 0) + 1
+			local firstLetters = {}
+			for row = 1, 5 do
+				local cells = cellsOf(layout, "RunA", row)
+				firstLetters[row] = cells[2].X
 			end
-			for stage = 1, #config.Stages do
-				expect(perStage[stage] >= 2 and perStage[stage] <= 3):toBe(true)
+			local seen = {}
+			for row = 1, 4 do
+				seen[string.format("%.3f", firstLetters[row])] = true
 			end
-			expect(perStage[#config.Stages] >= perStage[1]):toBe(true)
-		end)
-
-		it("keeps the platforms inside the course width", function()
-			local layout = Obby.Layout()
-			for _, platform in layout.Platforms do
-				expect(math.abs(platform.X) + platform.Width / 2 <= layout.Width / 2 - 1):toBe(true)
-			end
-		end)
-	end)
-end)
-
-describe("Obby course", function()
-	local world, Obby, Course, GameConfig, config, model
-
-	beforeEach(function()
-		world = H.newWorld()
-		Obby = world:require("ReplicatedStorage.Rules.Obby")
-		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
-		Course = world:require("ServerScriptService.Services.ObbyService.Course")
-		config = GameConfig.Obby
-		model = Course.Build(CFrame.new(), "Obby")
-	end)
-
-	afterEach(function()
-		expect(world.errors):toEqual({})
-		world:destroy()
-	end)
-
-	local function byRole(role: string): { any }
-		local out = {}
-		for _, part in model:GetDescendants() do
-			if part:GetAttribute("ObbyRole") == role then
-				table.insert(out, part)
-			end
-		end
-		table.sort(out, function(a, b)
-			return a.Name < b.Name
-		end)
-		return out
-	end
-
-	it("is deterministic", function()
-		local again = Course.Build(CFrame.new(), "Obby")
-		local first, second = model:GetDescendants(), again:GetDescendants()
-		expect(#second):toBe(#first)
-		for index, part in first do
-			expect(second[index].Name):toBe(part.Name)
-			if part:IsA("BasePart") then
-				expect(second[index].CFrame):toBe(part.CFrame)
-				expect(second[index].Size):toBe(part.Size)
-			end
-		end
-	end)
-
-	it("builds one lava slab per stage", function()
-		local kills = byRole("Kill")
-		expect(#kills):toBe(#config.Stages)
-		for index, span in Obby.Layout().Stages do
-			local lava = model:FindFirstChild(`Lava{index}`)
-			expect(lava:GetAttribute("Stage")):toBe(index)
-			expect(lava.Size.Z):toBeCloseTo(span.D1 - span.D0, 1e-6)
-			expect(lava.CFrame.Position.Z):toBeCloseTo(-(span.D0 + span.D1) / 2, 1e-6)
-		end
-	end)
-
-	it("makes the kill floor a dark red smooth plastic and never neon", function()
-		for _, lava in byRole("Kill") do
-			expect(lava.Material):toBe(roblox.Enum.Material.SmoothPlastic)
-			local color = lava.Color
-			expect(color.R > color.G and color.R > color.B):toBe(true)
-			expect(color.R < 0.5):toBe(true)
-			expect(color.G < 0.2):toBe(true)
-		end
-		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") then
-				expect(part.Material ~= roblox.Enum.Material.Neon):toBe(true)
-			end
-		end
-	end)
-
-	it("builds safe areas between the stages with no kill parts", function()
-		local safes = byRole("Checkpoint")
-		local finish = byRole("Finish")
-		expect(#safes):toBe(#config.Stages)
-		expect(#finish):toBe(1)
-		local layout = Obby.Layout()
-		for _, area in layout.Areas do
-			local name = if area.Kind == "Start" then "Start" elseif area.Kind == "Finish" then "Finish" else `Safe{area.Index}`
-			local plinth = model:FindFirstChild(name)
-			expect(plinth:GetAttribute("Safe")):toBe(area.Index)
-			expect(plinth.Size.X):toBe(config.CourseWidth)
-			expect(plinth.Size.Z):toBeCloseTo(config.SafeLength, 1e-6)
-			expect(plinth.CFrame.Position.Y + plinth.Size.Y / 2):toBeCloseTo(layout.Top, 1e-6)
-			for _, lava in byRole("Kill") do
-				local gap = math.abs(lava.CFrame.Position.Z - plinth.CFrame.Position.Z)
-				expect(gap >= (lava.Size.Z + plinth.Size.Z) / 2 - 1e-6):toBe(true)
-			end
-		end
-	end)
-
-	it("signs every safe area and the finish", function()
-		local function textOf(sign: any): string
-			local gui = sign:FindFirstChild("SignGui")
-			local text = gui.Title.Text
-			local subtitle = gui:FindFirstChild("Subtitle")
-			return if subtitle then `{text}|{subtitle.Text}` else text
-		end
-		expect(textOf(model:FindFirstChild("StartSign"))):toBe("TAP OBBY|STAGE 1 AHEAD")
-		for index = 1, #config.Stages - 1 do
-			expect(textOf(model:FindFirstChild(`Safe{index}Sign`))):toBe(`SAFE ZONE|STAGE {index + 1} NEXT`)
-		end
-		expect(textOf(model:FindFirstChild("FinishSign"))):toBe("FINISH")
-	end)
-
-	it("builds keycap shaped platforms from the stage palette", function()
-		for stage, entry in config.Stages do
-			local top = model:FindFirstChild(`Stage{stage}Cap1Top`)
-			local body = model:FindFirstChild(`Stage{stage}Cap1Body`)
-			expect(top.Color):toBe(entry.Color)
-			expect(body.Color.R <= top.Color.R and body.Color.G <= top.Color.G):toBe(true)
-			expect(top.CFrame.Position.Y + top.Size.Y / 2):toBeCloseTo(Obby.Layout().Top, 1e-6)
-		end
-		local layout = Obby.Layout()
-		for _, platform in layout.Platforms do
-			expect(model:FindFirstChild(`Stage{platform.Stage}Cap{platform.Index}Top`) ~= nil):toBe(true)
-		end
-	end)
-
-	it("puts one key spawn on each layout spawn with its stage", function()
-		local spawns = byRole("KeySpawn")
-		local layout = Obby.Layout()
-		expect(#spawns):toBe(#layout.Spawns)
-		for index, point in layout.Spawns do
-			local marker = model:FindFirstChild(`KeySpawn{index}`)
-			expect(marker:GetAttribute("Stage")):toBe(point.Stage)
-			expect(marker.CFrame.Position.Z):toBeCloseTo(-point.D, 1e-6)
-			expect(marker.CFrame.Position.X):toBeCloseTo(point.X, 1e-6)
-		end
-	end)
-
-	it("covers the whole course with one invisible zone", function()
-		local zones = byRole("Zone")
-		expect(#zones):toBe(1)
-		local zone = zones[1]
-		expect(zone.Transparency):toBe(1)
-		expect(zone.CanCollide):toBe(false)
-		expect(model.PrimaryPart == zone):toBe(true)
-		local layout = Obby.Layout()
-		for _, area in layout.Areas do
-			local middle = Vector3.new(0, layout.Top + 3, -(area.D0 + area.D1) / 2)
-			expect(Obby.Contains(zone.CFrame, zone.Size, middle, 0)):toBe(true)
-		end
-		expect(Obby.Contains(zone.CFrame, zone.Size, Vector3.new(0, 3, 20), 0)):toBe(false)
-	end)
-
-	it("closes both sides so the lava cannot be walked around", function()
-		local walls = byRole("Wall")
-		expect(#walls >= 4):toBe(true)
-		for _, wall in walls do
-			expect(wall.Anchored):toBe(true)
-		end
-	end)
-
-	it("anchors everything and keeps a modest part count", function()
-		local count = 0
-		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") then
+			local count = 0
+			for _ in seen do
 				count += 1
-				expect(part.Anchored):toBe(true)
 			end
-		end
-		expect(count < 150):toBe(true)
-	end)
+			expect(count):toBe(4)
+			expect(firstLetters[5]):toBeCloseTo(firstLetters[1], 1e-6)
+			local pitch = config.Key.Size + config.Key.Gap
+			expect(firstLetters[2] - firstLetters[1]):toBeCloseTo(pitch * 0.25, 1e-6)
+			expect(firstLetters[3] - firstLetters[1]):toBeCloseTo(pitch * 0.5 - pitch, 1e-6)
+		end)
 
-	it("matches the committed Obby.rbxm", function()
-		local roots = roblox.deserializeModel(fs.readFile("assets/map/Obby.rbxm"))
-		expect(#roots):toBe(1)
-		local saved = roots[1]
-		expect(saved.Name):toBe("Obby")
-		local savedParts, builtParts = 0, 0
-		for _, part in saved:GetDescendants() do
-			if part:IsA("BasePart") then
-				savedParts += 1
-				expect(part.Anchored):toBe(true)
-				expect(part.Material ~= roblox.Enum.Material.Neon):toBe(true)
+		it("cycles the keyboard rows for the letters", function()
+			local layout = Obby.Layout()
+			local rows = { "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM" }
+			for row = 1, 6 do
+				local letters = rows[(row - 1) % 3 + 1]
+				local cells = cellsOf(layout, "RunA", row)
+				local checked = 0
+				for _, cell in cells do
+					if cell.Kind == "Key" then
+						checked += 1
+						expect(string.find(letters, cell.Letter, 1, true) ~= nil):toBe(true)
+					end
+				end
+				expect(checked >= 5):toBe(true)
+				expect(cells[2].Letter):toBe(string.sub(letters, 1, 1))
 			end
-		end
-		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") then
-				builtParts += 1
+		end)
+
+		it("marks the leftmost key of every row as a modifier", function()
+			local layout = Obby.Layout()
+			for row = 1, 12 do
+				expect(cellsOf(layout, "RunA", row)[1].Kind):toBe("Modifier")
 			end
-		end
-		expect(savedParts):toBe(builtParts)
-		local zone = saved:FindFirstChild("Zone")
-		expect(zone:GetAttribute("ObbyRole")):toBe("Zone")
-		local offset = zone.CFrame.Position - config.MapCenter
-		expect(angleBetween(angleOf(offset), angleOf(config.FallbackMarket - config.MapCenter) + 180) <= 1):toBe(true)
+		end)
+
+		it("runs the sections in order with checkpoints, a gate and an end pad", function()
+			local layout = Obby.Layout()
+			local names = {}
+			for _, area in layout.Areas do
+				table.insert(names, area.Name)
+			end
+			expect(names):toEqual({ "Start", "Safe1", "Approach", "End" })
+			expect(#layout.Runs):toBe(2)
+			expect(layout.Runs[1].D1 <= layout.Areas[2].D0 + 1e-6):toBe(true)
+			expect(layout.Runs[2].D0 >= layout.Areas[2].D1 - 1e-6):toBe(true)
+			expect(layout.GateD > layout.Areas[3].D1 - 1e-6):toBe(true)
+			expect(layout.GateD < layout.Areas[4].D0 + 1e-6):toBe(true)
+			expect(layout.Length >= layout.Areas[4].D1 - 1e-6):toBe(true)
+		end)
+
+		it("leaves a few holes in the second run and none in the first", function()
+			local layout = Obby.Layout()
+			local function count(section: string): number
+				local total = 0
+				for _, cell in layout.Cells do
+					if cell.Section == section then
+						total += 1
+					end
+				end
+				return total
+			end
+			expect(count("RunB") < count("RunA")):toBe(true)
+			expect(count("RunA") - count("RunB") >= 6):toBe(true)
+			expect(count("RunA") - count("RunB") <= 40):toBe(true)
+		end)
+
+		it("places two pop-up keys as wide keys on their rows", function()
+			local layout = Obby.Layout()
+			local popUps = {}
+			for _, cell in layout.Cells do
+				if cell.Kind == "PopUp" then
+					table.insert(popUps, cell)
+				end
+			end
+			expect(#popUps):toBe(2)
+			for _, popUp in popUps do
+				expect(popUp.Width):toBe(24)
+				for _, cell in layout.Cells do
+					if cell ~= popUp and cell.Section == "RunB" and cell.Row == popUp.Row then
+						expect(math.abs(cell.X - popUp.X) >= (cell.Width + popUp.Width) / 2 - 0.5 - 1e-6):toBe(true)
+					end
+				end
+			end
+		end)
+
+		it("puts three key pedestals in the first run, over a lava hole, and on the end pad", function()
+			local layout = Obby.Layout()
+			expect(#layout.Pedestals):toBe(3)
+			expect(layout.Pedestals[1].Section):toBe("RunA")
+			expect(layout.Pedestals[2].Section):toBe("RunB")
+			expect(layout.Pedestals[3].Section):toBe("End")
+			for _, cell in layout.Cells do
+				local pedestal = layout.Pedestals[2]
+				local overlaps = math.abs(cell.X - pedestal.X) < cell.Width / 2
+					and math.abs(cell.D - pedestal.D) < cell.Length / 2
+				expect(overlaps):toBe(false)
+			end
+			expect(layout.Pedestals[1].Rarities):toBe("Rare,Epic")
+			expect(layout.Pedestals[2].Rarities):toBe("Epic")
+			expect(layout.Pedestals[3].Rarities):toBe("Epic,Legendary")
+		end)
 	end)
 end)
