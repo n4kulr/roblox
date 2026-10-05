@@ -75,7 +75,7 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
    - **HUD top:** **SHOP left of MY BASE**, equal size. SHOP teleports to the market, and both are blocked while carrying a key (Travel module).
    - **HUD sides and bottom:** big square menu buttons with badges and tooltips; a huge ROLL button with Auto and Golden squares (the Golden fill rises with progress); stat chips.
    - The Kit icon tries IconAtlas first and falls back to Glyphs.
-3. **Roll popup:**
+3. **Roll popup (DONE, merged; `RollController/ResultCards.luau`):**
    - Fix the bug where two simultaneous results get their text cropped by an invisible element.
    - Make the reveal satisfying: Back-ease pop-in, a burst behind Rare+, shimmer and shake on Epic+, confetti and a banner on Legendary+, a gold Golden variant, and a cap on stacking during auto-roll.
 4. **Loading screen (DONE, merged; `src/first/Loading`, ReplicatedFirst):**
