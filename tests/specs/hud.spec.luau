@@ -233,22 +233,18 @@ describe("HUD", function()
 		expect(find(hudGui, "Settings").Face:FindFirstChild("Icon") ~= nil):toBe(true)
 	end)
 
-	it("falls back to Glyphs when the icon atlas has no image", function()
+	it("uses the uploaded icon atlas and falls back to Glyphs for names it lacks", function()
 		local Core = world:require(`{screens}.Kit.Core`)
 		local IconAtlas = world:require(`{screens}.IconAtlas`)
 		local holder = world:newInstance("Frame")
-		local original = IconAtlas.Apply
-		local wasUnfrozen = pcall(function()
-			IconAtlas.Apply = function()
-				return false
-			end
-		end)
-		local icon = Core.Icon({ Parent = holder, Glyph = "Keys" })
-		expect(icon.ClassName):toBe("Frame")
-		expect(icon:FindFirstChild("Art") ~= nil):toBe(true)
-		if wasUnfrozen then
-			IconAtlas.Apply = original
+		local atlasIcon = Core.Icon({ Parent = holder, Glyph = "Keys" })
+		if IconAtlas.Image ~= "" then
+			expect(atlasIcon.ClassName):toBe("ImageLabel")
+			expect(atlasIcon.Image):toBe(IconAtlas.Image)
 		end
+		local fallback = Core.Icon({ Parent = holder, Glyph = "NotAnAtlasIcon" })
+		expect(fallback.ClassName):toBe("Frame")
+		expect(fallback:FindFirstChild("Art") ~= nil):toBe(true)
 	end)
 
 	it("builds every glyph with children", function()

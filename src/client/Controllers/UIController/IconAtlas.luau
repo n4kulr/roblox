@@ -12,7 +12,7 @@ export type Atlas = {
 local IconAtlas: Atlas = nil :: any
 
 IconAtlas = table.freeze({
-	Image = "",
+	Image = "rbxassetid://103213574924512",
 	CellSize = 128,
 	Rects = table.freeze({
 		Keys = Vector2.new(0, 0),
