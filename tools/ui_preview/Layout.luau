@@ -549,6 +549,10 @@ function buildNode(node: any, parentW: number, parentH: number, k: number, force
 				color = rgb(read(node, "ImageColor3", roblox.Color3.new(1, 1, 1))),
 				alpha = read(node, "ImageTransparency", 0),
 				scaleType = enumName(read(node, "ScaleType", "Stretch")),
+				rectX = read(node, "ImageRectOffset", roblox.Vector2.new(0, 0)).X,
+				rectY = read(node, "ImageRectOffset", roblox.Vector2.new(0, 0)).Y,
+				rectW = read(node, "ImageRectSize", roblox.Vector2.new(0, 0)).X,
+				rectH = read(node, "ImageRectSize", roblox.Vector2.new(0, 0)).Y,
 				tileW = round(tile.X.Scale * w + tile.X.Offset * kn),
 				tileH = round(tile.Y.Scale * h + tile.Y.Offset * kn),
 			}
