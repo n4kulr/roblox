@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local packages = ReplicatedStorage:WaitForChild("Packages")
 packages:WaitForChild("Trove")
@@ -16,3 +17,4 @@ end)
 
 runtime:Start()
 script:SetAttribute("Ready", true)
+Players.LocalPlayer:SetAttribute("ClientReady", true)

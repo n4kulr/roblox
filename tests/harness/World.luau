@@ -396,6 +396,15 @@ local function makeFakeServices(world)
 			return tween
 		end,
 	}
+	services.ReplicatedFirst = {
+		RemoveDefaultLoadingScreen = function()
+			world.defaultScreenRemovals += 1
+		end,
+	}
+	services.ContentProvider = {
+		RequestQueueSize = 0,
+		PreloadAsync = function() end,
+	}
 	services.UserInputService = {
 		InputBegan = world:require("ReplicatedStorage.Packages.Signal").new(),
 		InputChanged = world:require("ReplicatedStorage.Packages.Signal").new(),
@@ -451,6 +460,8 @@ function World.new(
 		nameFailures = 0,
 		nameLookups = 0,
 		_kicked = {} :: { any },
+		gameLoaded = true,
+		defaultScreenRemovals = 0,
 	}, World)
 
 	self.task = makeScheduler(self)
@@ -557,7 +568,7 @@ function World._makeGame(self)
 		return world.tree:FindFirstChild(name)
 	end
 	function game.IsLoaded()
-		return true
+		return world.gameLoaded
 	end
 	return setmetatable(game, {
 		__rbxtype = "Instance",
@@ -784,6 +795,13 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		end
 		return nil
 	end
+	player.WaitForChild = function(p: any, childName: string)
+		local child = p:FindFirstChild(childName)
+		if not child then
+			error(`harness: player has no child {childName}`, 2)
+		end
+		return child
+	end
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"
 	end
@@ -821,6 +839,13 @@ function World.newInstance(self, className: string)
 		if className == "UIScale" then
 			node.Scale = 1
 		end
+	end
+	if className == "Sound" then
+		node.Plays = 0
+		node.Play = function(sound: any)
+			sound.Plays += 1
+		end
+		node.Stop = function() end
 	end
 	if className == "ProximityPrompt" then
 		node.Triggered = Signal.new()
