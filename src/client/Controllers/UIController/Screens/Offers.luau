@@ -25,7 +25,7 @@ local offerHeight = 52
 local menuGap = 8
 local effectWidth = 72
 local effectHeight = 56
-local multipliersHeight = 64
+local multipliersHeight = 148
 local refreshSeconds = 0.25
 
 local function multiplierLabel(value: number): string
@@ -140,9 +140,9 @@ function Offers.new(context: Types.Context): Types.Screen
 		})
 		return { Frame = frame, Multiplier = multiplierText, Timer = timer }
 	end
-	local luckPill = boostPill("LuckPotion", "Luck", 1)
+	local luckPill = boostPill("LuckPotion", "Flask", 1)
 	local clicksPill = boostPill("ClicksPotion", "Coin", 2)
-	local serverPill = boostPill("ServerLuck", "Star", 3)
+	local serverPill = boostPill("ServerLuck", "Globe", 3)
 
 	local function showPill(pill: BoostPill, multiplier: number, secondsLeft: number)
 		local isActive = secondsLeft > 0

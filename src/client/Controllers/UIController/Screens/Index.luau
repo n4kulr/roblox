@@ -17,8 +17,8 @@ type Filter = {
 
 local theme = Kit.Theme
 local refreshSeconds = 0.2
-local filterWidth = 124
-local filterHeight = 44
+local filterWidth = 150
+local filterHeight = 48
 
 local IndexScreen = {}
 
@@ -36,25 +36,25 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Index",
 		Title = "INDEX",
-		Icon = "📘",
+		Glyph = "Index",
 		IconAsset = UiAssets.Icons.Index,
-		MaxSize = Vector2.new(700, 520),
+		MaxSize = Vector2.new(900, 640),
 		HeaderColor = theme.Blue,
 		OnClose = function()
 			context.Close("Index")
 		end,
 		Sound = playUi,
 	})
-	local foundLabel = Kit.Label({
+	local foundPill = Kit.Pill({
 		Parent = modal.HeaderRight,
 		Name = "Found",
+		Glyph = "Star",
 		Text = "Found 0/0",
 		Size = UDim2.fromOffset(190, 40),
-		TextSize = 28,
-		Color = theme.Gold,
-		Align = Enum.TextXAlignment.Right,
-		Scaled = true,
+		TextSize = 22,
+		Color = theme.Track,
 	})
+	local foundLabel = foundPill.Label
 	local grid = Kit.GridScroll({
 		Parent = modal.Body,
 		Name = "Grid",
@@ -68,7 +68,7 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(1, -(filterWidth + 10), 0, 6),
 		AnchorPoint = Vector2.zero,
 		Size = UDim2.new(0, filterWidth + 14, 1, -12),
-		Padding = 6,
+		Padding = 10,
 	})
 
 	local function applyFilter()

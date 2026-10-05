@@ -41,9 +41,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Keys",
 		Title = "KEYS",
-		Icon = "🔑",
+		Glyph = "Keys",
 		IconAsset = UiAssets.Icons.Keys,
-		MaxSize = Vector2.new(700, 520),
+		MaxSize = Vector2.new(900, 640),
 		HeaderColor = theme.Purple,
 		OnClose = function()
 			context.Close("Keys")
@@ -55,10 +55,12 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	Kit.Button(trove, {
 		Parent = modal.HeaderRight,
 		Name = "EquipBest",
-		Text = "⭐ EQUIP BEST",
-		Size = UDim2.fromOffset(190, 46),
+		Text = "EQUIP BEST",
+		Glyph = "Sparkle",
+		IconLeft = true,
+		Size = UDim2.fromOffset(210, 46),
 		Color = theme.Green,
-		TextSize = 24,
+		TextSize = 22,
 		Callback = function()
 			if isEquipping then
 				return
@@ -69,7 +71,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				isEquipping = false
 				if success == true then
 					playUi("Confirm")
-					context.Toast("Equipped your best keys! ⭐", "Good")
+					context.Toast("Equipped your best keys!", "Good")
 				else
 					playUi("Error")
 					context.Toast("Your keyboard is already the best!", "Info")
@@ -78,27 +80,29 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end,
 		Sound = playUi,
 	})
-	local boardLabel = Kit.Label({
+	local boardPill = Kit.Pill({
 		Parent = body,
-		Name = "BoardCount",
+		Name = "BoardCountPill",
+		Glyph = "Slots",
 		Text = "Keys on your keyboard: 0/10",
-		Position = UDim2.fromOffset(12, 6),
-		Size = UDim2.new(1, -24, 0, 26),
+		Position = UDim2.new(0.5, 0, 0, Kit.Space.M),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.fromOffset(380, 40),
 		TextSize = 20,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
 	})
+	local boardLabel = boardPill.Label
+	boardLabel.Name = "BoardCount"
 	local grid = Kit.GridScroll({
 		Parent = body,
 		Name = "Grid",
-		Position = UDim2.fromOffset(6, 36),
-		Size = UDim2.new(1, -12, 1, -42),
+		Position = UDim2.fromOffset(6, 64),
+		Size = UDim2.new(1, -12, 1, -70),
 		CellSize = Cells.Size,
 	})
 	local emptyLabel = Kit.Label({
 		Parent = body,
 		Name = "Empty",
-		Text = "No keys yet! Hit 🎲 ROLL to find some!",
+		Text = "No keys yet! Hit ROLL to find some!",
 		Position = UDim2.new(0, 20, 0.5, -30),
 		Size = UDim2.new(1, -40, 0, 60),
 		TextSize = 26,
@@ -116,38 +120,41 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	overlay.Size = UDim2.fromScale(1, 1)
 	overlay.Visible = false
 	overlay.Parent = modal.Panel
-	Kit.Corner(overlay, 5)
+	Kit.Corner(overlay, Kit.Radius.Panel)
 	local detail = Kit.Panel({
 		Parent = overlay,
 		Name = "Detail",
-		Size = UDim2.fromOffset(320, 338),
+		Size = UDim2.fromOffset(340, 400),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Color = theme.Slate,
+		Color = theme.Panel,
+		Radius = Kit.Radius.Panel,
 		StrokeThickness = 4,
+		Shards = true,
 	})
 	detail.Active = true
 	local detailPop = Instance.new("UIScale")
 	detailPop.Parent = detail
 	Kit.Burst({
 		Parent = detail,
-		Diameter = 150,
-		Position = UDim2.fromOffset(160, 72),
+		Diameter = 170,
+		Position = UDim2.fromOffset(170, 84),
 	})
 	local detailCap = Kit.Keycap({
 		Parent = detail,
 		Color = theme.Grey,
-		Size = UDim2.fromOffset(80, 80),
-		Position = UDim2.new(0.5, 0, 0, 28),
+		Size = UDim2.fromOffset(92, 92),
+		Position = UDim2.new(0.5, 0, 0, 36),
 		AnchorPoint = Vector2.new(0.5, 0),
 	})
 	local detailName = Kit.Label({
 		Parent = detail,
 		Name = "Name",
 		Text = "",
-		Position = UDim2.fromOffset(14, 112),
-		Size = UDim2.new(1, -28, 0, 34),
-		TextSize = 30,
+		Position = UDim2.fromOffset(14, 138),
+		Size = UDim2.new(1, -28, 0, 36),
+		TextSize = 32,
+		Title = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -155,7 +162,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "Info",
 		Text = "",
-		Position = UDim2.fromOffset(14, 146),
+		Position = UDim2.fromOffset(14, 176),
 		Size = UDim2.new(1, -28, 0, 22),
 		TextSize = 19,
 		Align = Enum.TextXAlignment.Center,
@@ -165,7 +172,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "Perk",
 		Text = "",
-		Position = UDim2.fromOffset(14, 168),
+		Position = UDim2.fromOffset(14, 200),
 		Size = UDim2.new(1, -28, 0, 22),
 		TextSize = 19,
 		Color = theme.Gold,
@@ -176,7 +183,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "Own",
 		Text = "",
-		Position = UDim2.fromOffset(14, 190),
+		Position = UDim2.fromOffset(14, 224),
 		Size = UDim2.new(1, -28, 0, 22),
 		TextSize = 17,
 		Color = theme.TextDim,
@@ -229,7 +236,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			isSelling = false
 			if success == true then
 				playUi("Confirm")
-				context.Toast(`Sold for {NumberFormat.Compact(value)} Clicks! 💰`, "Good")
+				context.Toast(`Sold for {NumberFormat.Compact(value)} Clicks!`, "Good")
 			else
 				playUi("Error")
 				context.Toast("Oops, couldn't sell that!", "Bad")
@@ -259,9 +266,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		detailCap.SetGlyph(Cells.Glyph(key))
 		detailName.Text = key.Name
 		detailName.TextColor3 = Kit.Shade(rarity.Color, 0.2)
-		detailInfo.Text = `{rarity.Name}  •  +{NumberFormat.Compact(rarity.Income)}/s`
+		detailInfo.Text = `{rarity.Name}  |  +{NumberFormat.Compact(rarity.Income)}/s`
 		detailPerk.Text = Cells.PerkText(key) or ""
-		detailOwn.Text = `You have {spare + onBoard}  •  {onBoard} on keyboard  •  {spare} spare`
+		detailOwn.Text = `You have {spare + onBoard}: {onBoard} on keyboard, {spare} spare`
 		local value = Keys.GetSellValue(keyId)
 		if spare < 1 then
 			sellOne.SetDisabled(true)
@@ -271,13 +278,13 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		sellOne.SetDisabled(false)
-		sellOne.SetText(`💰 SELL 1  +{NumberFormat.Compact(value)}`)
+		sellOne.SetText(`SELL 1  +{NumberFormat.Compact(value)}`)
 		sellAll.SetDisabled(false)
 		if isConfirming then
 			sellAll.SetText("Sure? Tap again!")
 			sellAll.SetColor(theme.Red)
 		else
-			sellAll.SetText(`💰 SELL SPARE  +{NumberFormat.Compact(value * spare)}`)
+			sellAll.SetText(`SELL SPARE  +{NumberFormat.Compact(value * spare)}`)
 			sellAll.SetColor(theme.Orange)
 		end
 	end
@@ -286,8 +293,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "SellOne",
 		Text = "SELL 1",
-		Position = UDim2.fromOffset(16, 220),
-		Size = UDim2.new(1, -32, 0, 50),
+		Glyph = "Coin",
+		IconLeft = true,
+		Position = UDim2.fromOffset(16, 264),
+		Size = UDim2.new(1, -32, 0, 56),
 		Color = theme.Green,
 		TextSize = 24,
 		Callback = function()
@@ -303,8 +312,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "SellAll",
 		Text = "SELL SPARE",
-		Position = UDim2.fromOffset(16, 278),
-		Size = UDim2.new(1, -32, 0, 50),
+		Glyph = "Income",
+		IconLeft = true,
+		Position = UDim2.fromOffset(16, 332),
+		Size = UDim2.new(1, -32, 0, 56),
 		Color = theme.Orange,
 		TextSize = 24,
 		Callback = function()
@@ -388,7 +399,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 					local stolenFrom = tags[keyId]
 					stolenChip.Visible = stolenFrom ~= nil
 					if stolenFrom then
-						stolenLabel.Text = `🦹 Stolen from {stolenFrom}`
+						stolenLabel.Text = `Stolen from {stolenFrom}`
 					end
 				end
 			end
