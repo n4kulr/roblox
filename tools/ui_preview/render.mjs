@@ -172,7 +172,22 @@ function renderNode(node) {
     } else if (node.image.scaleType === "Crop") {
       size = "cover";
     }
-    if (url) {
+    const isAtlas = typeof node.image.id === "string" && node.image.id.includes("preview-atlas");
+    if (isAtlas) {
+      const atlasUrl = `file://${path.join(repoRoot, "assets/ui/icons.png")}`;
+      const rw = node.image.rectW || 1024;
+      const rh = node.image.rectH || 1024;
+      const sx = node.w / rw;
+      const sy = node.h / rh;
+      const geometry = `${(1024 * sx).toFixed(2)}px ${(1024 * sy).toFixed(2)}px`;
+      const position = `${(-(node.image.rectX || 0) * sx).toFixed(2)}px ${(-(node.image.rectY || 0) * sy).toFixed(2)}px`;
+      const rounding = node.corner ? `;border-radius:${node.corner}px` : "";
+      const picture = `position:absolute;inset:0;background:url('${atlasUrl}') ${position}/${geometry} no-repeat${rounding}`;
+      const tinted = isWhite
+        ? ""
+        : `<div style="position:absolute;inset:0;mix-blend-mode:multiply;background-color:${css(tint)};-webkit-mask:url('${atlasUrl}') ${position}/${geometry} no-repeat;mask:url('${atlasUrl}') ${position}/${geometry} no-repeat"></div>`;
+      inner.push(`<div style="position:absolute;inset:0;isolation:isolate;opacity:${opacity}"><div style="${picture}"></div>${tinted}</div>`);
+    } else if (url) {
       const layer = [
         "position:absolute;inset:0",
         `opacity:${opacity}`,

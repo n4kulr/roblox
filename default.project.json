@@ -7,6 +7,10 @@
   "tree": {
     "$className": "DataModel",
     "$ignoreUnknownInstances": true,
+    "ReplicatedFirst": {
+      "$ignoreUnknownInstances": true,
+      "$path": "src/first"
+    },
     "ReplicatedStorage": {
       "$ignoreUnknownInstances": true,
       "$path": "src/shared",

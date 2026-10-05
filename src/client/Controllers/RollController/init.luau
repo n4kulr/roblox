@@ -5,7 +5,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
-local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
@@ -16,9 +15,9 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
-local Kit = require(script.Parent.UIController.Kit)
 local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
+local ResultCards = require(script.ResultCards)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -30,18 +29,9 @@ local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
 local releaseDelay = 0.07
-local cardHeight = 82
-local slotMaxWidth = 440
-local slotShare = 0.45
-local slotGap = 36
-local rowGap = 16
-local nameTextSize = 46
-local subTextSize = 24
 local pauseSeconds = 1
 local slideSeconds = 0.3
 local fadeSeconds = 0.25
-local fastFadeSeconds = 0.15
-local cardBottomOffset = 124
 local goldColor = Color3.fromRGB(255, 210, 64)
 
 local rarityRank: { [string]: number } = {}
@@ -93,371 +83,8 @@ for _, rarity in Keys.Rarities do
 	end
 end
 
-type Role = "Rail" | "Fading" | "Common"
-
-type View = {
-	Holder: Frame,
-	Group: CanvasGroup,
-	Scale: UIScale,
-	Name: TextLabel,
-	NameStroke: UIStroke,
-	NameGradient: UIGradient,
-	Row: Frame,
-	Sub: TextLabel,
-	Info: TextLabel,
-	Tweens: { Tween },
-	Role: Role?,
-	Token: number,
-	Fit: number,
-}
-
-type Payload = {
-	Key: Keys.Key,
-	Rarity: Keys.Rarity,
-	IsGolden: boolean,
-}
-
-local slotAnchor: { [ResultSlots.Slot]: number } = { Center = 0.5, Left = 1, Right = 0 }
-local slotOffset: { [ResultSlots.Slot]: number } = { Center = 0, Left = -slotGap, Right = slotGap }
-local slotAlign: { [ResultSlots.Slot]: Enum.TextXAlignment } = {
-	Center = Enum.TextXAlignment.Center,
-	Left = Enum.TextXAlignment.Right,
-	Right = Enum.TextXAlignment.Left,
-}
-
-local views: { View } = {}
-local railView: View? = nil
-local commonView: View? = nil
 local resultSlots: ResultSlots.ResultSlots? = nil
-local cardGui: ScreenGui? = nil
-local cardScale: UIScale? = nil
-local flashFrame: Frame? = nil
-
-local function buildView(parent: Instance, index: number): View
-	local holder = Instance.new("Frame")
-	holder.Name = `Holder{index}`
-	holder.BackgroundTransparency = 1
-	holder.AnchorPoint = Vector2.new(0.5, 1)
-	holder.Position = UDim2.new(0.5, 0, 1, -cardBottomOffset)
-	holder.Size = UDim2.fromOffset(slotMaxWidth, cardHeight)
-	holder.Visible = false
-	holder.Parent = parent
-	local scale = Instance.new("UIScale")
-	scale.Parent = holder
-	local group = Instance.new("CanvasGroup")
-	group.Name = "Group"
-	group.BackgroundTransparency = 1
-	group.BorderSizePixel = 0
-	group.Size = UDim2.fromScale(1, 1)
-	group.Parent = holder
-	local nameLabel = Kit.Label({
-		Parent = group,
-		Name = "KeyName",
-		Size = UDim2.fromOffset(0, 50),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0),
-		TextSize = nameTextSize,
-		Align = Enum.TextXAlignment.Center,
-	})
-	nameLabel.AutomaticSize = Enum.AutomaticSize.X
-	nameLabel.TextTruncate = Enum.TextTruncate.None
-	local nameStroke = nameLabel:FindFirstChild("TextStroke") :: UIStroke
-	nameStroke.Thickness = 3.5
-	local nameGradient = Instance.new("UIGradient")
-	nameGradient.Color = ColorSequence.new(Color3.fromRGB(255, 240, 150), Color3.fromRGB(255, 150, 20))
-	nameGradient.Rotation = 90
-	nameGradient.Enabled = false
-	nameGradient.Parent = nameStroke
-	local row = Instance.new("Frame")
-	row.Name = "Row"
-	row.BackgroundTransparency = 1
-	row.BorderSizePixel = 0
-	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.Position = UDim2.new(0.5, 0, 0, 52)
-	row.Size = UDim2.fromOffset(0, 26)
-	row.AutomaticSize = Enum.AutomaticSize.X
-	local rowList = Instance.new("UIListLayout")
-	rowList.FillDirection = Enum.FillDirection.Horizontal
-	rowList.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	rowList.VerticalAlignment = Enum.VerticalAlignment.Center
-	rowList.SortOrder = Enum.SortOrder.LayoutOrder
-	rowList.Padding = UDim.new(0, rowGap)
-	rowList.Parent = row
-	row.Parent = group
-	local sub = Kit.Label({
-		Parent = row,
-		Name = "Sub",
-		Size = UDim2.fromOffset(0, 26),
-		TextSize = subTextSize,
-		Align = Enum.TextXAlignment.Right,
-		LayoutOrder = 1,
-	})
-	sub.AutomaticSize = Enum.AutomaticSize.X
-	sub.TextTruncate = Enum.TextTruncate.None
-	local info = Kit.Label({
-		Parent = row,
-		Name = "Info",
-		Size = UDim2.fromOffset(0, 26),
-		TextSize = subTextSize,
-		Color = Kit.Theme.Good,
-		Align = Enum.TextXAlignment.Left,
-		LayoutOrder = 2,
-	})
-	info.AutomaticSize = Enum.AutomaticSize.X
-	info.TextTruncate = Enum.TextTruncate.None
-	return {
-		Holder = holder,
-		Group = group,
-		Scale = scale,
-		Name = nameLabel,
-		NameStroke = nameStroke,
-		NameGradient = nameGradient,
-		Row = row,
-		Sub = sub,
-		Info = info,
-		Tweens = {},
-		Role = nil,
-		Token = 0,
-		Fit = 1,
-	}
-end
-
-local function buildCard(trove: TroveInstance, playerGui: PlayerGui)
-	local gui, root = Kit.ScreenGui("RollCard", 3, playerGui, trove)
-	cardGui = gui
-	cardScale = root:FindFirstChild("ViewportScale") :: UIScale?
-	table.clear(views)
-	for index = 1, 2 do
-		table.insert(views, buildView(root, index))
-	end
-	resultSlots = ResultSlots.new({
-		PauseSeconds = pauseSeconds,
-		SlideSeconds = slideSeconds,
-		FadeSeconds = fadeSeconds,
-	})
-	local flashGui = Instance.new("ScreenGui")
-	flashGui.Name = "RollFlash"
-	flashGui.ResetOnSpawn = false
-	flashGui.IgnoreGuiInset = true
-	flashGui.DisplayOrder = 4
-	local flash = Instance.new("Frame")
-	flash.Name = "Flash"
-	flash.BorderSizePixel = 0
-	flash.BackgroundColor3 = goldColor
-	flash.BackgroundTransparency = 1
-	flash.Size = UDim2.fromScale(1, 1)
-	flash.Active = false
-	flash.Parent = flashGui
-	flashGui.Parent = playerGui
-	flashFrame = flash
-	trove:Add(flashGui)
-end
-
-local function cancelViewTweens(view: View)
-	view.Token += 1
-	for _, active in view.Tweens do
-		active:Cancel()
-		active:Destroy()
-	end
-	table.clear(view.Tweens)
-end
-
-local function track(view: View, tween: Tween)
-	table.insert(view.Tweens, tween)
-	return tween
-end
-
-local function releaseView(view: View)
-	cancelViewTweens(view)
-	view.Holder.Visible = false
-	view.Role = nil
-	if view == railView then
-		railView = nil
-	end
-	if view == commonView then
-		commonView = nil
-	end
-end
-
-local function acquireView(): View
-	local order: { Role? } = { nil, "Common", "Fading", "Rail" }
-	for index = 1, 4 do
-		local wanted = order[index]
-		for _, view in views do
-			if view.Role == wanted then
-				return view
-			end
-		end
-	end
-	return views[1]
-end
-
-local function applyLayout(view: View, slot: ResultSlots.Slot)
-	local anchor = slotAnchor[slot]
-	view.Holder.AnchorPoint = Vector2.new(anchor, 1)
-	view.Holder.Position = UDim2.new(0.5, slotOffset[slot], 1, -cardBottomOffset)
-	view.Name.AnchorPoint = Vector2.new(anchor, 0)
-	view.Name.Position = UDim2.fromScale(anchor, 0)
-	view.Row.AnchorPoint = Vector2.new(anchor, 0)
-	view.Row.Position = UDim2.new(anchor, 0, 0, 52)
-	view.Name.TextXAlignment = slotAlign[slot]
-	view.Sub.TextXAlignment = slotAlign[slot]
-	view.Info.TextXAlignment = slotAlign[slot]
-end
-
-local function fitView(view: View)
-	local gui = cardGui
-	local scale = cardScale
-	local virtualWidth = if gui and scale and scale.Scale > 0 then gui.AbsoluteSize.X / scale.Scale else 1280
-	local maxWidth = math.min(slotMaxWidth, slotShare * virtualWidth)
-	local huge = Vector2.new(100000, 100000)
-	local nameWidth = TextService:GetTextSize(view.Name.Text, nameTextSize, Kit.Font, huge).X
-	local rowWidth = TextService:GetTextSize(view.Sub.Text, subTextSize, Kit.Font, huge).X
-		+ rowGap
-		+ TextService:GetTextSize(view.Info.Text, subTextSize, Kit.Font, huge).X
-	local content = math.max(nameWidth, rowWidth, 1)
-	local fit = math.min(1, maxWidth / content)
-	view.Fit = fit
-	view.Holder.Size = UDim2.fromOffset(maxWidth / fit, cardHeight)
-end
-
-local function showView(view: View, slot: ResultSlots.Slot, payload: Payload, isRare: boolean)
-	cancelViewTweens(view)
-	view.Role = if isRare then "Rail" else "Common"
-	if isRare then
-		railView = view
-		if commonView == view then
-			commonView = nil
-		end
-	else
-		commonView = view
-		if railView == view then
-			railView = nil
-		end
-	end
-	local key, rarity, isGolden = payload.Key, payload.Rarity, payload.IsGolden
-	view.Name.Text = key.Name
-	view.Name.TextColor3 = rarity.Color
-	view.NameGradient.Enabled = isGolden
-	view.NameStroke.Color = if isGolden then Color3.new(1, 1, 1) else Kit.Theme.TextInk
-	view.Sub.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
-	view.Sub.TextColor3 = rarity.Color
-	view.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
-	fitView(view)
-	applyLayout(view, slot)
-	view.Group.GroupTransparency = 0
-	view.Holder.Visible = true
-	if isLowGraphics then
-		view.Scale.Scale = view.Fit
-	else
-		view.Scale.Scale = 0.7 * view.Fit
-		local pop = track(
-			view,
-			TweenService:Create(
-				view.Scale,
-				TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-				{ Scale = view.Fit }
-			)
-		)
-		pop:Play()
-	end
-end
-
-local function slideView(view: View)
-	local slot: ResultSlots.Slot = "Left"
-	local anchor = slotAnchor[slot]
-	view.Name.TextXAlignment = slotAlign[slot]
-	view.Sub.TextXAlignment = slotAlign[slot]
-	view.Info.TextXAlignment = slotAlign[slot]
-	local info = TweenInfo.new(slideSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tweens = {
-		TweenService:Create(view.Holder, info, {
-			AnchorPoint = Vector2.new(anchor, 1),
-			Position = UDim2.new(0.5, slotOffset[slot], 1, -cardBottomOffset),
-		}),
-		TweenService:Create(
-			view.Name,
-			info,
-			{ AnchorPoint = Vector2.new(anchor, 0), Position = UDim2.fromScale(anchor, 0) }
-		),
-		TweenService:Create(
-			view.Row,
-			info,
-			{ AnchorPoint = Vector2.new(anchor, 0), Position = UDim2.new(anchor, 0, 0, 52) }
-		),
-	}
-	for _, tween in tweens do
-		track(view, tween):Play()
-	end
-end
-
-local function fadeView(view: View, isFast: boolean)
-	cancelViewTweens(view)
-	local token = view.Token
-	local seconds = if isFast then fastFadeSeconds else fadeSeconds
-	local info = TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	local fade = track(view, TweenService:Create(view.Group, info, { GroupTransparency = 1 }))
-	if not isLowGraphics then
-		local current = view.Holder.Position
-		track(
-			view,
-			TweenService:Create(view.Holder, info, {
-				Position = UDim2.new(
-					current.X.Scale,
-					current.X.Offset,
-					current.Y.Scale,
-					current.Y.Offset + 24
-				),
-			})
-		):Play()
-	end
-	fade.Completed:Once(function(state: Enum.PlaybackState)
-		if state == Enum.PlaybackState.Completed and view.Token == token then
-			view.Holder.Visible = false
-			view.Role = nil
-		end
-	end)
-	fade:Play()
-end
-
-local function runActions(actions: { ResultSlots.Action })
-	for _, action in actions do
-		if action.Kind == "Show" then
-			local view = if action.IsRare then acquireView() else commonView or acquireView()
-			if view.Role == "Rail" and view == railView then
-				railView = nil
-			end
-			showView(view, action.Slot, action.Payload :: Payload, action.IsRare)
-		elseif action.Kind == "Slide" then
-			if railView then
-				slideView(railView)
-			end
-		elseif action.Kind == "Fade" then
-			local view = if action.IsRare then railView else commonView
-			if view then
-				if action.IsRare then
-					railView = nil
-					view.Role = "Fading"
-				end
-				fadeView(view, action.Fast == true)
-			end
-		elseif action.Kind == "Hide" then
-			local view = if action.IsRare then railView else commonView
-			if view then
-				releaseView(view)
-			end
-		end
-	end
-end
-
-local function stopCard()
-	for _, view in views do
-		cancelViewTweens(view)
-	end
-	table.clear(views)
-	railView = nil
-	commonView = nil
-end
+local cards: ResultCards.ResultCards? = nil
 
 local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
 	local slots = resultSlots
@@ -470,8 +97,12 @@ local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
 	if isGolden then
 		hold += 1
 	end
-	local payload: Payload = { Key = key, Rarity = rarity, IsGolden = isGolden }
-	runActions(slots:Push(payload, isRare, hold, os.clock(), isLowGraphics))
+	local shown = cards
+	if not shown then
+		return
+	end
+	local payload: ResultCards.Payload = { Key = key, Rarity = rarity, IsGolden = isGolden }
+	shown:Run(slots:Push(payload, isRare, hold, os.clock(), isLowGraphics))
 end
 
 local function goldenFeedback()
@@ -479,18 +110,9 @@ local function goldenFeedback()
 	if legendaryRarity then
 		sounds:PlayReveal(legendaryRarity, "Roll")
 	end
-	local flash = flashFrame
-	if flash and not isLowGraphics then
-		flash.BackgroundTransparency = 0.35
-		local fadeOut = TweenService:Create(
-			flash,
-			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ BackgroundTransparency = 1 }
-		)
-		fadeOut.Completed:Once(function()
-			fadeOut:Destroy()
-		end)
-		fadeOut:Play()
+	local shown = cards
+	if shown then
+		shown:Flash(goldColor, 0.35, 0.4)
 	end
 	local part = rollKey
 	if part then
@@ -853,17 +475,26 @@ function RollController.Start(self: State)
 	end))
 	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
 	if playerGui then
-		buildCard(trove, playerGui)
+		cards = ResultCards.new(playerGui, trove, function()
+			return isLowGraphics
+		end)
+		resultSlots = ResultSlots.new({
+			PauseSeconds = pauseSeconds,
+			SlideSeconds = slideSeconds,
+			FadeSeconds = fadeSeconds,
+		})
 	end
 	trove:Connect(UserInputService.InputBegan, onInput)
 	trove:Connect(UserInputService.InputEnded, onInputEnded)
-	trove:Connect(RunService.Heartbeat, function()
+	trove:Connect(RunService.Heartbeat, function(dt: number)
 		if isAuto then
 			press(true)
 		end
 		local slots = resultSlots
-		if slots then
-			runActions(slots:Tick(os.clock()))
+		local shown = cards
+		if slots and shown then
+			shown:Run(slots:Tick(os.clock()))
+			shown:Step(dt)
 		end
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
@@ -893,11 +524,8 @@ function RollController.Destroy(self: State)
 	plot = nil
 	rollKey = nil
 	disconnectKeyWatch()
-	stopCard()
+	cards = nil
 	resultSlots = nil
-	cardGui = nil
-	cardScale = nil
-	flashFrame = nil
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

@@ -1,4 +1,7 @@
 #!/bin/bash
+# usage: [PREVIEW_ATLAS=1] run.sh [outDir] [WxH] [screen]
+# PREVIEW_ATLAS=1 sets the ReplicatedStorage attribute IconAtlasPreview so IconAtlas.Apply
+# uses assets/ui/icons.png (rendered as rbxassetid://preview-atlas) while IconAtlas.Image is empty.
 set -e
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 out="${1:-$root/ui-preview}"

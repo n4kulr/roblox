@@ -32,7 +32,9 @@ The preview step needs Pillow (`pip install pillow`). `tests/specs/map.spec.luau
 
 ## Keyboard Escape obby
 
-The obby is a giant keyboard you run across. Every key you step on presses down with a click and gives +speed (`GameConfig.Obby`: 24 base, +0.25 per tap, cap 80). Speed gets you past the obstacles further along. It is built at runtime from `GameConfig.Obby` (96 studs wide, opposite the Key Market, 64 studs from the map center) only when `workspace` has no model named `Obby`. To author it yourself, put a Model named `Obby` in Workspace. `lune run tools/export_obby` writes the generated level to `assets/map/Obby.rbxm` (ignored by version control) as a starting point.
+The obby is a giant keyboard you run across. Every key you step on presses down with a click and gives +speed (`GameConfig.Obby`: 24 base, +1 per tap, cap 80). Keys are the same cream keycaps as the floor of your base at double size (6.56 wide, 2.2 tall, 0.24 gap, 14 columns across 96 studs), with no letters; pop-up keys use the Epic rarity color. Speed gets you past the obstacles further along.
+
+**To use the committed model:** drag `assets/map/Obby.rbxm` into Workspace. The game uses a model named `Obby` instead of building one, so edit it freely (move, delete or add parts). It is already placed at the entrance. `lune run tools/export_obby` regenerates it from the runtime builder; a spec fails if the committed file drifts from the builder. The model uses plain Parts for keys; at runtime the server swaps every `TapKey` and `PopUpKey` for the Keycap mesh (same size, color, attributes), so authored keys look like base keys too.
 
 Level 1 layout, entrance first: start pad (checkpoint), 12 rows of keys, safe area 1 (checkpoint + HOME pad), 12 rows over a maroon lava pit with missing keys and two pop-up keys (SHIFT, ENTER), speed gate (NEED 40 SPEED), end pad (checkpoint + HOME pad, "LEVEL 1 COMPLETE"). Three key pedestals: run A, over a lava hole in run B, and on the end pad.
 
