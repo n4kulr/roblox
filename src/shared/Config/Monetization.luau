@@ -25,21 +25,21 @@ local passes: { Pass } = {
 	{
 		Id = "DoubleLuck",
 		AssetId = 0,
-		Name = "🍀 x2 Luck",
+		Name = "x2 Luck",
 		Description = "Double luck forever!",
 		PriceLabel = "199",
 	},
 	{
 		Id = "DoubleClicks",
 		AssetId = 0,
-		Name = "💰 x2 Clicks",
+		Name = "x2 Clicks",
 		Description = "Double Clicks forever!",
 		PriceLabel = "249",
 	},
 	{
 		Id = "Vip",
 		AssetId = 0,
-		Name = "👑 VIP",
+		Name = "VIP",
 		Description = "+10% Clicks and a VIP tag!",
 		PriceLabel = "299",
 	},
@@ -48,7 +48,7 @@ local passes: { Pass } = {
 table.insert(passes, {
 	Id = "SeasonPremium",
 	AssetId = 0,
-	Name = "🎟️ Premium Pass",
+	Name = "Premium Pass",
 	Description = "Unlock the premium Season Pass rewards!",
 	PriceLabel = "399",
 })
@@ -57,7 +57,7 @@ local products: { Product } = {
 	{
 		Id = "StarterPack",
 		AssetId = 0,
-		Name = "🎁 Starter Pack",
+		Name = "Starter Pack",
 		Description = "10K Clicks, 2x Luck potion and an Epic key!",
 		PriceLabel = "49",
 		Kind = "StarterPack",
@@ -67,7 +67,7 @@ local products: { Product } = {
 	{
 		Id = "LuckPotion",
 		AssetId = 0,
-		Name = "🍀 Luck Potion",
+		Name = "Luck Potion",
 		Description = "2x Luck for 15 minutes!",
 		PriceLabel = "29",
 		Kind = "LuckPotion",
@@ -77,7 +77,7 @@ local products: { Product } = {
 	{
 		Id = "ClicksPotion",
 		AssetId = 0,
-		Name = "💰 Clicks Potion",
+		Name = "Clicks Potion",
 		Description = "2x Clicks for 15 minutes!",
 		PriceLabel = "29",
 		Kind = "ClicksPotion",
@@ -87,7 +87,7 @@ local products: { Product } = {
 	{
 		Id = "ServerLuck",
 		AssetId = 0,
-		Name = "🌟 Server Luck",
+		Name = "Server Luck",
 		Description = "2x Luck for EVERYONE for 10 minutes!",
 		PriceLabel = "99",
 		Kind = "ServerLuck",
@@ -97,7 +97,7 @@ local products: { Product } = {
 	{
 		Id = "ClicksSmall",
 		AssetId = 0,
-		Name = "💵 Pile of Clicks",
+		Name = "Pile of Clicks",
 		Description = "+25K Clicks",
 		PriceLabel = "25",
 		Kind = "Clicks",
@@ -107,7 +107,7 @@ local products: { Product } = {
 	{
 		Id = "ClicksLarge",
 		AssetId = 0,
-		Name = "💰 Mountain of Clicks",
+		Name = "Mountain of Clicks",
 		Description = "+300K Clicks",
 		PriceLabel = "199",
 		Kind = "Clicks",

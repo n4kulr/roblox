@@ -9,7 +9,6 @@ local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
-local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Stats = require(ReplicatedStorage.Rules.Stats)
@@ -18,6 +17,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Kit = require(script.Parent.UIController.Kit)
+local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
 
 type TroveInstance = typeof(Trove.new())
@@ -336,7 +336,7 @@ local function showView(view: View, slot: ResultSlots.Slot, payload: Payload, is
 		end
 	end
 	local key, rarity, isGolden = payload.Key, payload.Rarity, payload.IsGolden
-	view.Name.Text = if isGolden then `⭐ {key.Name}` else key.Name
+	view.Name.Text = key.Name
 	view.Name.TextColor3 = rarity.Color
 	view.NameGradient.Enabled = isGolden
 	view.NameStroke.Color = if isGolden then Color3.new(1, 1, 1) else Kit.Theme.TextInk
@@ -825,14 +825,12 @@ function RollController.IsAuto(_self: State): boolean
 	return isAuto
 end
 
-function RollController.TeleportToBase(_self: State): boolean
-	local base = if plot then plot:FindFirstChild("Base") else nil
-	local character = Players.LocalPlayer.Character
-	if not base or not base:IsA("BasePart") or not character then
-		return false
-	end
-	character:PivotTo(base.CFrame * CFrame.new(0, base.Size.Y / 2 + FloorGrid.CapHeight + 3, 0))
-	return true
+function RollController.TeleportToBase(_self: State): (boolean, string?)
+	return Travel.ToBase(Players.LocalPlayer.Character, plot)
+end
+
+function RollController.TeleportToMarket(_self: State): (boolean, string?)
+	return Travel.ToMarket(Players.LocalPlayer.Character, workspace)
 end
 
 function RollController.Init(self: State, registry: { [string]: any })

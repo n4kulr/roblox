@@ -24,10 +24,10 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local cardHeight = 104
+local cardHeight = 112
 local refreshSeconds = 0.2
-local buyWidth = 150
-local iconSize = 84
+local buyWidth = 168
+local iconSize = 88
 
 local cardColors: { [string]: Color3 } = {
 	Luck = theme.Green,
@@ -36,20 +36,21 @@ local cardColors: { [string]: Color3 } = {
 	Income = theme.Gold,
 	Walls = theme.Orange,
 	LockTime = theme.Red,
+	Golden = theme.Pink,
 }
 
-local sections: { { Category: Upgrades.Category, Caption: string } } = {
-	{ Category = "Keys", Caption = "KEYS" },
-	{ Category = "Defense", Caption = "BASE DEFENSE" },
+local sections: { { Category: Upgrades.Category, Caption: string, Glyph: string } } = {
+	{ Category = "Keys", Caption = "KEYS", Glyph = "Keys" },
+	{ Category = "Defense", Caption = "BASE DEFENSE", Glyph = "Walls" },
 }
 local sectionStride = 1000
 local captionHeight = 26
 local lockRefreshSeconds = 0.25
 local lockCardHeight = 96
-local lockButtonWidth = 190
+local lockButtonWidth = 200
 local lockCardOrder = 900
 local lockReadyText = "LOCK BASE"
-local lockToast = "🔴 Lasers on! Your base is locked."
+local lockToast = "Lasers on! Your base is locked."
 local greyColor = Color3.fromRGB(120, 124, 134)
 
 local UpgradesScreen = {}
@@ -65,9 +66,9 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Upgrades",
 		Title = "UPGRADES",
-		Icon = "🛒",
+		Glyph = "Upgrades",
 		IconAsset = UiAssets.Icons.Upgrades,
-		MaxSize = Vector2.new(700, 520),
+		MaxSize = Vector2.new(860, 620),
 		HeaderColor = theme.Green,
 		OnClose = function()
 			context.Close("Upgrades")
@@ -77,9 +78,9 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(10, 8),
-		Size = UDim2.new(1, -20, 1, -16),
-		Padding = 10,
+		Position = UDim2.fromOffset(6, 4),
+		Size = UDim2.new(1, -12, 1, -8),
+		Padding = 12,
 	})
 
 	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
@@ -89,6 +90,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Speed = tracker.GetLevel("Speed"),
 			Slots = tracker.GetLevel("Slots"),
 			Income = tracker.GetLevel("Income"),
+			Golden = tracker.GetLevel("Golden"),
 		}
 		local nextLevels = table.clone(levels)
 		nextLevels[upgrade.Id] = level + 1
@@ -105,6 +107,13 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 				return string.format("Now: %.1f rolls/s", now.RollsPerSecond)
 			end
 			return string.format("%.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
+		end
+		if upgrade.Id == "Golden" then
+			local current = Stats.GoldenEvery({ Golden = level })
+			if isMaxed then
+				return `Now: every {current} rolls`
+			end
+			return `Every {current} → {Stats.GoldenEvery({ Golden = level + 1 })} rolls`
 		end
 		if upgrade.Id == "Income" then
 			local current = math.round(level * upgrade.PerLevel * 100)
@@ -144,17 +153,19 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local cost = Upgrades.Cost(row.Upgrade, level)
 		if not cost then
 			row.Buy.SetText("MAXED!")
+			row.Buy.SetIconVisible(false)
 			row.Buy.SetColor(theme.Yellow)
 			return
 		end
 		local balance = tracker.Balance()
 		if balance ~= nil and balance >= cost then
-			row.Buy.SetText(`BUY\n⌨️ {NumberFormat.Compact(cost)}`)
+			row.Buy.SetText(NumberFormat.Compact(cost))
+			row.Buy.SetIconVisible(true)
 			row.Buy.SetColor(theme.Green)
 		else
-			local missing = cost - (balance or 0)
-			row.Buy.SetText(`Need {NumberFormat.Compact(missing)} more!`)
-			row.Buy.SetColor(theme.Red)
+			row.Buy.SetText(NumberFormat.Compact(cost))
+			row.Buy.SetIconVisible(true)
+			row.Buy.SetColor(theme.Disabled)
 		end
 	end
 
@@ -174,7 +185,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local cost = Upgrades.Cost(row.Upgrade, level)
 		if not cost then
 			playUi("Confirm")
-			context.Toast("Already MAXED! 🎉", "Good")
+			context.Toast("Already MAXED!", "Good")
 			Kit.Pulse(row.Frame, theme.Gold)
 			return
 		end
@@ -202,82 +213,83 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		end)
 	end
 
-	local function addCaption(text: string, order: number)
-		Kit.Label({
+	local function addCaption(section: { Caption: string, Glyph: string }, order: number)
+		Kit.Section({
 			Parent = scroll,
-			Name = `Caption{text}`,
-			Text = text,
-			Size = UDim2.new(1, 0, 0, captionHeight),
-			TextSize = 22,
+			Name = `Caption{section.Caption}`,
+			Text = section.Caption,
+			Glyph = section.Glyph,
 			Color = theme.Gold,
 			LayoutOrder = order,
 		})
 	end
 
 	local function addCard(upgrade: Upgrades.Upgrade, order: number)
-		local emoji, title = string.match(upgrade.Name, "^(%S+)%s+(.+)$")
+		local color = cardColors[upgrade.Id] or theme.Green
 		local card = Kit.Panel({
 			Parent = scroll,
 			Name = upgrade.Id,
 			Size = UDim2.new(1, 0, 0, cardHeight),
-			Color = cardColors[upgrade.Id] or theme.Green,
+			Color = Kit.Shade(color, -0.12),
 			LayoutOrder = order,
 			Shards = true,
+			Radius = Kit.Radius.L,
 		})
-		local iconTile = Kit.Panel({
+		local iconTile = Kit.Plate({
 			Parent = card,
 			Name = "IconTile",
-			Position = UDim2.fromOffset(10, 10),
+			Position = UDim2.fromOffset(Kit.Space.M, (cardHeight - iconSize) / 2),
 			Size = UDim2.fromOffset(iconSize, iconSize),
-			Color = theme.Cell,
-			Transparency = 0.15,
+			Radius = Kit.Radius.L,
 		})
 		Kit.Burst({
 			Parent = iconTile,
 			Diameter = iconSize - 8,
+			Color = color,
 		})
 		Kit.Icon({
 			Parent = iconTile,
 			Name = "Icon",
-			Emoji = emoji or "⌨️",
-			Size = UDim2.fromScale(0.8, 0.8),
-			Position = UDim2.fromScale(0.1, 0.1),
+			Glyph = upgrade.Glyph,
+			Size = UDim2.fromScale(0.82, 0.82),
+			Position = UDim2.fromScale(0.09, 0.09),
 		})
-		local textLeft = iconSize + 22
-		local textWidth = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 26)
+		local textLeft = iconSize + Kit.Space.M * 2
+		local textRight = buyWidth + Kit.Space.M * 2
 		Kit.Label({
 			Parent = card,
 			Name = "Name",
-			Text = title or upgrade.Name,
-			Position = UDim2.fromOffset(textLeft, 5),
-			Size = textWidth,
-			TextSize = 26,
+			Text = upgrade.Name,
+			Position = UDim2.fromOffset(textLeft, 8),
+			Size = UDim2.new(1, -(textLeft + textRight), 0, 30),
+			TextSize = 28,
 			Scaled = true,
+			Title = true,
 		})
 		Kit.Label({
 			Parent = card,
 			Name = "Effect",
 			Text = upgrade.Effect,
-			Position = UDim2.fromOffset(textLeft, 32),
-			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 20),
+			Position = UDim2.fromOffset(textLeft, 38),
+			Size = UDim2.new(1, -(textLeft + textRight), 0, 20),
 			TextSize = 17,
-			Color = Color3.fromRGB(255, 244, 170),
+			Color = theme.Cream,
 			Scaled = true,
 		})
 		local previewLabel = Kit.Label({
 			Parent = card,
 			Name = "Preview",
 			Text = "",
-			Position = UDim2.fromOffset(textLeft, 53),
-			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 22),
+			Position = UDim2.fromOffset(textLeft, 60),
+			Size = UDim2.new(1, -(textLeft + textRight), 0, 22),
 			TextSize = 20,
 			Scaled = true,
 		})
 		local bar = Kit.Bar({
 			Parent = card,
 			Name = "Level",
-			Position = UDim2.fromOffset(textLeft, 77),
-			Size = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 22),
+			Position = UDim2.fromOffset(textLeft, 84),
+			Size = UDim2.new(1, -(textLeft + textRight), 0, 22),
 			Color = theme.Good,
 			Text = "Lv 0",
 			TextSize = 16,
@@ -294,11 +306,13 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Parent = card,
 			Name = "Buy",
 			Text = "BUY",
-			Position = UDim2.new(1, -10, 0.5, 0),
+			Glyph = "Clicks",
+			IconLeft = true,
+			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.new(0, buyWidth, 1, -20),
+			Size = UDim2.new(0, buyWidth, 1, -2 * Kit.Space.M - 4),
 			Color = theme.Green,
-			TextSize = 26,
+			TextSize = 28,
 			Callback = function()
 				buy(row)
 			end,
@@ -379,37 +393,53 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Parent = scroll,
 			Name = "LockBase",
 			Size = UDim2.new(1, 0, 0, lockCardHeight),
-			Color = theme.Red,
+			Color = Kit.Shade(theme.Red, -0.12),
 			LayoutOrder = order,
 			Shards = true,
+			Radius = Kit.Radius.L,
 		})
-		local textWidth = UDim2.new(1, -(lockButtonWidth + 42), 0, 30)
+		local tile = Kit.Plate({
+			Parent = lockCard,
+			Name = "IconTile",
+			Position = UDim2.fromOffset(Kit.Space.M, (lockCardHeight - 76) / 2),
+			Size = UDim2.fromOffset(76, 76),
+			Radius = Kit.Radius.L,
+		})
+		Kit.Icon({
+			Parent = tile,
+			Name = "Icon",
+			Glyph = "Lock",
+			Size = UDim2.fromScale(0.8, 0.8),
+			Position = UDim2.fromScale(0.1, 0.1),
+		})
+		local textLeft = 76 + Kit.Space.M * 2
 		Kit.Label({
 			Parent = lockCard,
 			Name = "Name",
-			Text = "🔴 LOCK BASE",
-			Position = UDim2.fromOffset(16, 12),
-			Size = textWidth,
-			TextSize = 28,
+			Text = "LOCK BASE",
+			Position = UDim2.fromOffset(textLeft, 14),
+			Size = UDim2.new(1, -(textLeft + lockButtonWidth + 24), 0, 34),
+			TextSize = 32,
 			Scaled = true,
+			Title = true,
 		})
 		lockDescription = Kit.Label({
 			Parent = lockCard,
 			Name = "Description",
 			Text = "",
-			Position = UDim2.fromOffset(16, 50),
-			Size = UDim2.new(1, -(lockButtonWidth + 42), 0, 28),
+			Position = UDim2.fromOffset(textLeft, 52),
+			Size = UDim2.new(1, -(textLeft + lockButtonWidth + 24), 0, 28),
 			TextSize = 20,
-			Color = Color3.fromRGB(255, 244, 170),
+			Color = theme.Cream,
 			Scaled = true,
 		})
 		lockButton = Kit.Button(trove, {
 			Parent = lockCard,
 			Name = "Lock",
 			Text = lockReadyText,
-			Position = UDim2.new(1, -10, 0.5, 0),
+			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.new(0, lockButtonWidth, 1, -20),
+			Size = UDim2.new(0, lockButtonWidth, 1, -2 * Kit.Space.M - 4),
 			Color = theme.Red,
 			TextSize = 28,
 			Callback = pressLock,
@@ -418,7 +448,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	end
 
 	for sectionIndex, section in sections do
-		addCaption(section.Caption, sectionIndex * sectionStride)
+		addCaption(section, sectionIndex * sectionStride)
 		if section.Category == "Defense" then
 			addLockCard(sectionIndex * sectionStride + lockCardOrder)
 		end

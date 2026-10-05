@@ -7,6 +7,7 @@ export type Category = "Keys" | "Defense"
 export type Upgrade = {
 	Id: UpgradeId,
 	Name: string,
+	Glyph: string,
 	Description: string,
 	Effect: string,
 	Category: Category,
@@ -19,7 +20,8 @@ export type Upgrade = {
 local list: { Upgrade } = {
 	{
 		Id = "Luck",
-		Name = "🍀 Lucky Charm",
+		Name = "Lucky Charm",
+		Glyph = "Luck",
 		Description = "Find rarer keys more often!",
 		Effect = "+10% Luck each level",
 		Category = "Keys",
@@ -30,7 +32,8 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "Speed",
-		Name = "⚡ Fast Fingers",
+		Name = "Fast Fingers",
+		Glyph = "Speed",
 		Description = "Roll keys even faster!",
 		Effect = "+0.5 rolls per second each level",
 		Category = "Keys",
@@ -41,7 +44,8 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "Slots",
-		Name = "⌨️ Bigger Keyboard",
+		Name = "Bigger Keyboard",
+		Glyph = "Slots",
 		Description = "Hold more keys and earn more Clicks!",
 		Effect = "+2 keyboard slots each level",
 		Category = "Keys",
@@ -52,7 +56,8 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "Income",
-		Name = "💰 Money Maker",
+		Name = "Money Maker",
+		Glyph = "Income",
 		Description = "Every key earns more Clicks!",
 		Effect = "+10% Clicks each level",
 		Category = "Keys",
@@ -64,6 +69,7 @@ local list: { Upgrade } = {
 	{
 		Id = "Golden",
 		Name = "Golden Touch",
+		Glyph = "Golden",
 		Description = "Reach your Golden Roll sooner!",
 		Effect = "-5 rolls to a Golden Roll each level",
 		Category = "Keys",
@@ -74,7 +80,8 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "Walls",
-		Name = "🧱 Taller Walls",
+		Name = "Taller Walls",
+		Glyph = "Walls",
 		Description = "Build your base walls higher!",
 		Effect = "+3 wall height each level",
 		Category = "Defense",
@@ -85,7 +92,8 @@ local list: { Upgrade } = {
 	},
 	{
 		Id = "LockTime",
-		Name = "🔴 Laser Lock",
+		Name = "Laser Lock",
+		Glyph = "LockTime",
 		Description = "Lasers block thieves for longer!",
 		Effect = "+10 seconds of lasers each level",
 		Category = "Defense",

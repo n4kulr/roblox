@@ -30,7 +30,7 @@ export type Cell = {
 }
 
 local theme = Kit.Theme
-local perkIcons: { [string]: string } = { Luck = "🍀", Speed = "⚡", Income = "💰" }
+local perkGlyphs: { [string]: string } = { Luck = "Luck", Speed = "Speed", Income = "Coin" }
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local unknownColor = Color3.fromRGB(122, 127, 138)
@@ -41,7 +41,7 @@ for index, rarity in Keys.Rarities do
 end
 
 local Cells = {
-	Size = UDim2.fromOffset(120, 140),
+	Size = UDim2.fromOffset(124, 150),
 	RarityRank = rarityRank,
 }
 
@@ -64,9 +64,17 @@ end
 function Cells.Glyph(key: Keys.Key): string
 	local perk = key.Perk
 	if perk then
-		return perkIcons[perk.Kind] or string.sub(key.Name, 1, 1)
+		return string.sub(key.Name, 1, 1)
 	end
 	return string.sub(key.Name, 1, 1)
+end
+
+function Cells.PerkGlyph(key: Keys.Key): string?
+	local perk = key.Perk
+	if not perk then
+		return nil
+	end
+	return perkGlyphs[perk.Kind]
 end
 
 function Cells.PerkText(key: Keys.Key): string?
@@ -79,46 +87,42 @@ function Cells.PerkText(key: Keys.Key): string?
 		then "Roll Speed"
 		elseif perk.Kind == "Income" then "Clicks"
 		else "Luck"
-	return `{perkIcons[perk.Kind]} +{percent}% {label}`
+	return `+{percent}% {label}`
 end
 
 function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local key = props.Key
 	local rarity = Keys.GetRarity(key)
+	local tint = Kit.Shade(rarity.Color, -0.3)
 	local cell = Kit.Panel({
 		Parent = props.Parent,
 		Name = key.Id,
 		Size = Cells.Size,
-		Color = theme.Cell,
+		Color = tint,
 		LayoutOrder = props.LayoutOrder,
+		Shards = true,
 	})
 	Kit.Burst({
 		Parent = cell,
-		Diameter = 104,
-		Position = UDim2.fromOffset(60, 58),
+		Diameter = 112,
+		Position = UDim2.fromOffset(62, 54),
+		Color = rarity.Color,
 	})
 	local keycap = Kit.Keycap({
 		Parent = cell,
 		Color = rarity.Color,
 		Glyph = Cells.Glyph(key),
 		Size = UDim2.fromOffset(62, 62),
-		Position = UDim2.new(0.5, 0, 0, 26),
+		Position = UDim2.new(0.5, 0, 0, 22),
 		AnchorPoint = Vector2.new(0.5, 0),
 	})
-	local strip = Instance.new("Frame")
-	strip.Name = "Strip"
-	strip.BorderSizePixel = 0
-	strip.BackgroundColor3 = rarity.Color
-	strip.Position = UDim2.new(0, 3, 1, -9)
-	strip.Size = UDim2.new(1, -6, 0, 6)
-	strip.Parent = cell
 	local nameLabel = Kit.Label({
 		Parent = cell,
 		Name = "Name",
 		Text = key.Name,
-		Position = UDim2.fromOffset(4, 88),
-		Size = UDim2.new(1, -8, 0, 22),
-		TextSize = 18,
+		Position = UDim2.fromOffset(4, 92),
+		Size = UDim2.new(1, -8, 0, 24),
+		TextSize = 19,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -126,9 +130,9 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Parent = cell,
 		Name = "Info",
 		Text = "",
-		Position = UDim2.fromOffset(4, 110),
-		Size = UDim2.new(1, -8, 0, 18),
-		TextSize = 15,
+		Position = UDim2.fromOffset(4, 118),
+		Size = UDim2.new(1, -8, 0, 20),
+		TextSize = 16,
 		Color = theme.Good,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -143,7 +147,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Parent = cell,
 			Name = "Count",
 			Text = "x1",
-			Size = UDim2.fromOffset(40, 20),
+			Size = UDim2.fromOffset(42, 22),
 			Position = UDim2.new(1, -4, 0, 4),
 			AnchorPoint = Vector2.new(1, 0),
 			Color = theme.Red,
@@ -153,11 +157,11 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		local tag = Kit.Chip({
 			Parent = cell,
 			Name = "OnBoard",
-			Text = "✓ ON BOARD",
-			Size = UDim2.fromOffset(68, 18),
+			Text = "ON BOARD",
+			Size = UDim2.fromOffset(70, 20),
 			Position = UDim2.fromOffset(4, 4),
 			Color = theme.Green,
-			TextSize = 12,
+			TextSize = 13,
 		})
 		local tagFrame = tag.Parent :: Frame
 		tagFrame.Visible = false
@@ -166,10 +170,10 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Parent = cell,
 			Name = "Stolen",
 			Text = "",
-			Size = UDim2.new(1, -8, 0, 16),
-			Position = UDim2.fromOffset(4, 70),
+			Size = UDim2.new(1, -8, 0, 18),
+			Position = UDim2.fromOffset(4, 72),
 			Color = theme.Orange,
-			TextSize = 12,
+			TextSize = 13,
 		})
 		local stolenFrame = stolen.Parent :: Frame
 		stolenFrame.Visible = false
@@ -221,7 +225,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			else
 				keycap.SetGlyph("?", theme.Gold)
 			end
-			strip.BackgroundColor3 = if isFound then rarity.Color else unknownColor
+			Kit.Paint(cell, if isFound then tint else Kit.Shade(unknownColor, -0.35))
 			nameLabel.Text = if isFound then key.Name else "???"
 			infoLabel.Text = info
 			infoLabel.TextColor3 = infoColor or theme.Good

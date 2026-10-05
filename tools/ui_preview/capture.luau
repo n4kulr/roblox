@@ -1,6 +1,9 @@
 local fs = require("@lune/fs")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
+local Enum = roblox.Enum
+local UDim2 = roblox.UDim2
+local Color3 = roblox.Color3
 local serde = require("@lune/serde")
 
 local H = require("../../tests/harness/Harness")
@@ -228,7 +231,54 @@ end
 
 local base = { "Hud", "Offers" }
 
-local scenarios: { { Name: string, Screens: { string }, Run: (any) -> () } } = {
+local function glyphSheet(scene: any, size: number)
+	local world = scene.World
+	local Glyphs = world:require(`{screensPath}.Glyphs`)
+	local gui = world:newInstance("ScreenGui")
+	gui.Name = "GlyphSheet"
+	gui.IgnoreGuiInset = true
+	local board = world:newInstance("Frame")
+	board.Size = UDim2.fromScale(1, 1)
+	board.BackgroundColor3 = Color3.fromRGB(60, 66, 140)
+	board.BorderSizePixel = 0
+	board.Parent = gui
+	local grid = world:newInstance("UIGridLayout")
+	grid.CellSize = UDim2.fromOffset(size + 40, size + 30)
+	grid.CellPadding = UDim2.fromOffset(4, 4)
+	grid.Parent = board
+	for _, name in Glyphs.Names do
+		local cell = world:newInstance("Frame")
+		cell.BackgroundTransparency = 1
+		cell.BorderSizePixel = 0
+		cell.Parent = board
+		Glyphs.Build(name, {
+			Parent = cell,
+			Size = UDim2.fromOffset(size, size),
+			Position = UDim2.fromOffset(20, 0),
+		})
+		local label = world:newInstance("TextLabel")
+		label.BackgroundTransparency = 1
+		label.BorderSizePixel = 0
+		label.Text = name
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextSize = 14
+		label.Font = Enum.Font.FredokaOne
+		label.Position = UDim2.fromOffset(0, size + 4)
+		label.Size = UDim2.new(1, 0, 0, 18)
+		label.Parent = cell
+	end
+	gui.Parent = scene.PlayerGui
+end
+
+local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (any) -> () } } = {
+	{
+		Name = "glyphs",
+		Screens = {},
+		NoBase = true,
+		Run = function(scene)
+			glyphSheet(scene, 72)
+		end,
+	},
 	{
 		Name = "hud",
 		Screens = {},
@@ -372,7 +422,9 @@ for _, scenario in scenarios do
 		local world = H.newWorld({ GuiSize = roblox.Vector2.new(width, height - 36), PrintErrors = true })
 		local ok, problem = pcall(function()
 			local scene = newScenario(world)
-			boot(scene, base)
+			if not scenario.NoBase then
+				boot(scene, base)
+			end
 			boot(scene, scenario.Screens)
 			tick(scene, 0.3)
 			scenario.Run(scene)

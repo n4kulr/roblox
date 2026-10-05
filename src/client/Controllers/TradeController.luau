@@ -124,7 +124,7 @@ local function onState(
 	if phase == phaseDone then
 		current = nil
 		TradeController.StateChanged:Fire(nil)
-		toast("✅ Trade complete!", "Good")
+		toast("Trade complete!", "Good")
 		return
 	end
 	if phase == phaseCancelled then
@@ -171,7 +171,7 @@ function TradeController.Request(_self: State, player: Player)
 	task.spawn(function()
 		local isSent = Packets.TradeRequest:Fire(player.UserId)
 		if isSent == true then
-			toast(`🤝 Trade request sent to {player.DisplayName}!`, "Info")
+			toast(`Trade request sent to {player.DisplayName}!`, "Info")
 		else
 			toast("They can't trade right now!", "Bad")
 		end
