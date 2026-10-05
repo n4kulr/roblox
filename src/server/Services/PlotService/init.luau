@@ -12,6 +12,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
+local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
@@ -40,6 +41,7 @@ local zapAlertPhase = 9
 local zapMessage = "🔴 The lasers zapped you!"
 local zapToastSeconds = 1.5
 local lastZap: { [Player]: number } = {}
+local respawnPoints: { [Player]: CFrame } = {}
 local hasWarnedSlots = false
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
@@ -227,6 +229,10 @@ local function render(info: PlotInfo, data: PlayerData.Data?)
 	end
 end
 
+local function homeCFrame(info: PlotInfo): CFrame
+	return info.Base.CFrame * CFrame.new(0, info.Base.Size.Y / 2 + capHeight + 3, 0)
+end
+
 local function teleport(player: Player, character: Model)
 	task.spawn(function()
 		local root = character:WaitForChild("HumanoidRootPart", 10)
@@ -234,7 +240,7 @@ local function teleport(player: Player, character: Model)
 		if not root or not info or character.Parent == nil then
 			return
 		end
-		character:PivotTo(info.Base.CFrame * CFrame.new(0, info.Base.Size.Y / 2 + capHeight + 3, 0))
+		character:PivotTo(respawnPoints[player] or homeCFrame(info))
 	end)
 end
 
@@ -242,7 +248,7 @@ local function applyWalkSpeed(character: Model)
 	task.spawn(function()
 		local humanoid = character:WaitForChild("Humanoid", 10)
 		if humanoid and humanoid:IsA("Humanoid") then
-			humanoid.WalkSpeed = GameConfig.Steal.NormalWalkSpeed
+			WalkSpeed.Refresh(character)
 		end
 	end)
 end
@@ -289,6 +295,7 @@ local function release(player: Player)
 	local info = plotByPlayer[player]
 	plotByPlayer[player] = nil
 	lastZap[player] = nil
+	respawnPoints[player] = nil
 	if info then
 		applyOwner(info, nil)
 		info.Model:SetAttribute("Owner", nil)
@@ -551,6 +558,24 @@ function PlotService.GetBase(_self: State, player: Player): BasePart?
 	return if info then info.Base else nil
 end
 
+function PlotService.SetRespawn(_self: State, player: Player, cframe: CFrame?)
+	if cframe then
+		respawnPoints[player] = cframe
+	else
+		respawnPoints[player] = nil
+	end
+end
+
+function PlotService.SendHome(_self: State, player: Player): boolean
+	local info = plotByPlayer[player]
+	local character = player.Character
+	if not info or not character then
+		return false
+	end
+	character:PivotTo(homeCFrame(info))
+	return true
+end
+
 function PlotService.Lock(_self: State, player: Player): boolean
 	local info = plotByPlayer[player]
 	return info ~= nil and activateLock(info, player)
@@ -593,6 +618,7 @@ function PlotService.Destroy(self: State)
 		end
 	end
 	table.clear(lastZap)
+	table.clear(respawnPoints)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

@@ -67,6 +67,14 @@ function methods.IsA(self, className: string)
 	return own == className or className == "Instance" or (className == "BasePart" and (own == "Part" or own == "MeshPart")) or (className == "LuaSourceContainer" and (own == "ModuleScript" or own == "Script" or own == "LocalScript"))
 end
 
+function methods.PivotTo(self, cframe: any)
+	state[self].Props.PivotCFrame = cframe
+	local root = methods.FindFirstChild(self, "HumanoidRootPart")
+	if root then
+		root.CFrame = cframe
+	end
+end
+
 function methods.GetAttribute(self, name: string)
 	return state[self].Attributes[name]
 end

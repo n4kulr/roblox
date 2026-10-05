@@ -2,11 +2,11 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
-local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
+local MeshTemplates = require(script.Parent.MeshTemplates)
 
-local Visual = {}
+local KeyVisual = {}
 
-function Visual.Attach(character: Model, root: BasePart, keyId: string): BasePart?
+function KeyVisual.NewCap(keyId: string, name: string, size: Vector3): BasePart?
 	local key = Keys.ById[keyId]
 	if not key then
 		return nil
@@ -14,15 +14,23 @@ function Visual.Attach(character: Model, root: BasePart, keyId: string): BasePar
 	local rarity = Keys.GetRarity(key)
 	local template = MeshTemplates.Get("Keycap")
 	local part: BasePart = if template then template:Clone() else Instance.new("Part")
-	part.Name = "StolenKey"
+	part.Name = name
 	part.Anchored = false
-	part.Size = Vector3.new(2.4, 1.2, 2.4)
+	part.Size = size
 	part.Color = rarity.Color
 	Keys.ApplyFinish(part, rarity)
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
 	part.Massless = true
+	return part
+end
+
+function KeyVisual.Attach(character: Model, root: BasePart, keyId: string, name: string): BasePart?
+	local part = KeyVisual.NewCap(keyId, name, Vector3.new(2.4, 1.2, 2.4))
+	if not part then
+		return nil
+	end
 	part.CFrame = root.CFrame * CFrame.new(0, 4.5, 0)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = root
@@ -32,11 +40,4 @@ function Visual.Attach(character: Model, root: BasePart, keyId: string): BasePar
 	return part
 end
 
-function Visual.SetSpeed(character: Model, speed: number)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.WalkSpeed = speed
-	end
-end
-
-return Visual
+return KeyVisual
