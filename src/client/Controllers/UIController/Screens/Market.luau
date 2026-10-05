@@ -229,7 +229,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			TextSize = 22,
 		})
 		Kit.Icon({
-			Parent = priceText.Parent,
+			Parent = priceText.Parent :: Frame,
 			Name = "PriceIcon",
 			Glyph = "Clicks",
 			Size = UDim2.fromOffset(28, 28),

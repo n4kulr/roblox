@@ -1,5 +1,7 @@
 local H = require("../harness/Harness")
-local UDim2 = require("@lune/roblox").UDim2
+local roblox = require("@lune/roblox")
+local UDim2 = roblox.UDim2
+local Enum = roblox.Enum
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
@@ -25,6 +27,10 @@ local function hasEmoji(text: string): boolean
 	return false
 end
 
+local function press(button: any)
+	button.Activated:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+end
+
 local function isOnRight(node: any): boolean
 	local current = node
 	while current do
@@ -43,6 +49,7 @@ end
 
 describe("HUD", function()
 	local world, playerGui, hudGui, offersGui, Glyphs
+	local calls, toasts, refusal
 
 	beforeEach(function()
 		world = H.newWorld()
@@ -62,6 +69,9 @@ describe("HUD", function()
 				return nil
 			end,
 		}
+		calls = { Base = 0, Market = 0 }
+		toasts = {}
+		refusal = nil
 		local rollController = {
 			AutoChanged = Signal.new(),
 			IsAuto = function()
@@ -69,7 +79,12 @@ describe("HUD", function()
 			end,
 			SetAuto = function() end,
 			TeleportToBase = function()
-				return true
+				calls.Base += 1
+				return refusal == nil, refusal
+			end,
+			TeleportToMarket = function()
+				calls.Market += 1
+				return refusal == nil, refusal
 			end,
 			RequestRoll = function() end,
 		}
@@ -81,7 +96,9 @@ describe("HUD", function()
 			IsOpen = function()
 				return false
 			end,
-			Toast = function() end,
+			Toast = function(text: string)
+				table.insert(toasts, text)
+			end,
 		}
 		world:require(`{screens}.Screens.Hud`).new(context)
 		world:require(`{screens}.Screens.Offers`).new(context)
@@ -108,20 +125,47 @@ describe("HUD", function()
 		expect(#world.errors):toBe(0)
 	end)
 
-	it("makes MY BASE a text-only button", function()
-		local button = find(hudGui, "MyBase")
-		expect(button ~= nil):toBe(true)
-		expect(button.Face:FindFirstChild("Icon")):toBeNil()
-		expect(button:FindFirstChild("Icon", true)):toBeNil()
-		expect(button.Face.Text.Text):toBe("MY BASE")
+	it("puts MY BASE and SHOP side by side at the top center with identical sizes", function()
+		local myBase = find(hudGui, "MyBase")
+		local shop = find(hudGui, "Shop")
+		expect(myBase ~= nil):toBe(true)
+		expect(shop ~= nil):toBe(true)
+		expect(myBase.Face.Text.Text):toBe("MY BASE")
+		expect(shop.Face.Text.Text):toBe("SHOP")
+		expect(myBase.Size.X.Offset):toBe(shop.Size.X.Offset)
+		expect(myBase.Size.Y.Offset):toBe(shop.Size.Y.Offset)
+		expect(myBase.Parent == shop.Parent):toBe(true)
+		expect(myBase.Parent.Name):toBe("TopBar")
+		expect(myBase.Parent.AnchorPoint.X):toBe(0.5)
+		expect(myBase.Parent.Position.X.Scale):toBe(0.5)
+		expect(myBase.Position.X.Offset < shop.Position.X.Offset):toBe(true)
+		expect(isOnRight(myBase.Parent)):toBe(true)
+		expect(find(hudGui, "MyBase"):FindFirstChild("Icon", true) ~= nil):toBe(true)
+		expect(find(hudGui, "Shop"):FindFirstChild("Icon", true) ~= nil):toBe(true)
 	end)
 
-	it("puts Shop, Leaderboard and Pass on the right", function()
-		for _, name in { "Shop", "Leaderboard", "Pass" } do
+	it("sends MY BASE and SHOP presses to the matching teleports", function()
+		press(find(hudGui, "MyBase"))
+		press(find(hudGui, "Shop"))
+		expect(calls.Base):toBe(1)
+		expect(calls.Market):toBe(1)
+	end)
+
+	it("toasts the reason when a teleport is refused", function()
+		refusal = "Can't teleport while carrying a key!"
+		press(find(hudGui, "MyBase"))
+		press(find(hudGui, "Shop"))
+		expect(#toasts):toBe(2)
+		expect(toasts[1]):toBe("Can't teleport while carrying a key!")
+	end)
+
+	it("puts Store, Leaderboard and Pass on the right", function()
+		for _, name in { "Store", "Leaderboard", "Pass" } do
 			local button = find(hudGui, name)
 			expect(button ~= nil):toBe(true)
 			expect(isOnRight(button)):toBe(true)
 		end
+		expect(find(hudGui, "Store").Face.Text.Text):toBe("STORE")
 	end)
 
 	it("keeps the left menu on the left", function()
@@ -133,7 +177,7 @@ describe("HUD", function()
 	end)
 
 	it("matches the right stack sizes", function()
-		local shop = find(hudGui, "Shop").Size
+		local shop = find(hudGui, "Store").Size
 		for _, name in { "Leaderboard", "Pass" } do
 			local size = find(hudGui, name).Size
 			expect(size.X.Offset):toBe(shop.X.Offset)
@@ -169,7 +213,7 @@ describe("HUD", function()
 	end)
 
 	it("adds glyph icons to the menu buttons", function()
-		for _, name in { "Upgrades", "Keys", "Index", "Rebirth", "Shop", "Leaderboard", "Pass", "Auto" } do
+		for _, name in { "Upgrades", "Keys", "Index", "Rebirth", "Store", "Leaderboard", "Pass", "Auto" } do
 			expect(find(hudGui, name).Face:FindFirstChild("Icon") ~= nil):toBe(true)
 		end
 		expect(find(offersGui, "DailyRewards").Face:FindFirstChild("Icon") ~= nil):toBe(true)

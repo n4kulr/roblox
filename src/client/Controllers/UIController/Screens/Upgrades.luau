@@ -44,7 +44,6 @@ local sections: { { Category: Upgrades.Category, Caption: string, Glyph: string 
 	{ Category = "Defense", Caption = "BASE DEFENSE", Glyph = "Walls" },
 }
 local sectionStride = 1000
-local captionHeight = 26
 local lockRefreshSeconds = 0.25
 local lockCardHeight = 96
 local lockButtonWidth = 200
@@ -101,19 +100,19 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			if isMaxed then
 				return string.format("Now: x%.1f Luck", now.Luck)
 			end
-			return string.format("x%.1f → x%.1f Luck", now.Luck, after.Luck)
+			return string.format("x%.1f > x%.1f Luck", now.Luck, after.Luck)
 		elseif upgrade.Id == "Speed" then
 			if isMaxed then
 				return string.format("Now: %.1f rolls/s", now.RollsPerSecond)
 			end
-			return string.format("%.1f/s → %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
+			return string.format("%.1f/s > %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
 		end
 		if upgrade.Id == "Golden" then
 			local current = Stats.GoldenEvery({ Golden = level })
 			if isMaxed then
 				return `Now: every {current} rolls`
 			end
-			return `Every {current} → {Stats.GoldenEvery({ Golden = level + 1 })} rolls`
+			return `Every {current} > {Stats.GoldenEvery({ Golden = level + 1 })} rolls`
 		end
 		if upgrade.Id == "Income" then
 			local current = math.round(level * upgrade.PerLevel * 100)
@@ -121,7 +120,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 				return string.format("Now: +%d%% Clicks", current)
 			end
 			return string.format(
-				"+%d%% → +%d%% Clicks",
+				"+%d%% > +%d%% Clicks",
 				current,
 				current + math.round(upgrade.PerLevel * 100)
 			)
@@ -130,18 +129,18 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			if isMaxed then
 				return string.format("Now: %d studs tall", current)
 			end
-			return string.format("%d → %d studs tall", current, current + upgrade.PerLevel)
+			return string.format("%d > %d studs tall", current, current + upgrade.PerLevel)
 		elseif upgrade.Id == "LockTime" then
 			local current = GameConfig.Defense.LockBaseSeconds + level * upgrade.PerLevel
 			if isMaxed then
 				return string.format("Now: %ds of lasers", current)
 			end
-			return string.format("%ds → %ds of lasers", current, current + upgrade.PerLevel)
+			return string.format("%ds > %ds of lasers", current, current + upgrade.PerLevel)
 		end
 		if isMaxed then
 			return string.format("Now: %d slots", now.Slots)
 		end
-		return string.format("%d → %d slots", now.Slots, after.Slots)
+		return string.format("%d > %d slots", now.Slots, after.Slots)
 	end
 
 	local function refreshRow(row: Row)

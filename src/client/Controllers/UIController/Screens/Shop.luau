@@ -93,7 +93,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		callback: () -> ()
 	): Kit.Button
 		order += 1
-		local art = glyphs[id] or { Glyph = "Gift" }
+		local art: { Glyph: string, Color: Color3? } = glyphs[id] or { Glyph = "Gift" }
 		local frame = Kit.Panel({
 			Parent = scroll,
 			Name = id,

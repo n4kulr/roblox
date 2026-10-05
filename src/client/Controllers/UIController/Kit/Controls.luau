@@ -126,7 +126,6 @@ local colors = Theme.Colors
 local white = Color3.new(1, 1, 1)
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local knobInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local Controls = {
 	ButtonHeight = 52,

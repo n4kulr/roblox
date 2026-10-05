@@ -42,7 +42,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 	local heading = Kit.Label({
 		Parent = modal.Body,
 		Name = "Heading",
-		Text = "Rebirth 0 → 1",
+		Text = "Rebirth 0 > 1",
 		Position = UDim2.fromOffset(10, 12),
 		Size = UDim2.new(1, -20, 0, 44),
 		TextSize = 36,
@@ -176,7 +176,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		local rebirths = tracker.GetRebirths()
 		local cost = Rebirth.Cost(rebirths)
 		local balance = tracker.Balance() or 0
-		heading.Text = `Rebirth {rebirths} → {rebirths + 1}`
+		heading.Text = `Rebirth {rebirths} > {rebirths + 1}`
 		currentValue.Text = multiplierText(Rebirth.IncomeMultiplier(rebirths))
 		nextValue.Text = multiplierText(Rebirth.IncomeMultiplier(rebirths + 1))
 		bar.SetValue(balance / cost)
