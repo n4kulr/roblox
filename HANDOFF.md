@@ -78,7 +78,7 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
 3. **Roll popup:**
    - Fix the bug where two simultaneous results get their text cropped by an invisible element.
    - Make the reveal satisfying: Back-ease pop-in, a burst behind Rare+, shimmer and shake on Epic+, confetti and a banner on Legendary+, a gold Golden variant, and a cap on stacking during auto-roll.
-4. **Loading screen:**
+4. **Loading screen (DONE, merged; `src/first/Loading`, ReplicatedFirst):**
    - It lives in ReplicatedFirst. "THOCK" is typed on 5 glossy keycaps, with a key-row progress bar and tips.
    - It waits for `game:IsLoaded()` plus a `ClientReady` player attribute, with a 30s timeout. A SKIP button appears after 8s, and the keys fly out on exit.
 5. **Obby (DONE, merged):**
