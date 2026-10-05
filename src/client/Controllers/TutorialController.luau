@@ -36,11 +36,11 @@ local elapsed = 0
 local function hintText(): string?
 	if step == 0 then
 		if UserInputService.KeyboardEnabled then
-			return "TAP THE KEY!\nor press E"
+			return "TAP THE KEY! 👆\nor press E"
 		end
-		return "TAP THE KEY!"
+		return "TAP THE KEY! 👆"
 	elseif step == 1 then
-		return "ROLL AGAIN!"
+		return "ROLL AGAIN! 🎲"
 	end
 	return nil
 end

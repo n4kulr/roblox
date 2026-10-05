@@ -34,7 +34,6 @@ local cardColors: { [string]: Color3 } = {
 	Speed = theme.Yellow,
 	Slots = theme.Blue,
 	Income = theme.Gold,
-	Golden = theme.Purple,
 	Walls = theme.Orange,
 	LockTime = theme.Red,
 }
@@ -50,7 +49,7 @@ local lockCardHeight = 96
 local lockButtonWidth = 190
 local lockCardOrder = 900
 local lockReadyText = "LOCK BASE"
-local lockToast = "Lasers on! Your base is locked."
+local lockToast = "🔴 Lasers on! Your base is locked."
 local greyColor = Color3.fromRGB(120, 124, 134)
 
 local UpgradesScreen = {}
@@ -66,9 +65,9 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Upgrades",
 		Title = "UPGRADES",
-		Glyph = "Upgrades",
+		Icon = "🛒",
 		IconAsset = UiAssets.Icons.Upgrades,
-		MaxSize = Vector2.new(720, 560),
+		MaxSize = Vector2.new(700, 520),
 		HeaderColor = theme.Green,
 		OnClose = function()
 			context.Close("Upgrades")
@@ -129,22 +128,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 				return string.format("Now: %ds of lasers", current)
 			end
 			return string.format("%ds → %ds of lasers", current, current + upgrade.PerLevel)
-		elseif upgrade.Id == "Golden" then
-			local goldenLevels = {
-				Luck = tracker.GetLevel("Luck"),
-				Speed = tracker.GetLevel("Speed"),
-				Slots = tracker.GetLevel("Slots"),
-				Income = tracker.GetLevel("Income"),
-				Golden = level,
-			}
-			local nextGolden = table.clone(goldenLevels)
-			nextGolden.Golden = level + 1
-			local nowEvery = Stats.GoldenEvery(goldenLevels)
-			local afterEvery = Stats.GoldenEvery(nextGolden)
-			if isMaxed then
-				return string.format("Now: every %d rolls", nowEvery)
-			end
-			return string.format("Golden every %d → %d rolls", nowEvery, afterEvery)
 		end
 		if isMaxed then
 			return string.format("Now: %d slots", now.Slots)
@@ -165,13 +148,13 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local balance = tracker.Balance()
-		local price = NumberFormat.Compact(cost)
 		if balance ~= nil and balance >= cost then
-			row.Buy.SetText(price)
+			row.Buy.SetText(`BUY\n⌨️ {NumberFormat.Compact(cost)}`)
 			row.Buy.SetColor(theme.Green)
 		else
-			row.Buy.SetText(price)
-			row.Buy.SetColor(theme.Disabled)
+			local missing = cost - (balance or 0)
+			row.Buy.SetText(`Need {NumberFormat.Compact(missing)} more!`)
+			row.Buy.SetColor(theme.Red)
 		end
 	end
 
@@ -191,7 +174,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local cost = Upgrades.Cost(row.Upgrade, level)
 		if not cost then
 			playUi("Confirm")
-			context.Toast("Already MAXED!", "Good")
+			context.Toast("Already MAXED! 🎉", "Good")
 			Kit.Pulse(row.Frame, theme.Gold)
 			return
 		end
@@ -209,7 +192,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			if success == true then
 				playUi("Confirm")
 				Kit.Pulse(row.Frame, theme.Good)
-				context.Toast(`Bought {Kit.PlainTitle(row.Upgrade.Name)}!`, "Good")
+				context.Toast(`Bought {row.Upgrade.Name}!`, "Good")
 			else
 				playUi("Error")
 				Kit.Shake(row.Frame)
@@ -220,29 +203,19 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function addCaption(text: string, order: number)
-		local strip = Kit.Panel({
+		Kit.Label({
 			Parent = scroll,
 			Name = `Caption{text}`,
-			Size = UDim2.new(1, 0, 0, captionHeight + 8),
-			Color = theme.Track,
-			LayoutOrder = order,
-			Radius = 6,
-			StrokeThickness = 2,
-			Bevel = false,
-		})
-		Kit.Label({
-			Parent = strip,
-			Name = "Text",
 			Text = text,
-			Position = UDim2.fromOffset(12, 0),
-			Size = UDim2.new(1, -24, 1, 0),
+			Size = UDim2.new(1, 0, 0, captionHeight),
 			TextSize = 22,
 			Color = theme.Gold,
-			Scaled = true,
+			LayoutOrder = order,
 		})
 	end
 
 	local function addCard(upgrade: Upgrades.Upgrade, order: number)
+		local emoji, title = string.match(upgrade.Name, "^(%S+)%s+(.+)$")
 		local card = Kit.Panel({
 			Parent = scroll,
 			Name = upgrade.Id,
@@ -250,7 +223,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Color = cardColors[upgrade.Id] or theme.Green,
 			LayoutOrder = order,
 			Shards = true,
-			Radius = Kit.CardRadius,
 		})
 		local iconTile = Kit.Panel({
 			Parent = card,
@@ -258,10 +230,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Position = UDim2.fromOffset(10, 10),
 			Size = UDim2.fromOffset(iconSize, iconSize),
 			Color = theme.Cell,
-			Transparency = 0.08,
-			Radius = 10,
-			StrokeThickness = 2.5,
-			Bevel = false,
+			Transparency = 0.15,
 		})
 		Kit.Burst({
 			Parent = iconTile,
@@ -270,16 +239,16 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = iconTile,
 			Name = "Icon",
-			Glyph = upgrade.Glyph,
-			Size = UDim2.fromScale(0.72, 0.72),
-			Position = UDim2.fromScale(0.14, 0.14),
+			Emoji = emoji or "⌨️",
+			Size = UDim2.fromScale(0.8, 0.8),
+			Position = UDim2.fromScale(0.1, 0.1),
 		})
 		local textLeft = iconSize + 22
 		local textWidth = UDim2.new(1, -(textLeft + buyWidth + 22), 0, 26)
 		Kit.Label({
 			Parent = card,
 			Name = "Name",
-			Text = Kit.PlainTitle(upgrade.Name),
+			Text = title or upgrade.Name,
 			Position = UDim2.fromOffset(textLeft, 5),
 			Size = textWidth,
 			TextSize = 26,
@@ -413,33 +382,13 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Red,
 			LayoutOrder = order,
 			Shards = true,
-			Radius = Kit.CardRadius,
 		})
-		local lockIcon = Kit.Panel({
-			Parent = lockCard,
-			Name = "IconTile",
-			Position = UDim2.fromOffset(10, (lockCardHeight - 72) / 2),
-			Size = UDim2.fromOffset(72, 72),
-			Color = theme.Cell,
-			Transparency = 0.08,
-			Radius = 10,
-			StrokeThickness = 2.5,
-			Bevel = false,
-		})
-		Kit.Icon({
-			Parent = lockIcon,
-			Name = "Icon",
-			Glyph = "Lock",
-			Size = UDim2.fromScale(0.72, 0.72),
-			Position = UDim2.fromScale(0.14, 0.14),
-		})
-		local textLeft = 94
-		local textWidth = UDim2.new(1, -(lockButtonWidth + textLeft + 22), 0, 30)
+		local textWidth = UDim2.new(1, -(lockButtonWidth + 42), 0, 30)
 		Kit.Label({
 			Parent = lockCard,
 			Name = "Name",
-			Text = "LOCK BASE",
-			Position = UDim2.fromOffset(textLeft, 12),
+			Text = "🔴 LOCK BASE",
+			Position = UDim2.fromOffset(16, 12),
 			Size = textWidth,
 			TextSize = 28,
 			Scaled = true,
@@ -448,8 +397,8 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Parent = lockCard,
 			Name = "Description",
 			Text = "",
-			Position = UDim2.fromOffset(textLeft, 50),
-			Size = UDim2.new(1, -(lockButtonWidth + textLeft + 22), 0, 28),
+			Position = UDim2.fromOffset(16, 50),
+			Size = UDim2.new(1, -(lockButtonWidth + 42), 0, 28),
 			TextSize = 20,
 			Color = Color3.fromRGB(255, 244, 170),
 			Scaled = true,

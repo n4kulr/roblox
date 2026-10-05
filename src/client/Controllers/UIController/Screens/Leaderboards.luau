@@ -15,10 +15,10 @@ local rowHeight = 56
 local silverColor = Color3.fromRGB(190, 198, 212)
 local bronzeColor = Color3.fromRGB(205, 127, 70)
 
-local tabs: { { Title: string, Compact: boolean, Glyph: string } } = {
-	{ Title = "Clicks", Compact = true, Glyph = "Coin" },
-	{ Title = "Rolls", Compact = false, Glyph = "Speed" },
-	{ Title = "Rebirths", Compact = false, Glyph = "Rebirth" },
+local tabs: { { Title: string, Compact: boolean } } = {
+	{ Title = "💰 Clicks Earned", Compact = true },
+	{ Title = "🎲 Rolls", Compact = false },
+	{ Title = "♻️ Rebirths", Compact = false },
 }
 
 local function rankColor(rank: number): Color3
@@ -45,7 +45,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Leaderboards",
 		Title = "LEADERBOARDS",
-		Glyph = "Leaderboard",
+		Icon = "🏆",
 		MaxSize = Vector2.new(700, 540),
 		HeaderColor = theme.Gold,
 		OnClose = function()
@@ -178,12 +178,10 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		tabButtons[index] = Kit.Button(trove, {
 			Parent = tabBar,
 			Name = `Tab{index}`,
-			Glyph = tab.Glyph,
-			IconLeft = true,
 			Text = tab.Title,
 			Size = UDim2.new(0.32, 0, 1, 0),
 			Color = theme.Blue,
-			TextSize = 20,
+			TextSize = 22,
 			LayoutOrder = index,
 			Callback = function()
 				load(index)

@@ -41,9 +41,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Keys",
 		Title = "KEYS",
-		Glyph = "Keys",
+		Icon = "🔑",
 		IconAsset = UiAssets.Icons.Keys,
-		MaxSize = Vector2.new(720, 560),
+		MaxSize = Vector2.new(700, 520),
 		HeaderColor = theme.Purple,
 		OnClose = function()
 			context.Close("Keys")
@@ -55,12 +55,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	Kit.Button(trove, {
 		Parent = modal.HeaderRight,
 		Name = "EquipBest",
-		Glyph = "Star",
-		IconLeft = true,
-		Text = "EQUIP BEST",
-		Size = UDim2.fromOffset(210, 46),
+		Text = "⭐ EQUIP BEST",
+		Size = UDim2.fromOffset(190, 46),
 		Color = theme.Green,
-		TextSize = 22,
+		TextSize = 24,
 		Callback = function()
 			if isEquipping then
 				return
@@ -71,7 +69,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				isEquipping = false
 				if success == true then
 					playUi("Confirm")
-					context.Toast("Equipped your best keys!", "Good")
+					context.Toast("Equipped your best keys! ⭐", "Good")
 				else
 					playUi("Error")
 					context.Toast("Your keyboard is already the best!", "Info")
@@ -100,7 +98,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local emptyLabel = Kit.Label({
 		Parent = body,
 		Name = "Empty",
-		Text = "No keys yet! Hit ROLL to find some!",
+		Text = "No keys yet! Hit 🎲 ROLL to find some!",
 		Position = UDim2.new(0, 20, 0.5, -30),
 		Size = UDim2.new(1, -40, 0, 60),
 		TextSize = 26,
@@ -231,7 +229,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			isSelling = false
 			if success == true then
 				playUi("Confirm")
-				context.Toast(`Sold for {NumberFormat.Compact(value)} Clicks!`, "Good")
+				context.Toast(`Sold for {NumberFormat.Compact(value)} Clicks! 💰`, "Good")
 			else
 				playUi("Error")
 				context.Toast("Oops, couldn't sell that!", "Bad")
@@ -273,13 +271,13 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		sellOne.SetDisabled(false)
-		sellOne.SetText(`SELL 1  +{NumberFormat.Compact(value)}`)
+		sellOne.SetText(`💰 SELL 1  +{NumberFormat.Compact(value)}`)
 		sellAll.SetDisabled(false)
 		if isConfirming then
 			sellAll.SetText("Sure? Tap again!")
 			sellAll.SetColor(theme.Red)
 		else
-			sellAll.SetText(`SELL SPARE  +{NumberFormat.Compact(value * spare)}`)
+			sellAll.SetText(`💰 SELL SPARE  +{NumberFormat.Compact(value * spare)}`)
 			sellAll.SetColor(theme.Orange)
 		end
 	end
@@ -390,7 +388,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 					local stolenFrom = tags[keyId]
 					stolenChip.Visible = stolenFrom ~= nil
 					if stolenFrom then
-						stolenLabel.Text = `Stolen from {stolenFrom}`
+						stolenLabel.Text = `🦹 Stolen from {stolenFrom}`
 					end
 				end
 			end

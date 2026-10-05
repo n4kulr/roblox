@@ -22,11 +22,11 @@ local refreshSeconds = 0.5
 local claimedColor = theme.Grey
 local lockedColor = Color3.fromRGB(70, 78, 96)
 
-local rewardGlyphs: { [string]: string } = {
-	Clicks = "Coin",
-	LuckPotion = "Luck",
-	ClicksPotion = "Clicks",
-	Key = "Keys",
+local rewardEmoji: { [string]: string } = {
+	Clicks = "💵",
+	LuckPotion = "🍀",
+	ClicksPotion = "💰",
+	Key = "🔑",
 }
 
 local DailyScreen = {}
@@ -43,7 +43,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Daily",
 		Title = "DAILY REWARDS",
-		Glyph = "Daily",
+		Icon = "📅",
 		MaxSize = Vector2.new(780, 470),
 		HeaderColor = theme.Blue,
 		OnClose = function()
@@ -136,7 +136,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			if state.StreakBroken and (stored.LastClaim or 0) > 0 then
 				status.Text = "Streak reset! Back to Day 1!"
 			else
-				status.Text = "Your reward is ready!"
+				status.Text = "Your reward is ready! 🎉"
 			end
 		else
 			status.Text = `Next reward in {TimeFormat.Hours(state.SecondsLeft)}`
@@ -159,7 +159,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if type(day) == "number" and day > 0 then
 				playUi("Confirm")
-				context.Toast(`Day {day}: {reward.Label}!`, "Good")
+				context.Toast(`📅 Day {day}: {reward.Label}!`, "Good")
 			else
 				playUi("Error")
 				context.Toast("Oops, couldn't claim that!", "Bad")
@@ -191,7 +191,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Kit.Icon({
 			Parent = panel,
 			Name = "Icon",
-			Glyph = rewardGlyphs[reward.Kind] or "Gift",
+			Emoji = rewardEmoji[reward.Kind] or "🎁",
 			Position = UDim2.fromScale(if isBig then 0.2 else 0.25, if isBig then 0.2 else 0.18),
 			Size = UDim2.fromScale(if isBig then 0.6 else 0.5, if isBig then 0.36 else 0.3),
 		})

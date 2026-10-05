@@ -52,20 +52,20 @@ end
 
 local function onEvent(kind: number, text: string, keyIndex: number)
 	if kind == eventAnnounce then
-		toast("A GOLDEN SPACEBAR fell in the arena! GO GO GO!", "Gold")
+		toast("🌟 A GOLDEN SPACEBAR fell in the arena! GO GO GO!", "Gold")
 		local sounds = controllers.SoundController
 		local mythic = Keys.RarityByName.Mythic
 		if sounds and mythic then
 			sounds:PlayReveal(mythic, "Other")
 		end
 	elseif kind == eventGrabbed then
-		toast(`{text} grabbed the Golden Spacebar!`, "Gold")
+		toast(`🏃 {text} grabbed the Golden Spacebar!`, "Gold")
 	elseif kind == eventClaimed then
-		toast(`{text} claimed the Golden Spacebar!`, "Gold")
+		toast(`🏆 {text} claimed the Golden Spacebar!`, "Gold")
 	elseif kind == eventVanished then
 		toast("The Golden Spacebar vanished...", "Info")
 	elseif kind == eventDelivered then
-		toast(`Delivered {keyIndex} {if keyIndex == 1 then "key" else "keys"}!`, "Good")
+		toast(`📦 Delivered {keyIndex} {if keyIndex == 1 then "key" else "keys"}!`, "Good")
 	end
 end
 
@@ -219,7 +219,7 @@ local function requestKnock()
 		task.wait(config.KnockCooldown)
 		isKnocking = false
 		if success == true then
-			toast("Knocked it loose!", "Good")
+			toast("💥 Knocked it loose!", "Good")
 		end
 	end)
 end
@@ -241,7 +241,7 @@ local function buildInterface(trove: TroveInstance, playerGui: Instance)
 		Parent = root,
 		Name = "KnockCarrier",
 		Text = "KNOCK!",
-		Glyph = "Speed",
+		Icon = "💥",
 		Size = UDim2.fromOffset(250, 64),
 		Position = UDim2.new(0.5, 0, 1, knockButtonOffset),
 		AnchorPoint = Vector2.new(0.5, 1),

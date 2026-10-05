@@ -41,6 +41,7 @@ local zapAlertPhase = 9
 local zapMessage = "🔴 The lasers zapped you!"
 local zapToastSeconds = 1.5
 local lastZap: { [Player]: number } = {}
+local respawnPoints: { [Player]: CFrame } = {}
 local hasWarnedSlots = false
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
@@ -239,7 +240,7 @@ local function teleport(player: Player, character: Model)
 		if not root or not info or character.Parent == nil then
 			return
 		end
-		character:PivotTo(homeCFrame(info))
+		character:PivotTo(respawnPoints[player] or homeCFrame(info))
 	end)
 end
 
@@ -294,6 +295,7 @@ local function release(player: Player)
 	local info = plotByPlayer[player]
 	plotByPlayer[player] = nil
 	lastZap[player] = nil
+	respawnPoints[player] = nil
 	if info then
 		applyOwner(info, nil)
 		info.Model:SetAttribute("Owner", nil)
@@ -556,6 +558,14 @@ function PlotService.GetBase(_self: State, player: Player): BasePart?
 	return if info then info.Base else nil
 end
 
+function PlotService.SetRespawn(_self: State, player: Player, cframe: CFrame?)
+	if cframe then
+		respawnPoints[player] = cframe
+	else
+		respawnPoints[player] = nil
+	end
+end
+
 function PlotService.SendHome(_self: State, player: Player): boolean
 	local info = plotByPlayer[player]
 	local character = player.Character
@@ -608,6 +618,7 @@ function PlotService.Destroy(self: State)
 		end
 	end
 	table.clear(lastZap)
+	table.clear(respawnPoints)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

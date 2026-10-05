@@ -203,8 +203,7 @@ export type ModalProps = {
 	Parent: Instance,
 	Name: string,
 	Title: string,
-	Icon: string?,
-	Glyph: string?,
+	Icon: string,
 	IconAsset: string?,
 	MaxSize: Vector2,
 	HeaderColor: Color3?,
@@ -251,10 +250,9 @@ local Kit = {
 	ToastGap = 12,
 	Theme = table.freeze(theme),
 	Font = Enum.Font.FredokaOne,
-	HeaderHeight = 64,
+	HeaderHeight = 60,
 	ButtonHeight = 52,
 	TouchSize = 48,
-	CardRadius = 8,
 }
 
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -1259,29 +1257,17 @@ function Kit.Shake(target: GuiObject)
 	end)
 end
 
-function Kit.PlainTitle(text: string): string
-	local emoji, rest = string.match(text, "^(%S+)%s+(.+)$")
-	if emoji and rest then
-		local code = utf8.codepoint(emoji)
-		if code and code >= 0x2190 then
-			return rest
-		end
-	end
-	return text
-end
-
 function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	local gui, root = Kit.ScreenGui(`Thock{props.Name}`, 10, props.Parent, trove)
 	gui.Enabled = false
 	local token = 0
 	local headerColor = props.HeaderColor or theme.Blue
 	local headerHeight = Kit.HeaderHeight
-	local iconSize = 52
 	local backdrop = Instance.new("TextButton")
 	backdrop.Name = "Backdrop"
 	backdrop.AutoButtonColor = false
 	backdrop.BackgroundColor3 = black
-	backdrop.BackgroundTransparency = 0.45
+	backdrop.BackgroundTransparency = 0.55
 	backdrop.BorderSizePixel = 0
 	backdrop.Text = ""
 	backdrop.Position = UDim2.fromOffset(0, windowTop - 6)
@@ -1313,63 +1299,37 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	pop.Name = "Pop"
 	pop.Parent = window
 
-	local shell = Kit.Panel({
-		Parent = window,
-		Name = "Shell",
-		Size = UDim2.fromScale(1, 1),
-		Color = theme.Ink,
-		StrokeThickness = 4,
-		Radius = Kit.CardRadius,
-		Bevel = false,
-	})
 	local body = Kit.Panel({
-		Parent = shell,
+		Parent = window,
 		Name = "Body",
-		Position = UDim2.fromOffset(4, headerHeight),
-		Size = UDim2.new(1, -8, 1, -(headerHeight + 4)),
+		Position = UDim2.fromOffset(0, headerHeight - 3),
+		Size = UDim2.new(1, 0, 1, -(headerHeight - 3)),
 		Color = theme.Slate,
-		Transparency = 0.04,
-		StrokeThickness = 0,
-		Radius = Kit.CardRadius - 2,
-		Bevel = false,
+		Transparency = 0.1,
+		StrokeThickness = 3,
 	})
 	local header = Kit.Panel({
-		Parent = shell,
+		Parent = window,
 		Name = "Header",
-		Position = UDim2.fromOffset(4, 4),
-		Size = UDim2.new(1, -8, 0, headerHeight - 4),
+		Size = UDim2.new(1, 0, 0, headerHeight),
 		Color = headerColor,
 		Shards = true,
-		Radius = Kit.CardRadius - 2,
-		StrokeThickness = 2.5,
-	})
-	local badge = Kit.Panel({
-		Parent = header,
-		Name = "IconBadge",
-		Position = UDim2.fromOffset(10, (headerHeight - 4 - iconSize) / 2),
-		Size = UDim2.fromOffset(iconSize, iconSize),
-		Color = theme.Cell,
-		Transparency = 0.05,
-		Radius = 10,
-		StrokeThickness = 2.5,
-		Bevel = false,
 	})
 	Kit.Icon({
-		Parent = badge,
+		Parent = header,
 		Name = "Icon",
-		Glyph = props.Glyph,
 		Emoji = props.Icon,
 		Asset = props.IconAsset,
-		Size = UDim2.fromScale(0.72, 0.72),
-		Position = UDim2.fromScale(0.14, 0.14),
+		Size = UDim2.fromOffset(76, 76),
+		Position = UDim2.fromOffset(-14, -14),
 	})
 	Kit.Label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
-		Position = UDim2.fromOffset(iconSize + 22, 0),
-		Size = UDim2.new(0.55, -(iconSize + 22), 1, 0),
-		TextSize = 34,
+		Position = UDim2.fromOffset(70, 0),
+		Size = UDim2.new(0.5, -70, 1, 0),
+		TextSize = 36,
 		Scaled = true,
 	})
 	local headerRight = Instance.new("Frame")
@@ -1378,7 +1338,7 @@ function Kit.Modal(trove: TroveInstance, props: ModalProps): Modal
 	headerRight.BorderSizePixel = 0
 	headerRight.AnchorPoint = Vector2.new(1, 0.5)
 	headerRight.Position = UDim2.new(1, -(Kit.TouchSize + 14), 0.5, 0)
-	headerRight.Size = UDim2.new(0.45, -(Kit.TouchSize + 20), 1, -8)
+	headerRight.Size = UDim2.new(0.5, -(Kit.TouchSize + 20), 1, -8)
 	local rightList = Instance.new("UIListLayout")
 	rightList.FillDirection = Enum.FillDirection.Horizontal
 	rightList.HorizontalAlignment = Enum.HorizontalAlignment.Right

@@ -167,36 +167,6 @@ local function loop(art: Frame, palette: Palette)
 end
 
 local drawers: { [string]: Drawer } = {
-	Base = function(art, palette)
-		spin(art, "Roof", 0.5, 0.34, 0.78, 0.42, palette.Body, 0.18, 45)
-		rect(art, "Wall", 0.2, 0.38, 0.6, 0.5, palette.Shade, 0.08)
-		rect(art, "Door", 0.4, 0.58, 0.2, 0.3, palette.Ink, 0.12)
-		rect(art, "Window", 0.28, 0.46, 0.14, 0.14, palette.Body, 0.2)
-		rect(art, "Chimney", 0.66, 0.18, 0.12, 0.22, palette.Shade, 0.15)
-	end,
-	Trade = function(art, palette)
-		spin(art, "Left", 0.34, 0.5, 0.46, 0.18, palette.Body, 0.4, -28)
-		spin(art, "Right", 0.66, 0.5, 0.46, 0.18, palette.Shade, 0.4, 28)
-		spin(art, "HeadLeft", 0.16, 0.36, 0.22, 0.22, palette.Body, 0.2, 45)
-		spin(art, "HeadRight", 0.84, 0.64, 0.22, 0.22, palette.Shade, 0.2, 45)
-	end,
-	Walls = function(art, palette)
-		rect(art, "Left", 0.1, 0.18, 0.22, 0.7, palette.Shade, 0.1)
-		rect(art, "Mid", 0.39, 0.1, 0.22, 0.78, palette.Body, 0.1)
-		rect(art, "Right", 0.68, 0.26, 0.22, 0.62, palette.Shade, 0.1)
-		rect(art, "Cap", 0.08, 0.1, 0.84, 0.1, palette.Ink, 0.3)
-	end,
-	Lock = function(art, palette)
-		rect(art, "Shackle", 0.28, 0.12, 0.44, 0.4, palette.Shade, 0.5)
-		rect(art, "Hole", 0.38, 0.22, 0.24, 0.28, palette.Ink, 0.5)
-		rect(art, "Body", 0.18, 0.4, 0.64, 0.48, palette.Body, 0.14)
-		rect(art, "Keyhole", 0.44, 0.54, 0.12, 0.2, palette.Ink, 0.5)
-	end,
-	Slots = function(art, palette)
-		for column = 0, 2 do
-			keycap(art, 0.06 + column * 0.32, 0.22, 0.28, palette.Shade, palette.Body, 0.22)
-		end
-	end,
 	Keys = function(art, palette)
 		keycap(art, 0.04, 0.06, 0.92, palette.Shade, palette.Body, 0.2)
 		letter(art, "A", 0.14, 0.12, 0.72, 0.5, palette.Ink)
@@ -313,18 +283,9 @@ local drawers: { [string]: Drawer } = {
 		rect(art, "Face", 0.14, 0.12, 0.72, 0.72, palette.Body, 0.5)
 		letter(art, "$", 0.3, 0.26, 0.4, 0.44, palette.Ink)
 	end,
-	Key = function(art, palette)
-		keycap(art, 0.16, 0.1, 0.68, palette.Shade, palette.Body, 0.16)
-		letter(art, "K", 0.32, 0.2, 0.36, 0.4, palette.Ink)
-	end,
 }
 
 local names = {
-	"Base",
-	"Trade",
-	"Walls",
-	"Lock",
-	"Slots",
 	"Keys",
 	"Upgrades",
 	"Index",
@@ -342,7 +303,6 @@ local names = {
 	"Luck",
 	"Speed",
 	"Coin",
-	"Key",
 }
 
 local Glyphs = {

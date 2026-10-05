@@ -47,8 +47,8 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		return frame, label
 	end
 
-	local sendFrame, sendTitle = popup("Send", "Trade with ?")
-	local inviteFrame, inviteTitle = popup("Invite", "Someone wants to trade!")
+	local sendFrame, sendTitle = popup("Send", "🤝 Trade with ?")
+	local inviteFrame, inviteTitle = popup("Invite", "🤝 Someone wants to trade!")
 	inviteFrame.Position = UDim2.new(0.5, 0, 1, bottomOffset - popupSize.Y - 12)
 
 	local function hideSend()
@@ -131,7 +131,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			sendToken += 1
 			local token = sendToken
 			pendingTarget = player
-			sendTitle.Text = `Trade with {player.DisplayName}?`
+			sendTitle.Text = `🤝 Trade with {player.DisplayName}?`
 			sendFrame.Visible = true
 			playUi("Click")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
@@ -151,7 +151,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			inviteToken += 1
 			local token = inviteToken
 			pendingUserId = userId
-			inviteTitle.Text = `{name} wants to trade!`
+			inviteTitle.Text = `🤝 {name} wants to trade!`
 			inviteFrame.Visible = true
 			playUi("Confirm")
 			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()

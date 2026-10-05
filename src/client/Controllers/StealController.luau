@@ -74,17 +74,17 @@ end
 
 local function onAlert(name: string, keyIndex: number, phase: number)
 	if phase == 1 then
-		toast(`{name} is stealing your {keyName(keyIndex)}!`, "Bad")
+		toast(`⚠️ {name} is stealing your {keyName(keyIndex)}!`, "Bad")
 		playAlarm(keyIndex)
 	elseif phase == 2 then
-		toast(`{name} stole your {keyName(keyIndex)}! Chase them!`, "Bad")
+		toast(`😱 {name} stole your {keyName(keyIndex)}! Chase them!`, "Bad")
 		playAlarm(keyIndex)
 	elseif phase == 3 then
 		if not isTagging then
-			toast("Your key came back!", "Good")
+			toast("🛡️ Your key came back!", "Good")
 		end
 	elseif phase == 4 then
-		toast(`{name} got away with your {keyName(keyIndex)}!`, "Bad")
+		toast(`💔 {name} got away with your {keyName(keyIndex)}!`, "Bad")
 	elseif phase == 10 then
 		toast(name, "Info")
 	elseif phase == 11 then
@@ -104,11 +104,13 @@ local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 	local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
 	if general and general:IsA("TextChannel") then
 		general:DisplaySystemMessage(
-			`[{GameConfig.Name}] {escapeRichText(thiefName)} stole {name} from {escapeRichText(victimName)}!`
+			`[{GameConfig.Name}] 🦹 {escapeRichText(thiefName)} stole {name} from {escapeRichText(
+				victimName
+			)}!`
 		)
 	end
 	if thiefName == Players.LocalPlayer.DisplayName then
-		toast(`You stole {name}!`, "Good")
+		toast(`😈 You stole {name}!`, "Good")
 	end
 end
 
@@ -173,7 +175,7 @@ local function requestTag()
 		local success = Packets.TagThief:Fire(carrier.UserId)
 		isTagging = false
 		if success == true then
-			toast("You got your key back!", "Good")
+			toast("🛡️ You got your key back!", "Good")
 		end
 	end)
 end
@@ -204,7 +206,7 @@ local function startCarrying(character: Model)
 	stopCarrying()
 	local root = character:FindFirstChild("HumanoidRootPart")
 	local base = findOwnBase()
-	toast("Run home to keep it!", "Info")
+	toast("🏃 Run home to keep it!", "Info")
 	if not root or not root:IsA("BasePart") or not base then
 		return
 	end
@@ -252,7 +254,7 @@ local function buildTagButton(trove: TroveInstance, playerGui: Instance)
 		Parent = root,
 		Name = "TagThief",
 		Text = "TAG THIEF!",
-		Glyph = "Speed",
+		Icon = "🏃",
 		Size = UDim2.fromOffset(250, 64),
 		Position = UDim2.new(0.5, 0, 1, tagButtonOffset),
 		AnchorPoint = Vector2.new(0.5, 1),

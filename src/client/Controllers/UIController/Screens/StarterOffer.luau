@@ -16,9 +16,9 @@ local contentHeight = 464
 local margin = 16
 
 local contents: { string } = {
-	"10,000 Clicks",
-	"2x Luck potion (15 min)",
-	"Epic Key",
+	"⌨️ 10,000 Clicks",
+	"🍀 2x Luck potion (15 min)",
+	"🗝️ Epic Key",
 }
 
 local StarterOffer = {}
@@ -36,7 +36,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "StarterOffer",
 		Title = "STARTER PACK",
-		Glyph = "Gift",
+		Icon = "🎁",
 		MaxSize = Vector2.new(520, 560),
 		HeaderColor = theme.Orange,
 		OnClose = function()
@@ -59,7 +59,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	local timerChip = Kit.Chip({
 		Parent = scroll,
 		Name = "Timer",
-		Text = "15:00",
+		Text = "⏰ 15:00",
 		Size = UDim2.fromOffset(168, 40),
 		Position = UDim2.fromOffset(margin, 16),
 		Color = theme.Purple,
@@ -170,7 +170,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		if not target then
 			return
 		end
-		timerChip.Text = TimeFormat.Clock(target - os.clock())
+		timerChip.Text = `⏰ {TimeFormat.Clock(target - os.clock())}`
 	end
 
 	trove:Connect(RunService.Heartbeat, function()
@@ -192,7 +192,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		StartsOpen = false,
 		Open = function(_self: Types.Screen)
 			if isBought then
-				context.Toast("You already bought this!", "Good")
+				context.Toast("You already bought this! ✅", "Good")
 				context.Close("StarterOffer")
 				return
 			end

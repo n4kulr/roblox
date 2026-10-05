@@ -30,7 +30,7 @@ export type Cell = {
 }
 
 local theme = Kit.Theme
-local perkIcons: { [string]: string } = { Luck = "L", Speed = "S", Income = "$" }
+local perkIcons: { [string]: string } = { Luck = "🍀", Speed = "⚡", Income = "💰" }
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local unknownColor = Color3.fromRGB(122, 127, 138)
@@ -153,7 +153,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		local tag = Kit.Chip({
 			Parent = cell,
 			Name = "OnBoard",
-			Text = "ON BOARD",
+			Text = "✓ ON BOARD",
 			Size = UDim2.fromOffset(68, 18),
 			Position = UDim2.fromOffset(4, 4),
 			Color = theme.Green,

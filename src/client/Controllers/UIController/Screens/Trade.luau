@@ -19,7 +19,7 @@ local pickerCellSize = UDim2.fromOffset(120, 176)
 local panelHeight = 0.4
 local offerTexts = {
 	Open = "Both players press READY to trade!",
-	Warning = "Make sure this is a fair trade!",
+	Warning = "⚠️ Make sure this is a fair trade!",
 }
 
 local TradeScreen = {}
@@ -48,7 +48,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Trade",
 		Title = "TRADE",
-		Glyph = "Trade",
+		Icon = "🤝",
 		MaxSize = Vector2.new(780, 600),
 		HeaderColor = teal,
 		OnClose = function()
@@ -296,10 +296,10 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			banner.Text = offerTexts.Open
 			banner.TextColor3 = theme.Gold
 		end
-		readyButton.SetText(if state.MyReady then "READY!" else "READY?")
+		readyButton.SetText(if state.MyReady then "✅ READY!" else "READY?")
 		readyButton.SetColor(if state.MyReady then theme.Green else theme.Grey)
 		Kit.Paint(theirReady, if state.TheirReady then theme.Green else theme.Grey)
-		theirReadyLabel.Text = if state.TheirReady then `{state.Partner} is ready!` else "Waiting..."
+		theirReadyLabel.Text = if state.TheirReady then `✅ {state.Partner} is ready!` else "Waiting..."
 		refreshPicker()
 	end
 
