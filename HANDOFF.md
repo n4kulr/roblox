@@ -2,7 +2,7 @@
 
 Paste this file into the next AI session. It explains the project, where work stands, and how the owner likes to work.
 
-Last updated: 2026-10-05, at commit 782f0a4 on `claude/sharp-curie-svbmt1`.
+Last updated: 2026-10-05, after all five agents merged (see git log) on `claude/sharp-curie-svbmt1`.
 
 ## The game
 
@@ -68,7 +68,7 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
    - A Node script draws about 52 SVG icons in the Stud style (thick #1A1530 outline, gradient, gloss, drop shadow) into a 1024x1024 PNG of 128px cells at `assets/ui/icons.png`.
    - It also writes `src/client/Controllers/UIController/IconAtlas.luau`, which holds `Image` (empty until the owner uploads the PNG), `CellSize`, `Rects` and `Apply(label, name)`.
    - The preview renderer supports the atlas through the image id `rbxassetid://preview-atlas`.
-2. **UI overhaul:** a full Stud UI Pack 2-style rework of Kit and every screen.
+2. **UI overhaul (DONE, merged; Kit/Cards.luau + Kit/Effects.luau new; follow-ups: close X a bit small/pale, Day 7 tile muddy, Market grid narrow, ESC close untested, looping animations unseen):** a full Stud UI Pack 2-style rework of Kit and every screen.
    - **Text:** FredokaOne, white text with a dark stroke.
    - **Buttons:** 3 layers (shadow, gradient body, gloss) with a 3px outline, hover scale and a press squish.
    - **Modals:** a white body, a colored header ribbon with an icon badge, a big red round X, a dimmed background and a bounce on open. They close with ESC or by clicking outside.
