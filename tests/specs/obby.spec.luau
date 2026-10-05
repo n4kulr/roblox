@@ -308,12 +308,12 @@ describe("ObbyService", function()
 			expect(course:FindFirstChild("Zone").Size.X):toBe(99)
 		end)
 
-		it("sizes full keys 8x2.5x8 with a small gap and staggers the rows", function()
+		it("sizes full keys 6.56x2.2x6.56 with a small gap and staggers the rows", function()
 			boot()
 			local a = keyPart("RunA", 1)
 			local b = keyPart("RunA", 2)
 			local c = keyPart("RunA", 3)
-			expect(a.Size):toBe(Vector3.new(8, 2.5, 8))
+			expect(a.Size):toBe(Vector3.new(6.56, 2.2, 6.56))
 			local origin = course:FindFirstChild("Zone").CFrame
 			local function localX(part: any)
 				return origin:PointToObjectSpace(part.CFrame.Position).X
@@ -321,12 +321,12 @@ describe("ObbyService", function()
 			local function localZ(part: any)
 				return origin:PointToObjectSpace(part.CFrame.Position).Z
 			end
-			expect(math.abs(math.abs(localZ(a) - localZ(b)) - 8.4)):toBeCloseTo(0, 1e-3)
+			expect(math.abs(math.abs(localZ(a) - localZ(b)) - 6.8)):toBeCloseTo(0, 1e-3)
 			local xs = {}
 			for _, row in { 1, 2, 3, 4 } do
 				local keys = {}
 				for _, key in tapKeys() do
-					if string.find(key.Name, `Key_RunA_{row}_`, 1, true) == 1 and key.Size.X == 8 then
+					if string.find(key.Name, `Key_RunA_{row}_`, 1, true) == 1 and math.abs(key.Size.X - 6.56) < 1e-3 then
 						table.insert(keys, localX(key))
 					end
 				end
@@ -337,21 +337,27 @@ describe("ObbyService", function()
 			expect(c ~= nil and b ~= nil):toBe(true)
 		end)
 
-		it("paints dark caps with light legends, accent modifiers, never neon", function()
+		it("paints every tap key like a base floor key: cream, smooth plastic, no legends", function()
 			boot()
-			for _, part in course:GetDescendants() do
-				if part:IsA("Part") then
-					expect(part.Material):toBe(roblox.Enum.Material.SmoothPlastic)
-				end
+			local cream = roblox.Color3.fromRGB(222, 218, 208)
+			local count = 0
+			for _, part in withRole("TapKey") do
+				count += 1
+				expect(part.Color):toBe(cream)
+				expect(part.Material):toBe(roblox.Enum.Material.SmoothPlastic)
+				expect(#part:GetChildren()):toBe(0)
 			end
-			local plain = keyPart("RunA", 1, 0)
-			expect(plain.Color.R < 0.3 and plain.Color.G < 0.3 and plain.Color.B < 0.3):toBe(true)
-			local legend = plain:FindFirstChild("Legend"):FindFirstChild("Letter")
-			expect(legend.Text):toBe(plain:GetAttribute("Letter"))
-			expect(legend.TextColor3.R > 0.7):toBe(true)
+			expect(count > 0):toBe(true)
 			local modifier = course:FindFirstChild("Key_RunA_1_1")
 			expect(modifier:GetAttribute("Letter")):toBe("TAB")
-			expect(modifier.Color ~= plain.Color):toBe(true)
+			expect(modifier.Color):toBe(cream)
+		end)
+
+		it("paints pop-up keys in the Epic rarity color", function()
+			boot()
+			for _, part in withRole("PopUpKey") do
+				expect(part.Color):toBe(Keys.RarityByName.Epic.Color)
+			end
 		end)
 
 		it("prints keyboard letters on the caps", function()
@@ -756,7 +762,7 @@ describe("ObbyService", function()
 			local shift = popUp("SHIFT")
 			local plain = keyPart("RunA", 1)
 			expect(shift.CFrame.Position.Y + shift.Size.Y / 2):toBeCloseTo(plain.CFrame.Position.Y + plain.Size.Y / 2, 1e-6)
-			expect(shift.Size.Y >= config.Key.Height + config.PopUp.RiseHeight):toBe(true)
+			expect(shift.Size.Y >= config.Key.Height + config.PopUp.RiseHeight - 1e-3):toBe(true)
 		end)
 
 		it("goes back to rest on Destroy", function()
@@ -1353,6 +1359,57 @@ describe("ObbyService", function()
 			world:removePlayer(player)
 			tick(2)
 			expect(world.errors):toEqual({})
+		end)
+	end)
+
+	describe("keycap mesh skin", function()
+		local function bootSkinned(id: string)
+			world.overrides[world.tree.ReplicatedStorage.Config.Meshes] =
+				{ Keycap = id, RollKey = "", KeyboardCase = "" }
+			world:require("ServerScriptService.Utils.MeshTemplates").Load()
+			boot()
+			world:advance(0.5)
+		end
+
+		it("swaps every tap and pop-up key for a keycap mesh with the same shape and attributes", function()
+			bootSkinned("rbxassetid://1")
+			local plain = course:FindFirstChild("Key_RunA_1_2")
+			expect(plain:IsA("MeshPart")):toBe(true)
+			expect(plain.Size):toBe(Vector3.new(6.56, 2.2, 6.56))
+			expect(plain:GetAttribute("ObbyRole")):toBe("TapKey")
+			expect(plain.Color):toBe(roblox.Color3.fromRGB(222, 218, 208))
+			local shift = course:FindFirstChild("PopUp_SHIFT")
+			expect(shift:IsA("MeshPart")):toBe(true)
+			expect(shift:GetAttribute("ObbyRole")):toBe("PopUpKey")
+			expect(shift.Color):toBe(Keys.RarityByName.Epic.Color)
+			for _, part in course:GetDescendants() do
+				local role = part:GetAttribute("ObbyRole")
+				if role == "TapKey" or role == "PopUpKey" then
+					expect(part:IsA("MeshPart")):toBe(true)
+				end
+			end
+		end)
+
+		it("still counts taps and raises pop-ups on the swapped parts", function()
+			bootSkinned("rbxassetid://1")
+			local player = join("Skinned")
+			hop(player, 6)
+			expect(tapsOf(player)):toBe(6)
+			local shift = course:FindFirstChild("PopUp_SHIFT")
+			local rest = shift.CFrame.Position.Y
+			local highest, lowest = rest, rest
+			for _ = 1, 16 do
+				world:advance(0.5)
+				highest = math.max(highest, shift.CFrame.Position.Y)
+				lowest = math.min(lowest, shift.CFrame.Position.Y)
+			end
+			expect(highest - lowest):toBeCloseTo(6, 1e-3)
+		end)
+
+		it("keeps plain parts when the mesh fails to load", function()
+			world.meshFailures["rbxassetid://2"] = true
+			bootSkinned("rbxassetid://2")
+			expect(course:FindFirstChild("Key_RunA_1_2"):IsA("Part")):toBe(true)
 		end)
 	end)
 

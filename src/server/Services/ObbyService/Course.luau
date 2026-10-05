@@ -2,25 +2,17 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Keys = require(ReplicatedStorage.Config.Keys)
 local Obby = require(ReplicatedStorage.Rules.Obby)
 
 local config = GameConfig.Obby
 
-local keyColor = Color3.fromRGB(40, 42, 52)
-local legendColor = Color3.fromRGB(226, 230, 238)
 local deckColor = Color3.fromRGB(24, 25, 31)
 local padColor = Color3.fromRGB(58, 61, 74)
 local lavaColor = Color3.fromRGB(96, 22, 30)
 local railColor = Color3.fromRGB(32, 33, 40)
 local signColor = Color3.fromRGB(46, 49, 60)
 local gateColor = Color3.fromRGB(226, 72, 84)
-local accentColors = {
-	Color3.fromRGB(222, 98, 74),
-	Color3.fromRGB(79, 158, 214),
-	Color3.fromRGB(232, 180, 60),
-	Color3.fromRGB(120, 196, 128),
-}
-local popUpColor = Color3.fromRGB(190, 92, 160)
 local pedestalColor = Color3.fromRGB(255, 214, 51)
 local homeColor = Color3.fromRGB(79, 158, 214)
 local deckTop = 0.1
@@ -108,25 +100,12 @@ local function addSign(part: Part, faces: { Enum.NormalId }, title: string, subt
 	end
 end
 
-local function addLegend(part: Part, text: string)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "Legend"
-	gui.Face = Enum.NormalId.Top
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 24
-	gui.Parent = part
-	addLabel(gui, "Letter", text, 0.18, 0.64, legendColor, false)
-end
-
 local function buildKey(model: Model, origin: CFrame, layout: Obby.Layout, cell: Obby.Cell)
 	local height = config.Key.Height
 	local isPopUp = cell.Kind == "PopUp"
 	local rise = config.PopUp.RiseHeight
 	local fullHeight = if isPopUp then height + rise else height
-	local color = if isPopUp
-		then popUpColor
-		elseif cell.Kind == "Modifier" then accentColors[(cell.Row - 1) % #accentColors + 1]
-		else keyColor
+	local color = if isPopUp then Keys.RarityByName[config.Key.PopUpRarity].Color else config.Key.Color
 	local name = if isPopUp then `PopUp_{cell.Letter}` else `Key_{cell.Section}_{cell.Row}_{cell.Col}`
 	local part = newPart(
 		model,
@@ -143,7 +122,6 @@ local function buildKey(model: Model, origin: CFrame, layout: Obby.Layout, cell:
 		part:SetAttribute("PeriodSeconds", config.PopUp.PeriodSeconds)
 		part:SetAttribute("PhaseSeconds", cell.Phase)
 	end
-	addLegend(part, cell.Letter)
 end
 
 local function buildPad(

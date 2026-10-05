@@ -8,6 +8,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Obby = require(ReplicatedStorage.Rules.Obby)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local KeyVisual = require(script.Parent.Parent.Utils.KeyVisual)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Course = require(script.Course)
@@ -15,6 +16,7 @@ local Finder = require(script.Finder)
 local Gates = require(script.Gates)
 local Pickups = require(script.Pickups)
 local PopUps = require(script.PopUps)
+local Skin = require(script.Skin)
 local Taps = require(script.Taps)
 local Types = require(script.Types)
 
@@ -329,6 +331,17 @@ function ObbyService.Start(self: State)
 	for _, part in info.PopUps do
 		table.insert(popUps, PopUps.New(part))
 	end
+	trove:Add(task.spawn(function()
+		MeshTemplates.Wait(config.Key.MeshWaitSeconds)
+		for _, state in popUps do
+			PopUps.Reset(state)
+		end
+		table.clear(popUps)
+		Skin.Apply(info)
+		for _, part in info.PopUps do
+			table.insert(popUps, PopUps.New(part))
+		end
+	end))
 	trove:Connect(Players.PlayerRemoving, forget)
 	trove:Add(task.spawn(function()
 		while true do
