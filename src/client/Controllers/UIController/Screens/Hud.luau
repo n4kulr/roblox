@@ -392,7 +392,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local statText: StatLabels = {
 		Luck = statChip("Luck", "LUCK", "Luck", theme.Green, 1, "Higher Luck finds rarer keys!"),
 		Speed = statChip("Speed", "SPEED", "Speed", theme.Yellow, 2, "Rolls you make every second!"),
-		Income = statChip("Income", "CLICKS", "Coin", theme.Orange, 3, "Multiplies your Clicks!"),
+		Income = statChip("Income", "CLICKS", "Clicks", theme.Orange, 3, "Multiplies your Clicks!"),
 	}
 
 	local bottom = Instance.new("Frame")

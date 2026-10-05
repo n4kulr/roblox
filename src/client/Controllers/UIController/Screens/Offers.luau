@@ -72,7 +72,7 @@ function Offers.new(context: Types.Context): Types.Screen
 		return { Frame = pill.Instance, Caption = pill, Timer = pill.Label }
 	end
 	local luckPill = boostPill("LuckPotion", "LUCK", "Potion", Kit.Theme.Green, 1)
-	local clicksPill = boostPill("ClicksPotion", "CLICKS", "Coin", Kit.Theme.Gold, 2)
+	local clicksPill = boostPill("ClicksPotion", "CLICKS", "Clicks", Kit.Theme.Gold, 2)
 	local serverPill = boostPill("ServerLuck", "SERVER", "Globe", Kit.Theme.Blue, 3)
 
 	local function showPill(pill: BoostPill, multiplier: number, secondsLeft: number)

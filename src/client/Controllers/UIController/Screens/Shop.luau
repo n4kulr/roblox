@@ -16,9 +16,8 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local cardHeight = 104
+local cardHeight = 100
 local buyWidth = 160
-local iconSize = 80
 local refreshSeconds = 0.25
 
 local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
@@ -27,10 +26,10 @@ local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
 	Vip = { Glyph = "Crown" },
 	SeasonPremium = { Glyph = "Pass" },
 	StarterPack = { Glyph = "Gift" },
-	LuckPotion = { Glyph = "Flask" },
-	ClicksPotion = { Glyph = "Flask", Color = Color3.fromRGB(255, 190, 40) },
+	LuckPotion = { Glyph = "Potion" },
+	ClicksPotion = { Glyph = "Potion", Color = Color3.fromRGB(255, 190, 40) },
 	ServerLuck = { Glyph = "Globe" },
-	ClicksSmall = { Glyph = "Coin" },
+	ClicksSmall = { Glyph = "Clicks" },
 	ClicksLarge = { Glyph = "Income" },
 }
 
@@ -94,61 +93,36 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 	): Kit.Button
 		order += 1
 		local art: { Glyph: string, Color: Color3? } = glyphs[id] or { Glyph = "Gift" }
-		local frame = Kit.Panel({
+		local layout = Kit.Row({
 			Parent = scroll,
 			Name = id,
-			Size = UDim2.new(1, 0, 0, cardHeight),
-			Color = Kit.Shade(color, -0.12),
+			Height = cardHeight,
 			LayoutOrder = order,
-			Shards = true,
-			Radius = Kit.Radius.L,
-		})
-		local iconTile = Kit.Plate({
-			Parent = frame,
-			Name = "IconTile",
-			Position = UDim2.fromOffset(Kit.Space.M, (cardHeight - iconSize) / 2),
-			Size = UDim2.fromOffset(iconSize, iconSize),
-			Radius = Kit.Radius.L,
-		})
-		Kit.Burst({ Parent = iconTile, Diameter = iconSize - 8, Color = color })
-		Kit.Icon({
-			Parent = iconTile,
-			Name = "Icon",
+			Color = color,
 			Glyph = art.Glyph,
-			Color = art.Color,
-			Size = UDim2.fromScale(0.8, 0.8),
-			Position = UDim2.fromScale(0.1, 0.1),
+			Title = name,
+			Subtitle = description,
+			RightWidth = buyWidth,
 		})
-		local textLeft = iconSize + Kit.Space.M * 2
-		local textRight = buyWidth + Kit.Space.M * 2
-		Kit.Label({
-			Parent = frame,
-			Name = "Name",
-			Text = name,
-			Position = UDim2.fromOffset(textLeft, 10),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 32),
-			TextSize = 30,
-			Scaled = true,
-			Title = true,
-		})
-		Kit.Label({
-			Parent = frame,
-			Name = "Description",
-			Text = description,
-			Position = UDim2.fromOffset(textLeft, 46),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 48),
-			TextSize = 18,
-			Color = theme.Cream,
-			Wrapped = true,
-			VerticalAlign = Enum.TextYAlignment.Top,
-		})
+		local frame = layout.Frame
+		local sub = layout.Subtitle
+		if sub then
+			sub.Name = "Description"
+			sub.TextScaled = false
+			sub.TextSize = 17
+			sub.TextWrapped = true
+			sub.TextYAlignment = Enum.TextYAlignment.Top
+			sub.Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 40)
+		end
 		return Kit.Button(trove, {
 			Parent = frame,
 			Name = "Buy",
 			Text = "BUY",
+			Glyph = "Robux",
+			IconLeft = true,
 			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.new(0, buyWidth, 1, -2 * Kit.Space.M - 4),
+			Size = UDim2.fromOffset(buyWidth, 58),
 			Color = theme.Green,
 			TextSize = 26,
 			Callback = callback,
@@ -215,7 +189,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			button.SetText("SOON")
 		else
 			button.SetColor(theme.Green)
-			button.SetText(`BUY\nR$ {item.PriceLabel}`)
+			button.SetText(item.PriceLabel)
 		end
 	end
 

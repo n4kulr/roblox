@@ -75,7 +75,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Market",
 		Title = "KEY MARKET",
-		Glyph = "Market",
+		Glyph = "Shop",
 		MaxSize = Vector2.new(900, 660),
 		HeaderColor = accent,
 		OnClose = function()

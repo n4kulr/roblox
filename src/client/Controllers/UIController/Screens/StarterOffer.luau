@@ -17,7 +17,7 @@ local margin = 16
 
 local contents: { { Glyph: string, Text: string, Color: Color3? } } = {
 	{ Glyph = "Clicks", Text = "10,000 Clicks" },
-	{ Glyph = "Flask", Text = "2x Luck potion (15 min)" },
+	{ Glyph = "Potion", Text = "2x Luck potion (15 min)" },
 	{ Glyph = "Keys", Text = "Epic Key", Color = Color3.fromRGB(180, 80, 255) },
 }
 
@@ -167,7 +167,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	decline.Font = Kit.Font
 	decline.Text = "No thanks"
 	decline.TextSize = 22
-	decline.TextColor3 = theme.TextDim
+	decline.TextColor3 = theme.Subtext
 	decline.Size = UDim2.fromOffset(160, 40)
 	decline.Position = UDim2.new(0.5, 0, 0, 416)
 	decline.AnchorPoint = Vector2.new(0.5, 0)

@@ -279,7 +279,9 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 			Color = props.IconColor,
 			Size = if isIconOnly
 				then UDim2.fromScale(0.66, 0.66)
-				elseif isLeft then (if leftIcon > 0 then UDim2.fromOffset(leftIcon, leftIcon) else UDim2.fromScale(0, 0.8))
+				elseif isLeft then (if leftIcon > 0
+					then UDim2.fromOffset(leftIcon, leftIcon)
+					else UDim2.fromScale(0, 0.8))
 				else UDim2.fromScale(1, stackedIcon),
 			Position = if isIconOnly
 				then UDim2.fromScale(0.17, 0.17)
@@ -305,7 +307,9 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 			elseif hasIcon then UDim2.fromScale(0, stackedIcon + 0.02)
 			else UDim2.fromOffset(6, 2),
 		Size = if hasIcon and isLeft
-			then (if leftIcon > 0 then UDim2.new(1, -(textLeft + leftPad), 1, -4) else UDim2.new(0.8, -8, 1, -4))
+			then (if leftIcon > 0
+				then UDim2.new(1, -(textLeft + leftPad), 1, -4)
+				else UDim2.new(0.8, -8, 1, -4))
 			elseif hasIcon then UDim2.fromScale(1, 0.96 - stackedIcon)
 			else UDim2.new(1, -12, 1, -4),
 		TextSize = props.TextSize or 24,

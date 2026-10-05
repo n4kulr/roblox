@@ -14,18 +14,19 @@ type Tile = {
 	Panel: Frame,
 	Action: Kit.Button,
 	Reward: DailyRewards.Reward,
+	Check: GuiObject,
 	IsGlowing: boolean,
 }
 
 local theme = Kit.Theme
 local refreshSeconds = 0.5
-local claimedColor = theme.Grey
-local lockedColor = Color3.fromRGB(70, 78, 96)
+local claimedColor = Kit.Shade(theme.Green, 0.6)
+local lockedColor = Color3.fromHex("E3E9F5")
 
 local rewardGlyph: { [string]: string } = {
-	Clicks = "Coin",
-	LuckPotion = "Flask",
-	ClicksPotion = "Flask",
+	Clicks = "Clicks",
+	LuckPotion = "Potion",
+	ClicksPotion = "Potion",
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
@@ -110,13 +111,17 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			local day = tile.Reward.Day
 			if day <= claimed then
 				Kit.Paint(tile.Panel, claimedColor)
+				tile.Action.SetLocked(false)
 				tile.Action.SetDisabled(true)
 				tile.Action.SetText("CLAIMED")
+				tile.Check.Visible = true
 			elseif state.CanClaim and day == state.Day then
 				Kit.Paint(tile.Panel, if day == #DailyRewards.Rewards then theme.Gold else theme.Green)
 				tile.Action.SetDisabled(false)
 				tile.Action.SetColor(theme.Green)
 				tile.Action.SetText("CLAIM")
+				tile.Check.Visible = false
+				tile.Action.SetLocked(false)
 				if not tile.IsGlowing then
 					tile.IsGlowing = true
 					tile.Action.SetGlow(true)
@@ -127,8 +132,10 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 					if day == #DailyRewards.Rewards then Kit.Shade(theme.Gold, -0.35) else lockedColor
 				)
 				tile.Action.SetDisabled(false)
-				tile.Action.SetColor(theme.Red)
+				tile.Action.SetColor(theme.Grey)
 				tile.Action.SetText("LOCKED")
+				tile.Action.SetLocked(true)
+				tile.Check.Visible = false
 			end
 			if tile.IsGlowing and not (state.CanClaim and day == state.Day) then
 				tile.IsGlowing = false
@@ -223,7 +230,19 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			end,
 			Sound = playUi,
 		})
-		table.insert(tiles, { Panel = panel, Action = action, Reward = reward, IsGlowing = false })
+		local check = Kit.Icon({
+			Parent = panel,
+			Name = "Check",
+			Glyph = "Check",
+			Size = UDim2.fromOffset(if isBig then 36 else 28, if isBig then 36 else 28),
+			Position = UDim2.new(1, -6, 0, 4),
+			AnchorPoint = Vector2.new(1, 0),
+		})
+		check.Visible = false
+		table.insert(
+			tiles,
+			{ Panel = panel, Action = action, Reward = reward, Check = check, IsGlowing = false }
+		)
 	end
 
 	trove:Add(dataController:Observe({ "Daily" }, function(_value: any)

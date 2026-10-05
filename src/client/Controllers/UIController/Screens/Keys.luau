@@ -127,10 +127,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Size = UDim2.fromOffset(340, 400),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Color = theme.Panel,
+		Color = theme.PanelDeep,
 		Radius = Kit.Radius.Panel,
 		StrokeThickness = 4,
-		Shards = true,
 	})
 	detail.Active = true
 	local detailPop = Instance.new("UIScale")
@@ -165,6 +164,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(14, 176),
 		Size = UDim2.new(1, -28, 0, 22),
 		TextSize = 19,
+		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -186,7 +186,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(14, 224),
 		Size = UDim2.new(1, -28, 0, 22),
 		TextSize = 17,
-		Color = theme.TextDim,
+		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -293,7 +293,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Parent = detail,
 		Name = "SellOne",
 		Text = "SELL 1",
-		Glyph = "Coin",
+		Glyph = "Sell",
 		IconLeft = true,
 		Position = UDim2.fromOffset(16, 264),
 		Size = UDim2.new(1, -32, 0, 56),

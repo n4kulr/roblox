@@ -16,8 +16,8 @@ local silverColor = Color3.fromRGB(190, 198, 212)
 local bronzeColor = Color3.fromRGB(205, 127, 70)
 
 local tabs: { { Title: string, Glyph: string, Color: Color3, Compact: boolean } } = {
-	{ Title = "Clicks Earned", Glyph = "Coin", Color = theme.Green, Compact = true },
-	{ Title = "Rolls", Glyph = "Dice", Color = theme.Blue, Compact = false },
+	{ Title = "Clicks Earned", Glyph = "Clicks", Color = theme.Green, Compact = true },
+	{ Title = "Rolls", Glyph = "Roll", Color = theme.Blue, Compact = false },
 	{ Title = "Rebirths", Glyph = "Rebirth", Color = theme.Pink, Compact = false },
 }
 
@@ -45,7 +45,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		Parent = context.PlayerGui,
 		Name = "Leaderboards",
 		Title = "LEADERBOARDS",
-		Glyph = "Trophy",
+		Glyph = "Leaderboard",
 		MaxSize = Vector2.new(860, 620),
 		HeaderColor = theme.Gold,
 		OnClose = function()

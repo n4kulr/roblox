@@ -30,7 +30,7 @@ export type Cell = {
 }
 
 local theme = Kit.Theme
-local perkGlyphs: { [string]: string } = { Luck = "Luck", Speed = "Speed", Income = "Coin" }
+local perkGlyphs: { [string]: string } = { Luck = "Luck", Speed = "Speed", Income = "Clicks" }
 local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local unknownColor = Color3.fromRGB(122, 127, 138)
@@ -93,15 +93,22 @@ end
 function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local key = props.Key
 	local rarity = Keys.GetRarity(key)
-	local tint = Kit.Shade(rarity.Color, -0.3)
+	local isSecret = rarity.Name == "Secret"
 	local cell = Kit.Panel({
 		Parent = props.Parent,
 		Name = key.Id,
 		Size = Cells.Size,
-		Color = tint,
+		Color = rarity.Color,
 		LayoutOrder = props.LayoutOrder,
 		Shards = true,
+		Radius = Kit.Radius.L,
 	})
+	cell.ClipsDescendants = true
+	local paintGradient = cell:FindFirstChild("Paint") :: UIGradient
+	paintGradient.Enabled = not isSecret
+	Kit.RarityPaint(trove, cell, rarity.Name, rarity.Color, Kit.Radius.L)
+	local rainbow = cell:FindFirstChild("Rainbow") :: UIGradient?
+	local shimmer = cell:FindFirstChild("Shimmer") :: GuiObject?
 	Kit.Burst({
 		Parent = cell,
 		Diameter = 112,
@@ -133,7 +140,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Position = UDim2.fromOffset(4, 118),
 		Size = UDim2.new(1, -8, 0, 20),
 		TextSize = 16,
-		Color = theme.Good,
+		Color = theme.Text,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -225,10 +232,17 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			else
 				keycap.SetGlyph("?", theme.Gold)
 			end
-			Kit.Paint(cell, if isFound then tint else Kit.Shade(unknownColor, -0.35))
+			Kit.Paint(cell, if isFound then rarity.Color else Kit.Shade(unknownColor, -0.1))
+			paintGradient.Enabled = not (isSecret and isFound)
+			if rainbow then
+				rainbow.Enabled = isFound
+			end
+			if shimmer then
+				shimmer.Visible = isFound
+			end
 			nameLabel.Text = if isFound then key.Name else "???"
 			infoLabel.Text = info
-			infoLabel.TextColor3 = infoColor or theme.Good
+			infoLabel.TextColor3 = infoColor or theme.Text
 		end,
 	}
 end

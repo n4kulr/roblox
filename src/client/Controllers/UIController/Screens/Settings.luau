@@ -20,8 +20,8 @@ local codeHeight = 124
 local lowQualityMax = 3
 
 local volumes: { { Setting: string, Title: string, Glyph: string } } = {
-	{ Setting = "RollVolume", Title = "Roll Sounds", Glyph = "Dice" },
-	{ Setting = "BoardVolume", Title = "Keyboard Sounds", Glyph = "Sound" },
+	{ Setting = "RollVolume", Title = "Roll Sounds", Glyph = "Roll" },
+	{ Setting = "BoardVolume", Title = "Keyboard Sounds", Glyph = "Music" },
 	{ Setting = "OtherVolume", Title = "Other Players", Glyph = "People" },
 }
 
@@ -83,25 +83,20 @@ function Settings.new(context: Types.Context): Types.Screen
 		})
 	end
 
-	local function addIcon(row: Frame, glyph: string)
-		local plate = Kit.Plate({
+	local function addIcon(row: Frame, glyph: string, color: Color3)
+		Kit.IconPlate({
 			Parent = row,
 			Name = "IconPlate",
 			Position = UDim2.fromOffset(Kit.Space.M, Kit.Space.M),
 			Size = UDim2.fromOffset(52, 52),
-		})
-		Kit.Icon({
-			Parent = plate,
-			Name = "Icon",
+			Color = color,
 			Glyph = glyph,
-			Size = UDim2.fromScale(0.82, 0.82),
-			Position = UDim2.fromScale(0.09, 0.09),
 		})
 	end
 
 	local function addToggle(setting: string, title: string, detail: string, glyph: string)
 		local row = addRow(setting, toggleHeight)
-		addIcon(row, glyph)
+		addIcon(row, glyph, theme.Purple)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
@@ -119,7 +114,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Position = UDim2.fromOffset(78, 46),
 			Size = UDim2.new(1, -230, 0, 26),
 			TextSize = 17,
-			Color = theme.TextDim,
+			Subtle = true,
 			Scaled = true,
 		})
 		toggles[setting] = Kit.Toggle(trove, {
@@ -137,7 +132,7 @@ function Settings.new(context: Types.Context): Types.Screen
 
 	local function addSlider(setting: string, title: string, glyph: string)
 		local row = addRow(setting, sliderHeight)
-		addIcon(row, glyph)
+		addIcon(row, glyph, theme.Blue)
 		Kit.Label({
 			Parent = row,
 			Name = "Title",
@@ -156,7 +151,6 @@ function Settings.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0),
 			Size = UDim2.fromOffset(90, 34),
 			TextSize = 26,
-			Color = theme.Gold,
 			Align = Enum.TextXAlignment.Right,
 		})
 		local slider = Kit.Slider(trove, {
@@ -177,7 +171,7 @@ function Settings.new(context: Types.Context): Types.Screen
 	end
 
 	addToggle("LowGraphics", "Low Graphics", "Faster on phones", "Graphics")
-	addToggle("AutoPlace", "Auto-Equip New Keys", "New keys jump onto your keyboard!", "Sparkle")
+	addToggle("AutoPlace", "Auto-Equip New Keys", "New keys jump onto your keyboard!", "Equip")
 	for _, volume in volumes do
 		addSlider(volume.Setting, volume.Title, volume.Glyph)
 	end
@@ -193,7 +187,7 @@ function Settings.new(context: Types.Context): Types.Screen
 		Scaled = true,
 		Title = true,
 	})
-	addIcon(codeRow, "Code")
+	addIcon(codeRow, "Code", theme.Orange)
 	local codeField = Kit.Panel({
 		Parent = codeRow,
 		Name = "Field",

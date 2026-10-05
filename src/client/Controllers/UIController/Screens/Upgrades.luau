@@ -26,8 +26,7 @@ type Row = {
 local theme = Kit.Theme
 local cardHeight = 112
 local refreshSeconds = 0.2
-local buyWidth = 168
-local iconSize = 88
+local buyWidth = 158
 
 local cardColors: { [string]: Color3 } = {
 	Luck = theme.Green,
@@ -45,7 +44,7 @@ local sections: { { Category: Upgrades.Category, Caption: string, Glyph: string 
 }
 local sectionStride = 1000
 local lockRefreshSeconds = 0.25
-local lockCardHeight = 96
+local lockCardHeight = 92
 local lockButtonWidth = 200
 local lockCardOrder = 900
 local lockReadyText = "LOCK BASE"
@@ -151,21 +150,18 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		row.Bar.SetValue(level / maxLevel)
 		local cost = Upgrades.Cost(row.Upgrade, level)
 		if not cost then
-			row.Buy.SetText("MAXED!")
+			row.Buy.SetText("MAX")
 			row.Buy.SetIconVisible(false)
-			row.Buy.SetColor(theme.Yellow)
+			row.Buy.SetColor(theme.Gold)
+			row.Buy.SetLocked(false)
 			return
 		end
 		local balance = tracker.Balance()
-		if balance ~= nil and balance >= cost then
-			row.Buy.SetText(NumberFormat.Compact(cost))
-			row.Buy.SetIconVisible(true)
-			row.Buy.SetColor(theme.Green)
-		else
-			row.Buy.SetText(NumberFormat.Compact(cost))
-			row.Buy.SetIconVisible(true)
-			row.Buy.SetColor(theme.Disabled)
-		end
+		local canBuy = balance ~= nil and balance >= cost
+		row.Buy.SetText(NumberFormat.Compact(cost))
+		row.Buy.SetIconVisible(true)
+		row.Buy.SetColor(if canBuy then theme.Green else theme.Disabled)
+		row.Buy.SetLocked(not canBuy)
 	end
 
 	local function refreshAll()
@@ -225,73 +221,43 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 
 	local function addCard(upgrade: Upgrades.Upgrade, order: number)
 		local color = cardColors[upgrade.Id] or theme.Green
-		local card = Kit.Panel({
+		local layout = Kit.Row({
 			Parent = scroll,
 			Name = upgrade.Id,
-			Size = UDim2.new(1, 0, 0, cardHeight),
-			Color = Kit.Shade(color, -0.12),
+			Height = cardHeight,
 			LayoutOrder = order,
-			Shards = true,
-			Radius = Kit.Radius.L,
-		})
-		local iconTile = Kit.Plate({
-			Parent = card,
-			Name = "IconTile",
-			Position = UDim2.fromOffset(Kit.Space.M, (cardHeight - iconSize) / 2),
-			Size = UDim2.fromOffset(iconSize, iconSize),
-			Radius = Kit.Radius.L,
-		})
-		Kit.Burst({
-			Parent = iconTile,
-			Diameter = iconSize - 8,
 			Color = color,
-		})
-		Kit.Icon({
-			Parent = iconTile,
-			Name = "Icon",
 			Glyph = upgrade.Glyph,
-			Size = UDim2.fromScale(0.82, 0.82),
-			Position = UDim2.fromScale(0.09, 0.09),
+			Title = upgrade.Name,
+			Subtitle = upgrade.Effect,
+			RightWidth = buyWidth,
 		})
-		local textLeft = iconSize + Kit.Space.M * 2
-		local textRight = buyWidth + Kit.Space.M * 2
-		Kit.Label({
-			Parent = card,
-			Name = "Name",
-			Text = upgrade.Name,
-			Position = UDim2.fromOffset(textLeft, 8),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 30),
-			TextSize = 28,
-			Scaled = true,
-			Title = true,
-		})
-		Kit.Label({
-			Parent = card,
-			Name = "Effect",
-			Text = upgrade.Effect,
-			Position = UDim2.fromOffset(textLeft, 38),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 20),
-			TextSize = 17,
-			Color = theme.Cream,
-			Scaled = true,
-		})
+		local card = layout.Frame
+		layout.Title.Position = UDim2.fromOffset(layout.Left, 6)
+		local subtitle = layout.Subtitle
+		if subtitle then
+			subtitle.Position = UDim2.fromOffset(layout.Left, 36)
+			subtitle.Name = "Effect"
+		end
 		local previewLabel = Kit.Label({
 			Parent = card,
 			Name = "Preview",
 			Text = "",
-			Position = UDim2.fromOffset(textLeft, 60),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 22),
-			TextSize = 20,
+			Position = UDim2.fromOffset(layout.Left, 56),
+			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 20),
+			TextSize = 18,
+			Color = theme.GoodDeep,
+			Subtle = true,
 			Scaled = true,
 		})
 		local bar = Kit.Bar({
 			Parent = card,
 			Name = "Level",
-			Position = UDim2.fromOffset(textLeft, 84),
-			Size = UDim2.new(1, -(textLeft + textRight), 0, 22),
-			Color = theme.Good,
+			Position = UDim2.fromOffset(layout.Left, 80),
+			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 22),
+			Color = theme.Green,
 			Text = "Lv 0",
-			TextSize = 16,
+			TextSize = 15,
 		})
 		local row: Row = {
 			Frame = card,
@@ -309,7 +275,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			IconLeft = true,
 			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.new(0, buyWidth, 1, -2 * Kit.Space.M - 4),
+			Size = UDim2.fromOffset(buyWidth, 60),
 			Color = theme.Green,
 			TextSize = 28,
 			Callback = function()
@@ -388,59 +354,32 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function addLockCard(order: number)
-		lockCard = Kit.Panel({
+		local layout = Kit.Row({
 			Parent = scroll,
 			Name = "LockBase",
-			Size = UDim2.new(1, 0, 0, lockCardHeight),
-			Color = Kit.Shade(theme.Red, -0.12),
+			Height = lockCardHeight,
 			LayoutOrder = order,
-			Shards = true,
-			Radius = Kit.Radius.L,
-		})
-		local tile = Kit.Plate({
-			Parent = lockCard,
-			Name = "IconTile",
-			Position = UDim2.fromOffset(Kit.Space.M, (lockCardHeight - 76) / 2),
-			Size = UDim2.fromOffset(76, 76),
-			Radius = Kit.Radius.L,
-		})
-		Kit.Icon({
-			Parent = tile,
-			Name = "Icon",
+			Color = theme.Red,
 			Glyph = "Lock",
-			Size = UDim2.fromScale(0.8, 0.8),
-			Position = UDim2.fromScale(0.1, 0.1),
+			Title = "LOCK BASE",
+			Subtitle = "",
+			RightWidth = lockButtonWidth,
 		})
-		local textLeft = 76 + Kit.Space.M * 2
-		Kit.Label({
-			Parent = lockCard,
-			Name = "Name",
-			Text = "LOCK BASE",
-			Position = UDim2.fromOffset(textLeft, 14),
-			Size = UDim2.new(1, -(textLeft + lockButtonWidth + 24), 0, 34),
-			TextSize = 32,
-			Scaled = true,
-			Title = true,
-		})
-		lockDescription = Kit.Label({
-			Parent = lockCard,
-			Name = "Description",
-			Text = "",
-			Position = UDim2.fromOffset(textLeft, 52),
-			Size = UDim2.new(1, -(textLeft + lockButtonWidth + 24), 0, 28),
-			TextSize = 20,
-			Color = theme.Cream,
-			Scaled = true,
-		})
+		lockCard = layout.Frame
+		local sub = layout.Subtitle
+		if sub then
+			sub.Name = "Description"
+			lockDescription = sub
+		end
 		lockButton = Kit.Button(trove, {
 			Parent = lockCard,
 			Name = "Lock",
 			Text = lockReadyText,
 			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.new(0, lockButtonWidth, 1, -2 * Kit.Space.M - 4),
+			Size = UDim2.fromOffset(lockButtonWidth, 56),
 			Color = theme.Red,
-			TextSize = 28,
+			TextSize = 26,
 			Callback = pressLock,
 			Sound = playUi,
 		})

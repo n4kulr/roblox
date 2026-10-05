@@ -24,13 +24,13 @@ local theme = Kit.Theme
 local refreshSeconds = 0.25
 local columnWidth = 112
 local claimDelay = 0.3
-local lockedColor = Color3.fromRGB(58, 64, 80)
-local reachedColor = Color3.fromRGB(88, 96, 120)
+local lockedColor = Color3.fromHex("E3E9F5")
+local reachedColor = Color3.fromHex("F6F9FF")
 
 local rewardGlyph: { [string]: string } = {
-	Clicks = "Coin",
-	LuckPotion = "Flask",
-	ClicksPotion = "Flask",
+	Clicks = "Clicks",
+	LuckPotion = "Potion",
+	ClicksPotion = "Potion",
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
@@ -248,7 +248,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			local isReached = tile.Level <= level
 			local isLockedByPass = tile.Premium and not owns
 			if isClaimed then
-				Kit.Paint(tile.Panel, theme.Grey)
+				Kit.Paint(tile.Panel, Kit.Shade(theme.Green, 0.6))
 				tile.Mark.Visible = true
 				tile.Mark:Destroy()
 				tile.Mark = Kit.Icon({

@@ -169,6 +169,15 @@ export type SectionProps = {
 	Size: UDim2?,
 }
 
+local atlasNames: { [string]: string } = {
+	Market = "Shop",
+	Trophy = "Leaderboard",
+	Coin = "Clicks",
+	Flask = "Potion",
+	Dice = "Roll",
+	Burst = "Fire",
+}
+
 local Core = {}
 
 function Core.Corner(parent: Instance, radius: number?): UICorner
@@ -246,7 +255,7 @@ function Core.Gloss(parent: GuiObject, radius: number)
 	local gloss = Instance.new("Frame")
 	gloss.Name = "Gloss"
 	gloss.BackgroundColor3 = white
-	gloss.BackgroundTransparency = 0.7
+	gloss.BackgroundTransparency = 0.78
 	gloss.BorderSizePixel = 0
 	gloss.Position = UDim2.fromOffset(4, 4)
 	gloss.Size = UDim2.new(1, -8, 0.45, -4)
@@ -367,7 +376,7 @@ function Core.Icon(props: IconProps): GuiObject
 		return image
 	end
 	local name = props.Glyph or "Star"
-	if IconAtlas.Apply(image, name) then
+	if IconAtlas.Apply(image, atlasNames[name] or name) then
 		image.Parent = props.Parent
 		return image
 	end
@@ -562,7 +571,7 @@ function Core.Bar(props: BarProps): Bar
 	local gloss = Instance.new("Frame")
 	gloss.Name = "Gloss"
 	gloss.BackgroundColor3 = white
-	gloss.BackgroundTransparency = 0.7
+	gloss.BackgroundTransparency = 0.78
 	gloss.BorderSizePixel = 0
 	gloss.Position = UDim2.new(0, 6, 0, 3)
 	gloss.Size = UDim2.new(1, -12, 0.35, 0)

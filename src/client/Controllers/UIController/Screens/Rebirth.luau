@@ -107,7 +107,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(10, 200),
 		Size = UDim2.new(1, -20, 0, 26),
 		TextSize = 22,
-		Color = theme.TextDim,
+		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -167,7 +167,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0, 1),
 		Size = UDim2.new(1, -20, 0, 32),
 		TextSize = 22,
-		Color = theme.TextDim,
+		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})

@@ -42,22 +42,25 @@ local hideInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection
 
 local function collectFades(root: Instance): { FadeTarget }
 	local list: { FadeTarget } = {}
-	local function add(target: Instance, property: string, value: any)
-		if type(value) == "number" and value < 1 then
+	local function add(target: Instance, property: string)
+		local ok, value = pcall(function()
+			return (target :: any)[property]
+		end)
+		if ok and type(value) == "number" and value < 1 then
 			table.insert(list, { Target = target, Property = property, Original = value })
 		end
 	end
 	local function visit(item: Instance)
 		if item:IsA("TextLabel") then
-			add(item, "TextTransparency", item.TextTransparency)
-			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+			add(item, "TextTransparency")
+			add(item, "BackgroundTransparency")
 		elseif item:IsA("ImageLabel") then
-			add(item, "ImageTransparency", item.ImageTransparency)
-			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+			add(item, "ImageTransparency")
+			add(item, "BackgroundTransparency")
 		elseif item:IsA("Frame") then
-			add(item, "BackgroundTransparency", item.BackgroundTransparency)
+			add(item, "BackgroundTransparency")
 		elseif item:IsA("UIStroke") then
-			add(item, "Transparency", item.Transparency)
+			add(item, "Transparency")
 		end
 	end
 	visit(root)
