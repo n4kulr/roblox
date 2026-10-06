@@ -21,14 +21,14 @@ export type Defense = {
 
 export type CapVisual = {
 	State: string,
-	Billboard: BillboardGui,
-	Amount: TextLabel,
+	Billboard: BillboardGui?,
+	Amount: TextLabel?,
 	Surface: SurfaceGui,
 	Rim: GuiObject,
 	Stroke: UIStroke,
-	Plus: TextLabel,
-	Letter: TextLabel,
-	Lock: ImageLabel,
+	Plus: TextLabel?,
+	Letter: TextLabel?,
+	Lock: ImageLabel?,
 	Decor: Model?,
 }
 
