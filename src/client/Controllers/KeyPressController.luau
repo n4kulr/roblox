@@ -25,6 +25,8 @@ type CapState = {
 type PlotState = {
 	Model: Model,
 	Base: BasePart?,
+	Columns: number?,
+	Rows: number?,
 	Caps: { [number]: CapState },
 }
 type CosmeticState = {
@@ -68,6 +70,8 @@ local standingOn: { [Player]: CapState } = {}
 local cosmetic: CosmeticState? = nil
 local destroyed = false
 local isLowGraphics = false
+local seenPlayers: { [Player]: boolean } = {}
+local candidates: { Player } = {}
 
 local function isFillerPart(part: BasePart): boolean
 	return part:GetAttribute(Attributes.Filler) == true or part:GetAttribute(Attributes.Cosmetic) == true
@@ -224,8 +228,17 @@ end
 local function trackPlot(model: Model, parentTrove: TroveInstance)
 	local trove = Trove.new()
 	parentTrove:Add(trove)
-	local state: PlotState = { Model = model, Base = nil, Caps = {} }
+	local state: PlotState = { Model = model, Base = nil, Columns = nil, Rows = nil, Caps = {} }
 	plotStates[model] = state
+	local function readLayout()
+		local columns = model:GetAttribute(Attributes.FloorColumns)
+		local rows = model:GetAttribute(Attributes.FloorRows)
+		state.Columns = if type(columns) == "number" then columns else nil
+		state.Rows = if type(rows) == "number" then rows else nil
+	end
+	readLayout()
+	trove:Connect(model:GetAttributeChangedSignal(Attributes.FloorColumns), readLayout)
+	trove:Connect(model:GetAttributeChangedSignal(Attributes.FloorRows), readLayout)
 	trove:Add(function()
 		plotStates[model] = nil
 		for _, cap in state.Caps do
@@ -293,9 +306,14 @@ end
 local function findCap(position: Vector3): CapState?
 	for _, state in plotStates do
 		local base = getBase(state)
-		local columns = state.Model:GetAttribute(Attributes.FloorColumns)
-		local rows = state.Model:GetAttribute(Attributes.FloorRows)
-		if base and type(columns) == "number" and type(rows) == "number" then
+		local columns = state.Columns
+		local rows = state.Rows
+		if
+			base
+			and columns
+			and rows
+			and (position - base.CFrame.Position).Magnitude <= base.Size.Magnitude * 0.5 + maxHeight
+		then
 			local localPosition = base.CFrame:PointToObjectSpace(position)
 			local height = localPosition.Y - (base.Size.Y / 2 + capHeight)
 			if height >= minHeight and height <= maxHeight then
@@ -391,47 +409,50 @@ local function update()
 	end
 	local cameraPosition = camera.CFrame.Position
 	local localPlayer = Players.LocalPlayer
-	local seen: { [Player]: boolean } = {}
+	table.clear(seenPlayers)
 	local count = 0
-	local candidates = if isLowGraphics then { localPlayer } else Players:GetPlayers()
-	if not isLowGraphics then
-		table.insert(candidates, 1, localPlayer)
-	end
 	local range = if isLowGraphics then lowViewRange else viewRange
+	table.clear(candidates)
+	candidates[1] = localPlayer
+	if not isLowGraphics then
+		for _, player in Players:GetPlayers() do
+			if player ~= localPlayer then
+				table.insert(candidates, player)
+			end
+		end
+	end
 	for _, player in candidates do
 		if count >= maxCharacters then
 			break
 		end
-		if seen[player] == nil then
-			local root, isGrounded = getRoot(player)
-			if root and (root.Position - cameraPosition).Magnitude <= range then
-				seen[player] = true
-				count += 1
-				local cap = if isGrounded then findCap(root.Position) else nil
-				local previous = standingOn[player]
-				if cap ~= previous then
-					if
-						previous
-						and previous.Part.Parent
-						and previous.Part:GetAttribute(Attributes.Locked) ~= true
-					then
-						playCap(previous, player, "Release")
-					end
-					if cap then
-						standingOn[player] = cap
-						triggerCap(cap, player)
-					else
-						standingOn[player] = nil
-					end
-					if previous then
-						raiseCap(previous)
-					end
+		local root, isGrounded = getRoot(player)
+		if root and (root.Position - cameraPosition).Magnitude <= range then
+			seenPlayers[player] = true
+			count += 1
+			local cap = if isGrounded then findCap(root.Position) else nil
+			local previous = standingOn[player]
+			if cap ~= previous then
+				if
+					previous
+					and previous.Part.Parent
+					and previous.Part:GetAttribute(Attributes.Locked) ~= true
+				then
+					playCap(previous, player, "Release")
+				end
+				if cap then
+					standingOn[player] = cap
+					triggerCap(cap, player)
+				else
+					standingOn[player] = nil
+				end
+				if previous then
+					raiseCap(previous)
 				end
 			end
 		end
 	end
 	for player, standing in standingOn do
-		if not seen[player] then
+		if not seenPlayers[player] then
 			standingOn[player] = nil
 			raiseCap(standing)
 		end

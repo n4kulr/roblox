@@ -6,12 +6,18 @@ local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
+local Watch = require(script.Watch)
 
 local Attributes = WorldNames.Attributes
 local Folders = WorldNames.Folders
 local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
+type Request = {
+	Name: string,
+	OnAdded: Watch.OnAdded,
+	Trove: any,
+}
 type State = {
 	Name: string,
 	Changed: Signal.Signal<Model?>,
@@ -28,6 +34,8 @@ local PlotController = {
 local own: Model? = nil
 local base: BasePart? = nil
 local rollKey: BasePart? = nil
+local plotsFolder: Instance? = nil
+local requests: { Request } = {}
 
 local function setOwn(model: Model?)
 	if model == own then
@@ -101,6 +109,36 @@ function PlotController.Observe(_self: State, callback: (plot: Model?) -> ()): S
 	return connection
 end
 
+local function startRequest(request: Request)
+	local folder = plotsFolder
+	if folder and not request.Trove then
+		request.Trove = Watch.Items(folder, request.Name, request.OnAdded)
+	end
+end
+
+function PlotController.WatchItems(
+	_self: State,
+	folderName: string,
+	onAdded: Watch.OnAdded
+): { Disconnect: (self: any) -> () }
+	local request: Request = { Name = folderName, OnAdded = onAdded, Trove = nil }
+	table.insert(requests, request)
+	startRequest(request)
+	return {
+		Disconnect = function()
+			local at = table.find(requests, request)
+			if at then
+				table.remove(requests, at)
+			end
+			local watching = request.Trove
+			request.Trove = nil
+			if watching then
+				watching:Destroy()
+			end
+		end,
+	}
+end
+
 function PlotController.Init(self: State, _registry: { [string]: any })
 	self._trove = Trove.new()
 	own = nil
@@ -114,7 +152,11 @@ function PlotController.Start(self: State)
 		:andThen(function(folder: Instance)
 			local plotsTrove = Trove.new()
 			trove:Add(plotsTrove)
+			plotsFolder = folder
 			watchPlots(folder, plotsTrove)
+			for _, request in requests do
+				startRequest(request)
+			end
 		end)
 		:catch(function(problem: any)
 			warn(`[PlotController] workspace.Plots not found: {tostring(problem)}`)
@@ -126,6 +168,15 @@ end
 
 function PlotController.Destroy(self: State)
 	PlotController.Changed:DisconnectAll()
+	for _, request in requests do
+		local watching = request.Trove
+		request.Trove = nil
+		if watching then
+			watching:Destroy()
+		end
+	end
+	table.clear(requests)
+	plotsFolder = nil
 	own = nil
 	base = nil
 	rollKey = nil

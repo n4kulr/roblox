@@ -101,10 +101,25 @@ function TutorialController.Start(self: State)
 	hint = gui
 	hintLabel = label
 	trove:Add(gui)
+	local beat: RBXScriptConnection? = nil
+	trove:Add(function()
+		if beat then
+			beat:Disconnect()
+			beat = nil
+		end
+	end)
 	trove:Add(controllers.DataController:Observe({ "Tutorial" }, function(value: any)
 		step = if type(value) == "number" then value else noHintStep
+		if hintText() then
+			if not beat then
+				beat = RunService.Heartbeat:Connect(update)
+			end
+		elseif beat then
+			beat:Disconnect()
+			beat = nil
+			gui.Enabled = false
+		end
 	end))
-	trove:Connect(RunService.Heartbeat, update)
 end
 
 function TutorialController.Destroy(self: State)
