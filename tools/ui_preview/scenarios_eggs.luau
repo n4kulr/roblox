@@ -34,32 +34,6 @@ local function openMarket(scene: any)
 	return screen
 end
 
-local ownedCharms = {
-	KeycapPin = 3,
-	CloverFob = 1,
-	BrassStab = 1,
-	GoldenTick = 2,
-	ThockPad = 2,
-	LuckyCable = 1,
-	StickyFingers = 1,
-	LaserLens = 1,
-	RainbowCoil = 1,
-	GhostHand = 1,
-	GoldSpacebar = 1,
-	MidasKey = 1,
-	DiamondSpacebar = 1,
-}
-
-local function openCharms(scene: any, equipped: { string })
-	stock(scene, {})
-	scene.Data.Charms = ownedCharms
-	scene.Data.EquippedCharms = equipped
-	local screen = build(scene, "Charms")
-	screen:Open()
-	tick(scene, 0.6)
-	return screen
-end
-
 local function hatch(scene: any, eggId: string, charmId: string, seconds: number)
 	stock(scene, {})
 	local screen = build(scene, "Hatch")
@@ -97,30 +71,6 @@ return {
 		Run = function(scene)
 			stock(scene, { Linear = 4, Golden = 3, Rainbow = 3 })
 			openMarket(scene)
-		end,
-	},
-	{
-		Name = "charms",
-		Screens = {},
-		Run = function(scene)
-			openCharms(scene, { "DiamondSpacebar", "GoldSpacebar", "ThockPad" })
-		end,
-	},
-	{
-		Name = "charms_partial",
-		Screens = {},
-		Run = function(scene)
-			openCharms(scene, { "KeycapPin" })
-		end,
-	},
-	{
-		Name = "charms_empty",
-		Screens = {},
-		Run = function(scene)
-			stock(scene, {})
-			local screen = build(scene, "Charms")
-			screen:Open()
-			tick(scene, 0.6)
 		end,
 	},
 	{
