@@ -30,14 +30,14 @@ local function clearBoard(player: Player, data: PlayerData.Data)
 	services.DataService:Set(player, { "BoardTags" }, tags)
 end
 
-local function rebirth(player: Player): boolean
+local function rebirth(player: Player, force: boolean): boolean
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica then
 		return false
 	end
 	services.KeyboardService:Settle(player)
-	if data.Cash < Rebirth.Cost(data.Rebirths) then
+	if not force and data.Cash < Rebirth.Cost(data.Rebirths) then
 		return false
 	end
 	replica:SetValues({}, { Cash = 0, IncomeAt = os.time(), Rebirths = data.Rebirths + 1 })
@@ -56,8 +56,14 @@ function RebirthService.Init(_self: any, registry: { [string]: any })
 	services = registry
 end
 
+function RebirthService.Force(_self: any, player: Player): boolean
+	return rebirth(player, true)
+end
+
 function RebirthService.Start(_self: any)
-	Packets.Rebirth.OnServerInvoke = rebirth
+	Packets.Rebirth.OnServerInvoke = function(player: Player)
+		return rebirth(player, false)
+	end
 end
 
 function RebirthService.Destroy(_self: any)
