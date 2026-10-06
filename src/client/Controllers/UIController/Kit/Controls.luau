@@ -482,7 +482,7 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 				badge.Name = "LockBadge"
 				badge.BorderSizePixel = 0
 				badge.AnchorPoint = Vector2.new(1, 0)
-				badge.Position = UDim2.new(1, 6, 0, -8)
+				badge.Position = UDim2.new(1, 0, 0, -8)
 				badge.Size = UDim2.fromOffset(26, 26)
 				badge.ZIndex = 4
 				Core.Paint(badge, colors.Track)
@@ -814,21 +814,41 @@ function Controls.TabBar(trove: TroveInstance, props: TabBarProps): TabBar
 	return { Instance = holder, Buttons = buttons, Select = select }
 end
 
-function Controls.Pulse(target: GuiObject, color: Color3?)
-	local existing = target:FindFirstChild("PulseScale")
-	local scale: UIScale
-	if existing and existing:IsA("UIScale") then
-		scale = existing
-	else
-		scale = Instance.new("UIScale")
-		scale.Name = "PulseScale"
-		scale.Parent = target
+function Controls.Pulse(target: GuiObject, color: Color3?, peak: number?)
+	local top = peak or 1.04
+	local settle = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	if top ~= 1 then
+		local existing = target:FindFirstChild("PulseScale")
+		local scale: UIScale
+		if existing and existing:IsA("UIScale") then
+			scale = existing
+		else
+			scale = Instance.new("UIScale")
+			scale.Name = "PulseScale"
+			scale.Parent = target
+		end
+		local rise =
+			Controls.Tween(scale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Scale = top,
+			})
+		rise.Completed:Once(function()
+			Controls.Tween(scale, settle, { Scale = 1 })
+		end)
 	end
-	local reverse = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
-	Controls.Tween(scale, reverse, { Scale = 1.04 })
 	local stroke = target:FindFirstChild("Stroke")
 	if stroke and stroke:IsA("UIStroke") then
-		Controls.Tween(stroke, reverse, { Color = color or colors.Good })
+		local base = stroke:GetAttribute("PulseBase")
+		if typeof(base) ~= "Color3" then
+			base = stroke.Color
+			stroke:SetAttribute("PulseBase", base)
+		end
+		local rest = base :: Color3
+		local flash = Controls.Tween(stroke, settle, { Color = color or colors.Good })
+		flash.Completed:Once(function()
+			Controls.Tween(stroke, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Color = rest,
+			})
+		end)
 	end
 end
 

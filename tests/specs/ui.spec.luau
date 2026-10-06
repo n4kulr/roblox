@@ -1,5 +1,6 @@
 local H = require("../harness/Harness")
 local roblox = require("@lune/roblox")
+local Layout = require("../../tools/ui_preview/Layout")
 local Enum = roblox.Enum
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
@@ -54,7 +55,7 @@ local function press(button: any)
 end
 
 describe("UI screens", function()
-	local world, playerGui, context, built, Glyphs
+	local world, playerGui, context, built, Glyphs, data
 
 	local function boot(name: string)
 		local screen = world:require(`{screens}.Screens.{name}`).new(context)
@@ -77,7 +78,7 @@ describe("UI screens", function()
 		world:packets().GetLeaderboard.Fire = function()
 			return { { Name = "Tester", Value = 1200 }, { Name = "Other", Value = 900 } }
 		end
-		local data: any = {
+		data = {
 			Cash = 5000,
 			IncomeAt = world.now,
 			Board = { "PlainClack", "CreamyThock" },
@@ -501,6 +502,117 @@ describe("UI screens", function()
 		end
 		local golden = gui:FindFirstChild("Golden", true)
 		expect(golden.Preview.Text):toBe("Every 90 > 85 rolls")
+	end)
+
+	describe("Upgrades button fit", function()
+		local viewport = roblox.Vector2.new(1280, 720)
+		local strokeReach = 3
+		local hoverGrow = 1.05
+
+		local function collect(record: any, x: number, y: number, out: { [string]: any })
+			local ax, ay = x + record.x, y + record.y
+			out[record.name] = out[record.name] or { X = ax, Y = ay, W = record.w, H = record.h }
+			for _, child in record.children do
+				collect(child, ax, ay, out)
+			end
+		end
+
+		local function measure(): { [string]: any }
+			local laidOut = Layout.Gui(playerGui:FindFirstChild("ThockUpgrades"), viewport)
+			local found: { [string]: any } = {}
+			for _, child in laidOut.children do
+				collect(child, 0, 0, found)
+			end
+			return found
+		end
+
+		local function expectFits(rowName: string)
+			local found = measure()
+			local list, card = found.List, found[rowName]
+			expect(list ~= nil and card ~= nil):toBe(true)
+			local cardInstance = playerGui:FindFirstChild("ThockUpgrades"):FindFirstChild(rowName, true)
+			local button = cardInstance:FindFirstChild("Buy") or cardInstance:FindFirstChild("Lock")
+			local inside: { [string]: any } = {}
+			local laidOut = Layout.Gui(playerGui:FindFirstChild("ThockUpgrades"), viewport)
+			local function descend(record: any, x: number, y: number)
+				local ax, ay = x + record.x, y + record.y
+				if record.name == rowName then
+					for _, child in record.children do
+						collect(child, ax, ay, inside)
+					end
+					return
+				end
+				for _, child in record.children do
+					descend(child, ax, ay)
+				end
+			end
+			for _, child in laidOut.children do
+				descend(child, 0, 0)
+			end
+			local buy, tile = inside[button.Name], inside.IconTile
+			local rowRight = card.X + card.W
+			local leftMargin = tile.X - card.X
+			local rightGap = rowRight - (buy.X + buy.W)
+			local reach = strokeReach + (hoverGrow - 1) * buy.W / 2
+			expect(rightGap - reach >= 0):toBe(true)
+			expect(math.abs(rightGap - leftMargin) <= 1):toBe(true)
+			expect(rowRight + strokeReach <= list.X + list.W - 8):toBe(true)
+			expect(card.X - strokeReach >= list.X):toBe(true)
+			local pulse = cardInstance:FindFirstChild("PulseScale")
+			expect(pulse == nil or pulse.Scale <= 1):toBe(true)
+		end
+
+		it("keeps affordable, unaffordable and lock buttons inside their rows", function()
+			local Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+			local screen = boot("Upgrades")
+			screen:Open()
+			world:flush()
+			for _, mode in { "x10", "MAX", "x1" } do
+				press(playerGui:FindFirstChild("ThockUpgrades"):FindFirstChild(mode, true))
+				world:flush()
+				for _, upgrade in Upgrades.List do
+					expectFits(upgrade.Id)
+				end
+				expectFits("LockBase")
+			end
+		end)
+
+		it("keeps maxed buttons inside their rows and settles after a MAXED pulse", function()
+			local Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+			for _, upgrade in Upgrades.List do
+				data.Upgrades[upgrade.Id] = upgrade.MaxLevel
+			end
+			local screen = boot("Upgrades")
+			screen:Open()
+			world:flush()
+			local gui = playerGui:FindFirstChild("ThockUpgrades")
+			for _, upgrade in Upgrades.List do
+				local card = gui:FindFirstChild(upgrade.Id, true)
+				expect(card:FindFirstChild("Buy"):FindFirstChild("Text", true).Text):toBe("MAX")
+				expectFits(upgrade.Id)
+				local rest = card:FindFirstChild("Stroke").Color
+				press(card:FindFirstChild("Buy"))
+				world:flush()
+				world:flush()
+				expect(card:FindFirstChild("Stroke").Color == rest):toBe(true)
+				expectFits(upgrade.Id)
+			end
+		end)
+
+		it("returns a pulsed row to full size and its resting outline", function()
+			local Kit = world:require(`{screens}.Kit`)
+			local frame = world:newInstance("Frame")
+			local stroke = world:newInstance("UIStroke")
+			stroke.Name = "Stroke"
+			stroke.Parent = frame
+			stroke.Color = roblox.Color3.fromRGB(0, 0, 0)
+			local rest = stroke.Color
+			Kit.Pulse(frame, roblox.Color3.fromRGB(10, 200, 10))
+			world:flush()
+			world:flush()
+			expect(frame:FindFirstChild("PulseScale").Scale):toBe(1)
+			expect(stroke.Color == rest):toBe(true)
+		end)
 	end)
 
 	it("builds every glyph used by the icon helpers", function()

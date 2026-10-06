@@ -206,7 +206,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		if level >= row.Upgrade.MaxLevel then
 			playUi("Confirm")
 			context.Toast("Already MAXED!", "Good")
-			Kit.Pulse(row.Frame, theme.Gold)
+			Kit.Pulse(row.Frame, theme.Gold, 1)
 			return
 		end
 		local count, total, canBuy = buyPlan(row.Upgrade, level)
@@ -238,7 +238,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			row.IsBusy = false
 			if success == true then
 				playUi("Confirm")
-				Kit.Pulse(row.Frame, theme.Good)
+				Kit.Pulse(row.Frame, theme.Good, 1)
 				local suffix = if count > 1 then ` x{count}` else ""
 				context.Toast(`Bought {row.Upgrade.Name}{suffix}!`, "Good")
 			else
@@ -401,7 +401,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			isLockBusy = false
 			if success == true then
 				playUi("Confirm")
-				Kit.Pulse(lockCard, theme.Good)
+				Kit.Pulse(lockCard, theme.Good, 1)
 				context.Toast(lockToast, "Good")
 			else
 				playUi("Error")
