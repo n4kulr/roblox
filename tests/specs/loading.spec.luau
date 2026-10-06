@@ -188,7 +188,7 @@ describe("Loading screen", function()
 
 	it("reads the ready attribute the client bootstrap sets", function()
 		local source = require("@lune/fs").readFile("src/client/Bootstrap.client.luau")
-		expect(string.find(source, 'SetAttribute("ClientReady", true)', 1, true) ~= nil):toBe(true)
+		expect(string.find(source, "SetAttribute(Attributes.ClientReady, true)", 1, true) ~= nil):toBe(true)
 		expect(Config.ReadyAttribute):toBe("ClientReady")
 	end)
 end)

@@ -23,6 +23,11 @@ local ResultSlots = require(script.ResultSlots)
 local ResultCards = require(script.ResultCards)
 local Cinematic = require(script.Cinematic)
 local Tiers = require(script.Tiers)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
+local Channels = WorldNames.Channels
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -361,7 +366,7 @@ end
 
 local function pickKey(model: Model?)
 	disconnectKeyWatch()
-	local key = if model then model:FindFirstChild("RollKey") else nil
+	local key = if model then model:FindFirstChild(Parts.RollKey) else nil
 	if model and key and key:IsA("BasePart") then
 		rollKey = key
 		originCFrame = key.CFrame
@@ -382,7 +387,7 @@ local function pickKey(model: Model?)
 		table.insert(
 			keyConnections,
 			model.ChildAdded:Connect(function(child: Instance)
-				if child.Name == "RollKey" and child ~= rollKey then
+				if child.Name == Parts.RollKey and child ~= rollKey then
 					pickKey(model)
 				end
 			end)
@@ -400,7 +405,7 @@ end
 
 local function refreshPlot(folder: Instance)
 	for _, child in folder:GetChildren() do
-		if child:IsA("Model") and child:GetAttribute("Owner") == Players.LocalPlayer.UserId then
+		if child:IsA("Model") and child:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
 			setPlot(child)
 			return
 		end
@@ -411,7 +416,7 @@ end
 local function watchPlots(folder: Instance, trove: TroveInstance)
 	local function watch(child: Instance)
 		if child:IsA("Model") then
-			trove:Connect(child:GetAttributeChangedSignal("Owner"), function()
+			trove:Connect(child:GetAttributeChangedSignal(Attributes.Owner), function()
 				refreshPlot(folder)
 			end)
 		end
@@ -443,8 +448,8 @@ local function onRareRoll(playerName: string, index: number)
 		return
 	end
 	local rarity = Keys.GetRarity(key)
-	local channels = TextChatService:FindFirstChild("TextChannels")
-	local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
+	local channels = TextChatService:FindFirstChild(Channels.TextChannels)
+	local general = if channels then channels:FindFirstChild(Channels.RBXGeneral) else nil
 	if general and general:IsA("TextChannel") then
 		general:DisplaySystemMessage(
 			`[{GameConfig.Name}] {escapeRichText(playerName)} rolled {key.Name} ({rarity.Name}, 1 in {NumberFormat.Commas(
@@ -578,7 +583,7 @@ function RollController.Start(self: State)
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
 	trove:Add(Packets.AdminReward.OnClientEvent:Connect(onAdminReward))
-	local promise = WaitFor.Child(workspace, "Plots", 30)
+	local promise = WaitFor.Child(workspace, Folders.Plots, 30)
 		:andThen(function(folder: Instance)
 			if destroyed then
 				return

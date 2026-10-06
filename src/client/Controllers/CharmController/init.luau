@@ -9,6 +9,11 @@ local Packets = require(ReplicatedStorage.Packets)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Walkers = require(script.Walkers)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Prompts = WorldNames.Prompts
+local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 
@@ -22,8 +27,8 @@ type State = {
 local scanSeconds = 1
 local promptHold = 0.6
 local promptRange = 12
-local folderName = "PlacedEggs"
-local promptName = "HatchPrompt"
+local folderName = Folders.PlacedEggs
+local promptName = Prompts.HatchPrompt
 
 local CharmController = {
 	Name = "CharmController",
@@ -59,14 +64,14 @@ function CharmController.Hatch(_self: State, index: number, eggId: string)
 end
 
 local function syncPrompt(self: State, model: Model, isMine: boolean)
-	local body = model:FindFirstChild("EggBody")
+	local body = model:FindFirstChild(Parts.EggBody)
 	if not body or not body:IsA("BasePart") then
 		return
 	end
 	local existing = body:FindFirstChild(promptName)
 	local prompt = if existing and existing:IsA("ProximityPrompt") then existing else nil
-	local eggId = model:GetAttribute("EggId")
-	local readyAt = model:GetAttribute("ReadyAt")
+	local eggId = model:GetAttribute(Attributes.EggId)
+	local readyAt = model:GetAttribute(Attributes.ReadyAt)
 	local egg = if type(eggId) == "string" then Eggs.ById[eggId] else nil
 	local isReady = isMine and egg ~= nil and type(readyAt) == "number" and os.time() >= readyAt
 	if not isReady then
@@ -88,7 +93,7 @@ local function syncPrompt(self: State, model: Model, isMine: boolean)
 	created.KeyboardKeyCode = Enum.KeyCode.E
 	created.Parent = body
 	created.Triggered:Connect(function()
-		local index = model:GetAttribute("Index")
+		local index = model:GetAttribute(Attributes.Index)
 		if type(index) == "number" then
 			self:Hatch(index, (egg :: Eggs.Egg).Id)
 		end
@@ -96,7 +101,7 @@ local function syncPrompt(self: State, model: Model, isMine: boolean)
 end
 
 local function scanPlots(self: State)
-	local plots = workspace:FindFirstChild("Plots")
+	local plots = workspace:FindFirstChild(Folders.Plots)
 	if not plots then
 		return
 	end
@@ -104,7 +109,7 @@ local function scanPlots(self: State)
 	for _, plot in plots:GetChildren() do
 		local folder = plot:FindFirstChild(folderName)
 		if folder then
-			local isMine = plot:GetAttribute("Owner") == userId
+			local isMine = plot:GetAttribute(Attributes.Owner) == userId
 			for _, model in folder:GetChildren() do
 				if model:IsA("Model") then
 					syncPrompt(self, model, isMine)
@@ -127,7 +132,7 @@ function CharmController.Start(self: State)
 	trove:Add(task.spawn(function()
 		while true do
 			scanPlots(self)
-			local plots = workspace:FindFirstChild("Plots")
+			local plots = workspace:FindFirstChild(Folders.Plots)
 			if plots then
 				Walkers.Sync(walkers, plots)
 			end

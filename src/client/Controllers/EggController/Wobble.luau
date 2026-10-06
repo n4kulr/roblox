@@ -1,5 +1,10 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+
 local Wobble = {}
 
 local idleAmplitude = 0.045
@@ -9,12 +14,12 @@ local readySpeed = 5
 
 function Wobble.Collect(): { Model }
 	local found: { Model } = {}
-	local plots = workspace:FindFirstChild("Plots")
+	local plots = workspace:FindFirstChild(Folders.Plots)
 	if not plots then
 		return found
 	end
 	for _, plot in plots:GetChildren() do
-		local folder = plot:FindFirstChild("PlacedEggs")
+		local folder = plot:FindFirstChild(Folders.PlacedEggs)
 		if folder then
 			for _, child in folder:GetChildren() do
 				if child:IsA("Model") then
@@ -28,10 +33,10 @@ end
 
 function Wobble.Step(models: { Model }, now: number, clock: number)
 	for _, model in models do
-		local rest = model:GetAttribute("BaseCFrame")
-		local drop = model:GetAttribute("Drop")
-		local readyAt = model:GetAttribute("ReadyAt")
-		local phase = model:GetAttribute("Phase")
+		local rest = model:GetAttribute(Attributes.BaseCFrame)
+		local drop = model:GetAttribute(Attributes.Drop)
+		local readyAt = model:GetAttribute(Attributes.ReadyAt)
+		local phase = model:GetAttribute(Attributes.Phase)
 		if
 			typeof(rest) == "CFrame"
 			and type(drop) == "number"

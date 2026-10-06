@@ -7,6 +7,10 @@ local UserInputService = game:GetService("UserInputService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.UIController.Kit)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -46,13 +50,13 @@ local function hintText(): string?
 end
 
 local function findRollKey(): BasePart?
-	local plots = workspace:FindFirstChild("Plots")
+	local plots = workspace:FindFirstChild(Folders.Plots)
 	if not plots then
 		return nil
 	end
 	for _, model in plots:GetChildren() do
-		if model:IsA("Model") and model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local key = model:FindFirstChild("RollKey")
+		if model:IsA("Model") and model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
+			local key = model:FindFirstChild(Parts.RollKey)
 			if key and key:IsA("BasePart") then
 				return key
 			end
@@ -66,7 +70,7 @@ local function isKeyValid(key: BasePart?): boolean
 		return false
 	end
 	local model = key.Parent
-	return model ~= nil and model:GetAttribute("Owner") == Players.LocalPlayer.UserId
+	return model ~= nil and model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId
 end
 
 local function update(dt: number)

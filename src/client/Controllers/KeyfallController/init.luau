@@ -11,6 +11,10 @@ local Kit = require(script.Parent.UIController.Kit)
 local Beacon = require(script.Beacon)
 local CarryBeam = require(script.CarryBeam)
 local Pill = require(script.Pill)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -70,12 +74,12 @@ local function onEvent(kind: number, text: string, keyIndex: number)
 end
 
 local function findGoldenCap(): BasePart?
-	local folder = workspace:FindFirstChild("KeyfallCaps")
+	local folder = workspace:FindFirstChild(Folders.KeyfallCaps)
 	if not folder then
 		return nil
 	end
 	for _, child in folder:GetChildren() do
-		if child:IsA("BasePart") and child:GetAttribute("KeyId") == config.GoldenSpacebarKeyId then
+		if child:IsA("BasePart") and child:GetAttribute(Attributes.KeyId) == config.GoldenSpacebarKeyId then
 			return child
 		end
 	end
@@ -112,13 +116,13 @@ local function placeBeacon()
 end
 
 local function findOwnBase(): BasePart?
-	local folder = workspace:FindFirstChild("Plots")
+	local folder = workspace:FindFirstChild(Folders.Plots)
 	if not folder then
 		return nil
 	end
 	for _, model in folder:GetChildren() do
-		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local base = model:FindFirstChild("Base")
+		if model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
+			local base = model:FindFirstChild(Parts.Base)
 			return if base and base:IsA("BasePart") then base else nil
 		end
 	end
@@ -134,7 +138,7 @@ local function stopBeam()
 end
 
 local function onCountChanged(character: Model)
-	local rawCount = character:GetAttribute("KeyfallCount")
+	local rawCount = character:GetAttribute(Attributes.KeyfallCount)
 	local count = if type(rawCount) == "number" then rawCount else 0
 	local show = setPillCount
 	if show then
@@ -159,7 +163,7 @@ local function onCountChanged(character: Model)
 end
 
 local function watchCharacter(character: Model, trove: TroveInstance)
-	trove:Connect(character:GetAttributeChangedSignal("KeyfallCount"), function()
+	trove:Connect(character:GetAttributeChangedSignal(Attributes.KeyfallCount), function()
 		onCountChanged(character)
 	end)
 	onCountChanged(character)
@@ -177,7 +181,7 @@ local function findKnockTarget(): Player?
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		local carried = if character then character:GetAttribute("KeyfallCount") else nil
+		local carried = if character then character:GetAttribute(Attributes.KeyfallCount) else nil
 		if
 			player ~= localPlayer
 			and root

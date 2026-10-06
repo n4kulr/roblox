@@ -8,6 +8,10 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 type CapState = {
@@ -50,7 +54,7 @@ local cosmeticPitch = 0.9
 local blankVolume = 0.6
 local fillerVolume = 0.7
 local capHeight = FloorGrid.CapHeight
-local cosmeticModelName = "CosmeticKeys"
+local cosmeticModelName = Folders.CosmeticKeys
 local gridOffset = 512
 local gridStride = 1024
 
@@ -66,7 +70,7 @@ local destroyed = false
 local isLowGraphics = false
 
 local function isFillerPart(part: BasePart): boolean
-	return part:GetAttribute("Filler") == true or part:GetAttribute("Cosmetic") == true
+	return part:GetAttribute(Attributes.Filler) == true or part:GetAttribute(Attributes.Cosmetic) == true
 end
 
 local function gridKey(column: number, row: number): number
@@ -84,7 +88,7 @@ end
 
 local function pressCap(cap: CapState)
 	local part = cap.Part
-	local authored = part:GetAttribute("PressDepth")
+	local authored = part:GetAttribute(Attributes.PressDepth)
 	local depth = if type(authored) == "number"
 		then authored
 		elseif isFillerPart(part) then fillerPressDepth
@@ -144,7 +148,7 @@ local function raiseCap(cap: CapState)
 end
 
 local function capKey(cap: CapState): Keys.Key?
-	local keyId = cap.Part:GetAttribute("KeyId")
+	local keyId = cap.Part:GetAttribute(Attributes.KeyId)
 	return if type(keyId) == "string" then Keys.Resolve(keyId) else nil
 end
 
@@ -159,7 +163,7 @@ local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")
 end
 
 local function triggerCap(cap: CapState, player: Player)
-	if cap.Part:GetAttribute("Locked") == true then
+	if cap.Part:GetAttribute(Attributes.Locked) == true then
 		return
 	end
 	cap.RaiseToken = nil
@@ -179,7 +183,7 @@ local function addCap(state: PlotState, child: Instance)
 	if not child:IsA("BasePart") then
 		return
 	end
-	local cell = child:GetAttribute("Cell")
+	local cell = child:GetAttribute(Attributes.Cell)
 	if type(cell) ~= "number" then
 		return
 	end
@@ -233,12 +237,12 @@ local function trackPlot(model: Model, parentTrove: TroveInstance)
 			end
 		end
 	end)
-	local keysFolder = model:FindFirstChild("Keys")
+	local keysFolder = model:FindFirstChild(Folders.Keys)
 	if keysFolder then
 		bindKeys(state, keysFolder, trove)
 	end
 	trove:Connect(model.ChildAdded, function(child: Instance)
-		if child.Name == "Keys" then
+		if child.Name == Folders.Keys then
 			bindKeys(state, child, trove)
 		end
 	end)
@@ -265,7 +269,7 @@ local function getBase(state: PlotState): BasePart?
 	if base and base.Parent then
 		return base
 	end
-	local found = state.Model:FindFirstChild("Base")
+	local found = state.Model:FindFirstChild(Parts.Base)
 	base = if found and found:IsA("BasePart") then found else nil
 	state.Base = base
 	return base
@@ -289,8 +293,8 @@ end
 local function findCap(position: Vector3): CapState?
 	for _, state in plotStates do
 		local base = getBase(state)
-		local columns = state.Model:GetAttribute("FloorColumns")
-		local rows = state.Model:GetAttribute("FloorRows")
+		local columns = state.Model:GetAttribute(Attributes.FloorColumns)
+		local rows = state.Model:GetAttribute(Attributes.FloorRows)
 		if base and type(columns) == "number" and type(rows) == "number" then
 			local localPosition = base.CFrame:PointToObjectSpace(position)
 			local height = localPosition.Y - (base.Size.Y / 2 + capHeight)
@@ -325,9 +329,9 @@ local function clearCosmetic()
 end
 
 local function bindCosmetic(model: Instance, parentTrove: TroveInstance)
-	local frame = model:GetAttribute("Frame") :: CFrame?
-	local pitch = model:GetAttribute("Pitch")
-	local height = model:GetAttribute("CapHeight")
+	local frame = model:GetAttribute(Attributes.Frame) :: CFrame?
+	local pitch = model:GetAttribute(Attributes.Pitch)
+	local height = model:GetAttribute(Attributes.CapHeight)
 	if frame == nil or type(pitch) ~= "number" or type(height) ~= "number" then
 		return
 	end
@@ -337,8 +341,8 @@ local function bindCosmetic(model: Instance, parentTrove: TroveInstance)
 	local trove = Trove.new()
 	parentTrove:Add(trove)
 	local function add(child: Instance)
-		local column = child:GetAttribute("GridX")
-		local row = child:GetAttribute("GridZ")
+		local column = child:GetAttribute(Attributes.GridX)
+		local row = child:GetAttribute(Attributes.GridZ)
 		if child:IsA("BasePart") and type(column) == "number" and type(row) == "number" then
 			local key = gridKey(column, row)
 			local existing = state.Caps[key]
@@ -406,7 +410,11 @@ local function update()
 				local cap = if isGrounded then findCap(root.Position) else nil
 				local previous = standingOn[player]
 				if cap ~= previous then
-					if previous and previous.Part.Parent and previous.Part:GetAttribute("Locked") ~= true then
+					if
+						previous
+						and previous.Part.Parent
+						and previous.Part:GetAttribute(Attributes.Locked) ~= true
+					then
 						playCap(previous, player, "Release")
 					end
 					if cap then
@@ -450,7 +458,7 @@ function KeyPressController.Start(self: State)
 			bindCosmetic(child, trove)
 		end
 	end)
-	local promise = WaitFor.Child(workspace, "Plots", 30)
+	local promise = WaitFor.Child(workspace, Folders.Plots, 30)
 		:andThen(function(folder: Instance)
 			if destroyed then
 				return

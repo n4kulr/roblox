@@ -14,6 +14,10 @@ local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
 local Guide = require(script.Guide)
 local Wobble = require(script.Wobble)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 
@@ -28,7 +32,7 @@ type Plot = {
 	RollKey: EggPlacement.Rect?,
 }
 
-local eggAttribute = "EggId"
+local eggAttribute = Attributes.EggId
 local nearMargin = 14
 local farLimit = 60
 local scanSeconds = 0.5
@@ -72,18 +76,18 @@ end
 local function findOwnPlot(): Plot?
 	local current = ownPlot
 	local userId = Players.LocalPlayer.UserId
-	if current and current.Model.Parent ~= nil and current.Model:GetAttribute("Owner") == userId then
+	if current and current.Model.Parent ~= nil and current.Model:GetAttribute(Attributes.Owner) == userId then
 		return current
 	end
 	ownPlot = nil
-	local plots = workspace:FindFirstChild("Plots")
+	local plots = workspace:FindFirstChild(Folders.Plots)
 	if not plots then
 		return nil
 	end
 	for _, plot in plots:GetChildren() do
-		local base = plot:FindFirstChild("Base")
-		if plot:GetAttribute("Owner") == userId and base and base:IsA("BasePart") then
-			local rollKey = plot:FindFirstChild("RollKey")
+		local base = plot:FindFirstChild(Parts.Base)
+		if plot:GetAttribute(Attributes.Owner) == userId and base and base:IsA("BasePart") then
+			local rollKey = plot:FindFirstChild(Parts.RollKey)
 			ownPlot = {
 				Model = plot :: Model,
 				Base = base,

@@ -1,7 +1,10 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+
 local Ragdoll = {
-	Attribute = "Ragdolled",
+	Attribute = WorldNames.Attributes.Ragdolled,
 }
 
 function Ragdoll.Set(humanoid: Humanoid, isRagdolled: boolean)

@@ -4,6 +4,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
 local PetWander = require(ReplicatedStorage.Utils.PetWander)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
 
 export type Entry = {
 	Walker: PetWander.Walker,
@@ -13,7 +17,7 @@ export type Entry = {
 
 export type Walkers = { [Model]: Entry }
 
-local folderName = "Pets"
+local folderName = Folders.Pets
 
 local Walkers = {}
 
@@ -22,16 +26,16 @@ function Walkers.New(): Walkers
 end
 
 local function register(walkers: Walkers, plot: Instance, model: Model)
-	local base = plot:FindFirstChild("Base")
-	local seed = model:GetAttribute("Seed")
+	local base = plot:FindFirstChild(Parts.Base)
+	local seed = model:GetAttribute(Attributes.Seed)
 	if not base or not base:IsA("BasePart") or type(seed) ~= "number" then
 		return
 	end
-	local rollKey = plot:FindFirstChild("RollKey")
+	local rollKey = plot:FindFirstChild(Parts.RollKey)
 	local avoid = if rollKey and rollKey:IsA("BasePart")
 		then EggPlacement.RectOf(base.CFrame, rollKey)
 		else nil
-	local lift = model:GetAttribute("Lift")
+	local lift = model:GetAttribute(Attributes.Lift)
 	walkers[model] = {
 		Walker = PetWander.New(seed, base.Size.X / 2, base.Size.Z / 2, avoid),
 		Base = base,

@@ -2,6 +2,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Component = require(ReplicatedStorage.Packages.Component)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Tags = WorldNames.Tags
 
 type Spinner = {
 	Instance: Instance,
@@ -9,10 +12,10 @@ type Spinner = {
 }
 
 return function(_controllers: { [string]: any })
-	local Spinner = Component.new({ Tag = "Spinner" }) :: any
+	local Spinner = Component.new({ Tag = Tags.Spinner }) :: any
 
 	function Spinner.Construct(self: Spinner)
-		local speed = self.Instance:GetAttribute("SpinSpeed")
+		local speed = self.Instance:GetAttribute(Attributes.SpinSpeed)
 		self.Speed = if type(speed) == "number" then speed else 90
 	end
 

@@ -10,6 +10,12 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PromptFocus = require(script.PromptFocus)
 local Ragdoll = require(script.Ragdoll)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
+local Parts = WorldNames.Parts
+local Prompts = WorldNames.Prompts
+local Channels = WorldNames.Channels
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -17,7 +23,7 @@ type State = {
 	_trove: TroveInstance?,
 }
 
-local baseHoldAttribute = "BaseHold"
+local baseHoldAttribute = Attributes.BaseHold
 local refreshSeconds = 0.2
 local beamColor = Color3.fromRGB(255, 96, 96)
 
@@ -25,7 +31,7 @@ local StealController = {
 	Name = "StealController",
 	_trove = nil :: TroveInstance?,
 }
-local stealPromptName = "StealPrompt"
+local stealPromptName = Prompts.StealPrompt
 local controllers: { [string]: any } = {}
 local carryTrove: TroveInstance? = nil
 
@@ -88,8 +94,8 @@ end
 
 local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 	local name = keyName(keyIndex)
-	local channels = TextChatService:FindFirstChild("TextChannels")
-	local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
+	local channels = TextChatService:FindFirstChild(Channels.TextChannels)
+	local general = if channels then channels:FindFirstChild(Channels.RBXGeneral) else nil
 	if general and general:IsA("TextChannel") then
 		general:DisplaySystemMessage(
 			`[{GameConfig.Name}] {escapeRichText(thiefName)} stole {name} from {escapeRichText(victimName)}!`
@@ -101,13 +107,13 @@ local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 end
 
 local function findOwnBase(): BasePart?
-	local folder = workspace:FindFirstChild("Plots")
+	local folder = workspace:FindFirstChild(Folders.Plots)
 	if not folder then
 		return nil
 	end
 	for _, model in folder:GetChildren() do
-		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local base = model:FindFirstChild("Base")
+		if model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
+			local base = model:FindFirstChild(Parts.Base)
 			return if base and base:IsA("BasePart") then base else nil
 		end
 	end
@@ -156,14 +162,14 @@ end
 
 local function watchCharacter(character: Model, trove: TroveInstance)
 	local function refresh()
-		if character:GetAttribute("CarryingKey") ~= nil then
+		if character:GetAttribute(Attributes.CarryingKey) ~= nil then
 			startCarrying(character)
 		else
 			stopCarrying()
 		end
 	end
-	trove:Connect(character:GetAttributeChangedSignal("CarryingKey"), refresh)
-	if character:GetAttribute("CarryingKey") ~= nil then
+	trove:Connect(character:GetAttributeChangedSignal(Attributes.CarryingKey), refresh)
+	if character:GetAttribute(Attributes.CarryingKey) ~= nil then
 		refresh()
 	end
 end
@@ -220,7 +226,7 @@ function StealController.Start(self: State)
 			PromptFocus.Refresh(list, {
 				UserId = Players.LocalPlayer.UserId,
 				Origin = if root and root:IsA("BasePart") then root.CFrame.Position else nil,
-				IsCarrying = character ~= nil and character:GetAttribute("CarryingKey") ~= nil,
+				IsCarrying = character ~= nil and character:GetAttribute(Attributes.CarryingKey) ~= nil,
 			})
 		end
 	end))
