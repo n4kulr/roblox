@@ -290,7 +290,7 @@ describe("Roll result cards", function()
 	end)
 
 	describe("rapid rolls", function()
-		it("keeps at most two cards and a bounded instance count over 20 rolls in 2 seconds", function()
+		it("keeps at most one card and a bounded instance count over 20 rolls in 2 seconds", function()
 			local cards = build()
 			local slots = ResultSlots.new()
 			local rarities = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Common", "Mythic" }
@@ -299,11 +299,11 @@ describe("Roll result cards", function()
 			for roll = 1, 20 do
 				local rarity = rarities[(roll - 1) % #rarities + 1]
 				local isRare = rarity == "Legendary" or rarity == "Mythic"
-				cards:Run(slots:Push(payload(rarity), isRare, if isRare then 5 else 0.7, now, false))
+				cards:Run(slots:Push(payload(rarity), if isRare then 5 else 0.7, now))
 				now += 0.1
 				cards:Run(slots:Tick(now))
 				cards:Step(0.1)
-				expect(cards:VisibleCount() <= 2):toBe(true)
+				expect(cards:VisibleCount() <= 1):toBe(true)
 				expect(cards:ActiveConfetti() <= 30):toBe(true)
 				expect(countDescendants(gui())):toBe(baseline)
 			end

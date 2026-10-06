@@ -359,30 +359,34 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		end
 
 		addSection("DANGER", theme.Red)
-		local danger = addGrid(1)
-		local armed = false
-		local armToken = 0
-		local reset: Kit.Button? = nil
-		reset = addAction(danger, "ResetData", "RESET MY DATA", theme.Red, function()
-			local button = reset :: Kit.Button
-			if not armed then
-				armed = true
+		local danger = addGrid(2)
+		local function addConfirmed(name: string, label: string, cmd: string, args: string)
+			local armed = false
+			local armToken = 0
+			local button: Kit.Button? = nil
+			button = addAction(danger, name, label, theme.Red, function()
+				local own = button :: Kit.Button
+				if not armed then
+					armed = true
+					armToken += 1
+					local mine = armToken
+					own.SetText("TAP AGAIN TO CONFIRM")
+					task.delay(confirmSeconds, function()
+						if armed and armToken == mine then
+							armed = false
+							own.SetText(label)
+						end
+					end)
+					return
+				end
+				armed = false
 				armToken += 1
-				local mine = armToken
-				button.SetText("TAP AGAIN TO CONFIRM")
-				task.delay(confirmSeconds, function()
-					if armed and armToken == mine then
-						armed = false
-						button.SetText("RESET MY DATA")
-					end
-				end)
-				return
-			end
-			armed = false
-			armToken += 1
-			button.SetText("RESET MY DATA")
-			send("resetdata", "confirm")
-		end)
+				own.SetText(label)
+				send(cmd, args)
+			end)
+		end
+		addConfirmed("ResetData", "RESET DATA", "resetdata", "confirm")
+		addConfirmed("RemovePets", "REMOVE ALL PETS", "removepets", "")
 	end
 
 	local function toggle()

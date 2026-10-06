@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Charms = require(ReplicatedStorage.Rules.Charms)
@@ -30,6 +31,7 @@ local maxMoneyValue = 1e15
 local maxGive = 200
 local maxStack = 1000
 local maxRolls = 1000000000
+local maxRevealed = 3
 local protectedFields: { [string]: boolean } = { SchemaVersion = true, Receipts = true, LastSeenAt = true }
 
 local Commands = {}
@@ -49,6 +51,10 @@ local function deepCopy(value: any): any
 		copy[key] = deepCopy(inner)
 	end
 	return copy
+end
+
+local function reward(target: Player, kind: string, id: string, count: number)
+	Packets.AdminReward:FireClient(target, kind, id, math.clamp(math.floor(count), 0, 65535))
 end
 
 local function normalize(context: Context, player: Player)
@@ -193,6 +199,7 @@ withArgument(
 		if added <= 0 then
 			return false, "Clicks are already maxed"
 		end
+		reward(target, "Cash", string.format("%d", added), 1)
 		return true, `Added {NumberFormat.Compact(added)} Clicks`
 	end
 )
@@ -221,8 +228,13 @@ simple("resetmoney", "resetmoney [player|all]", "Set Clicks to 0", function(cont
 end)
 
 simple("maxmoney", "maxmoney [player|all]", "Set Clicks to 1 quadrillion", function(context, _admin, target)
+	local before = dataOf(context, target)
+	local previous = if before then before.Cash else 0
 	if not setClicks(context, target, maxMoneyValue) then
 		return false, "Data not loaded"
+	end
+	if maxMoneyValue > previous then
+		reward(target, "Cash", string.format("%d", maxMoneyValue - previous), 1)
 	end
 	return true, `Clicks set to {NumberFormat.Compact(maxMoneyValue)}`
 end)
@@ -245,6 +257,7 @@ withArgument(
 		if added <= 0 then
 			return false, "Clicks are already maxed"
 		end
+		reward(target, "Cash", string.format("%d", added), 1)
 		return true, `Granted {NumberFormat.Compact(added)} Clicks ({seconds}s of income)`
 	end
 )
@@ -293,10 +306,16 @@ withCount(
 		end
 		local random = Random.new()
 		local given: { [string]: number } = {}
+		local revealed: { string } = {}
+		local total = 0
 		for _ = 1, clampCount(count) do
 			local key = exact or pool[random:NextInteger(1, #pool)]
 			if services.KeyboardService:AddKey(target, key.Id) then
 				given[key.Id] = (given[key.Id] or 0) + 1
+				total += 1
+				if #revealed < maxRevealed then
+					table.insert(revealed, key.Id)
+				end
 			end
 		end
 		local data = dataOf(context, target)
@@ -316,6 +335,7 @@ withCount(
 		end
 		table.sort(names)
 		services.DataService:RequestSave(target)
+		reward(target, "Key", table.concat(revealed, ","), total)
 		return true, `Gave {table.concat(names, ", ")}`
 	end
 )
@@ -343,6 +363,7 @@ withCount(
 		context.Services.DataService:Set(target, { "EggInventory" }, bag)
 		context.Services.EggService:Sync(target)
 		context.Services.DataService:RequestSave(target)
+		reward(target, "Egg", egg.Id, added)
 		return true, `Gave {added}x {egg.Name}`
 	end
 )
@@ -368,9 +389,27 @@ withCount(
 		context.Services.DataService:Set(target, { "Charms", pet.Id }, have + added)
 		context.Services.EggService:Sync(target)
 		context.Services.DataService:RequestSave(target)
+		reward(target, "Pet", pet.Id, added)
 		return true, `Gave {added}x {pet.Name}`
 	end
 )
+
+simple("removepets", "removepets [player|all]", "Remove every pet", function(context, _admin, target)
+	local services = context.Services
+	local data = dataOf(context, target)
+	if not data then
+		return false, "Data not loaded"
+	end
+	local removed = 0
+	for _, owned in data.Charms do
+		removed += owned
+	end
+	services.DataService:Set(target, { "Charms" }, {})
+	services.DataService:Set(target, { "EquippedCharms" }, {})
+	services.EggService:Sync(target)
+	services.DataService:RequestSave(target)
+	return true, `Removed {noun(removed, "pet")}`
+end)
 
 simple("readyeggs", "readyeggs [player|all]", "Finish every placed egg", function(context, _admin, target)
 	local count = context.Services.EggService:ReadyEggs(target)

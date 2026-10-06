@@ -5,6 +5,7 @@ local Packet = require(script.Parent.Packet)
 local Packets = {
 	Roll = Packet("Roll"):Response(Packet.NumberU16, Packet.Boolean8):RateLimit(15, 1),
 	RareRoll = Packet("RareRoll", Packet.String, Packet.NumberU16),
+	AdminReward = Packet("AdminReward", Packet.String, Packet.String, Packet.NumberU16),
 	BuyUpgrade = Packet("BuyUpgrade", Packet.String, Packet.NumberU8)
 		:Response(Packet.Boolean8)
 		:RateLimit(10, 1),
