@@ -3,6 +3,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local AssetOverride = require(script.Parent.AssetOverride)
+local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 
 export type Context = {
 	Parent: Instance,
@@ -33,6 +35,8 @@ local decorations: { [string]: Decoration } = {}
 local KeyModels = {
 	PartLimit = 25,
 	BaseWidth = 4,
+	ViewScale = 2,
+	LegendPixelsPerStud = 40,
 	TopHeight = 1.95,
 	Decorations = decorations,
 }
@@ -619,7 +623,91 @@ function KeyModels.BuildScaled(variantId: string, scale: number): Model
 	return model
 end
 
+local function meshTemplate(name: string): MeshPart?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local meshes = if assets then assets:FindFirstChild("Meshes") else nil
+	local template = if meshes then meshes:FindFirstChild(name) else nil
+	return if template and template:IsA("MeshPart") then template else nil
+end
+
+function KeyModels.Legend(cap: BasePart, key: Keys.Key, pixelsPerStud: number?): SurfaceGui
+	local rarity = Keys.GetRarity(key)
+	local surface = Instance.new("SurfaceGui")
+	surface.Name = "Top"
+	surface.Face = Enum.NormalId.Top
+	surface.Adornee = cap
+	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	surface.PixelsPerStud = pixelsPerStud or KeyModels.LegendPixelsPerStud
+	surface.LightInfluence = 0
+	surface.AlwaysOnTop = false
+	local rim = Instance.new("Frame")
+	rim.Name = "Rim"
+	rim.BackgroundTransparency = 1
+	rim.Size = UDim2.fromScale(1, 1)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Stroke"
+	stroke.Thickness = 3
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = rarity.Color:Lerp(Color3.new(1, 1, 1), 0.45)
+	stroke.Transparency = 0.1
+	stroke.Parent = rim
+	rim.Parent = surface
+	local letter = Instance.new("TextLabel")
+	letter.Name = "Letter"
+	letter.BackgroundTransparency = 1
+	letter.AnchorPoint = Vector2.new(0.5, 0.5)
+	letter.Position = UDim2.fromScale(0.5, 0.5)
+	letter.Size = UDim2.fromScale(0.62, 0.62)
+	letter.Font = Enum.Font.FredokaOne
+	letter.Text = string.upper(string.sub(key.Name, 1, 1))
+	letter.TextColor3 = Color3.new(1, 1, 1)
+	letter.TextStrokeColor3 = Color3.fromRGB(20, 18, 28)
+	letter.TextStrokeTransparency = 0.2
+	letter.TextScaled = true
+	letter.Parent = surface
+	surface.Parent = cap
+	return surface
+end
+
+function KeyModels.BuildMesh(variantId: string, template: MeshPart, scale: number): Model?
+	local keyId = KeyTiers.Parse(variantId)
+	local key = Keys.ById[keyId]
+	if not key then
+		return nil
+	end
+	local model = Instance.new("Model")
+	model.Name = variantId
+	local cap = template:Clone()
+	cap.Name = "Cap"
+	local capSize = FloorGrid.CapSize()
+	cap.Size = Vector3.new(capSize, FloorGrid.CapHeight, capSize) * scale
+	cap.Anchored = true
+	cap.CanCollide = false
+	cap.CanQuery = false
+	cap.CanTouch = false
+	cap.CastShadow = false
+	cap.CFrame = CFrame.new(0, cap.Size.Y / 2, 0)
+	Keys.ApplyVariantFinish(cap, variantId)
+	cap.Transparency = 0
+	cap.Parent = model
+	model.PrimaryPart = cap
+	KeyModels.Legend(cap, key, KeyModels.LegendPixelsPerStud / scale)
+	KeyModels.Mount(cap, variantId)
+	return model
+end
+
 function KeyModels.Build(keyId: string): Model
+	local authored = AssetOverride.Find("Keys", keyId) or AssetOverride.Find("Keys", (KeyTiers.Parse(keyId)))
+	if authored then
+		return authored
+	end
+	local template = meshTemplate("Keycap")
+	if template then
+		local model = KeyModels.BuildMesh(keyId, template, KeyModels.ViewScale)
+		if model then
+			return model
+		end
+	end
 	return KeyModels.BuildScaled(keyId, 1)
 end
 

@@ -373,7 +373,11 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			local model = KeyModels.Build(keyId)
 			local camera = Instance.new("Camera")
 			camera.FieldOfView = 40
-			camera.CFrame = CFrame.lookAt(Vector3.new(0, 5.5, 9.5), Vector3.new(0, 1.2, 0))
+			local box, size = model:GetBoundingBox()
+			local radius = math.max(math.sqrt(size.X * size.X + size.Z * size.Z) / 2, size.Y / 2, 0.5)
+			local focus = Vector3.new(0, box.Position.Y, 0)
+			local distance = radius * 1.15 / math.sin(math.rad(camera.FieldOfView) / 2)
+			camera.CFrame = CFrame.lookAt(focus + Vector3.new(0, 0.45, 1).Unit * distance, focus)
 			camera.Parent = viewport
 			viewport.CurrentCamera = camera
 			model.Parent = viewport
@@ -396,7 +400,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		pcall(function()
 			model:PivotTo(CFrame.Angles(0, now * spinSpeed, 0))
 			if previewTier == 2 then
-				for _, name in { "Skirt", "Top" } do
+				for _, name in { "Skirt", "Top", "Cap" } do
 					local part = model:FindFirstChild(name)
 					if part and part:IsA("BasePart") then
 						part.Color = Color3.fromHSV((now * 0.25) % 1, 0.55, 1)

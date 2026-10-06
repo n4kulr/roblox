@@ -178,3 +178,12 @@ Six Sonnet agents are running; their work is not merged yet:
   - The Keys detail panel's close X overlaps the modal's X.
   - The Galaxy Enter planets don't spin.
   - RollController still sends base ids only; variant reveals need a `KeyId` to be passed in.
+
+## Authored 3D models (drop-in)
+
+Place models in ReplicatedStorage.Assets and they are used automatically, falling back to the built-in part models:
+
+- Assets.Eggs.<EggId> used by the hatch screen (Model or MeshPart).
+- Assets.Pets.<PetId> used by the hatch reveal.
+- Assets.Keys.<KeyId> used by KeyModels.Build (roll cards, cinematic, Keys panel). A variant id falls back to its base key id.
+- Assets.Meshes.Keycap and Assets.Meshes.RollKey are replicated by the server from the Keycap and RollKey templates; KeyModels.Build clones Keycap so the spinning key matches the base cap.

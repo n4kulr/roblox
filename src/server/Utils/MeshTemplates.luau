@@ -104,9 +104,47 @@ function MeshTemplates.Get(name: Name): MeshPart?
 	return templates[name]
 end
 
+local function folderIn(parent: Instance, name: string): Folder
+	local existing = parent:FindFirstChild(name)
+	if existing and existing:IsA("Folder") then
+		return existing
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
+function MeshTemplates.Replicate()
+	local meshes = folderIn(folderIn(ReplicatedStorage, "Assets"), "Meshes")
+	for _, name in names do
+		local template = templates[name]
+		local old = meshes:FindFirstChild(name)
+		if old then
+			old:Destroy()
+		end
+		if template then
+			local copy = template:Clone()
+			copy.Name = name
+			copy.Anchored = true
+			copy.Parent = meshes
+		end
+	end
+end
+
 function MeshTemplates.Destroy()
 	generation += 1
 	pending = 0
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local meshes = if assets then assets:FindFirstChild("Meshes") else nil
+	if meshes then
+		for _, name in names do
+			local copy = meshes:FindFirstChild(name)
+			if copy then
+				copy:Destroy()
+			end
+		end
+	end
 	for name, template in templates do
 		template:Destroy()
 		templates[name] = nil

@@ -387,6 +387,7 @@ function Cinematic.new(
 		ZIndex = 10,
 	})
 	model.Frame.Visible = false
+	Viewport.Glint(model, 0)
 
 	local particles: { Particle } = {}
 	for index = 1, particleCap do
@@ -758,6 +759,7 @@ local function renderCap(self: Cinematic, t: number, fade: number, charge: numbe
 	if self._low then
 		Viewport.Pose(handle, staticYaw)
 	else
+		Viewport.Glint(handle, if post >= 0 then post + 0.5 else 0)
 		local spin = staticYaw + t * spinSpeed
 		if tier.Charge and t < ti then
 			spin += chargeSpin * charge * charge * t
