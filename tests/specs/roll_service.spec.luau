@@ -1,5 +1,6 @@
 local H = require("../harness/Harness")
 local S = require("../support")
+local roblox = require("@lune/roblox")
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
@@ -24,7 +25,7 @@ describe("RollService handler", function()
 
 	describe("token bucket", function()
 		it("allows a burst of 3 then rejects spam", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			local accepted = 0
 			for _ = 1, 50 do
 				local index = roll(player)
@@ -37,7 +38,7 @@ describe("RollService handler", function()
 		end)
 
 		it("returns (0, false) for rejected rolls and does not change data", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			for _ = 1, 3 do
 				roll(player)
 			end
@@ -49,7 +50,7 @@ describe("RollService handler", function()
 		end)
 
 		it("refills at RollsPerSecond", function()
-			local player = world:join()
+			local player = world:joinAtBase()
 			for _ = 1, 3 do
 				roll(player)
 			end
@@ -63,7 +64,7 @@ describe("RollService handler", function()
 		end)
 
 		it("refills faster with Speed upgrades", function()
-			local player = world:join(nil, { Upgrades = { Speed = 10 } })
+			local player = world:joinAtBase(nil, { Upgrades = { Speed = 10 } })
 			for _ = 1, 3 do
 				roll(player)
 			end
@@ -72,7 +73,7 @@ describe("RollService handler", function()
 		end)
 
 		it("never stores more than the burst capacity", function()
-			local player = world:join()
+			local player = world:joinAtBase()
 			world:advance(3600)
 			local accepted = 0
 			for _ = 1, 10 do
@@ -84,8 +85,8 @@ describe("RollService handler", function()
 		end)
 
 		it("is tracked per player", function()
-			local a = world:join()
-			local b = world:join()
+			local a = world:joinAtBase()
+			local b = world:joinAtBase()
 			for _ = 1, 10 do
 				roll(a)
 			end
@@ -94,7 +95,7 @@ describe("RollService handler", function()
 		end)
 
 		it("forgets a player's bucket when they leave", function()
-			local player = world:join()
+			local player = world:joinAtBase()
 			for _ = 1, 3 do
 				roll(player)
 			end
@@ -107,6 +108,7 @@ describe("RollService handler", function()
 	describe("preconditions", function()
 		it("returns (0, false) without data and does not consume tokens", function()
 			local stranger = world:newPlayer()
+			world:placeAtBase(stranger)
 			for _ = 1, 10 do
 				local index, golden = roll(stranger)
 				expect(index):toBe(0)
@@ -117,7 +119,7 @@ describe("RollService handler", function()
 		end)
 
 		it("returns (0, false) when the player has no plot", function()
-			local player = world:join()
+			local player = world:joinAtBase()
 			table.remove(world.Players._list, table.find(world.Players._list, player))
 			local index, golden = roll(player)
 			expect(index):toBe(0)
@@ -125,9 +127,88 @@ describe("RollService handler", function()
 		end)
 	end)
 
+	describe("roll in base", function()
+		local function placeAt(player: any, x: number, y: number, z: number)
+			world:moveCharacter(player, x, y, z)
+		end
+
+		it("accepts rolls anywhere over the base footprint", function()
+			local player = world:joinAtBase()
+			for _, spot in { { 0, 3, 0 }, { 21, 3, 21 }, { -21, 3, -21 }, { 0, 30, 0 } } do
+				world:advance(5)
+				placeAt(player, spot[1], spot[2], spot[3])
+				expect(roll(player) > 0):toBe(true)
+			end
+		end)
+
+		it("accepts exactly at the margin and rejects just past it", function()
+			local player = world:joinAtBase()
+			local edge = 22 + GameConfig.RollInBaseMargin
+			placeAt(player, edge, 3, 0)
+			expect(roll(player) > 0):toBe(true)
+			world:advance(5)
+			placeAt(player, edge + 0.1, 3, 0)
+			expect(roll(player)):toBe(0)
+			world:advance(5)
+			placeAt(player, 0, 3, -(edge + 0.1))
+			expect(roll(player)):toBe(0)
+			world:advance(5)
+			placeAt(player, 0, 3, -edge)
+			expect(roll(player) > 0):toBe(true)
+		end)
+
+		it("rejects far away, too high and below the base", function()
+			local player, data = world:joinAtBase()
+			for _, spot in { { 200, 3, 0 }, { 0, 60, 0 }, { 0, -40, 0 } } do
+				world:advance(5)
+				placeAt(player, spot[1], spot[2], spot[3])
+				expect(roll(player)):toBe(0)
+			end
+			expect(data.Rolls):toBe(0)
+		end)
+
+		it("does not spend tokens on rejected rolls", function()
+			local player = world:joinAtBase()
+			placeAt(player, 500, 3, 0)
+			for _ = 1, 20 do
+				roll(player)
+			end
+			placeAt(player, 0, 3, 0)
+			local accepted = 0
+			for _ = 1, 10 do
+				if roll(player) > 0 then
+					accepted += 1
+				end
+			end
+			expect(accepted):toBe(3)
+		end)
+
+		it("rejects players without a character", function()
+			local player = world:joinAtBase()
+			player.Character = nil
+			expect(roll(player)):toBe(0)
+		end)
+
+		it("follows a rotated base", function()
+			local player = world:joinAtBase()
+			local base = world.fakeRegistry.PlotService:GetBase(player)
+			base.CFrame = roblox.CFrame.new(100, 0, 0) * roblox.CFrame.Angles(0, math.pi / 2, 0)
+			base.Size = roblox.Vector3.new(44, 1, 20)
+			local margin = GameConfig.RollInBaseMargin
+			placeAt(player, 100, 3, 22 + margin - 0.5)
+			expect(roll(player) > 0):toBe(true)
+			world:advance(5)
+			placeAt(player, 100 + 10 + margin + 0.5, 3, 0)
+			expect(roll(player)):toBe(0)
+			world:advance(5)
+			placeAt(player, 100 + 10 + margin - 0.5, 3, 0)
+			expect(roll(player) > 0):toBe(true)
+		end)
+	end)
+
 	describe("guaranteed and golden rolls", function()
 		it("guarantees a Rare on the configured roll", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			for _ = 1, 150 do
 				data.Rolls = GameConfig.GuaranteedRareRoll - 1
 				world:advance(1)
@@ -139,7 +220,7 @@ describe("RollService handler", function()
 		end)
 
 		it("flags the roll that completes GoldenRollEvery as golden and resets progress", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			for _, rolls in { 99, 199, 999 } do
 				data.Rolls = rolls
 				data.GoldenProgress = GameConfig.GoldenRollEvery - 1
@@ -152,7 +233,7 @@ describe("RollService handler", function()
 		end)
 
 		it("does not flag other rolls as golden and counts progress up", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			for _, progress in { 0, 1, 3, 50, 97, 98 } do
 				data.Rolls = 500
 				data.GoldenProgress = progress
@@ -164,7 +245,7 @@ describe("RollService handler", function()
 		end)
 
 		it("reaches a golden roll sooner with Golden Touch", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			data.Upgrades.Golden = 4
 			local every = GameConfig.GoldenRollEvery - 4 * Upgrades.ById.Golden.PerLevel
 			data.Rolls = 500
@@ -188,7 +269,7 @@ describe("RollService handler", function()
 		end)
 
 		it("counts rolls exactly through a whole golden cycle", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			local goldens = {}
 			for n = 1, 205 do
 				world:advance(1)
@@ -203,7 +284,7 @@ describe("RollService handler", function()
 		end)
 
 		it("boosts luck on golden rolls", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			local function rareOrBetter(progress: number, trials: number): number
 				local hits = 0
 				for _ = 1, trials do
@@ -228,7 +309,7 @@ describe("RollService handler", function()
 
 	describe("bookkeeping", function()
 		it("increments Rolls and Discovered consistently with returned keys", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			local tally: { [string]: number } = {}
 			for _ = 1, 120 do
 				world:advance(1)
@@ -243,7 +324,7 @@ describe("RollService handler", function()
 
 		it("announces rare finds to everyone with the display name and key index", function()
 			local board = S.fill("FourLeafArtisan", 10)
-			local player, data = world:join({ DisplayName = "Alice" }, { Board = board })
+			local player, data = world:joinAtBase({ DisplayName = "Alice" }, { Board = board })
 			local announced = 0
 			local announcedKeys = {}
 			local attempts = 0
@@ -269,7 +350,7 @@ describe("RollService handler", function()
 		end)
 
 		it("does not announce common finds", function()
-			local player = world:join()
+			local player = world:joinAtBase()
 			for _ = 1, 3 do
 				roll(player)
 			end
@@ -279,7 +360,7 @@ describe("RollService handler", function()
 		end)
 
 		it("places rolled keys through the keyboard", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			local index = roll(player)
 			expect(data.Board[1]):toBe(Keys.Catalog[index].Id)
 		end)
@@ -287,7 +368,7 @@ describe("RollService handler", function()
 
 	describe("tutorial", function()
 		it("steps 0 -> 1 on the first roll and 1 -> 2 on the guaranteed-rare roll", function()
-			local player, data = world:join()
+			local player, data = world:joinAtBase()
 			expect(data.Tutorial):toBe(0)
 			roll(player)
 			expect(data.Tutorial):toBe(1)
@@ -301,10 +382,10 @@ describe("RollService handler", function()
 		end)
 
 		it("never moves the tutorial backwards", function()
-			local player, data = world:join(nil, { Tutorial = 3 })
+			local player, data = world:joinAtBase(nil, { Tutorial = 3 })
 			roll(player)
 			expect(data.Tutorial):toBe(3)
-			local player2, data2 = world:join(nil, { Tutorial = 7 })
+			local player2, data2 = world:joinAtBase(nil, { Tutorial = 7 })
 			roll(player2)
 			expect(data2.Tutorial):toBe(7)
 		end)

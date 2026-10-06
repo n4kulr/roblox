@@ -94,7 +94,7 @@ describe("SeasonService", function()
 	local function join(season: any, extra: any?)
 		local overrides = extra or {}
 		overrides.Season = season
-		player, data = world:join(nil, overrides)
+		player, data = world:joinAtBase(nil, overrides)
 		return player, data
 	end
 

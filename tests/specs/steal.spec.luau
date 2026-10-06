@@ -1,3 +1,4 @@
+local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
 local S = require("../support")
 
@@ -416,90 +417,230 @@ describe("StealService", function()
 		end)
 	end)
 
-	describe("tagging", function()
-		it("returns the key to its original slot", function()
-			local victim, data, thief = setup()
+	describe("knock down", function()
+		local function rig(player: any): any
+			local character = player.Character
+			local humanoid = character.Humanoid
+			humanoid.RequiresNeck = true
+			humanoid.PlatformStand = false
+			humanoid.States = {}
+			humanoid.ChangeState = function(_self: any, state: any)
+				table.insert(humanoid.States, state)
+			end
+			local torso = world:newPart("Torso", 0, 3, 0)
+			torso.Parent = character
+			local motor = world:newInstance("Motor6D")
+			motor.Name = "RootJoint"
+			motor.Part0 = character.HumanoidRootPart
+			motor.Part1 = torso
+			motor.C0 = roblox.CFrame.new(0, 0, 0)
+			motor.C1 = roblox.CFrame.new(0, 1, 0)
+			motor.Enabled = true
+			motor.Parent = torso
+			return { Humanoid = humanoid, Motor = motor, Torso = torso }
+		end
+
+		local function knockPrompt(thief: any): any
+			return thief.Character.HumanoidRootPart:FindFirstChild("KnockPrompt")
+		end
+
+		local function dropPart(): any
+			return world.workspace:FindFirstChild("DroppedKey")
+		end
+
+		local function takeBack(): any
+			return dropPart():FindFirstChild("TakeBackPrompt")
+		end
+
+		local function sockets(thief: any): number
+			local count = 0
+			for _, node in thief.Character:GetDescendants() do
+				if node.ClassName == "BallSocketConstraint" then
+					count += 1
+				end
+			end
+			return count
+		end
+
+		local function stolen()
+			local victim, data, thief, thiefData = setup({ TheftLessonDone = true })
+			local parts = rig(thief)
 			attempt(thief, victim, 1)
 			world:moveCharacter(victim, 3, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(true)
-			expect(data.Board[1]):toBe("GlassTink")
-			expect(data.BoardTags[1]):toBe("")
-			expect(prompt(victim, 1) ~= nil):toBe(true)
-			expect(world:walkSpeed(thief)):toBe(steal.NormalWalkSpeed)
-			expect(thief.Character:FindFirstChild("StolenKey")):toBeNil()
-			expect(thief.Character:GetAttribute("CarryingKey")):toBeNil()
-			expect(#alertsTo(victim, 3)):toBe(1)
+			return victim, data, thief, thiefData, parts
+		end
+
+		local function toastsTo(player: any, phase: number): { string }
+			local out = {}
+			for _, args in alertsTo(player, phase) do
+				table.insert(out, args[1])
+			end
+			return out
+		end
+
+		it("puts a knock prompt on the thief while carrying and removes it after delivery", function()
+			local victim, _, thief = stolen()
+			local p = knockPrompt(thief)
+			expect(p ~= nil):toBe(true)
+			expect(p.ActionText):toBe("Knock down!")
+			expect(p.HoldDuration):toBe(0)
+			expect(p.KeyboardKeyCode == roblox.Enum.KeyCode.E):toBe(true)
+			expect(p.MaxActivationDistance):toBe(steal.TagRange)
+			expect(p:GetAttribute("VictimUserId")):toBe(victim.UserId)
+			deliver(thief)
+			expect(knockPrompt(thief)):toBeNil()
 		end)
 
-		it("does not let a returned thief deliver", function()
-			local victim, _, thief, thiefData = setup()
-			attempt(thief, victim, 1)
-			world:moveCharacter(victim, 3, 3, 10)
-			world:invoke("TagThief", victim, thief.UserId)
+		it("only the victim can knock the thief down", function()
+			local victim, data, thief = stolen()
+			local bystander = join("Dan", 400)
+			world:spawnCharacter(bystander, 2, 3, 10)
+			local p = knockPrompt(thief)
+			p.Triggered:Fire(bystander)
+			p.Triggered:Fire(thief)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBe("GlassTink")
+			expect(thief.Character:GetAttribute("Ragdolled")):toBeNil()
+			expect(dropPart()):toBeNil()
+			p.Triggered:Fire(victim)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBeNil()
+			expect(thief.Character:GetAttribute("Ragdolled")):toBe(true)
+			expect(data.Board[1]):toBe("")
+		end)
+
+		it("ignores a knock from out of range", function()
+			local victim, _, thief = stolen()
+			world:moveCharacter(victim, 1 + steal.TagRange + 6, 3, 10)
+			knockPrompt(thief).Triggered:Fire(victim)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBe("GlassTink")
+			expect(dropPart()):toBeNil()
+		end)
+
+		it("ragdolls the thief for 2.5 seconds and restores them cleanly", function()
+			local victim, _, thief, _, parts = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			expect(parts.Motor.Enabled):toBe(false)
+			expect(sockets(thief)):toBe(1)
+			expect(parts.Humanoid.PlatformStand):toBe(true)
+			expect(parts.Humanoid.RequiresNeck):toBe(false)
+			expect(parts.Humanoid.States[1] == roblox.Enum.HumanoidStateType.Physics):toBe(true)
+			world:advance(2.4)
+			expect(parts.Motor.Enabled):toBe(false)
+			world:advance(0.2)
+			expect(parts.Motor.Enabled):toBe(true)
+			expect(sockets(thief)):toBe(0)
+			expect(parts.Humanoid.PlatformStand):toBe(false)
+			expect(parts.Humanoid.RequiresNeck):toBe(true)
+			expect(parts.Humanoid.States[2] == roblox.Enum.HumanoidStateType.GettingUp):toBe(true)
+			expect(thief.Character:GetAttribute("Ragdolled")):toBeNil()
+			expect(world:walkSpeed(thief)):toBe(steal.NormalWalkSpeed)
+		end)
+
+		it("drops the key at the thief position as an owner tagged pickup", function()
+			local victim, _, thief = stolen()
+			world:moveCharacter(thief, 7, 3, 12)
+			knockPrompt(thief).Triggered:Fire(victim)
+			local drop = dropPart()
+			expect(drop ~= nil):toBe(true)
+			expect(drop.CFrame.Position.X):toBeCloseTo(7, 1e-3)
+			expect(drop.CFrame.Position.Z):toBeCloseTo(12, 1e-3)
+			expect(drop.CFrame.Position.Y <= 3):toBe(true)
+			expect(drop:GetAttribute("KeyId")):toBe("GlassTink")
+			expect(drop.Color == Keys.GetRarity(Keys.ById.GlassTink).Color):toBe(true)
+			expect(drop.OwnerTag.Owner.Text):toBe("OWNER: Vic")
+			expect(thief.Character:FindFirstChild("StolenKey")):toBeNil()
+			expect(takeBack().ActionText):toBe("Take back")
+			expect(takeBack().HoldDuration):toBe(0.5)
+		end)
+
+		it("toasts both sides", function()
+			local victim, _, thief = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			expect(toastsTo(victim, 11)):toEqual({ "You knocked down Bob! Grab your key back!" })
+			expect(toastsTo(thief, 9)):toEqual({ "You got knocked down!" })
+		end)
+
+		it("lets only the owner take the key back", function()
+			local victim, data, thief = stolen()
+			local bystander = join("Dan", 400)
+			world:spawnCharacter(bystander, 2, 3, 10)
+			knockPrompt(thief).Triggered:Fire(victim)
+			local p = takeBack()
+			p.Triggered:Fire(bystander)
+			p.Triggered:Fire(thief)
+			expect(data.Board[1]):toBe("")
+			expect(dropPart() ~= nil):toBe(true)
+			p.Triggered:Fire(victim)
+			expect(data.Board[1]):toBe("GlassTink")
+			expect(data.BoardTags[1]):toBe("")
+			expect(dropPart()):toBeNil()
+			expect(#alertsTo(victim, 3)):toBe(1)
+			expect(prompt(victim, 1) ~= nil):toBe(true)
+		end)
+
+		it("rejects a take back from too far away", function()
+			local victim, data, thief = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			world:moveCharacter(victim, 90, 3, 10)
+			takeBack().Triggered:Fire(victim)
+			expect(data.Board[1]):toBe("")
+			expect(dropPart() ~= nil):toBe(true)
+		end)
+
+		it("returns the key to the owner after 25 seconds", function()
+			local victim, data, thief, thiefData = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			world:advance(24)
+			expect(data.Board[1]):toBe("")
+			expect(dropPart() ~= nil):toBe(true)
+			world:advance(1.2)
+			expect(data.Board[1]):toBe("GlassTink")
+			expect(dropPart()):toBeNil()
+			expect(S.totals(thiefData).GlassTink):toBeNil()
+		end)
+
+		it("never lets the thief deliver or re-grab the dropped key", function()
+			local victim, data, thief, thiefData = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			takeBack().Triggered:Fire(thief)
 			deliver(thief)
 			expect(S.totals(thiefData).GlassTink):toBeNil()
 			expect(#world:firedOf("StealFeed")):toBe(0)
-		end)
-
-		it("fails from out of range", function()
-			local victim, data, thief = setup({ TheftLessonDone = true })
-			attempt(thief, victim, 1)
-			world:moveCharacter(victim, 1 + steal.TagRange + 5, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(false)
 			expect(data.Board[1]):toBe("")
 		end)
 
-		it("fails for anyone but the victim", function()
-			local victim, data, thief = setup()
-			local bystander = join("Dan", 400)
-			world:spawnCharacter(bystander, 2, 3, 10)
-			attempt(thief, victim, 1)
-			expect(world:invoke("TagThief", bystander, thief.UserId)):toBe(false)
-			expect(world:invoke("TagThief", thief, thief.UserId)):toBe(false)
-			expect(data.Board[1]):toBe("")
+		it("protects a knocked thief from another knock for 3 seconds after getting up", function()
+			local victim, _, thief = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			takeBack().Triggered:Fire(victim)
+			world:advance(3)
+			attempt(thief, victim, 2)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBe("PlainClack")
+			local p = knockPrompt(thief)
+			world:advance(0.4)
+			expect(p:GetAttribute("Open")):toBe(false)
+			p.Triggered:Fire(victim)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBe("PlainClack")
+			world:advance(2.6)
+			expect(p:GetAttribute("Open")):toBe(true)
+			p.Triggered:Fire(victim)
+			expect(thief.Character:GetAttribute("CarryingKey")):toBeNil()
 		end)
 
-		it("fails when the target is not carrying", function()
-			local victim, _, thief = setup()
-			world:moveCharacter(victim, 3, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(false)
-			expect(world:invoke("TagThief", victim, 123456)):toBe(false)
-		end)
-
-		it("enforces a per caller cooldown", function()
-			local victim, data, thief = setup({ TheftLessonDone = true })
-			attempt(thief, victim, 1)
-			world:moveCharacter(victim, 1 + steal.TagRange + 5, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(false)
-			world:moveCharacter(victim, 3, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(false)
-			expect(data.Board[1]):toBe("")
-			world:advance(steal.TagCooldown + 0.1)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(true)
+		it("sends a dropped key home when the owner leaves", function()
+			local victim, data, thief = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			world:removePlayer(victim)
 			expect(data.Board[1]):toBe("GlassTink")
+			expect(dropPart()):toBeNil()
 		end)
 
-		it("reaches further while the victim has not had the lesson", function()
-			local victim, data, thief = setup({ TheftLessonDone = false })
-			attempt(thief, victim, 1)
-			local gap = (steal.TagRange + steal.LessonTagRange) / 2
-			world:moveCharacter(victim, 1 + gap, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(true)
-			expect(data.Board[1]):toBe("GlassTink")
-		end)
-
-		it("keeps the normal range once the lesson is done", function()
-			local victim, data, thief = setup({ TheftLessonDone = true })
-			attempt(thief, victim, 1)
-			local gap = (steal.TagRange + steal.LessonTagRange) / 2
-			world:moveCharacter(victim, 1 + gap, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(false)
-			expect(data.Board[1]):toBe("")
-		end)
-
-		it("rejects non numeric targets", function()
-			local victim = setup()
-			expect(world:invoke("TagThief", victim, "x")):toBe(false)
+		it("restores the thief when they leave mid ragdoll", function()
+			local victim, _, thief, _, parts = stolen()
+			knockPrompt(thief).Triggered:Fire(victim)
+			world:removePlayer(thief)
+			expect(parts.Motor.Enabled):toBe(true)
+			world:advance(5)
+			expect(world.errors):toEqual({})
 		end)
 	end)
 
@@ -568,12 +709,11 @@ describe("StealService", function()
 			expect(enabledOf(victim, 2)):toBe(true)
 		end)
 
-		it("re-enables the prompts after a tag", function()
+		it("re-enables the prompts after a knock down", function()
 			local victim, _, thief = setupTwo()
 			attempt(thief, victim, 1)
 			world:moveCharacter(victim, 3, 3, 10)
-			expect(world:invoke("TagThief", victim, thief.UserId)):toBe(true)
-			expect(enabledOf(victim, 1)):toBe(true)
+			thief.Character.HumanoidRootPart.KnockPrompt.Triggered:Fire(victim)
 			expect(enabledOf(victim, 2)):toBe(true)
 		end)
 

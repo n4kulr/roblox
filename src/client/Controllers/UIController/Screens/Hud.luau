@@ -133,8 +133,8 @@ function Hud.new(context: Types.Context): Types.Screen
 	end
 
 	local upgradesButton =
-		leftButton("Upgrades", "Upgrades", "UPGRADES", theme.Green, 1, "Make your keys stronger!", "Upgrades")
-	leftButton("Keys", "Keys", "KEYS", theme.Purple, 2, "See and equip your keys!", "Keys")
+		leftButton("Upgrades", "Upgrades", "UPGRADES", theme.Green, 2, "Make your keys stronger!", "Upgrades")
+	leftButton("Keys", "Keys", "KEYS", theme.Purple, 1, "See and equip your keys!", "Keys")
 	leftButton("Index", "Index", "INDEX", theme.Blue, 3, "Every key you can find!", "Index")
 	local rebirthButton =
 		leftButton("Rebirth", "Rebirth", "REBIRTH", theme.Pink, 4, "Start over for a big bonus!", "Rebirth")
@@ -290,8 +290,8 @@ function Hud.new(context: Types.Context): Types.Screen
 		color: Color3,
 		x: number,
 		go: () -> (boolean, string?)
-	)
-		Kit.Button(trove, {
+	): Kit.Button
+		return Kit.Button(trove, {
 			Parent = topBar,
 			Name = name,
 			Glyph = glyph,
@@ -314,9 +314,16 @@ function Hud.new(context: Types.Context): Types.Screen
 	jumpButton("Shop", "Shop", "SHOP", theme.Orange, 0, function()
 		return rollController:TeleportToMarket()
 	end)
-	jumpButton("MyBase", "Home", "MY BASE", theme.Blue, topButtonWidth + topGap, function()
-		return rollController:TeleportToBase()
-	end)
+	local myBaseButton = jumpButton(
+		"MyBase",
+		"Home",
+		"MY BASE",
+		theme.Blue,
+		topButtonWidth + topGap,
+		function()
+			return rollController:TeleportToBase()
+		end
+	)
 
 	local money = Kit.Panel({
 		Parent = root,
@@ -444,6 +451,19 @@ function Hud.new(context: Types.Context): Types.Screen
 	fit()
 	trove:Connect(root:GetPropertyChangedSignal("AbsoluteSize"), fit)
 
+	local pulseToken = 0
+	local function pulseMyBase()
+		pulseToken += 1
+		local mine = pulseToken
+		myBaseButton.SetGlow(true)
+		Kit.Pulse(myBaseButton.Instance)
+		task.delay(1.8, function()
+			if pulseToken == mine then
+				myBaseButton.SetGlow(false)
+			end
+		end)
+	end
+
 	local rollHolder = Instance.new("Frame")
 	rollHolder.Name = "RollHolder"
 	rollHolder.BackgroundTransparency = 1
@@ -455,7 +475,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	rollBreath.Parent = rollHolder
 	rollHolder.Parent = bottom
 	Kit.Breathe(trove, rollBreath, 0.035, 0.9)
-	Kit.Button(trove, {
+	local rollButton = Kit.Button(trove, {
 		Parent = rollHolder,
 		Name = "Roll",
 		Text = "ROLL!",
@@ -466,9 +486,42 @@ function Hud.new(context: Types.Context): Types.Screen
 		Lip = 10,
 		Immediate = true,
 		Callback = function()
+			if not rollController:IsInBase() then
+				context.Toast("Go to your base to roll!", "Bad")
+				pulseMyBase()
+				return
+			end
 			rollController:RequestRoll()
 		end,
 	})
+	local baseTag = Kit.Panel({
+		Parent = rollHolder,
+		Name = "BaseTag",
+		Size = UDim2.fromOffset(150, 24),
+		Position = UDim2.new(0.5, 0, 0, -12),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Color = theme.Red,
+		StrokeThickness = 2,
+		Pill = true,
+	})
+	baseTag.ZIndex = 6
+	baseTag.Visible = false
+	local baseTagText = Kit.Label({
+		Parent = baseTag,
+		Name = "Text",
+		Text = "GO TO YOUR BASE",
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 16,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	baseTagText.ZIndex = 7
+	local function showBaseState(isInBase: boolean)
+		rollButton.SetColor(if isInBase then theme.Yellow else theme.Grey)
+		baseTag.Visible = not isInBase
+	end
+	showBaseState(rollController:IsInBase())
+	trove:Add(rollController.InBaseChanged:Connect(showBaseState))
 	local hint = Kit.Panel({
 		Parent = rollHolder,
 		Name = "KeyHint",

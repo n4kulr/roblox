@@ -14,8 +14,9 @@ local laserThickness = 0.3
 local laserMargin = 0.5
 local minLaserHeight = 6
 local anchorLift = 4
-local verticalSlack = 15
-local depthBelow = 6
+local planeHalfDepth = 2.5
+local planeHalfWidthSlack = 1
+local planeBelow = 1
 local statusReady = "Ready"
 local statusActive = "Active"
 local statusCooldown = "Cooldown"
@@ -180,14 +181,15 @@ function Lock.Present(info: Types.PlotInfo, state: Types.Defense, now: number)
 	info.Model:SetAttribute("LockCooldownUntil", cooldownAttribute)
 end
 
-function Lock.IsInside(info: Types.PlotInfo, position: Vector3): boolean
+function Lock.InEntrance(info: Types.PlotInfo, position: Vector3): boolean
 	local relative = info.Base.CFrame:PointToObjectSpace(position)
 	local size = info.Base.Size
-	local top = size.Y / 2 + info.WallHeight
-	return math.abs(relative.X) <= size.X / 2
-		and math.abs(relative.Z) <= size.Z / 2
-		and relative.Y >= -size.Y / 2 - depthBelow
-		and relative.Y <= top + verticalSlack
+	local planeZ = -(size.Z / 2 - Walls.Inset)
+	local top = size.Y / 2 + math.max(info.WallHeight, minLaserHeight)
+	return math.abs(relative.X) <= defense.EntranceWidth / 2 + planeHalfWidthSlack
+		and math.abs(relative.Z - planeZ) <= planeHalfDepth
+		and relative.Y >= size.Y / 2 - planeBelow
+		and relative.Y <= top
 end
 
 function Lock.Knock(info: Types.PlotInfo, root: BasePart)

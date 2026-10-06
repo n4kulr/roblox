@@ -23,7 +23,6 @@ export type Cell = {
 	Info: TextLabel,
 	Count: TextLabel?,
 	CountChip: Frame?,
-	TagChip: Frame?,
 	StolenChip: Frame?,
 	StolenLabel: TextLabel?,
 	SetFound: (isFound: boolean, info: string, infoColor: Color3?) -> (),
@@ -109,27 +108,28 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	Kit.RarityPaint(trove, cell, rarity.Name, rarity.Color, Kit.Radius.L)
 	local rainbow = cell:FindFirstChild("Rainbow") :: UIGradient?
 	local shimmer = cell:FindFirstChild("Shimmer") :: GuiObject?
+	local isIncomeCard = props.HasChips == true
 	Kit.Burst({
 		Parent = cell,
-		Diameter = 112,
-		Position = UDim2.fromOffset(62, 54),
+		Diameter = if isIncomeCard then 90 else 112,
+		Position = if isIncomeCard then UDim2.fromOffset(62, 34) else UDim2.fromOffset(62, 54),
 		Color = rarity.Color,
 	})
 	local keycap = Kit.Keycap({
 		Parent = cell,
 		Color = rarity.Color,
 		Glyph = Cells.Glyph(key),
-		Size = UDim2.fromOffset(62, 62),
-		Position = UDim2.new(0.5, 0, 0, 22),
+		Size = if isIncomeCard then UDim2.fromOffset(48, 48) else UDim2.fromOffset(62, 62),
+		Position = UDim2.new(0.5, 0, 0, if isIncomeCard then 10 else 22),
 		AnchorPoint = Vector2.new(0.5, 0),
 	})
 	local nameLabel = Kit.Label({
 		Parent = cell,
 		Name = "Name",
 		Text = key.Name,
-		Position = UDim2.fromOffset(4, 92),
-		Size = UDim2.new(1, -8, 0, 24),
-		TextSize = 19,
+		Position = UDim2.fromOffset(4, if isIncomeCard then 104 else 92),
+		Size = UDim2.new(1, -8, 0, if isIncomeCard then 20 else 24),
+		TextSize = if isIncomeCard then 16 else 19,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -137,16 +137,17 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Parent = cell,
 		Name = "Info",
 		Text = "",
-		Position = UDim2.fromOffset(4, 118),
-		Size = UDim2.new(1, -8, 0, 20),
-		TextSize = 16,
-		Color = theme.Text,
+		Position = UDim2.fromOffset(6, if isIncomeCard then 60 else 118),
+		Size = UDim2.new(1, -12, 0, if isIncomeCard then 42 else 20),
+		TextSize = if isIncomeCard then 29 else 16,
+		Color = if isIncomeCard then theme.Good else theme.Text,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
+		Title = isIncomeCard,
+		StrokeSize = if isIncomeCard then 5 else nil,
 	})
 	local count: TextLabel? = nil
 	local countChip: Frame? = nil
-	local tagChip: Frame? = nil
 	local stolenChip: Frame? = nil
 	local stolenLabel: TextLabel? = nil
 	if props.HasChips == true then
@@ -154,31 +155,19 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Parent = cell,
 			Name = "Count",
 			Text = "x1",
-			Size = UDim2.fromOffset(42, 22),
+			Size = UDim2.fromOffset(40, 22),
 			Position = UDim2.new(1, -4, 0, 4),
 			AnchorPoint = Vector2.new(1, 0),
 			Color = theme.Red,
 			TextSize = 16,
 		})
 		countChip = (count :: TextLabel).Parent :: Frame
-		local tag = Kit.Chip({
-			Parent = cell,
-			Name = "OnBoard",
-			Text = "ON BOARD",
-			Size = UDim2.fromOffset(70, 20),
-			Position = UDim2.fromOffset(4, 4),
-			Color = theme.Green,
-			TextSize = 13,
-		})
-		local tagFrame = tag.Parent :: Frame
-		tagFrame.Visible = false
-		tagChip = tagFrame
 		local stolen = Kit.Chip({
 			Parent = cell,
 			Name = "Stolen",
 			Text = "",
 			Size = UDim2.new(1, -8, 0, 18),
-			Position = UDim2.fromOffset(4, 72),
+			Position = UDim2.fromOffset(4, 128),
 			Color = theme.Orange,
 			TextSize = 13,
 		})
@@ -222,7 +211,6 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Info = infoLabel,
 		Count = count,
 		CountChip = countChip,
-		TagChip = tagChip,
 		StolenChip = stolenChip,
 		StolenLabel = stolenLabel,
 		SetFound = function(isFound: boolean, info: string, infoColor: Color3?)

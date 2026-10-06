@@ -29,6 +29,9 @@ local glassColor = Color3.fromRGB(180, 220, 255)
 local glassTransparency = 0.55
 local glassReflectance = 0.1
 local steelColor = Color3.fromRGB(60, 64, 78)
+local jumpableTop = 6
+local blockedTop = 8.5
+local minGlass = 0.5
 
 local Walls = {
 	FolderName = folderName,
@@ -37,6 +40,8 @@ local Walls = {
 	GlassThickness = glassThickness,
 	RailHeight = railHeight,
 	PillarOvershoot = pillarOvershoot,
+	JumpableTop = jumpableTop,
+	BlockedTop = blockedTop,
 	Kinds = { Glass = "Glass", Rail = "Rail", Pillar = "Pillar" },
 }
 
@@ -49,6 +54,17 @@ end
 
 function Walls.GlassHeight(level: any): number
 	return Walls.Level(level) * Upgrades.ById.Walls.PerLevel
+end
+
+function Walls.GlassFor(level: any, fenceRise: number): number
+	local clamped = Walls.Level(level)
+	local glass = Walls.GlassHeight(clamped)
+	if clamped == 1 then
+		return math.max(minGlass, math.min(glass, jumpableTop - railHeight - fenceRise))
+	elseif clamped >= 2 then
+		return math.max(glass, blockedTop - railHeight - fenceRise)
+	end
+	return glass
 end
 
 local function span(
@@ -386,7 +402,7 @@ end
 
 function Walls.Apply(info: Types.PlotInfo, level: any)
 	local clamped = Walls.Level(level)
-	local glass = Walls.GlassHeight(clamped)
+	local glass = Walls.GlassFor(clamped, info.FenceRise)
 	local total = info.FenceRise + glass
 	if clamped > 0 then
 		local folder: Folder = info.GlassWalls or Instance.new("Folder")

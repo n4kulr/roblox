@@ -49,7 +49,7 @@ end
 
 describe("HUD", function()
 	local world, playerGui, hudGui, offersGui, Glyphs
-	local calls, toasts, refusal
+	local calls, toasts, refusal, inBase, rollRequests, rollController
 
 	beforeEach(function()
 		world = H.newWorld()
@@ -72,8 +72,14 @@ describe("HUD", function()
 		calls = { Base = 0, Market = 0 }
 		toasts = {}
 		refusal = nil
-		local rollController = {
+		inBase = true
+		rollRequests = 0
+		rollController = {
 			AutoChanged = Signal.new(),
+			InBaseChanged = Signal.new(),
+			IsInBase = function()
+				return inBase
+			end,
 			IsAuto = function()
 				return false
 			end,
@@ -86,7 +92,10 @@ describe("HUD", function()
 				calls.Market += 1
 				return refusal == nil, refusal
 			end,
-			RequestRoll = function() end,
+			RequestRoll = function()
+				rollRequests += 1
+				return true
+			end,
 		}
 		local context = {
 			Controllers = { DataController = dataController, RollController = rollController },
@@ -178,6 +187,60 @@ describe("HUD", function()
 			expect(isOnRight(button)):toBe(true)
 		end
 		expect(find(hudGui, "Store").Face.Text.Text):toBe("STORE")
+	end)
+
+	it("puts KEYS before UPGRADES in the left menu", function()
+		expect(find(hudGui, "Keys").LayoutOrder < find(hudGui, "Upgrades").LayoutOrder):toBe(true)
+		expect(find(hudGui, "Keys").LayoutOrder):toBe(1)
+		expect(find(hudGui, "Upgrades").LayoutOrder):toBe(2)
+		expect(find(hudGui, "Index").LayoutOrder):toBe(3)
+	end)
+
+	describe("roll in base", function()
+		local function click(button: any)
+			button.MouseButton1Down:Fire()
+		end
+
+		local function bottomColor(button: any): any
+			return button.Face.Paint.Color.Keypoints[1].Value
+		end
+
+		local function tag()
+			return find(hudGui, "BaseTag")
+		end
+
+		it("shows no warning inside the base", function()
+			expect(tag().Visible):toBe(false)
+			click(find(hudGui, "Roll"))
+			expect(rollRequests):toBe(1)
+			expect(#toasts):toBe(0)
+		end)
+
+		it("greys the ROLL button and shows GO TO YOUR BASE outside", function()
+			local Theme = world:require(`{screens}.Kit.Theme`)
+			rollController.InBaseChanged:Fire(false)
+			expect(tag().Visible):toBe(true)
+			expect(tag().Text.Text):toBe("GO TO YOUR BASE")
+			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Grey:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
+			rollController.InBaseChanged:Fire(true)
+			expect(tag().Visible):toBe(false)
+			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Yellow:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
+		end)
+
+		it("toasts and refuses a roll click outside the base", function()
+			inBase = false
+			rollController.InBaseChanged:Fire(false)
+			click(find(hudGui, "Roll"))
+			expect(rollRequests):toBe(0)
+			expect(#toasts):toBe(1)
+			expect(toasts[1]):toBe("Go to your base to roll!")
+		end)
+
+		it("pulses MY BASE when the click is refused", function()
+			inBase = false
+			click(find(hudGui, "Roll"))
+			expect(find(hudGui, "MyBase"):FindFirstChild("PulseScale") ~= nil):toBe(true)
+		end)
 	end)
 
 	it("keeps the left menu on the left", function()
