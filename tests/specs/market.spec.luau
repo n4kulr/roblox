@@ -1,11 +1,11 @@
 local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
-local S = require("../support")
 
 local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, H.beforeEach, H.afterEach
 
 local startTime = 1700000250
 local slotEnd = 1700000400
+local bootList = { "KeyboardService", "EggService", "MarketService" }
 
 local function countParts(instance: any): number
 	local total = 0
@@ -18,13 +18,13 @@ local function countParts(instance: any): number
 end
 
 describe("MarketService", function()
-	local world, Market, Keys, GameConfig, player, data
+	local world, Market, Eggs, GameConfig, player, data
 
 	beforeEach(function()
 		world = H.newWorld({ Time = startTime })
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot(bootList)
 		Market = world:require("ReplicatedStorage.Rules.Market")
-		Keys = world:require("ReplicatedStorage.Config.Keys")
+		Eggs = world:require("ReplicatedStorage.Config.Eggs")
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 		player, data = world:join(nil, { Cash = 100000000, Settings = { AutoPlace = false } })
 		world:spawnCharacter(player, 0, 3, -6)
@@ -39,81 +39,114 @@ describe("MarketService", function()
 		return Market.Offers(Market.Slot(world.now))
 	end
 
+	local function priceOf(index: number): number
+		return Market.Price(offers()[index], 0)
+	end
+
 	local function buy(index: any): any
 		return world:invoke("MarketBuy", player, index)
 	end
 
-	it("buys an offer: cash, key, discovery and stock all update", function()
-		local offer = offers()[1]
-		data.Cash = offer.Price + 100
+	it("buys an egg: cash, incubator, hatch time and stock all update", function()
+		local price = priceOf(1)
+		data.Cash = price + 100
 		expect(buy(1)):toBe(true)
 		expect(data.Cash):toBe(100)
-		expect(data.Inventory[offer.KeyId]):toBe(1)
-		expect(data.Discovered[offer.KeyId]):toBe(1)
+		expect(data.Incubators):toEqual({ "Linear", "", "" })
+		expect(data.IncubatorReadyAt[1]):toBe(world.now + Eggs.ById.Linear.HatchSeconds)
 		expect(data.Market.Slot):toBe(Market.Slot(world.now))
 		expect(data.Market.Bought["1"]):toBe(1)
 		expect((world.saves[player] or 0) > 0):toBe(true)
 	end)
 
-	it("places a bought key on the board when auto place is on", function()
-		data.Settings.AutoPlace = true
-		local offer = offers()[2]
+	it("puts each new egg into the first empty incubator", function()
+		expect(buy(1)):toBe(true)
 		expect(buy(2)):toBe(true)
-		expect(S.totals(data)[offer.KeyId]):toBe(1)
-		expect(data.Board[1]):toBe(offer.KeyId)
+		expect(buy(1)):toBe(true)
+		expect(data.Incubators):toEqual({ "Linear", "Tactile", "Linear" })
+		expect(data.IncubatorReadyAt[2]):toBe(world.now + Eggs.ById.Tactile.HatchSeconds)
+		data.Incubators[2] = ""
+		expect(buy(1)):toBe(true)
+		expect(data.Incubators[2]):toBe("Linear")
+	end)
+
+	it("rejects a purchase when all incubators are full and changes nothing", function()
+		data.Incubators = { "Linear", "Linear", "Golden" }
+		data.IncubatorReadyAt = { 5, 6, 7 }
+		local cash = data.Cash
+		expect(buy(1)):toBe(false)
+		expect(data.Cash):toBe(cash)
+		expect(data.Incubators):toEqual({ "Linear", "Linear", "Golden" })
+		expect(data.IncubatorReadyAt):toEqual({ 5, 6, 7 })
+		expect(data.Market.Bought["1"]):toBeNil()
 	end)
 
 	it("rejects a purchase without enough cash and changes nothing", function()
-		local offer = offers()[1]
-		data.Cash = offer.Price - 1
-		local before = S.snapshot(data)
+		data.Cash = priceOf(1) - 1
 		expect(buy(1)):toBe(false)
-		expect(data.Cash):toBe(before.Cash)
-		expect(data.Inventory):toEqual(before.Inventory)
-		expect(data.Discovered):toEqual(before.Discovered)
+		expect(data.Cash):toBe(priceOf(1) - 1)
+		expect(data.Incubators):toEqual({ "", "", "" })
 		expect(data.Market.Bought["1"]):toBeNil()
 	end)
 
 	it("accepts an exact-cost purchase", function()
-		local offer = offers()[3]
-		data.Cash = offer.Price
-		expect(buy(3)):toBe(true)
+		data.Cash = priceOf(2)
+		expect(buy(2)):toBe(true)
 		expect(data.Cash):toBe(0)
 	end)
 
-	it("sells out after the stock is bought", function()
-		local offer = offers()[4]
-		for count = 1, offer.Stock do
-			expect(buy(4)):toBe(true)
-			expect(data.Market.Bought["4"]):toBe(count)
+	it("charges more when the board earns more", function()
+		for index = 1, GameConfig.BaseSlots do
+			data.Board[index] = "PlainClack"
 		end
+		local rate = Market.BaseRate(data.Board, data.Upgrades)
+		local price = Market.Price(offers()[1], rate)
+		expect(price > Market.Price(offers()[1], 0)):toBe(true)
+		data.Cash = price + 5
+		data.IncomeAt = world.now
+		expect(buy(1)):toBe(true)
+		expect(data.Cash):toBe(5)
+	end)
+
+	it("sells out after the stock is bought", function()
+		local offer = offers()[1]
+		for count = 1, offer.Stock do
+			if count > 3 then
+				data.Incubators = { "", "", "" }
+			end
+			expect(buy(1)):toBe(true)
+			expect(data.Market.Bought["1"]):toBe(count)
+		end
+		data.Incubators = { "", "", "" }
 		local cash = data.Cash
-		expect(buy(4)):toBe(false)
+		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(cash)
-		expect(data.Inventory[offer.KeyId]):toBe(offer.Stock)
-		expect(data.Market.Bought["4"]):toBe(offer.Stock)
+		expect(data.Market.Bought["1"]):toBe(offer.Stock)
 	end)
 
 	it("keeps stock per offer", function()
-		local first, second = offers()[1], offers()[2]
-		for _ = 1, first.Stock do
-			expect(buy(1)):toBe(true)
-		end
+		local first = offers()[1]
+		data.Market = { Slot = Market.Slot(world.now), Bought = { ["1"] = first.Stock } }
 		expect(buy(1)):toBe(false)
 		expect(buy(2)):toBe(true)
 		expect(data.Market.Bought["2"]):toBe(1)
-		expect(second.Stock >= 1):toBe(true)
 	end)
 
 	it("rejects invalid offer indexes", function()
-		local before = S.snapshot(data)
-		for _, index in { 0, -1, 7, 1.5, 100, "1", true, S.nan(), math.huge } do
+		local cash = data.Cash
+		for _, index in { 0, -1, 7, 1.5, 100, "1", true, 0 / 0, math.huge } do
 			expect(buy(index)):toBe(false)
 		end
 		expect(buy(nil)):toBe(false)
-		expect(data.Cash):toBe(before.Cash)
-		expect(data.Inventory):toEqual(before.Inventory)
-		expect(data.Market):toEqual(before.Market)
+		expect(data.Cash):toBe(cash)
+		expect(data.Incubators):toEqual({ "", "", "" })
+	end)
+
+	it("rejects an index beyond the offers of the current slot", function()
+		local count = #offers()
+		for index = count + 1, #Eggs.Catalog do
+			expect(buy(index)):toBe(false)
+		end
 	end)
 
 	it("fails for players without data", function()
@@ -124,27 +157,12 @@ describe("MarketService", function()
 
 	it("resets bought counts when the slot rolls over", function()
 		local offer = offers()[1]
-		for _ = 1, offer.Stock do
-			expect(buy(1)):toBe(true)
-		end
+		data.Market = { Slot = Market.Slot(world.now), Bought = { ["1"] = offer.Stock } }
 		expect(buy(1)):toBe(false)
 		world:advance(300)
-		local nextOffer = offers()[1]
 		expect(buy(1)):toBe(true)
 		expect(data.Market.Slot):toBe(Market.Slot(world.now))
 		expect(data.Market.Bought):toEqual({ ["1"] = 1 })
-		expect(nextOffer.KeyId ~= nil):toBe(true)
-	end)
-
-	it("prices and grants from the offers of the current slot after a rollover", function()
-		local oldSlot = Market.Slot(world.now)
-		world:advance(300)
-		expect(Market.Slot(world.now)):toBe(oldSlot + 1)
-		local fresh = offers()[5]
-		data.Cash = fresh.Price + 7
-		expect(buy(5)):toBe(true)
-		expect(data.Cash):toBe(7)
-		expect(data.Inventory[fresh.KeyId]):toBe(1)
 	end)
 
 	it("refuses purchases right at the slot boundary", function()
@@ -152,7 +170,7 @@ describe("MarketService", function()
 		expect(buy(1)):toBe(false)
 		world:setTime(slotEnd + 0.5)
 		expect(buy(1)):toBe(false)
-		expect(data.Inventory):toEqual({})
+		expect(data.Incubators):toEqual({ "", "", "" })
 		world:setTime(slotEnd + 5)
 		expect(buy(1)):toBe(true)
 	end)
@@ -163,7 +181,7 @@ describe("MarketService", function()
 		local position = counter.CFrame.Position
 		world:moveCharacter(player, position.X, 3, position.Z + range + 5)
 		expect(buy(1)):toBe(false)
-		expect(data.Inventory):toEqual({})
+		expect(data.Incubators):toEqual({ "", "", "" })
 		world:moveCharacter(player, position.X, position.Y, position.Z + range - 1)
 		expect(buy(1)):toBe(true)
 	end)
@@ -171,18 +189,21 @@ describe("MarketService", function()
 	it("rejects players without a character", function()
 		local stranger, strangerData = world:join(nil, { Cash = 100000000 })
 		expect(world:invoke("MarketBuy", stranger, 1)):toBe(false)
-		expect(strangerData.Inventory):toEqual({})
+		expect(strangerData.Incubators):toEqual({ "", "", "" })
 	end)
 
 	it("settles earned income before checking the price", function()
-		local offer = offers()[1]
 		data.Cash = 0
-		local slots = GameConfig.BaseSlots
-		data.Board = S.fill("PlainClack", slots)
-		local seconds = math.ceil(offer.Price / slots) + 10
+		data.Board = {}
+		for index = 1, GameConfig.BaseSlots do
+			data.Board[index] = "PlainClack"
+		end
+		local rate = Market.BaseRate(data.Board, data.Upgrades)
+		local price = Market.Price(offers()[1], rate)
+		local seconds = math.ceil(price / rate) + 10
 		data.IncomeAt = world.now - seconds
 		expect(buy(1)):toBe(true)
-		expect(data.Cash):toBe(seconds * slots - offer.Price)
+		expect(data.Cash):toBe(seconds * rate - price)
 		expect(data.IncomeAt):toBe(world.now)
 	end)
 
@@ -196,12 +217,12 @@ describe("MarketService", function()
 end)
 
 describe("Market stall", function()
-	local world, Market, Keys, GameConfig
+	local world, Market, Eggs, GameConfig
 
 	beforeEach(function()
 		world = H.newWorld({ Time = startTime })
 		Market = world:require("ReplicatedStorage.Rules.Market")
-		Keys = world:require("ReplicatedStorage.Config.Keys")
+		Eggs = world:require("ReplicatedStorage.Config.Eggs")
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 	end)
 
@@ -211,7 +232,7 @@ describe("Market stall", function()
 	end)
 
 	it("builds a placeholder stall at the map center with a counter and prompt", function()
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local stall = world.workspace:FindFirstChild("Market")
 		expect(stall ~= nil):toBe(true)
 		expect(stall.ClassName):toBe("Model")
@@ -224,7 +245,7 @@ describe("Market stall", function()
 		expect(position.Y - counter.Size.Y / 2):toBeCloseTo(0, 1e-6)
 		local prompt = counter:FindFirstChild("MarketPrompt")
 		expect(prompt.ClassName):toBe("ProximityPrompt")
-		expect(prompt.ActionText):toBe("Open Key Market")
+		expect(prompt.ActionText):toBe("Open Egg Market")
 		expect(prompt.ObjectText):toBe("Shop")
 		expect(prompt.HoldDuration):toBe(0)
 		expect(prompt.MaxActivationDistance):toBe(GameConfig.Market.PromptRange)
@@ -232,7 +253,7 @@ describe("Market stall", function()
 	end)
 
 	it("keeps the stall small, anchored and clear of the spawn", function()
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local stall = world.workspace:FindFirstChild("Market")
 		expect(countParts(stall) < 60):toBe(true)
 		for _, item in stall:GetDescendants() do
@@ -244,8 +265,8 @@ describe("Market stall", function()
 		end
 	end)
 
-	it("has striped awning, a KEY MARKET sign and a display cap per offer", function()
-		world:boot({ "KeyboardService", "MarketService" })
+	it("has striped awning, an EGG MARKET sign and a display egg per tier", function()
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local stall = world.workspace:FindFirstChild("Market")
 		local colors: { [any]: boolean } = {}
 		local stripes = 0
@@ -262,20 +283,25 @@ describe("Market stall", function()
 		end
 		expect(distinct):toBe(2)
 		local gui = stall.SignBoard.SignGui
-		expect(gui.Text.Text):toBe("KEY MARKET")
+		expect(gui.Text.Text):toBe("EGG MARKET")
 		expect(gui.Text.Font == roblox.Enum.Font.FredokaOne):toBe(true)
-		for index = 1, GameConfig.Market.OfferCount do
-			expect(stall:FindFirstChild(`Cap{index}`) ~= nil):toBe(true)
+		for index = 1, #Eggs.Catalog do
+			expect(stall:FindFirstChild(`Egg{index}`) ~= nil):toBe(true)
 		end
 	end)
 
-	it("colors the display caps by the current offers and repaints on a new slot", function()
-		world:boot({ "KeyboardService", "MarketService" })
+	it("colors the display eggs by the current offers and repaints on a new slot", function()
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local stall = world.workspace:FindFirstChild("Market")
 		local function check()
-			for index, offer in Market.Offers(Market.Slot(world.now)) do
-				local rarity = Keys.GetRarity(Keys.ById[offer.KeyId])
-				expect(stall:FindFirstChild(`Cap{index}`).Color):toBe(rarity.Color)
+			local offers = Market.Offers(Market.Slot(world.now))
+			for index = 1, #Eggs.Catalog do
+				local display = stall:FindFirstChild(`Egg{index}`)
+				local offer = offers[index]
+				expect(display.Transparency):toBe(if offer then 0 else 1)
+				if offer then
+					expect(display.Color):toBe(Eggs.ById[offer.EggId].Color)
+				end
 			end
 		end
 		check()
@@ -286,7 +312,7 @@ describe("Market stall", function()
 	end)
 
 	it("pings the player to open the market when the prompt is triggered", function()
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local player = world:join()
 		local prompt = world.workspace:FindFirstChild("Market").Counter:FindFirstChild("MarketPrompt")
 		expect(player:GetAttribute("OpenMarket")):toBeNil()
@@ -303,10 +329,10 @@ describe("Market stall", function()
 		local counter = world:newPart("Counter", 50, 1, 50)
 		counter.Size = roblox.Vector3.new(6, 2, 2)
 		counter.Parent = authored
-		local cap = world:newPart("Cap1", 50, 2.5, 50)
+		local cap = world:newPart("Egg1", 50, 2.5, 50)
 		cap.Parent = authored
 		authored.Parent = world.workspace
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local count = 0
 		for _, child in world.workspace:GetChildren() do
 			if string.sub(child.Name, 1, 6) == "Market" then
@@ -318,7 +344,7 @@ describe("Market stall", function()
 		expect(counter:FindFirstChild("MarketPrompt") ~= nil):toBe(true)
 		expect(authored:FindFirstChild("Floor")):toBeNil()
 		local first = Market.Offers(Market.Slot(world.now))[1]
-		expect(cap.Color):toBe(Keys.GetRarity(Keys.ById[first.KeyId]).Color)
+		expect(cap.Color):toBe(Eggs.ById[first.EggId].Color)
 	end)
 
 	it("measures distance from an authored counter", function()
@@ -327,20 +353,20 @@ describe("Market stall", function()
 		local counter = world:newPart("Counter", 50, 1, 50)
 		counter.Parent = authored
 		authored.Parent = world.workspace
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local player, data = world:join(nil, { Cash = 100000000, Settings = { AutoPlace = false } })
 		world:spawnCharacter(player, 0, 3, -6)
 		expect(world:invoke("MarketBuy", player, 1)):toBe(false)
 		world:moveCharacter(player, 52, 3, 50)
 		expect(world:invoke("MarketBuy", player, 1)):toBe(true)
-		expect(next(data.Inventory) ~= nil):toBe(true)
+		expect(data.Incubators[1]):toBe("Linear")
 	end)
 
 	it("builds a differently named placeholder when workspace.Market is unusable", function()
 		local broken = world:newInstance("Model")
 		broken.Name = "Market"
 		broken.Parent = world.workspace
-		world:boot({ "KeyboardService", "MarketService" })
+		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		expect(#world.warnings > 0):toBe(true)
 		local fallback = world.workspace:FindFirstChild("MarketPlaceholder")
 		expect(fallback ~= nil):toBe(true)

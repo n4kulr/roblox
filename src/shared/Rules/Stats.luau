@@ -35,12 +35,14 @@ function Stats.Slots(levels: any): number
 	return math.clamp(slots, GameConfig.BaseSlots, GameConfig.BoardSlots)
 end
 
-function Stats.GoldenEvery(levels: any): number
-	local every = GameConfig.GoldenRollEvery - level(levels, "Golden") * Upgrades.ById.Golden.PerLevel
+function Stats.GoldenEvery(levels: any, reduction: number?): number
+	local every = GameConfig.GoldenRollEvery
+		- level(levels, "Golden") * Upgrades.ById.Golden.PerLevel
+		- (reduction or 0)
 	return math.max(1, every)
 end
 
-export type Modifiers = { Luck: number?, Income: number? }
+export type Modifiers = { Luck: number?, Income: number?, Speed: number? }
 
 function Stats.Compute(board: { string }, levels: any, modifiers: Modifiers?): Stats
 	local slots = Stats.Slots(levels)
@@ -65,6 +67,9 @@ function Stats.Compute(board: { string }, levels: any, modifiers: Modifiers?): S
 	local luck = (GameConfig.Luck + level(levels, "Luck") * Upgrades.ById.Luck.PerLevel) * (1 + luckBonus)
 	local rollsPerSecond = (GameConfig.RollsPerSecond + level(levels, "Speed") * Upgrades.ById.Speed.PerLevel)
 		* (1 + speedBonus)
+	if modifiers then
+		rollsPerSecond *= modifiers.Speed or 1
+	end
 	rollsPerSecond = math.min(rollsPerSecond, GameConfig.MaxRollsPerSecond)
 	local multiplier = (1 + incomeBonus) * (1 + level(levels, "Income") * Upgrades.ById.Income.PerLevel)
 	if modifiers then

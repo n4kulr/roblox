@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
@@ -13,6 +14,7 @@ local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Caps = require(script.Caps)
+local Incubators = require(script.Incubators)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
@@ -323,6 +325,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 			board.CanCollide = false
 			info.Layout = FloorGrid.ForPlot(base, info.RollKey, board)
 			createCaps(info, trove)
+			trove:Add(Incubators.Build(model, base, board))
 			Walls.Build(info, 0)
 			info.Defense = Lock.Build()
 			presentLock(info)
@@ -346,7 +349,15 @@ local function activateLock(info: PlotInfo, player: Player): boolean
 		return false
 	end
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	Lock.Start(info, state, now, Lock.Duration(if data then data.Upgrades.LockTime else 0))
+	Lock.Start(
+		info,
+		state,
+		now,
+		Lock.Duration(
+			if data then data.Upgrades.LockTime else 0,
+			if data then Charms.Effects(data.EquippedCharms).LaserSeconds else 0
+		)
+	)
 	Lock.Present(info, state, now)
 	PlotService.LockChanged:Fire(player)
 	return true

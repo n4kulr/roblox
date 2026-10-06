@@ -46,9 +46,10 @@ function Steal.RarityIndex(keyId: string): number
 	return if key then rarityIndexByName[key.Rarity] or 1 else 1
 end
 
-function Steal.HoldSeconds(rarityIndex: number, lessonPending: boolean): number
+function Steal.HoldSeconds(rarityIndex: number, lessonPending: boolean, speed: number?): number
 	local seconds = steal.BaseHoldSeconds + steal.HoldSecondsPerRarity * (math.max(rarityIndex, 1) - 1)
-	return if lessonPending then seconds * steal.LessonHoldMultiplier else seconds
+	seconds = if lessonPending then seconds * steal.LessonHoldMultiplier else seconds
+	return seconds / math.max(speed or 1, 1)
 end
 
 function Steal.IsShielded(playSeconds: number): boolean

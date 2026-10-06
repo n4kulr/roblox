@@ -8,6 +8,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Income = require(ReplicatedStorage.Rules.Income)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -32,7 +33,9 @@ local services: { [string]: any } = {}
 local function boardRate(player: Player, data: PlayerData.Data): number
 	local passService = services.PassService
 	local passes = if passService then passService:GetPasses(player) else {}
-	local income = Boosts.PassIncome(passes) * Rebirth.IncomeMultiplier(data.Rebirths)
+	local income = Boosts.PassIncome(passes)
+		* Rebirth.IncomeMultiplier(data.Rebirths)
+		* Charms.Effects(data.EquippedCharms).Income
 	return Stats.Compute(data.Board, data.Upgrades, { Income = income }).Rate
 end
 

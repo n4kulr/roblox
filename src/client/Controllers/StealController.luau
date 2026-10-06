@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -276,8 +277,25 @@ function StealController.Start(self: State)
 	local trove = self._trove :: TroveInstance
 	trove:Add(Packets.StealAlert.OnClientEvent:Connect(onAlert))
 	trove:Add(Packets.StealFeed.OnClientEvent:Connect(onFeed))
+	local function speedUp(instance: Instance)
+		if not instance:IsA("ProximityPrompt") or instance.Name ~= promptName then
+			return
+		end
+		local lastSet = -1
+		local function apply()
+			local speed = Charms.Effects(controllers.DataController:Get({ "EquippedCharms" })).StealSpeed
+			if instance.HoldDuration == lastSet or speed <= 1 then
+				return
+			end
+			lastSet = instance.HoldDuration / speed
+			instance.HoldDuration = lastSet
+		end
+		apply()
+		trove:Connect(instance:GetPropertyChangedSignal("HoldDuration"), apply)
+	end
 	local function onPrompt(instance: Instance)
 		hideOwnPrompt(instance)
+		speedUp(instance)
 	end
 	for _, descendant in workspace:GetDescendants() do
 		onPrompt(descendant)
