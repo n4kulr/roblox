@@ -7,6 +7,7 @@ local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
+local Legend = require(script.Parent.Legend)
 local Types = require(script.Parent.Types)
 
 local Caps = {
@@ -38,27 +39,34 @@ local function applyFiller(cap: BasePart)
 	cap.Transparency = 0
 end
 
-function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
+function Caps.Blank(cframe: CFrame): BasePart
 	local template = MeshTemplates.Get("Keycap")
 	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
 	local capSize = FloorGrid.CapSize()
-	local slot = cell.Slot
-	local sink = if slot then 0 else Caps.FillerSink
 	cap.Anchored = true
 	cap.CanCollide = false
 	cap.CanQuery = false
 	cap.CanTouch = false
 	cap.CastShadow = false
 	cap.Size = Vector3.new(capSize, capHeight, capSize)
-	cap.CFrame = info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z)
-	cap:SetAttribute("Cell", cell.Index)
+	cap.CFrame = cframe
 	applyFiller(cap)
+	return cap
+end
+
+function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
+	local slot = cell.Slot
+	local sink = if slot then 0 else Caps.FillerSink
+	local cap =
+		Caps.Blank(info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z))
+	cap:SetAttribute("Cell", cell.Index)
 	if slot then
 		cap.Name = `Slot{slot}`
 		cap:SetAttribute("Slot", slot)
 	else
 		cap.Name = `Floor{cell.Index}`
 		cap:SetAttribute("Filler", true)
+		Legend.Attach(cap, Legend.SeedOf(info.Model.Name, cell.Index))
 	end
 	return cap
 end
@@ -114,6 +122,10 @@ local function newVisual(cap: BasePart): Types.CapVisual
 	rim.Parent = surface
 	local plus = newLabel(surface, "Plus", "+", UDim2.fromScale(0.5, 0.5))
 	plus.TextTransparency = 0.45
+	local letter = newLabel(surface, "Letter", "", UDim2.fromScale(0.62, 0.62))
+	letter.TextStrokeColor3 = strokeColor
+	letter.TextStrokeTransparency = 0.2
+	letter.Visible = false
 	local lock = Instance.new("ImageLabel")
 	lock.Name = "Lock"
 	lock.BackgroundTransparency = 1
@@ -136,6 +148,7 @@ local function newVisual(cap: BasePart): Types.CapVisual
 		Rim = rim,
 		Stroke = stroke,
 		Plus = plus,
+		Letter = letter,
 		Lock = lock,
 	}
 end
@@ -165,6 +178,8 @@ local function showKey(cap: BasePart, visual: Types.CapVisual, key: Keys.Key)
 	visual.Stroke.Transparency = 0.1
 	visual.Plus.Visible = false
 	visual.Lock.Visible = false
+	visual.Letter.Text = string.upper(string.sub(key.Name, 1, 1))
+	visual.Letter.Visible = true
 end
 
 local function showEmpty(cap: BasePart, visual: Types.CapVisual)
@@ -180,6 +195,7 @@ local function showEmpty(cap: BasePart, visual: Types.CapVisual)
 	visual.Stroke.Color = emptyRimColor
 	visual.Stroke.Transparency = 0.3
 	visual.Plus.Visible = true
+	visual.Letter.Visible = false
 	visual.Lock.Visible = false
 end
 
@@ -196,6 +212,7 @@ local function showLocked(cap: BasePart, visual: Types.CapVisual, hasOwner: bool
 	visual.Stroke.Color = lockedRimColor
 	visual.Stroke.Transparency = 0.4
 	visual.Plus.Visible = false
+	visual.Letter.Visible = false
 	visual.Lock.Visible = hasOwner
 end
 
