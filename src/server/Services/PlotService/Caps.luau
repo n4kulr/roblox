@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
+local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
@@ -205,6 +206,7 @@ local function newVisual(cap: BasePart): Types.CapVisual
 		Plus = plus,
 		Letter = letter,
 		Lock = lock,
+		Decor = nil,
 	}
 end
 
@@ -215,6 +217,14 @@ local function visualOf(info: Types.PlotInfo, cap: BasePart): Types.CapVisual
 		info.Visuals[cap] = visual
 	end
 	return visual
+end
+
+local function clearDecor(visual: Types.CapVisual)
+	local decor = visual.Decor
+	if decor then
+		visual.Decor = nil
+		decor:Destroy()
+	end
 end
 
 local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, key: Keys.Key)
@@ -234,9 +244,12 @@ local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, ke
 	visual.Lock.Visible = false
 	visual.Letter.Text = string.upper(string.sub(key.Name, 1, 1))
 	visual.Letter.Visible = true
+	clearDecor(visual)
+	visual.Decor = KeyModels.Mount(cap, key.Id)
 end
 
 local function showEmpty(cap: BasePart, visual: Types.CapVisual, base: Color3)
+	clearDecor(visual)
 	cap.Color = Caps.EmptyColor(base)
 	cap.Material = Enum.Material.SmoothPlastic
 	cap.Reflectance = 0
@@ -254,6 +267,7 @@ local function showEmpty(cap: BasePart, visual: Types.CapVisual, base: Color3)
 end
 
 local function showLocked(cap: BasePart, visual: Types.CapVisual, hasOwner: boolean)
+	clearDecor(visual)
 	cap.Color = Caps.LockedColor
 	cap.Material = Enum.Material.SmoothPlastic
 	cap.Reflectance = 0

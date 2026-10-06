@@ -369,18 +369,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local function buildPreview(keyId: string)
 		clearPreviewModel()
-		local baseId, tier = KeyTiers.Parse(keyId)
+		local _, tier = KeyTiers.Parse(keyId)
 		local ok = pcall(function()
-			local model = KeyModels.Build(baseId)
-			if tier > 0 then
-				local color, reflectance = Keys.VariantStyle(keyId)
-				for _, part in model:GetDescendants() do
-					if part:IsA("BasePart") then
-						part.Color = part.Color:Lerp(color, 0.6)
-						part.Reflectance = reflectance
-					end
-				end
-			end
+			local model = KeyModels.Build(keyId)
 			local camera = Instance.new("Camera")
 			camera.FieldOfView = 40
 			camera.CFrame = CFrame.lookAt(Vector3.new(0, 5.5, 9.5), Vector3.new(0, 1.2, 0))
@@ -406,8 +397,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		pcall(function()
 			model:PivotTo(CFrame.Angles(0, now * spinSpeed, 0))
 			if previewTier == 2 then
-				for _, part in model:GetDescendants() do
-					if part:IsA("BasePart") then
+				for _, name in { "Skirt", "Top" } do
+					local part = model:FindFirstChild(name)
+					if part and part:IsA("BasePart") then
 						part.Color = Color3.fromHSV((now * 0.25) % 1, 0.55, 1)
 					end
 				end
