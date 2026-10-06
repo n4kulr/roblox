@@ -97,7 +97,7 @@ local function newScenario(world: any)
 		Rolls = 4210,
 		GoldenProgress = 37,
 		Upgrades = { Luck = 12, Speed = 3, Slots = 2, Income = 8, Walls = 1, LockTime = 0, Golden = 1 },
-		Settings = { LowGraphics = false, AutoPlace = true, RollVolume = 0.8, BoardVolume = 1, OtherVolume = 0.35 },
+		Settings = { LowGraphics = false, AutoPlace = true, RollVolume = 0.8, BoardVolume = 1, OtherVolume = 0.35, MusicVolume = 0.5, EffectsMinRarity = 5 },
 		Tutorial = 5,
 		Boosts = { LuckUntil = now + 620, ClicksUntil = 0 },
 		Daily = { Streak = 2, LastClaim = now - 90000 },
