@@ -44,7 +44,10 @@ local stalls = { "Market", "MarketPlaceholder" }
 local priceGap = 4
 local priceIconSize = 34
 local priceTextSize = 28
-local fullMessage = "Your egg bag is full!"
+local holdingText = "PLACE YOUR EGG FIRST"
+local holdingMessage = "Place the egg you are holding on your base first!"
+local fullText = "BASE FULL"
+local fullMessage = `Your base holds {Eggs.PlacedCap} eggs! Hatch one first.`
 
 local MarketScreen = {}
 
@@ -151,20 +154,8 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Parent = modal.Body,
 		Name = "Offers",
 		Position = UDim2.fromOffset(6, 6),
-		Size = UDim2.new(1, -12, 1, -52),
+		Size = UDim2.new(1, -12, 1, -12),
 		Padding = 10,
-	})
-	local bagLabel = Kit.Label({
-		Parent = modal.Body,
-		Name = "Bag",
-		Text = `Egg bag: 0/{Eggs.BagCap}`,
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -8),
-		Size = UDim2.new(1, -24, 0, 30),
-		TextSize = 24,
-		Title = true,
-		Scaled = true,
-		Align = Enum.TextXAlignment.Center,
 	})
 
 	local function boughtOf(index: number): number
@@ -179,17 +170,14 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		return math.max(0, offer.Stock - boughtOf(offer.Index))
 	end
 
-	local function bagCount(): number
-		local bag = dataController:Get({ "EggInventory" })
-		local total = 0
-		if type(bag) == "table" then
-			for _, count in bag do
-				if type(count) == "number" then
-					total += count
-				end
-			end
-		end
-		return total
+	local function isHolding(): boolean
+		local held = dataController:Get({ "HeldEgg" })
+		return type(held) == "string" and held ~= ""
+	end
+
+	local function isBaseFull(): boolean
+		local placed = dataController:Get({ "PlacedEggs" })
+		return type(placed) == "table" and #placed >= Eggs.PlacedCap
 	end
 
 	local function currentRate(): number
@@ -200,10 +188,8 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local function refreshCards()
 		local balance = tracker.Balance() or 0
 		local rate = currentRate()
-		local held = bagCount()
-		local isFull = held >= Eggs.BagCap
-		bagLabel.Text = `Egg bag: {held}/{Eggs.BagCap}`
-		bagLabel.TextColor3 = if isFull then theme.Bad else theme.Text
+		local holding = isHolding()
+		local isFull = isBaseFull()
 		for _, card in cards do
 			local offer = card.Offer
 			local left = leftOf(offer)
@@ -222,10 +208,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 				card.Action.SetText(priceText)
 				card.Action.SetIconVisible(true)
 				card.Action.SetLocked(true)
-			elseif isFull then
+			elseif holding or isFull then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Grey)
-				card.Action.SetText("BAG FULL")
+				card.Action.SetText(if holding then holdingText else fullText)
 				card.Action.SetIconVisible(false)
 				card.Action.SetLocked(false)
 			elseif balance < card.Price then
@@ -275,10 +261,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			context.Toast("No stock! Wait for the restock timer.", "Bad")
 			return
 		end
-		if bagCount() >= Eggs.BagCap then
+		if isHolding() or isBaseFull() then
 			playUi("Error")
 			Kit.Shake(card.Wrapper)
-			context.Toast(fullMessage, "Bad")
+			context.Toast(if isHolding() then holdingMessage else fullMessage, "Bad")
 			return
 		end
 		if balance < card.Price then
@@ -298,12 +284,14 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if bought == true then
 				playUi("Confirm")
-				context.Toast("Egg added to your backpack! Place it on your base.", "Good")
+				context.Toast(Eggs.Guide.BoughtToast, "Good")
+				context.Close("Market")
 			else
 				playUi("Error")
 				context.Toast(
-					if bagCount() >= Eggs.BagCap
-						then fullMessage
+					if isHolding()
+						then holdingMessage
+						elseif isBaseFull() then fullMessage
 						elseif isNearCounter() then "Couldn't buy that one!"
 						else "Get closer to the market!",
 					"Bad"
@@ -530,11 +518,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			refreshCards()
 		end
 	end))
-	trove:Add(dataController:Observe({ "EggInventory" }, function()
-		if isOpen then
-			refreshCards()
-		end
-	end))
+	for _, field in { "HeldEgg", "PlacedEggs" } do
+		trove:Add(dataController:Observe({ field }, function()
+			if isOpen then
+				refreshCards()
+			end
+		end))
+	end
 
 	local elapsed = 0
 	trove:Connect(RunService.Heartbeat, function(dt: number)

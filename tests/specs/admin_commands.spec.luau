@@ -241,12 +241,14 @@ describe("AdminService commands", function()
 			expect(message):toBe('Unknown key or rarity "Bogus"')
 		end)
 
-		it("lets admins bypass the egg bag cap", function()
+		it("holds the first granted egg and queues the rest", function()
 			local egg = Eggs.Catalog[1]
-			run("giveegg", `{egg.Id} {Eggs.BagCap + 5}`)
-			expect(ownerData.EggInventory[egg.Id]):toBe(Eggs.BagCap + 5)
+			run("giveegg", `{egg.Id} 5`)
+			expect(ownerData.HeldEgg):toBe(egg.Id)
+			expect(ownerData.EggInventory[egg.Id]):toBe(4)
 			run("giveegg", egg.Id)
-			expect(ownerData.EggInventory[egg.Id]):toBe(Eggs.BagCap + 6)
+			expect(ownerData.HeldEgg):toBe(egg.Id)
+			expect(ownerData.EggInventory[egg.Id]):toBe(5)
 		end)
 
 		it("rejects an unknown egg", function()

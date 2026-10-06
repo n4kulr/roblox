@@ -47,54 +47,62 @@ describe("MarketService", function()
 		return world:invoke("MarketBuy", player, index)
 	end
 
-	it("buys an egg: cash, bag and stock update, and nothing is placed", function()
+	it("buys an egg: cash and stock update, the egg is held and nothing is placed", function()
 		local price = priceOf(1)
 		data.Cash = price + 100
 		expect(buy(1)):toBe(true)
 		expect(data.Cash):toBe(100)
-		expect(data.EggInventory):toEqual({ Linear = 1 })
+		expect(data.HeldEgg):toBe("Linear")
+		expect(data.EggInventory):toEqual({})
 		expect(data.PlacedEggs):toEqual({})
 		expect(data.Market.Slot):toBe(Market.Slot(world.now))
 		expect(data.Market.Bought["1"]):toBe(1)
 		expect((world.saves[player] or 0) > 0):toBe(true)
 	end)
 
-	it("hands the egg over as a tool in the backpack", function()
+	it("deducts the price once and equips the egg tool", function()
+		local price = priceOf(2)
+		data.Cash = price * 2
 		expect(buy(2)):toBe(true)
-		expect(buy(2)):toBe(true)
-		expect(buy(1)):toBe(true)
-		expect(data.EggInventory):toEqual({ Tactile = 2, Linear = 1 })
-		local names = {}
-		for _, tool in player:FindFirstChild("Backpack"):GetChildren() do
-			table.insert(names, tool.Name)
-		end
-		table.sort(names)
-		expect(names):toEqual({ "Linear Egg x1", "Tactile Egg x2" })
+		expect(data.Cash):toBe(price)
+		expect(data.Market.Bought["2"]):toBe(1)
+		local character = player.Character
+		local tool = character:FindFirstChildOfClass("Tool")
+		expect(tool ~= nil):toBe(true)
+		expect(tool.Name):toBe("Tactile Egg")
+		expect(tool:GetAttribute("EggId")):toBe("Tactile")
+		expect(#player:FindFirstChild("Backpack"):GetChildren()):toBe(0)
 	end)
 
-	it("buys even when three eggs are already placed", function()
-		for index = 1, 3 do
+	it("rejects buying while an egg is still held and changes nothing", function()
+		expect(buy(2)):toBe(true)
+		local cash = data.Cash
+		expect(buy(1)):toBe(false)
+		expect(buy(2)):toBe(false)
+		expect(data.Cash):toBe(cash)
+		expect(data.HeldEgg):toBe("Tactile")
+		expect(data.Market.Bought["1"]):toBeNil()
+		expect(data.Market.Bought["2"]):toBe(1)
+	end)
+
+	it("allows another purchase once the held egg is placed", function()
+		expect(buy(1)):toBe(true)
+		expect(world:invoke("PlaceEgg", player, "Linear", 10, 10)):toBe(true)
+		expect(data.HeldEgg):toBe("")
+		expect(buy(2)):toBe(true)
+		expect(data.HeldEgg):toBe("Tactile")
+		expect(#data.PlacedEggs):toBe(1)
+	end)
+
+	it("rejects buying when three eggs are already placed and changes nothing", function()
+		for index = 1, Eggs.PlacedCap do
 			table.insert(data.PlacedEggs, { Id = "Linear", ReadyAt = 1, X = index * 8, Z = 10 })
 		end
-		expect(buy(1)):toBe(true)
-		expect(data.EggInventory):toEqual({ Linear = 1 })
-	end)
-
-	it("rejects a purchase when the egg bag is full and changes nothing", function()
-		data.EggInventory = { Linear = 6, Golden = 4 }
-		data.Market = { Slot = Market.Slot(world.now), Bought = {} }
 		local cash = data.Cash
 		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(cash)
-		expect(data.EggInventory):toEqual({ Linear = 6, Golden = 4 })
+		expect(data.HeldEgg):toBe("")
 		expect(data.Market.Bought["1"]):toBeNil()
-	end)
-
-	it("fills the bag to exactly ten and then refuses", function()
-		data.EggInventory = { Rainbow = 9 }
-		expect(buy(1)):toBe(true)
-		expect(data.EggInventory):toEqual({ Rainbow = 9, Linear = 1 })
-		expect(buy(2)):toBe(false)
 	end)
 
 	it("rejects a purchase without enough cash and changes nothing", function()
@@ -131,8 +139,8 @@ describe("MarketService", function()
 		for count = 1, offer.Stock do
 			expect(buy(1)):toBe(true)
 			expect(data.Market.Bought["1"]):toBe(count)
+			data.HeldEgg = ""
 		end
-		data.EggInventory = {}
 		local cash = data.Cash
 		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(cash)
@@ -383,7 +391,7 @@ describe("Market stall", function()
 		expect(world:invoke("MarketBuy", player, 1)):toBe(false)
 		world:moveCharacter(player, 52, 3, 50)
 		expect(world:invoke("MarketBuy", player, 1)):toBe(true)
-		expect(data.EggInventory):toEqual({ Linear = 1 })
+		expect(data.HeldEgg):toBe("Linear")
 	end)
 
 	it("builds a differently named placeholder when workspace.Market is unusable", function()

@@ -3,34 +3,31 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
-local Inventory = require(script.Parent.Inventory)
 
 local heldScale = 0.7
 
 local Tools = {}
 
 Tools.EggAttribute = "EggId"
-Tools.CountAttribute = "Count"
 
-function Tools.NameOf(egg: Eggs.Egg, count: number): string
-	return `{egg.Name} x{count}`
+function Tools.NameOf(egg: Eggs.Egg): string
+	return egg.Name
 end
 
-local function build(egg: Eggs.Egg, count: number): Tool
+local function build(egg: Eggs.Egg): Tool
 	local tool = Instance.new("Tool")
-	tool.Name = Tools.NameOf(egg, count)
+	tool.Name = Tools.NameOf(egg)
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool.ToolTip = egg.Tagline
 	tool.Grip = CFrame.new(0, -0.3, 0)
 	tool:SetAttribute(Tools.EggAttribute, egg.Id)
-	tool:SetAttribute(Tools.CountAttribute, count)
 	EggModel.Build(tool, egg, { Scale = heldScale, BodyName = "Handle", Anchored = false })
 	return tool
 end
 
-local function collect(player: Player): { [string]: { Tool } }
-	local found: { [string]: { Tool } } = {}
+local function collect(player: Player): { Tool }
+	local found: { Tool } = {}
 	local holders: { Instance } = {}
 	local backpack = player:FindFirstChild("Backpack")
 	if backpack then
@@ -42,44 +39,46 @@ local function collect(player: Player): { [string]: { Tool } }
 	end
 	for _, holder in holders do
 		for _, child in holder:GetChildren() do
-			if child:IsA("Tool") then
-				local eggId = child:GetAttribute(Tools.EggAttribute)
-				if type(eggId) == "string" then
-					found[eggId] = found[eggId] or {}
-					table.insert(found[eggId], child)
-				end
+			if child:IsA("Tool") and type(child:GetAttribute(Tools.EggAttribute)) == "string" then
+				table.insert(found, child)
 			end
 		end
 	end
 	return found
 end
 
-function Tools.Sync(player: Player, bag: Inventory.Bag)
-	local backpack = player:FindFirstChild("Backpack")
-	local found = collect(player)
-	for eggId, list in found do
-		local keep = if Eggs.ById[eggId] ~= nil and Inventory.Count(bag, eggId) > 0 then 1 else 0
-		for index = #list, keep + 1, -1 do
-			list[index]:Destroy()
-			table.remove(list, index)
+function Tools.Sync(player: Player, heldEgg: string)
+	local keep: Tool? = nil
+	for _, tool in collect(player) do
+		if keep == nil and tool:GetAttribute(Tools.EggAttribute) == heldEgg and Eggs.ById[heldEgg] ~= nil then
+			keep = tool
+		else
+			tool:Destroy()
 		end
 	end
-	for _, egg in Eggs.Catalog do
-		local count = Inventory.Count(bag, egg.Id)
-		if count > 0 then
-			local existing = if found[egg.Id] then found[egg.Id][1] else nil
-			if existing then
-				existing.Name = Tools.NameOf(egg, count)
-				existing:SetAttribute(Tools.CountAttribute, count)
-			elseif backpack then
-				build(egg, count).Parent = backpack
-			end
+	local egg = Eggs.ById[heldEgg]
+	local backpack = player:FindFirstChild("Backpack")
+	if keep == nil and egg ~= nil and backpack then
+		build(egg).Parent = backpack
+	end
+end
+
+function Tools.Equip(player: Player)
+	local character = player.Character
+	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+	if not humanoid then
+		return
+	end
+	for _, tool in collect(player) do
+		if tool.Parent ~= character then
+			humanoid:EquipTool(tool)
 		end
+		return
 	end
 end
 
 function Tools.Clear(player: Player)
-	Tools.Sync(player, {})
+	Tools.Sync(player, "")
 end
 
 return Tools

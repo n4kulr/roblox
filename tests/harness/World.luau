@@ -953,6 +953,9 @@ function World.newInstance(self, className: string)
 		node.Died = Signal.new()
 		node.WalkSpeed = 16
 		node.Health = 100
+		node.EquipTool = function(humanoid: any, tool: any)
+			tool.Parent = humanoid.Parent
+		end
 	end
 	return node
 end

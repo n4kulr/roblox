@@ -8,7 +8,7 @@ local screens = "StarterPlayer.StarterPlayerScripts.Controllers.UIController"
 local barHeight = 84
 
 describe("Market egg bars", function()
-	local observers, world, Eggs, Market, NumberFormat, screen, playerGui, data, fired, toasts, context
+	local observers, world, Eggs, Market, NumberFormat, screen, playerGui, data, fired, toasts, closed, context
 
 	local function press(button: any)
 		button.Activated:Fire({ UserInputType = roblox.Enum.UserInputType.MouseButton1 })
@@ -25,9 +25,13 @@ describe("Market egg bars", function()
 		return node
 	end
 
-	local function open(cash: number, bag: { [string]: number }, bought: { [string]: number }?)
+	local function open(cash: number, held: string?, bought: { [string]: number }?, placed: number?)
 		data.Cash = cash
-		data.EggInventory = bag
+		data.HeldEgg = held or ""
+		data.PlacedEggs = {}
+		for index = 1, placed or 0 do
+			table.insert(data.PlacedEggs, { Id = "Linear", ReadyAt = 1, X = index * 8, Z = 10 })
+		end
 		data.Market = { Slot = Market.Slot(world.now), Bought = bought or {} }
 		screen = world:require(`{screens}.Screens.Market`).new(context)
 		screen:Open()
@@ -79,11 +83,13 @@ describe("Market egg bars", function()
 			IncomeAt = world.now,
 			Board = { "PlainClack" },
 			Upgrades = { Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0, Golden = 0 },
-			EggInventory = {},
+			HeldEgg = "",
+			PlacedEggs = {},
 			Market = { Slot = 0, Bought = {} },
 		}
 		fired = {}
 		toasts = {}
+		closed = {}
 		observers = {}
 		world:packets().MarketBuy.Fire = function(_packet: any, index: number)
 			table.insert(fired, index)
@@ -113,7 +119,9 @@ describe("Market egg bars", function()
 			},
 			PlayerGui = playerGui,
 			Open = function() end,
-			Close = function() end,
+			Close = function(name: string)
+				table.insert(closed, name)
+			end,
 			IsOpen = function()
 				return false
 			end,
@@ -133,7 +141,7 @@ describe("Market egg bars", function()
 	end)
 
 	it("lists one bar per egg in catalog order", function()
-		open(1e9, {})
+		open(1e9)
 		local bars = {}
 		for _, item in playerGui:GetDescendants() do
 			if string.match(item.Name, "^Offer%d+$") then
@@ -151,7 +159,7 @@ describe("Market egg bars", function()
 	end)
 
 	it("shows stock chips with the remaining count", function()
-		open(1e9, {})
+		open(1e9)
 		for _, offer in offers() do
 			local text = find(offer.Index, "Stock").Text.Text
 			if offer.Stock > 0 then
@@ -164,12 +172,12 @@ describe("Market egg bars", function()
 
 	it("shows NO STOCK once an egg is sold out", function()
 		local index = firstInStock()
-		open(1e9, {}, { [tostring(index)] = offers()[index].Stock })
+		open(1e9, nil, { [tostring(index)] = offers()[index].Stock })
 		expect(find(index, "Stock").Text.Text):toBe("NO STOCK")
 	end)
 
 	it("counts the stock chip down after a purchase is recorded", function()
-		open(1e9, {})
+		open(1e9)
 		local index = firstInStock()
 		local stock = offers()[index].Stock
 		data.Market = { Slot = Market.Slot(world.now), Bought = { [tostring(index)] = 1 } }
@@ -185,7 +193,7 @@ describe("Market egg bars", function()
 	it("shows an unlocked price button when affordable", function()
 		local index = firstInStock()
 		local price = Market.Price(offers()[index], 0)
-		open(price, {})
+		open(price)
 		expect(buyText(index)):toBe(NumberFormat.Compact(price))
 		expect(isLocked(index)):toBe(false)
 	end)
@@ -193,26 +201,65 @@ describe("Market egg bars", function()
 	it("locks the price button when unaffordable", function()
 		local index = firstInStock()
 		local price = Market.Price(offers()[index], 0)
-		open(price - 1, {})
+		open(price - 1)
 		expect(buyText(index)):toBe(NumberFormat.Compact(price))
 		expect(isLocked(index)):toBe(true)
 	end)
 
 	it("locks the price button when the egg has no stock", function()
 		local index = firstInStock()
-		open(1e9, {}, { [tostring(index)] = offers()[index].Stock })
+		open(1e9, nil, { [tostring(index)] = offers()[index].Stock })
 		expect(isLocked(index)):toBe(true)
 	end)
 
-	it("shows BAG FULL on every in-stock bar when the bag is full", function()
+	it("shows PLACE YOUR EGG FIRST on every in-stock bar while holding an egg", function()
+		open(1e9, "Linear")
+		for _, offer in offers() do
+			if offer.Stock > 0 then
+				expect(buyText(offer.Index)):toBe("PLACE YOUR EGG FIRST")
+				expect(isLocked(offer.Index)):toBe(false)
+			end
+		end
+	end)
+
+	it("shows BASE FULL on every in-stock bar when the base holds the maximum eggs", function()
 		local index = firstInStock()
-		open(1e9, { Linear = Eggs.BagCap })
-		expect(buyText(index)):toBe("BAG FULL")
+		open(1e9, nil, nil, Eggs.PlacedCap)
+		expect(buyText(index)):toBe("BASE FULL")
 		expect(isLocked(index)):toBe(false)
 	end)
 
+	it("prefers the holding message over the full message", function()
+		local index = firstInStock()
+		open(1e9, "Linear", nil, Eggs.PlacedCap)
+		expect(buyText(index)):toBe("PLACE YOUR EGG FIRST")
+	end)
+
+	it("returns to the price once the egg is placed", function()
+		local index = firstInStock()
+		local price = Market.Price(offers()[index], 0)
+		open(1e9, "Linear")
+		expect(buyText(index)):toBe("PLACE YOUR EGG FIRST")
+		data.HeldEgg = ""
+		for _, observer in observers do
+			if observer.Path[1] == "HeldEgg" then
+				observer.Callback(data.HeldEgg)
+			end
+		end
+		expect(buyText(index)):toBe(NumberFormat.Compact(price))
+	end)
+
+	it("has no egg bag label or inventory text", function()
+		open(1e9)
+		for _, item in playerGui:GetDescendants() do
+			if item.ClassName == "TextLabel" then
+				expect(string.find(string.lower(item.Text), "bag", 1, true)):toBeNil()
+			end
+		end
+	end)
+
 	it("expands one bar at a time and collapses on a second tap", function()
-		open(1e9, {})
+		open(1e9)
 		expect(height(1)):toBe(barHeight)
 		press(find(1, "Tap"))
 		world.task.wait(0.3)
@@ -227,7 +274,7 @@ describe("Market egg bars", function()
 	end)
 
 	it("sends the offer index when the price button is pressed", function()
-		open(1e9, {})
+		open(1e9)
 		local target = firstInStock(1)
 		press(find(target, "Buy"))
 		world.task.wait(0.2)
@@ -236,8 +283,35 @@ describe("Market egg bars", function()
 		expect(height(target)):toBe(barHeight)
 	end)
 
-	it("does not send a purchase when the bag is full", function()
-		open(1e9, { Linear = Eggs.BagCap })
+	it("closes the shop right after a successful purchase", function()
+		open(1e9)
+		press(find(firstInStock(), "Buy"))
+		world.task.wait(0.2)
+		expect(closed):toEqual({ "Market" })
+	end)
+
+	it("keeps the shop open when the purchase fails", function()
+		open(1e9)
+		world:packets().MarketBuy.Fire = function()
+			return false
+		end
+		press(find(firstInStock(), "Buy"))
+		world.task.wait(0.2)
+		expect(closed):toEqual({})
+		expect(toasts[1].Kind):toBe("Bad")
+	end)
+
+	it("does not send a purchase while holding an egg", function()
+		open(1e9, "Linear")
+		press(find(firstInStock(), "Buy"))
+		world.task.wait(0.2)
+		expect(fired):toEqual({})
+		expect(closed):toEqual({})
+		expect(toasts[1].Kind):toBe("Bad")
+	end)
+
+	it("does not send a purchase when the base is full", function()
+		open(1e9, nil, nil, Eggs.PlacedCap)
 		press(find(firstInStock(), "Buy"))
 		world.task.wait(0.2)
 		expect(fired):toEqual({})
@@ -264,7 +338,7 @@ describe("Market egg bars", function()
 	end
 
 	it("keeps the coin icon left of the price text without overlap for every price size", function()
-		open(1e9, {})
+		open(1e9)
 		local prices = { "250", "2.5K", "25K", "250K", "2.5M", "25M", "999.9M" }
 		local gui = playerGui:FindFirstChild("Offer1", true)
 		while gui and gui.ClassName ~= "ScreenGui" do
@@ -300,7 +374,7 @@ describe("Market egg bars", function()
 	end)
 
 	it("does not treat the empty-text price button as an icon-only button", function()
-		open(1e9, {})
+		open(1e9)
 		local icon = find(1, "Buy").Face:FindFirstChild("Icon", true)
 		expect(icon.Size.X.Offset):toBeGreaterThan(0)
 		expect(icon.Size.X.Offset):toBe(icon.Size.Y.Offset)

@@ -12,6 +12,7 @@ local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
+local Guide = require(script.Guide)
 local Wobble = require(script.Wobble)
 
 type TroveInstance = typeof(Trove.new())
@@ -58,6 +59,8 @@ local isPlacing = false
 local ownPlot: Plot? = nil
 local models: { Model } = {}
 local scanAt = 0
+local heldId = ""
+local guide: Guide.Guide? = nil
 
 local function toast(text: string, kind: string)
 	local ui = controllers.UIController
@@ -240,7 +243,7 @@ local function place(tool: Tool)
 		local placed = Packets.PlaceEgg:Fire(eggId, x, z)
 		isPlacing = false
 		if placed == true then
-			toast("Egg placed! Come back when it hatches.", "Good")
+			toast(Eggs.Guide.PlacedToast, "Good")
 		else
 			toast("Couldn't place that egg!", "Bad")
 		end
@@ -258,6 +261,32 @@ local function heldEgg(): Tool?
 		end
 	end
 	return nil
+end
+
+local function dropGuide()
+	local current = guide
+	guide = nil
+	if current then
+		current:Destroy()
+	end
+end
+
+local function syncGuide(clock: number)
+	if heldId == "" then
+		dropGuide()
+		return
+	end
+	local plot = findOwnPlot()
+	local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
+	if not guide and plot and playerGui then
+		guide = Guide.new(plot.Base, playerGui)
+	end
+	local current = guide
+	if current then
+		local character = Players.LocalPlayer.Character
+		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+		current:Update(clock, if root and root:IsA("BasePart") then root else nil, workspace.CurrentCamera)
+	end
 end
 
 local function bindTool(trove: TroveInstance, tool: Tool?)
@@ -292,6 +321,15 @@ function EggController.Start(self: State)
 	folder.Parent = workspace
 	trove:Add(folder)
 	ghostFolder = folder
+	local data = controllers.DataController
+	if data then
+		trove:Add(data:Observe({ "HeldEgg" }, function(value: any)
+			heldId = if type(value) == "string" and Eggs.ById[value] ~= nil then value else ""
+			if heldId == "" then
+				dropGuide()
+			end
+		end))
+	end
 	trove:Connect(UserInputService.InputChanged, function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.Touch then
 			isTouch = true
@@ -313,6 +351,7 @@ function EggController.Start(self: State)
 			models = Wobble.Collect()
 		end
 		Wobble.Step(models, os.time(), clock)
+		syncGuide(clock)
 		local tool = heldEgg()
 		bindTool(trove, tool)
 		if tool then
@@ -322,6 +361,8 @@ function EggController.Start(self: State)
 end
 
 function EggController.Destroy(self: State)
+	dropGuide()
+	heldId = ""
 	if toolTrove then
 		toolTrove:Destroy()
 		toolTrove = nil
