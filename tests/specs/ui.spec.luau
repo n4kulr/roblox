@@ -364,6 +364,37 @@ describe("UI screens", function()
 			expect(claims):toEqual({ { 1, false } })
 		end)
 
+		it("reports a partial claim instead of success", function()
+			data.Season.Xp = 1000
+			local toasts = {}
+			context.Toast = function(text: string)
+				table.insert(toasts, text)
+			end
+			local _, gui = openSeason()
+			local attempts = 0
+			world:packets().ClaimSeason.Fire = function()
+				attempts += 1
+				return attempts == 1
+			end
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(5)
+			expect(string.match(toasts[#toasts], "^Claimed 1 of %d+ rewards!$") ~= nil):toBe(true)
+		end)
+
+		it("lets the player claim again after the packet errors", function()
+			local _, gui = openSeason()
+			local attempts = 0
+			world:packets().ClaimSeason.Fire = function()
+				attempts += 1
+				error("network")
+			end
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(1)
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(1)
+			expect(attempts):toBe(2)
+		end)
+
 		it("ignores tiles that are not claimable", function()
 			local _, gui = openSeason()
 			press(tile(gui, 2, "Free").Hit)

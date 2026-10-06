@@ -36,12 +36,6 @@ local effectOptions: { { Value: number, Text: string, Color: Color3 } } = {
 local effectsHeight = 130
 local effectsDefault = 5
 
-local function send(name: string, value: number)
-	task.spawn(function()
-		Packets.SetSetting:Fire(name, value)
-	end)
-end
-
 local function isLowQuality(): boolean
 	local ok, level = pcall(function()
 		return UserSettings():GetService("UserGameSettings").SavedQualityLevel.Value
@@ -56,6 +50,12 @@ function Settings.new(context: Types.Context): Types.Screen
 	local dataController = context.Controllers.DataController
 	local playUi = Kit.UiSound(context.Controllers)
 	local hasCheckedQuality = false
+
+	local function send(name: string, value: number)
+		Kit.Spawn(trove, function()
+			Packets.SetSetting:Fire(name, value)
+		end)
+	end
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -282,8 +282,9 @@ function Settings.new(context: Types.Context): Types.Screen
 				return
 			end
 			isRedeeming = true
-			task.spawn(function()
-				local result = Packets.RedeemCode:Fire(text)
+			Kit.Spawn(trove, function()
+				return Packets.RedeemCode:Fire(text)
+			end, function(_isOk: boolean, result: any)
 				isRedeeming = false
 				if result == 1 then
 					codeBox.Text = ""

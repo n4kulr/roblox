@@ -170,6 +170,24 @@ describe("Kit helpers", function()
 		end)
 	end)
 
+	describe("Spawn", function()
+		it("reports errors to the callback without throwing", function()
+			local result
+			Kit.Spawn(trove, function()
+				error("boom")
+			end, function(isOk)
+				result = isOk
+			end)
+			expect(result):toBe(false)
+		end)
+
+		it("does not leak trove entries after finishing", function()
+			local before = #trove._objects
+			Kit.Spawn(trove, function() end)
+			expect(#trove._objects):toBe(before)
+		end)
+	end)
+
 	describe("Later", function()
 		it("runs once after the delay", function()
 			local calls = 0

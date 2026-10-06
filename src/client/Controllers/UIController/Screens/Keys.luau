@@ -28,6 +28,7 @@ local confirmSeconds = 3
 local sellCooldown = 0.2
 local gridShare = 0.6
 local fuseSeconds = 0.55
+local landSeconds = fuseSeconds * 0.65
 local flyerCount = Variants.FuseCost
 local previewHeight = 140
 local contentHeight = 540
@@ -47,9 +48,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local boardTags: { [number]: string } = {}
 	local isOpen = false
 	local isDirty = true
-	local isEquipping = false
-	local isSelling = false
-	local isFusing = false
+	local equipGuard = Kit.Request(trove)
+	local sellGuard = Kit.Request(trove)
+	local fuseGuard = Kit.Request(trove)
 	local lastSell = 0
 	local detailKey: string? = nil
 	local previewKey: string? = nil
@@ -102,14 +103,13 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Color = theme.Green,
 		TextSize = Kit.Text.Label,
 		Callback = function()
-			if isEquipping then
+			if equipGuard.IsBusy() then
 				return
 			end
-			isEquipping = true
-			task.spawn(function()
-				local success = Packets.EquipBest:Fire()
-				isEquipping = false
-				if success == true then
+			equipGuard.Run(function()
+				return Packets.EquipBest:Fire()
+			end, function(isOk: boolean, success: any)
+				if isOk and success == true then
 					playUi("Confirm")
 					context.Toast("Equipped your best keys!", "Good")
 				else
@@ -423,16 +423,15 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local function sell(keyId: string, count: number)
 		local now = os.clock()
-		if isSelling or now - lastSell < sellCooldown or count < 1 then
+		if sellGuard.IsBusy() or now - lastSell < sellCooldown or count < 1 then
 			return
 		end
-		isSelling = true
 		lastSell = now
 		local value = Keys.GetSellValue(keyId) * count
-		task.spawn(function()
-			local success = Packets.SellKey:Fire(keyId, count)
-			isSelling = false
-			if success == true then
+		sellGuard.Run(function()
+			return Packets.SellKey:Fire(keyId, count)
+		end, function(isOk: boolean, success: any)
+			if isOk and success == true then
 				playUi("Confirm")
 				context.Toast(`Sold for {NumberFormat.Compact(value)} Clicks!`, "Good")
 			else
@@ -459,7 +458,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		local tierInfo = KeyTiers.Get(tier)
 		local spare = spareOf(keyId)
 		local onBoard = boardCounts()[keyId] or 0
-		if spare + onBoard < 1 and not isFusing then
+		if spare + onBoard < 1 and not fuseGuard.IsBusy() then
 			closeDetail()
 			return
 		end
@@ -537,12 +536,12 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				AnchorPoint = Vector2.new(0.5, 0.5),
 			})
 			flyer.Instance.ZIndex = Kit.ZIndex.Hit
-			Kit.Tween(flyer.Instance, Kit.Retime(Kit.Motion.Pull, fuseSeconds * 0.65), { Position = center })
-			task.delay(fuseSeconds * 0.65, function()
+			Kit.Tween(flyer.Instance, Kit.Retime(Kit.Motion.Pull, landSeconds), { Position = center })
+			Kit.Later(trove, landSeconds, function()
 				flyer.Instance:Destroy()
 			end)
 		end
-		task.delay(fuseSeconds * 0.65, function()
+		Kit.Later(trove, landSeconds, function()
 			flash.Fire(0.1)
 			previewPop.Scale = 0.6
 			Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
@@ -551,7 +550,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local function fuse()
 		local keyId = detailKey
-		if not keyId or isFusing then
+		if not keyId or fuseGuard.IsBusy() then
 			return
 		end
 		local nextId = Variants.Next(keyId)
@@ -565,13 +564,13 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			context.Toast(`Need {cost - spare} more {Variants.Name(keyId)}!`, "Info")
 			return
 		end
-		isFusing = true
 		playMerge((Keys.VariantStyle(keyId)))
-		task.spawn(function()
-			local result = Packets.FuseKey:Fire(keyId)
+		fuseGuard.Run(function()
+			local fused = Packets.FuseKey:Fire(keyId)
 			task.wait(fuseSeconds)
-			isFusing = false
-			if type(result) == "string" and result ~= "" then
+			return fused
+		end, function(isOk: boolean, result: any)
+			if isOk and type(result) == "string" and result ~= "" then
 				playUi("Confirm")
 				context.Toast(`Fused into {Variants.Name(result)}!`, "Good")
 				detailKey = result

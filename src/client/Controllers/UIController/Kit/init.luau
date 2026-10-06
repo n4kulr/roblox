@@ -118,6 +118,7 @@ local Kit = {
 	PollSeconds = Poll.Seconds,
 	Request = Async.Request,
 	Later = Async.Later,
+	Spawn = Async.Spawn,
 	Confirm = Async.Confirm,
 	Flash = Feedback.Flash,
 	CountUp = Feedback.CountUp,

@@ -44,7 +44,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local premiumPass = Monetization.PassById[GameConfig.Season.PremiumPassId]
 	local tiles: { Tile } = {}
 	local isOpen = false
-	local isBusy = false
+	local claimGuard = Kit.Request(trove)
 	local refresh: () -> ()
 
 	local function currentSeason(): Season.Progress
@@ -57,12 +57,11 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function claimAll(claims: { Season.Claim })
-		if isBusy or #claims == 0 then
+		if claimGuard.IsBusy() or #claims == 0 then
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local granted = 0
+		local granted = 0
+		claimGuard.Run(function()
 			for _, claim in claims do
 				local ok = Packets.ClaimSeason:Fire(claim.Level, claim.Premium)
 				if ok ~= true then
@@ -71,10 +70,13 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				granted += 1
 				task.wait(claimDelay)
 			end
-			isBusy = false
-			if granted > 0 then
+		end, function()
+			if granted == #claims then
 				playUi("Confirm")
 				context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
+			elseif granted > 0 then
+				playUi("Confirm")
+				context.Toast(`Claimed {granted} of {#claims} rewards!`, "Info")
 			else
 				playUi("Error")
 				context.Toast("Couldn't claim that!", "Bad")
@@ -216,7 +218,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		hit.ZIndex = Kit.ZIndex.BadgeText
 		hit.Parent = panel
 		trove:Connect(hit.Activated, function()
-			if isBusy then
+			if claimGuard.IsBusy() then
 				return
 			end
 			if not tile.IsClaimable then
@@ -333,7 +335,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				else "SOON"
 		)
 		passButton.SetColor(if owns then theme.Green else theme.Purple)
-		claimButton.SetDisabled(claimable == 0 and not isBusy)
+		claimButton.SetDisabled(claimable == 0 and not claimGuard.IsBusy())
 		claimButton.SetGlow(claimable > 0)
 	end
 
@@ -347,7 +349,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Color = theme.Green,
 		TextSize = Kit.Text.Banner,
 		Callback = function()
-			if isBusy then
+			if claimGuard.IsBusy() then
 				return
 			end
 			local claims = Season.Claimable(currentSeason(), ownsPremium())

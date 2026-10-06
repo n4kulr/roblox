@@ -189,8 +189,9 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		local token = requestToken
 		clearRows()
 		status.Text = "Loading..."
-		task.spawn(function()
-			local rows = Packets.GetLeaderboard:Fire(tab)
+		Kit.Spawn(trove, function()
+			return Packets.GetLeaderboard:Fire(tab)
+		end, function(_isOk: boolean, rows: any)
 			if token ~= requestToken then
 				return
 			end

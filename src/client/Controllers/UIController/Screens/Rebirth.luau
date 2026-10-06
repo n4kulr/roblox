@@ -22,7 +22,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 	local playUi = Kit.UiSound(context.Controllers)
 	local tracker = Economy.Track(context.Controllers.DataController, trove)
 	local isOpen = false
-	local isBusy = false
+	local rebirthGuard = Kit.Request(trove)
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -130,15 +130,11 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Color = theme.Green,
 		TextSize = Kit.Text.Jumbo,
 		Callback = function()
-			if isBusy then
-				return
-			end
-			isBusy = true
 			local reached = tracker.GetRebirths() + 1
-			task.spawn(function()
-				local done = Packets.Rebirth:Fire()
-				isBusy = false
-				if done == true then
+			rebirthGuard.Run(function()
+				return Packets.Rebirth:Fire()
+			end, function(isOk: boolean, done: any)
+				if isOk and done == true then
 					playUi("Confirm")
 					context.Toast(`Rebirth {reached}! Clicks are now stronger!`, "Good")
 				else

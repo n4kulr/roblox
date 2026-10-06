@@ -7,7 +7,7 @@ type TroveInstance = typeof(Trove.new())
 
 export type Guard = {
 	IsBusy: () -> boolean,
-	Run: (call: () -> any, onDone: ((isOk: boolean, result: any) -> ())?) -> boolean,
+	Run: (call: () -> ...any, onDone: ((isOk: boolean, result: any) -> ())?) -> boolean,
 }
 
 export type Confirm = {
@@ -39,6 +39,27 @@ function Async.Later(trove: TroveInstance, seconds: number, step: () -> ())
 	end)
 end
 
+function Async.Spawn(trove: TroveInstance, call: () -> ...any, onDone: ((isOk: boolean, result: any) -> ())?)
+	local isDestroyed = false
+	local marker = function()
+		isDestroyed = true
+	end
+	trove:Add(marker)
+	task.spawn(function()
+		local isOk, result = pcall(call)
+		if isDestroyed then
+			return
+		end
+		trove:Pop(marker)
+		if not isOk then
+			warn(`[UIController] request failed: {tostring(result)}`)
+		end
+		if onDone then
+			onDone(isOk, result)
+		end
+	end)
+end
+
 function Async.Request(trove: TroveInstance): Guard
 	local isBusy = false
 	local isDestroyed = false
@@ -49,7 +70,7 @@ function Async.Request(trove: TroveInstance): Guard
 		IsBusy = function()
 			return isBusy
 		end,
-		Run = function(call: () -> any, onDone: ((isOk: boolean, result: any) -> ())?): boolean
+		Run = function(call: () -> ...any, onDone: ((isOk: boolean, result: any) -> ())?): boolean
 			if isBusy or isDestroyed then
 				return false
 			end

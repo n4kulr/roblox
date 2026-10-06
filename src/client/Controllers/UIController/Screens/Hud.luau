@@ -26,6 +26,7 @@ type StatLabels = {
 local theme = Kit.Theme
 local hintStep = 2
 local margin = Kit.ScreenMargin
+local pulseSeconds = 1.8
 local cell = 86
 local cellGap = 10
 local menuWidth = cell * 2 + cellGap
@@ -487,7 +488,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		local mine = pulseToken
 		myBaseButton.SetGlow(true)
 		Kit.Pulse(myBaseButton.Instance)
-		task.delay(1.8, function()
+		Kit.Later(trove, pulseSeconds, function()
 			if pulseToken == mine then
 				myBaseButton.SetGlow(false)
 			end

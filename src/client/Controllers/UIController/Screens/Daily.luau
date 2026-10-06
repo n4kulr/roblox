@@ -52,7 +52,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 	local tiles: { Tile } = {}
 	local claimedHere: { [number]: boolean } = {}
 	local isOpen = false
-	local isBusy = false
+	local claimGuard = Kit.Request(trove)
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -170,7 +170,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function claim(index: number)
-		if isBusy then
+		if claimGuard.IsBusy() then
 			return
 		end
 		local tile = tiles[index]
@@ -183,12 +183,11 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			context.Toast("Keep playing to unlock this gift!", "Info")
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local reward = rewardText(index)
-			local isClaimed = Packets.ClaimPlaytime:Fire(index)
-			isBusy = false
-			if isClaimed == true then
+		local reward = rewardText(index)
+		claimGuard.Run(function()
+			return Packets.ClaimPlaytime:Fire(index)
+		end, function(isOk: boolean, result: any)
+			if isOk and result == true then
 				claimedHere[index] = true
 				playUi("Confirm")
 				Kit.Pulse(tile.Button.Instance, theme.Gold)

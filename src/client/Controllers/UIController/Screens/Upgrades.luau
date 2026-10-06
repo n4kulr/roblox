@@ -232,20 +232,21 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		row.IsBusy = true
 		row.Token += 1
 		local token = row.Token
-		task.delay(safetySeconds, function()
+		Kit.Later(trove, safetySeconds, function()
 			if row.Token == token and row.IsBusy then
 				row.IsBusy = false
 				refreshRow(row)
 			end
 		end)
-		task.spawn(function()
-			local success = Packets.BuyUpgrade:Fire(row.Upgrade.Id, modeAmounts[mode])
+		Kit.Spawn(trove, function()
+			return Packets.BuyUpgrade:Fire(row.Upgrade.Id, modeAmounts[mode])
+		end, function(isOk: boolean, success: any)
 			if row.Token ~= token then
 				refreshRow(row)
 				return
 			end
 			row.IsBusy = false
-			if success == true then
+			if isOk and success == true then
 				playUi("Confirm")
 				Kit.Pulse(row.Frame, theme.Good, 1)
 				local suffix = if count > 1 then ` x{count}` else ""
@@ -399,10 +400,11 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		isLockBusy = true
-		task.spawn(function()
-			local success = Packets.LockBase:Fire()
+		Kit.Spawn(trove, function()
+			return Packets.LockBase:Fire()
+		end, function(isOk: boolean, success: any)
 			isLockBusy = false
-			if success == true then
+			if isOk and success == true then
 				playUi("Confirm")
 				Kit.Pulse(lockCard, theme.Good, 1)
 				context.Toast(lockToast, "Good")

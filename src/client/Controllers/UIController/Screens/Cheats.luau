@@ -188,13 +188,14 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		isBusy = true
-		task.spawn(function()
+		Kit.Spawn(trove, function()
 			local suffix = if targetBox then trim(targetBox.Text) else ""
 			local argument = args
 			if suffix ~= "" then
 				argument = if args == "" then suffix else `{args} {suffix}`
 			end
-			local result = Packets.AdminCommand:Fire(command, argument)
+			return Packets.AdminCommand:Fire(command, argument)
+		end, function(_isOk: boolean, result: any)
 			isBusy = false
 			if type(result) ~= "string" or result == "" then
 				playUi("Error")
@@ -575,28 +576,16 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		addSection(danger, "DANGER (press twice)")
 		local dangerGrid = addGrid(danger, 2)
 		local function addConfirmed(name: string, label: string, cmd: string, args: string)
-			local armed = false
-			local armToken = 0
 			local button: TextButton? = nil
-			button = addAction(dangerGrid, name, label, function()
+			local confirm = Kit.Confirm(trove, confirmSeconds, function(isArmed: boolean)
 				local face = button :: TextButton
-				if not armed then
-					armed = true
-					armToken += 1
-					local mine = armToken
-					face.Text = confirmText
-					task.delay(confirmSeconds, function()
-						if armed and armToken == mine then
-							armed = false
-							face.Text = label
-						end
-					end)
-					return
-				end
-				armed = false
-				armToken += 1
-				face.Text = label
-				send(cmd, args)
+				face.Text = if isArmed then confirmText else label
+			end)
+			button = addAction(dangerGrid, name, label, function()
+				confirm.Press(true, function()
+					(button :: TextButton).Text = label
+					send(cmd, args)
+				end)
 			end, palette.Warn)
 		end
 		addConfirmed("ResetData", "reset data", "resetdata", "confirm")

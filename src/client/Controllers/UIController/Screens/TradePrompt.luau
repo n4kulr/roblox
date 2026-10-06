@@ -144,7 +144,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			sendTitle.Text = `Trade with {player.DisplayName}?`
 			sendFrame.Visible = true
 			playUi("Click")
-			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
+			Kit.Later(trove, GameConfig.Trade.RequestTimeoutSeconds, function()
 				if token == sendToken then
 					hideSend()
 				end
@@ -164,7 +164,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			inviteTitle.Text = `{name} wants to trade!`
 			inviteFrame.Visible = true
 			playUi("Confirm")
-			task.delay(GameConfig.Trade.RequestTimeoutSeconds, function()
+			Kit.Later(trove, GameConfig.Trade.RequestTimeoutSeconds, function()
 				if token == inviteToken then
 					hideInvite()
 				end

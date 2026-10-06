@@ -123,7 +123,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local currentSlot = Market.Slot(workspace:GetServerTimeNow())
 	local builtSlot = -1
 	local isOpen = false
-	local isBusy = false
+	local buyGuard = Kit.Request(trove)
 	local expanded: Card? = nil
 
 	local modal = Kit.Modal(trove, {
@@ -247,7 +247,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function buy(card: Card)
-		if isBusy then
+		if buyGuard.IsBusy() then
 			return
 		end
 		local offer = card.Offer
@@ -274,11 +274,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			context.Toast("Get closer to the market!", "Bad")
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local bought = Packets.MarketBuy:Fire(offer.Index)
-			isBusy = false
-			if bought == true then
+		buyGuard.Run(function()
+			return Packets.MarketBuy:Fire(offer.Index)
+		end, function(isOk: boolean, bought: any)
+			if isOk and bought == true then
 				playUi("Confirm")
 				context.Toast(Eggs.Guide.BoughtToast, "Good")
 				context.Close("Market")
