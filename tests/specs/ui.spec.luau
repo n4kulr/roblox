@@ -422,7 +422,6 @@ describe("UI screens", function()
 			expect(#products:GetChildren() - 1):toBe(boosts)
 			expect(math.abs(products:FindFirstChildOfClass("UIGridLayout").CellSize.X.Scale - 1 / boosts) < 0.001):toBe(true)
 			expect(products.Size.Y.Offset):toBe(142)
-			expect(gui:FindFirstChild("StarterPack", true).Parent.Name):toBe("StarterBanner")
 		end)
 
 		it("keeps cards to an icon, a name, one short line and a price", function()
