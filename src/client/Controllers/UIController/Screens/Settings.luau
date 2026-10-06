@@ -23,7 +23,18 @@ local volumes: { { Setting: string, Title: string, Glyph: string } } = {
 	{ Setting = "RollVolume", Title = "Roll Sounds", Glyph = "Roll" },
 	{ Setting = "BoardVolume", Title = "Keyboard Sounds", Glyph = "Music" },
 	{ Setting = "OtherVolume", Title = "Other Players", Glyph = "People" },
+	{ Setting = "MusicVolume", Title = "Music", Glyph = "Music" },
 }
+
+local effectOptions: { { Value: number, Text: string, Color: Color3 } } = {
+	{ Value = 8, Text = "OFF", Color = theme.Grey },
+	{ Value = 6, Text = "MYTHIC+", Color = theme.Red },
+	{ Value = 5, Text = "LEGENDARY+", Color = theme.Orange },
+	{ Value = 4, Text = "EPIC+", Color = theme.Purple },
+	{ Value = 1, Text = "ALL", Color = theme.Blue },
+}
+local effectsHeight = 130
+local effectsDefault = 5
 
 local function send(name: string, value: number)
 	task.spawn(function()
@@ -69,6 +80,7 @@ function Settings.new(context: Types.Context): Types.Screen
 
 	local toggles: { [string]: Kit.Toggle } = {}
 	local sliderRows: { SliderRow } = {}
+	local effects: Kit.TabBar? = nil
 	local order = 0
 
 	local function addRow(setting: string, height: number): Frame
@@ -170,8 +182,51 @@ function Settings.new(context: Types.Context): Types.Screen
 		table.insert(sliderRows, { Setting = setting, Slider = slider, Percent = percent })
 	end
 
+	local function addEffects()
+		local row = addRow("EffectsMinRarity", effectsHeight)
+		addIcon(row, "Sparkle", theme.Pink)
+		Kit.Label({
+			Parent = row,
+			Name = "Title",
+			Text = "Big Reveal Effects",
+			Position = UDim2.fromOffset(78, 6),
+			Size = UDim2.new(1, -92, 0, 36),
+			TextSize = 28,
+			Scaled = true,
+			Title = true,
+		})
+		Kit.Label({
+			Parent = row,
+			Name = "Detail",
+			Text = "Which pulls get the full-screen show",
+			Position = UDim2.fromOffset(78, 42),
+			Size = UDim2.new(1, -92, 0, 24),
+			TextSize = 17,
+			Subtle = true,
+			Scaled = true,
+		})
+		local tabs: { Kit.Tab } = {}
+		for _, option in effectOptions do
+			table.insert(tabs, { Id = tostring(option.Value), Text = option.Text, Color = option.Color })
+		end
+		effects = Kit.TabBar(trove, {
+			Parent = row,
+			Name = "EffectsSelector",
+			Position = UDim2.fromOffset(12, 74),
+			Size = UDim2.new(1, -24, 0, 46),
+			Tabs = tabs,
+			Selected = tostring(effectsDefault),
+			TextSize = 18,
+			OnSelect = function(id: string)
+				send("EffectsMinRarity", tonumber(id) or effectsDefault)
+			end,
+			Sound = playUi,
+		})
+	end
+
 	addToggle("LowGraphics", "Low Graphics", "Faster on phones", "Graphics")
 	addToggle("AutoPlace", "Auto-Equip New Keys", "New keys jump onto your keyboard!", "Equip")
+	addEffects()
 	for _, volume in volumes do
 		addSlider(volume.Setting, volume.Title, volume.Glyph)
 	end
@@ -265,6 +320,11 @@ function Settings.new(context: Types.Context): Types.Screen
 				row.Slider.SetValue(amount)
 				row.Percent.Text = `{math.floor(math.clamp(amount, 0, 1) * 100 + 0.5)}%`
 			end
+		end
+		local selector = effects
+		local chosen = value.EffectsMinRarity
+		if selector and type(chosen) == "number" then
+			selector.Select(tostring(math.clamp(math.floor(chosen), 1, 8)))
 		end
 		if not hasCheckedQuality then
 			hasCheckedQuality = true
