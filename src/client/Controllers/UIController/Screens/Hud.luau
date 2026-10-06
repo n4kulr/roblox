@@ -349,9 +349,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	local coin = Kit.IconPlate({
 		Parent = money,
 		Name = "Coin",
-		Position = UDim2.new(0, -6, 0.5, 0),
+		Position = UDim2.new(0, 0, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
-		Size = UDim2.fromOffset(Kit.ClicksHeight + 18, Kit.ClicksHeight + 18),
+		Size = UDim2.fromOffset(Kit.TabBarHeight, Kit.TabBarHeight),
 		Color = theme.Gold,
 		Glyph = "Clicks",
 		Radius = 20,
