@@ -87,7 +87,7 @@ The lead Claude session (in the cloud) runs Sonnet sub-agents in parallel. Each 
 
 | Sub-agent | Working on | Section below | Files it owns |
 |---|---|---|---|
-| Economy | faster first-40-minute hook, tuned with the sim | A | Config numbers (`Keys`, `Upgrades`, the economy part of `GameConfig`), `tools/economy_sim.luau`, `docs/economy.md` |
+| Economy (**DONE, merged**) | faster first-40-minute hook, tuned with the sim | A | Config numbers (`Keys`, `Upgrades`, the economy part of `GameConfig`), `tools/economy_sim.luau`, `docs/economy.md` |
 | UI batch (**DONE, merged**) | HUD swap, modal dim, Keys sort and income, Pass tile claim, simpler Store, roll only in base | C | `Screens/Hud.luau`, `Keys.luau`, `Season.luau`, `Shop.luau`, `Kit/Modal.luau`, `RollService`, `RollController/init.luau` |
 | Steal (**DONE, merged**) | best-key prompt, knocking thieves down, dropped key and take-back, jumpable walls | D | `StealService/**`, `StealController.luau`, `PlotService/Lock.luau` and `Walls.luau` |
 | Eggs (**DONE, merged**) | eggs in the Market, incubators, charms, Charms screen | E | `MarketService/**`, `Screens/Market.luau`, new `Config/Eggs.luau`, `Config/Charms.luau`, `Rules/Charms.luau`, `Screens/Charms.luau`, `PlotService/Incubators.luau`, `Rules/Stats` |
@@ -102,7 +102,7 @@ The lead Claude session (in the cloud) runs Sonnet sub-agents in parallel. Each 
 
 Already merged from sub-agents (DONE): the icon atlas, UI overhaul, roll popup, loading screen, obby keycaps, bulk upgrades, economy v1, base visuals and music, group chest, playtime gifts, and the big reveal cinematics.
 
-### A. Faster early game (the hook)
+### A. Faster early game (the hook) (DONE, merged; see docs/economy.md)
 
 Tune only the Config numbers, using `lune run tools/economy_sim`. Targets on the median seed:
 - **Upgrades:** the first one at 5-8s; then one every 8-20s for the first 10 min, and every 20-40s until minute 40.
@@ -187,3 +187,12 @@ Tune only the Config numbers, using `lune run tools/economy_sim`. Targets on the
 ## 8. Plot layout (DONE)
 
 Each plot has 8 key slots (`GameConfig.BoardSlots = 8` and `GameConfig.SlotCells`): rows 2 and 4 from the back (+Z), columns 2, 5, 8 and 11 of the 12x12 grid. Old saves with more keys keep their best 8 on the board and the rest go back to inventory.
+
+## 9. Also DONE since the handoff
+
+- **Eggs:** you carry them as Tools and place them anywhere on your base (`EggService`, `EggController`, `Utils/EggPlacement`). There are no incubators.
+- **Floor keys:** random keycap legends on the filler keys (`PlotService/Legend.luau`). Keys stay pressed while stood on and rise after a delay (0.15s, then a 0.25s raise).
+- **Cosmetic keys:** `CosmeticService` covers the workspace part named "keyboardstuff" with pressable keycaps.
+- **Top bar:** the base button reads "BASE", and the cash pill is just the coin icon and the amount.
+- **Group chest:** the sign shows only within 35 studs and asks players to like the game and join the group.
+- **Economy:** retuned for 8 slots: `BaseSlots` 3, and Slots goes up by 1 per level to a max of 5.
