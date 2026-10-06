@@ -15,6 +15,7 @@ local services: { Lifecycle.System } = {
 	require(script.Parent.Services.RollService),
 	require(script.Parent.Services.PurchaseService),
 	require(script.Parent.Services.DailyService),
+	require(script.Parent.Services.GroupChestService),
 	require(script.Parent.Services.MarketService),
 	require(script.Parent.Services.TradeService),
 	require(script.Parent.Services.RebirthService),

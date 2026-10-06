@@ -443,6 +443,9 @@ local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (
 for _, extra in require("./scenarios_roll") do
 	table.insert(scenarios, extra)
 end
+for _, extra in require("./scenarios_chest") do
+	table.insert(scenarios, extra)
+end
 
 fs.writeDir(outDir)
 local failures = 0

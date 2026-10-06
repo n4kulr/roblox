@@ -24,6 +24,7 @@ local modules: { [string]: Types.ScreenModule } = {
 	Rebirth = require(script.Screens.Rebirth),
 	Season = require(script.Screens.Season),
 	Leaderboards = require(script.Screens.Leaderboards),
+	GroupChest = require(script.Screens.GroupChest),
 }
 
 local legacyGuiName = "Hud"
