@@ -225,7 +225,7 @@ function renderNode(node) {
       `color:${css(text.color, text.alpha)}`,
       shadow,
     ];
-    inner.push(`<div style="${layer.join(";")}">${body}</div>`);
+    inner.push(`<div style="${layer.join(";")}"><span>${body}</span></div>`);
   }
   for (const child of kids(node)) inner.push(renderNode(child));
   if (node.scroll && node.scroll.needsY && node.scroll.thickness > 0) {

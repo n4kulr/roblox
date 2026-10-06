@@ -19,7 +19,7 @@ local Types = require(script.Parent.Parent.Types)
 type Row = {
 	Frame: Frame,
 	Bar: Kit.Bar,
-	Preview: TextLabel,
+	Line2: TextLabel,
 	Buy: Kit.Button,
 	Upgrade: Upgrades.Upgrade,
 	IsBusy: boolean,
@@ -27,7 +27,7 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local cardHeight = 112
+local cardHeight = 96
 local refreshSeconds = 0.2
 local buyWidth = 190
 local safetySeconds = 2
@@ -65,6 +65,33 @@ local lockCardOrder = 900
 local lockReadyText = "LOCK BASE"
 local lockToast = "Lasers on! Your base is locked."
 local greyColor = Color3.fromRGB(120, 124, 134)
+
+local effectShortenings: { { string } } = {
+	{ " each level", "" },
+	{ "rolls per second", "rolls/s" },
+	{ " to a Golden Roll", "" },
+	{ "keyboard slot", "slot" },
+	{ "(%d+) seconds of lasers", "%1s lasers" },
+	{ "Luck", "luck" },
+}
+
+local function shortEffect(effect: string): string
+	local text = effect
+	for _, pair in effectShortenings do
+		text = string.gsub(text, pair[1], pair[2])
+	end
+	return `{text} per level`
+end
+
+local function tint(color: Color3, text: string): string
+	return string.format(
+		'<font color="#%02X%02X%02X">%s</font>',
+		math.round(color.R * 255),
+		math.round(color.G * 255),
+		math.round(color.B * 255),
+		text
+	)
+end
 
 local UpgradesScreen = {}
 
@@ -109,7 +136,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		return count, UpgradeCost.Total(upgrade, level, count), isAffordable
 	end
 
-	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
+	local function valueParts(upgrade: Upgrades.Upgrade, level: number): (string, string, string)
 		local board = tracker.GetBoard()
 		local levels = {
 			Luck = tracker.GetLevel("Luck"),
@@ -121,60 +148,47 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local nextLevels = table.clone(levels)
 		nextLevels[upgrade.Id] = level + 1
 		local now = Stats.Compute(board, levels)
-		local isMaxed = level >= upgrade.MaxLevel
-		local after = if isMaxed then now else Stats.Compute(board, nextLevels)
-		if upgrade.Id == "Luck" then
-			if isMaxed then
-				return string.format("Now: x%.1f Luck", now.Luck)
-			end
-			return string.format("x%.1f > x%.1f Luck", now.Luck, after.Luck)
-		elseif upgrade.Id == "Speed" then
-			if isMaxed then
-				return string.format("Now: %.1f rolls/s", now.RollsPerSecond)
-			end
-			return string.format("%.1f/s > %.1f/s", now.RollsPerSecond, after.RollsPerSecond)
-		end
-		if upgrade.Id == "Golden" then
-			local current = Stats.GoldenEvery({ Golden = level })
-			if isMaxed then
-				return `Now: every {current} rolls`
-			end
-			return `Every {current} > {Stats.GoldenEvery({ Golden = level + 1 })} rolls`
-		end
-		if upgrade.Id == "Income" then
+		local after = Stats.Compute(board, nextLevels)
+		local id = upgrade.Id
+		if id == "Luck" then
+			return string.format("x%.1f", now.Luck), string.format("x%.1f", after.Luck), ""
+		elseif id == "Speed" then
+			return string.format("%.1f/s", now.RollsPerSecond),
+				string.format("%.1f/s", after.RollsPerSecond),
+				""
+		elseif id == "Slots" then
+			return tostring(now.Slots), tostring(after.Slots), " slots"
+		elseif id == "Income" then
 			local current = math.round(level * upgrade.PerLevel * 100)
-			if isMaxed then
-				return string.format("Now: +%d%% Clicks", current)
-			end
-			return string.format(
-				"+%d%% > +%d%% Clicks",
-				current,
-				current + math.round(upgrade.PerLevel * 100)
-			)
-		elseif upgrade.Id == "Walls" then
+			return `+{current}%`, `+{current + math.round(upgrade.PerLevel * 100)}%`, ""
+		elseif id == "Golden" then
+			return tostring(Stats.GoldenEvery({ Golden = level })),
+				tostring(Stats.GoldenEvery({ Golden = level + 1 })),
+				" rolls"
+		elseif id == "Walls" then
 			local current = GameConfig.Defense.WallBaseHeight + level * upgrade.PerLevel
-			if isMaxed then
-				return string.format("Now: %d studs tall", current)
-			end
-			return string.format("%d > %d studs tall", current, current + upgrade.PerLevel)
-		elseif upgrade.Id == "LockTime" then
-			local current = GameConfig.Defense.LockBaseSeconds + level * upgrade.PerLevel
-			if isMaxed then
-				return string.format("Now: %ds of lasers", current)
-			end
-			return string.format("%ds > %ds of lasers", current, current + upgrade.PerLevel)
+			return tostring(current), tostring(current + upgrade.PerLevel), " studs"
 		end
-		if isMaxed then
-			return string.format("Now: %d slots", now.Slots)
+		local current = GameConfig.Defense.LockBaseSeconds + level * upgrade.PerLevel
+		return `{current}s`, `{current + upgrade.PerLevel}s`, ""
+	end
+
+	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
+		local current, following, suffix = valueParts(upgrade, level)
+		if level >= upgrade.MaxLevel then
+			return `{current}{suffix}  {tint(theme.Orange, "MAX")}`
 		end
-		return string.format("%d > %d slots", now.Slots, after.Slots)
+		return `{current} {tint(theme.GoodDeep, `> {following}{suffix}`)}`
+	end
+
+	local function headline(upgrade: Upgrades.Upgrade): string
+		return `{upgrade.Name}  {tint(theme.Cream, `[{shortEffect(upgrade.Effect)}]`)}`
 	end
 
 	local function refreshRow(row: Row)
 		local level = tracker.GetLevel(row.Upgrade.Id)
-		row.Preview.Text = previewText(row.Upgrade, level)
+		row.Line2.Text = previewText(row.Upgrade, level)
 		local maxLevel = row.Upgrade.MaxLevel
-		row.Bar.SetText(`Lv {level}/{maxLevel}`)
 		row.Bar.SetValue(level / maxLevel)
 		if level >= maxLevel then
 			row.Buy.SetText("MAX")
@@ -285,41 +299,37 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			LayoutOrder = order,
 			Color = color,
 			Glyph = upgrade.Glyph,
-			Title = upgrade.Name,
-			Subtitle = upgrade.Effect,
+			Title = headline(upgrade),
+			TitleSize = 24,
 			RightWidth = buyWidth,
 		})
 		local card = layout.Frame
-		layout.Title.Position = UDim2.fromOffset(layout.Left, 6)
-		local subtitle = layout.Subtitle
-		if subtitle then
-			subtitle.Position = UDim2.fromOffset(layout.Left, 36)
-			subtitle.Name = "Effect"
-		end
-		local previewLabel = Kit.Label({
+		layout.Title.Name = "Line1"
+		layout.Title.RichText = true
+		layout.Title.Position = UDim2.fromOffset(layout.Left, 10)
+		local line2 = Kit.Label({
 			Parent = card,
-			Name = "Preview",
+			Name = "Line2",
 			Text = "",
-			Position = UDim2.fromOffset(layout.Left, 56),
-			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 20),
-			TextSize = 18,
-			Color = theme.GoodDeep,
+			Position = UDim2.fromOffset(layout.Left, 42),
+			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 24),
+			TextSize = 22,
+			Color = theme.Subtext,
 			Subtle = true,
 			Scaled = true,
+			RichText = true,
 		})
 		local bar = Kit.Bar({
 			Parent = card,
 			Name = "Level",
-			Position = UDim2.fromOffset(layout.Left, 80),
-			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 22),
+			Position = UDim2.fromOffset(layout.Left, 72),
+			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 12),
 			Color = theme.Green,
-			Text = "Lv 0",
-			TextSize = 15,
 		})
 		local row: Row = {
 			Frame = card,
 			Bar = bar,
-			Preview = previewLabel,
+			Line2 = line2,
 			Buy = nil :: any,
 			Upgrade = upgrade,
 			IsBusy = false,
