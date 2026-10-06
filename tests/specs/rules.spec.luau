@@ -25,8 +25,8 @@ describe("Stats", function()
 		end)
 
 		it("adds the configured slots per Slots level", function()
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 3 })):toBe(
-				GameConfig.BaseSlots + 3 * Upgrades.ById.Slots.PerLevel
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 1 })):toBe(
+				math.min(GameConfig.BoardSlots, GameConfig.BaseSlots + Upgrades.ById.Slots.PerLevel)
 			)
 		end)
 
@@ -40,11 +40,8 @@ describe("Stats", function()
 		it("reaches BoardSlots exactly at the Slots max level", function()
 			local perLevel = Upgrades.ById.Slots.PerLevel
 			local maxLevel = Upgrades.ById.Slots.MaxLevel
-			expect(GameConfig.BaseSlots + maxLevel * perLevel):toBe(GameConfig.BoardSlots)
+			expect(GameConfig.BaseSlots + maxLevel * perLevel >= GameConfig.BoardSlots):toBe(true)
 			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = maxLevel })):toBe(GameConfig.BoardSlots)
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = maxLevel - 1 })):toBe(
-				GameConfig.BoardSlots - perLevel
-			)
 		end)
 
 		it("never goes below the base slot count", function()

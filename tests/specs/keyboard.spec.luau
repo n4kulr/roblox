@@ -6,7 +6,7 @@ local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEac
 local maxCash = 9007199254740991
 
 describe("KeyboardService", function()
-	local world, services, Keyboard, GameConfig, Keys, Upgrades
+	local world, services, Keyboard, GameConfig, Keys, Upgrades, Stats
 
 	beforeEach(function()
 		world = H.newWorld({ Time = 1700000000 })
@@ -15,6 +15,7 @@ describe("KeyboardService", function()
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 		Keys = world:require("ReplicatedStorage.Config.Keys")
 		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+		Stats = world:require("ReplicatedStorage.Rules.Stats")
 	end)
 
 	local function levelsFor(slots: number): { Slots: number }
@@ -129,11 +130,12 @@ describe("KeyboardService", function()
 		end)
 
 		it("uses only unlocked slots for the rate", function()
-			local board = S.fill("", 30)
-			board[1] = "PlainClack"
-			board[20] = "LavaKey"
-			local _, data = join({ Board = board, IncomeAt = world.now - 100 }, true)
-			expect(data.Cash):toBe(math.floor(1 * 100 * GameConfig.OfflineRate))
+			local unlocked = Stats.Slots({})
+			local _, data = join(
+				{ Board = S.fill("PlainClack", GameConfig.BoardSlots), IncomeAt = world.now - 100 },
+				true
+			)
+			expect(data.Cash):toBe(math.floor(unlocked * 100 * GameConfig.OfflineRate))
 		end)
 
 		it("announces the loaded board", function()
@@ -148,16 +150,19 @@ describe("KeyboardService", function()
 
 	describe("normalize on load", function()
 		it("moves keys on locked slots into the inventory without losing any", function()
-			local board = S.fill("", 30)
-			board[1] = "PlainClack"
-			board[15] = "GlassTink"
-			board[30] = "GlassTink"
+			local unlocked = Stats.Slots({})
+			local board = S.fill("PlainClack", GameConfig.BoardSlots)
+			board[GameConfig.BoardSlots] = "GlassTink"
 			local before = S.totals({ Board = board, Inventory = { GlassTink = 1 } })
 			local _, data = join({ Board = board, Inventory = { GlassTink = 1 } }, true)
-			expect(data.Board[15]):toBe("")
-			expect(data.Board[30]):toBe("")
-			expect(data.Board[1]):toBe("PlainClack")
-			expect(data.Inventory.GlassTink):toBe(3)
+			local placed = 0
+			for index = 1, GameConfig.BoardSlots do
+				if data.Board[index] ~= "" then
+					placed += 1
+					expect(index <= unlocked):toBe(true)
+				end
+			end
+			expect(placed):toBe(unlocked)
 			expect(S.totals(data)):toEqual(before)
 		end)
 
@@ -166,8 +171,42 @@ describe("KeyboardService", function()
 			local _, data = join({ Board = board }, true)
 			expect(#data.Board):toBe(GameConfig.BoardSlots)
 			expect(data.Board[61]):toBeNil()
-			expect(data.Inventory.CreamyThock):toBe(1)
+			expect(S.totals(data)):toEqual({ PlainClack = 1, CreamyThock = 1 })
 			expect(data.Inventory.Bogus):toBeNil()
+		end)
+
+		it("shrinks a 60-slot save to the best keys without losing any", function()
+			local board: any = S.fill("PlainClack", 60)
+			board[10] = "LavaKey"
+			board[33] = "GlassTink"
+			board[60] = "CreamyThock"
+			local tags: any = S.fill("", 60)
+			tags[40] = "@Old"
+			local save = { Board = board, BoardTags = tags, Inventory = { GlassTink = 2 } }
+			local before = S.totals(save)
+			local _, data = join(save, true)
+			local unlocked = Stats.Slots({})
+			expect(#data.Board):toBe(GameConfig.BoardSlots)
+			expect(#data.BoardTags):toBe(GameConfig.BoardSlots)
+			expect(data.Board[GameConfig.BoardSlots + 1]):toBeNil()
+			expect(S.totals(data)):toEqual(before)
+			local placed: { string } = {}
+			for index = 1, GameConfig.BoardSlots do
+				expect(data.BoardTags[index]):toBe("")
+				if data.Board[index] ~= "" then
+					expect(index <= unlocked):toBe(true)
+					table.insert(placed, data.Board[index])
+				end
+			end
+			expect(#placed):toBe(unlocked)
+			local onBoard = {}
+			for _, keyId in placed do
+				onBoard[keyId] = (onBoard[keyId] or 0) + 1
+			end
+			expect(onBoard.LavaKey):toBe(1)
+			expect(onBoard.GlassTink):toBe(1)
+			expect(onBoard.CreamyThock):toBe(1)
+			expect(onBoard.PlainClack):toBe(unlocked - 3)
 		end)
 
 		it("pads a 30-slot save to BoardSlots for both Board and BoardTags", function()
@@ -184,7 +223,7 @@ describe("KeyboardService", function()
 			end
 			expect(data.Board[1]):toBe("PlainClack")
 			expect(data.BoardTags[1]):toBe("@Zed")
-			expect(data.BoardTags[60]):toBe("")
+			expect(data.BoardTags[GameConfig.BoardSlots]):toBe("")
 		end)
 
 		it("pads a missing or short BoardTags and clears tags on locked slots", function()
@@ -193,8 +232,11 @@ describe("KeyboardService", function()
 			local tags: any = S.fill("", 30)
 			tags[25] = "@Old"
 			local _, data = join({ Board = board, BoardTags = tags }, true)
-			expect(data.Board[25]):toBe("")
-			expect(data.BoardTags[25]):toBe("")
+			expect(data.Board[25]):toBeNil()
+			expect(data.BoardTags[25]):toBeNil()
+			for index = 1, GameConfig.BoardSlots do
+				expect(data.BoardTags[index]):toBe("")
+			end
 			expect(#data.BoardTags):toBe(GameConfig.BoardSlots)
 			local _, other = join({ Board = S.board("PlainClack"), BoardTags = {} }, true)
 			expect(#other.BoardTags):toBe(GameConfig.BoardSlots)
@@ -400,8 +442,9 @@ describe("KeyboardService", function()
 		end)
 
 		it("accepts the newly unlocked slot range after an upgrade", function()
-			local slot = GameConfig.BaseSlots + 2 * Upgrades.ById.Slots.PerLevel
-			local player, data = join({ Inventory = { GlassTink = 1 }, Upgrades = { Slots = 2 } })
+			local maxed = { Slots = Upgrades.ById.Slots.MaxLevel }
+			local slot = Stats.Slots(maxed)
+			local player, data = join({ Inventory = { GlassTink = 1 }, Upgrades = maxed })
 			expect(place(player, slot, "GlassTink")):toBe(true)
 			expect(data.Board[slot]):toBe("GlassTink")
 		end)
@@ -435,6 +478,18 @@ describe("KeyboardService", function()
 			end
 		end)
 
+		it("rejects every slot past BoardSlots even with every slot unlocked", function()
+			local player, data = join({
+				Inventory = { GlassTink = 3 },
+				Upgrades = { Slots = Upgrades.ById.Slots.MaxLevel },
+			})
+			local before = S.snapshot(data)
+			for _, slot in { GameConfig.BoardSlots + 1, GameConfig.BoardSlots + 2, 60, 255 } do
+				expect(place(player, slot, "GlassTink")):toBe(false)
+			end
+			expect(data):toEqual(before)
+		end)
+
 		it("fails for players without data", function()
 			expect(place(world:newPlayer(), 1, "PlainClack")):toBe(false)
 		end)
@@ -454,12 +509,10 @@ describe("KeyboardService", function()
 		end)
 
 		it("rejects empty slots, bad slots and locked slots", function()
-			local board = S.fill("", 30)
-			board[1] = "PlainClack"
-			board[20] = "LavaKey"
+			local board = S.board("PlainClack")
 			local player, data = join({ Board = board })
 			local before = S.snapshot(data)
-			for _, slot in { 2, 0, -3, 11, 20, 1.5, S.nan(), math.huge, "1", {}, true } do
+			for _, slot in { 2, 0, -3, 11, GameConfig.BoardSlots + 1, 60, 1.5, S.nan(), math.huge, "1", {}, true } do
 				expect(clear(player, slot)):toBe(false)
 			end
 			expect(clear(player, nil)):toBe(false)
@@ -546,7 +599,7 @@ describe("KeyboardService", function()
 			local player, data = join({
 				Board = S.board("LavaKey"),
 				Inventory = { PlainClack = 8, CreamyThock = 3, GlassTink = 2, CloverCap = 1 },
-				Upgrades = levelsFor(10),
+				Upgrades = levelsFor(GameConfig.BoardSlots),
 			})
 			local before = S.totals(data)
 			expect(equip(player)):toBe(true)
@@ -558,15 +611,12 @@ describe("KeyboardService", function()
 				"CreamyThock",
 				"CreamyThock",
 				"CreamyThock",
-				"PlainClack",
-				"PlainClack",
-				"PlainClack",
 			}
 			for index = #expected + 1, GameConfig.BoardSlots do
-				expected[index] = ""
+				expected[index] = "PlainClack"
 			end
 			expect(boardKeys(data)):toEqual(expected)
-			expect(data.Inventory):toEqual({ PlainClack = 5 })
+			expect(data.Inventory):toEqual({ PlainClack = 8 - (GameConfig.BoardSlots - 7) })
 			expect(S.totals(data)):toEqual(before)
 		end)
 
@@ -582,9 +632,9 @@ describe("KeyboardService", function()
 
 		it("pulls board keys into the ranking so a weaker board is rebuilt", function()
 			local player, data = join({
-				Board = S.fill("PlainClack", 10),
+				Board = S.fill("PlainClack", GameConfig.BoardSlots),
 				Inventory = { GlassTink = 4 },
-				Upgrades = levelsFor(10),
+				Upgrades = levelsFor(GameConfig.BoardSlots),
 			})
 			local before = S.totals(data)
 			equip(player)
@@ -604,11 +654,12 @@ describe("KeyboardService", function()
 				expect(data.Board[index]):toBe("")
 			end
 			expect(data.Inventory.PlainClack):toBe(30 - base)
-			local unlocked = base + 2 * Upgrades.ById.Slots.PerLevel
-			local player2, data2 = join({ Inventory = { PlainClack = 30 }, Upgrades = { Slots = 2 } })
+			local upgraded = { Slots = Upgrades.ById.Slots.MaxLevel }
+			local unlocked = Stats.Slots(upgraded)
+			local player2, data2 = join({ Inventory = { PlainClack = 30 }, Upgrades = upgraded })
 			equip(player2)
 			expect(data2.Board[unlocked]):toBe("PlainClack")
-			expect(data2.Board[unlocked + 1]):toBe("")
+			expect(data2.Board[unlocked + 1]):toBeNil()
 			expect(data2.Inventory.PlainClack):toBe(30 - unlocked)
 		end)
 

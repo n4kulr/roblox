@@ -106,45 +106,90 @@ local function setSlot(player: Player, slot: number, keyId: string)
 	setTag(player, slot, "")
 end
 
+type Placed = { Index: number, KeyId: string, Tag: string }
+
+local function isSlotIndex(index: any): boolean
+	return type(index) == "number" and index >= 1 and index % 1 == 0 and index == index
+end
+
+local function outranks(a: Placed, b: Placed): boolean
+	local incomeA, incomeB = Keys.GetIncome(a.KeyId), Keys.GetIncome(b.KeyId)
+	if incomeA ~= incomeB then
+		return incomeA > incomeB
+	end
+	return a.Index < b.Index
+end
+
 local function normalize(player: Player, data: PlayerData.Data)
-	local unlocked = Stats.Slots(data.Upgrades)
-	local board: { string } = {}
-	local moved: { string } = {}
-	local tags: { string } = {}
-	local changed = false
-	local tagsChanged = false
+	local unlocked = math.min(Stats.Slots(data.Upgrades), GameConfig.BoardSlots)
 	local oldTags: any = data.BoardTags
+	local placed: { Placed } = {}
+	local changed = false
+	for index, keyId in data.Board :: { [any]: any } do
+		if not isSlotIndex(index) or index > GameConfig.BoardSlots then
+			changed = true
+		end
+		if isSlotIndex(index) and type(keyId) == "string" and Keys.ById[keyId] then
+			local tag = if type(oldTags) == "table" then oldTags[index] else nil
+			table.insert(
+				placed,
+				{ Index = index, KeyId = keyId, Tag = if type(tag) == "string" then tag else "" }
+			)
+		end
+	end
+	table.sort(placed, function(a: Placed, b: Placed): boolean
+		return a.Index < b.Index
+	end)
+	local ranked = table.clone(placed)
+	table.sort(ranked, outranks)
+	local kept: { [Placed]: boolean } = {}
+	for position = 1, math.min(unlocked, #ranked) do
+		kept[ranked[position]] = true
+	end
+	local board: { string } = {}
+	local tags: { string } = {}
 	for index = 1, GameConfig.BoardSlots do
-		local tag = if type(oldTags) == "table" then oldTags[index] else nil
-		if type(tag) ~= "string" then
-			tag = ""
-			tagsChanged = true
-		end
-		tags[index] = tag
-		local keyId = data.Board[index]
-		if type(keyId) ~= "string" then
-			keyId = ""
-			changed = true
-		end
-		if index > unlocked and keyId ~= "" then
-			if Keys.ById[keyId] then
-				table.insert(moved, keyId)
-			end
-			keyId = ""
-			tags[index] = ""
-			changed = true
-			tagsChanged = true
-		end
-		board[index] = keyId
+		board[index] = ""
+		tags[index] = ""
 	end
-	for index in data.Board do
-		if type(index) ~= "number" or index < 1 or index > GameConfig.BoardSlots or index % 1 ~= 0 then
-			changed = true
+	local relocate: { Placed } = {}
+	for _, entry in placed do
+		if not kept[entry] then
+			continue
+		end
+		if entry.Index <= unlocked then
+			board[entry.Index] = entry.KeyId
+			tags[entry.Index] = entry.Tag
+		else
+			table.insert(relocate, entry)
 		end
 	end
-	if type(oldTags) == "table" then
-		for index in oldTags do
-			if type(index) ~= "number" or index < 1 or index > GameConfig.BoardSlots or index % 1 ~= 0 then
+	local nextSlot = 1
+	for _, entry in relocate do
+		while board[nextSlot] ~= "" do
+			nextSlot += 1
+		end
+		board[nextSlot] = entry.KeyId
+	end
+	local overflow: { string } = {}
+	for _, entry in placed do
+		if not kept[entry] then
+			table.insert(overflow, entry.KeyId)
+		end
+	end
+	local tagsChanged = type(oldTags) ~= "table"
+	for index = 1, GameConfig.BoardSlots do
+		local keyId: any = data.Board[index]
+		if keyId ~= board[index] then
+			changed = true
+		end
+		if not tagsChanged and (oldTags :: { [any]: any })[index] ~= tags[index] then
+			tagsChanged = true
+		end
+	end
+	if type(oldTags) == "table" and not tagsChanged then
+		for index in oldTags :: { [any]: any } do
+			if not isSlotIndex(index) or index > GameConfig.BoardSlots then
 				tagsChanged = true
 			end
 		end
@@ -155,18 +200,7 @@ local function normalize(player: Player, data: PlayerData.Data)
 	if not changed then
 		return
 	end
-	local overflow: { string } = {}
-	for index, keyId in data.Board do
-		if type(index) == "number" and index > GameConfig.BoardSlots and type(keyId) == "string" then
-			if Keys.ById[keyId] then
-				table.insert(overflow, keyId)
-			end
-		end
-	end
 	services.DataService:Set(player, { "Board" }, board)
-	for _, keyId in moved do
-		addToInventory(player, keyId, 1)
-	end
 	for _, keyId in overflow do
 		addToInventory(player, keyId, 1)
 	end

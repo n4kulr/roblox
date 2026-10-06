@@ -112,7 +112,7 @@ describe("StealService", function()
 			expect(prompt(victim, 1) ~= nil):toBe(true)
 			expect(prompt(victim, 2) ~= nil):toBe(true)
 			expect(prompt(victim, 3)):toBeNil()
-			expect(prompt(victim, 11)):toBeNil()
+			expect(prompt(victim, GameConfig.BoardSlots)):toBeNil()
 		end)
 
 		it("describes the key and the owner", function()
