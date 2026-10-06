@@ -47,6 +47,10 @@ local Packets = {
 	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
 	ClaimPlaytime = Packet("ClaimPlaytime", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(5, 1),
 	ClaimGroupChest = Packet("ClaimGroupChest"):Response(Packet.NumberU8):RateLimit(2, 1),
+	HatchEgg = Packet("HatchEgg", Packet.NumberU8):Response(Packet.String):RateLimit(3, 1),
+	EquipCharm = Packet("EquipCharm", Packet.String, Packet.Boolean8)
+		:Response(Packet.Boolean8)
+		:RateLimit(5, 1),
 	Ping = Packet("Ping"):Response(Packet.NumberF64):RateLimit(5, 1),
 }
 
