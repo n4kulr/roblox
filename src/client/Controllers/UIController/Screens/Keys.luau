@@ -151,7 +151,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		StrokeThickness = 4,
 	})
 	detail.Visible = false
-	detail.ClipsDescendants = true
 	local scroller = Instance.new("ScrollingFrame")
 	scroller.Name = "Scroller"
 	scroller.BackgroundTransparency = 1
@@ -383,7 +382,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end)
 		if ok and previewModel then
 			viewport.Visible = true
-			detailCap.Instance.Visible = false
+			detailCap.Instance.Visible = ReplicatedStorage:GetAttribute("IconAtlasPreview") ~= nil
 		else
 			previewModel = nil
 		end

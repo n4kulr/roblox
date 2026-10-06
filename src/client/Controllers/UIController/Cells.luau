@@ -197,8 +197,8 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Parent = cell,
 			Name = "TierChip",
 			Text = tierInfo.Chip,
-			Size = UDim2.fromOffset(if tier == 1 then 46 else 76, 20),
-			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.new(1, -8, 0, 18),
+			Position = UDim2.fromOffset(4, 128),
 			Color = if tier == 1 then Kit.Shade(tierInfo.Color, -0.25) else tierInfo.Color,
 			TextSize = 13,
 		})
