@@ -497,11 +497,11 @@ describe("UI screens", function()
 		for _, upgrade in Upgrades.List do
 			local card = gui:FindFirstChild(upgrade.Id, true)
 			expect(card ~= nil):toBe(true)
-			expect(card:FindFirstChild("Name").Text):toBe(upgrade.Name)
+			expect(string.find(card:FindFirstChild("Line1").Text, upgrade.Name, 1, true) ~= nil):toBe(true)
 			expect(card:FindFirstChild("Icon", true) ~= nil):toBe(true)
 		end
 		local golden = gui:FindFirstChild("Golden", true)
-		expect(golden.Preview.Text):toBe("Every 90 > 85 rolls")
+		expect(golden.Line2.Text):toBe('90 <font color="#1FA64A">> 85 rolls</font>')
 	end)
 
 	describe("Upgrades button fit", function()

@@ -25,6 +25,7 @@ export type CapVisual = {
 	Plus: TextLabel,
 	Letter: TextLabel,
 	Lock: ImageLabel,
+	Decor: Model?,
 }
 
 export type Frame = {
