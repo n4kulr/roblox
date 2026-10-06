@@ -161,6 +161,43 @@ describe("Pets screen", function()
 		expect(world.errors):toEqual({})
 	end)
 
+	it("keeps the same card instances when data is re-sent unchanged", function()
+		open(owned9)
+		local before = playerGui:FindFirstChild("Active", true):GetChildren()
+		setCharms(table.clone(owned9))
+		local after = playerGui:FindFirstChild("Active", true):GetChildren()
+		expect(#after):toBe(#before)
+		for index, card in before do
+			expect(after[index] == card):toBe(true)
+		end
+	end)
+
+	it("only rebuilds the cards whose count changed", function()
+		open(owned9)
+		local active = playerGui:FindFirstChild("Active", true)
+		local stored = playerGui:FindFirstChild("Stored", true)
+		local storedCards = stored:GetChildren()
+		local target
+		for _, card in storedCards do
+			if card.ClassName == "Frame" then
+				target = card
+				break
+			end
+		end
+		local untouched
+		for _, card in active:GetChildren() do
+			if card.ClassName == "Frame" then
+				untouched = card
+				break
+			end
+		end
+		local more = table.clone(owned9)
+		more[target.Name] = (more[target.Name] or 0) + 1
+		setCharms(more)
+		expect(untouched.Parent == playerGui:FindFirstChild("Active", true)):toBe(true)
+		expect(playerGui:FindFirstChild("Stored", true):FindFirstChild(target.Name) == target):toBe(false)
+	end)
+
 	it("is a modal titled PETS", function()
 		open(owned9)
 		expect(screen.Modal):toBe(true)

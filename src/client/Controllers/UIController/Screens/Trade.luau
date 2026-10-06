@@ -12,6 +12,7 @@ local Types = require(script.Parent.Parent.Types)
 type TroveInstance = typeof(Trove.new())
 type Entry = { KeyId: string, Count: number }
 type Picker = { Wrapper: Frame, Cell: Cells.Cell }
+type Offer = { Cell: Cells.Cell, Cleanup: () -> (), Count: number }
 
 local theme = Kit.Theme
 local warnRarity = "Epic"
@@ -40,8 +41,15 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 	local inventory: { [string]: number } = {}
 	local mine: { [string]: number } = {}
 	local pickers: { [string]: Picker } = {}
-	local offerTrove = Trove.new()
-	trove:Add(offerTrove)
+	local offers: { [Instance]: { [string]: Offer } } = {}
+	trove:Add(function()
+		for _, list in offers do
+			for _, offer in list do
+				offer.Cleanup()
+			end
+		end
+		table.clear(offers)
+	end)
 	local isOpen = false
 
 	local modal = Kit.Modal(trove, {
@@ -262,25 +270,50 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function fillOffers(grid: ScrollingFrame, entries: { Entry })
-		for _, child in grid:GetChildren() do
-			if child:IsA("Frame") then
-				child:Destroy()
-			end
+		local current = offers[grid]
+		if not current then
+			current = {}
+			offers[grid] = current
 		end
+		local seen: { [string]: boolean } = {}
 		for index, entry in entries do
 			local key = Keys.Resolve(entry.KeyId)
 			if key then
-				local cell = Cells.New(offerTrove, {
-					Parent = grid,
-					Key = key,
-					KeyId = entry.KeyId,
-					LayoutOrder = index,
-					HasChips = true,
-				})
-				cell.SetFound(true, "", theme.Gold)
-				if cell.Count then
-					cell.Count.Text = `x{entry.Count}`
+				seen[entry.KeyId] = true
+				local offer = current[entry.KeyId]
+				if not offer then
+					local cellTrove = Trove.new()
+					local cell = Cells.New(cellTrove, {
+						Parent = grid,
+						Key = key,
+						KeyId = entry.KeyId,
+						LayoutOrder = index,
+						HasChips = true,
+					})
+					cell.SetFound(true, "", theme.Gold)
+					offer = {
+						Cell = cell,
+						Cleanup = function()
+							cellTrove:Destroy()
+						end,
+						Count = -1,
+					}
+					current[entry.KeyId] = offer
 				end
+				offer.Cell.Instance.LayoutOrder = index
+				if offer.Count ~= entry.Count then
+					offer.Count = entry.Count
+					if offer.Cell.Count then
+						offer.Cell.Count.Text = `x{entry.Count}`
+					end
+				end
+			end
+		end
+		for keyId, offer in current do
+			if not seen[keyId] then
+				offer.Cleanup()
+				offer.Cell.Instance:Destroy()
+				current[keyId] = nil
 			end
 		end
 	end
@@ -289,7 +322,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		if state == nil then
 			return
 		end
-		offerTrove:Clean()
 		table.clear(mine)
 		local hasRareOffer = false
 		for _, entry in state.Mine do

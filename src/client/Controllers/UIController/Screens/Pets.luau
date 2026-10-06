@@ -7,6 +7,8 @@ local Charms = require(ReplicatedStorage.Rules.Charms)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
+type TroveInstance = typeof(Trove.new())
+type CachedCard = { Frame: Frame, Cleanup: () -> (), Signature: string }
 type Entry = {
 	Charm: CharmConfig.Charm,
 	Count: number,
@@ -64,9 +66,15 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 	local rollController = context.Controllers.RollController
 	local playUi = Kit.UiSound(context.Controllers)
 	local owned: { [string]: number } = {}
+	local cards: { [string]: CachedCard } = {}
+	local lastSignature: string? = nil
 
 	trove:Add(function()
 		renderTrove:Destroy()
+		for _, cached in cards do
+			cached.Cleanup()
+		end
+		table.clear(cards)
 	end)
 
 	local modal = Kit.Modal(trove, {
@@ -132,7 +140,13 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		return holder
 	end
 
-	local function addCard(parent: Instance, entry: Entry, order: number, isActive: boolean)
+	local function buildCard(
+		cardTrove: TroveInstance,
+		parent: Instance,
+		entry: Entry,
+		order: number,
+		isActive: boolean
+	): Frame
 		local charm = entry.Charm
 		local rarity = CharmConfig.RarityByName[charm.Rarity]
 		local info = CharmConfig.Kinds[charm.Kind]
@@ -147,7 +161,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		})
 		card.ClipsDescendants = true
 		if isActive then
-			Kit.RarityPaint(renderTrove, card, rarity.Name, rarity.Color, Kit.Radius.L)
+			Kit.RarityPaint(cardTrove, card, rarity.Name, rarity.Color, Kit.Radius.L)
 		end
 		Kit.IconPlate({
 			Parent = card,
@@ -200,6 +214,38 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 				TextSize = Kit.Text.Body,
 			})
 		end
+		return card
+	end
+
+	local function placeCard(
+		used: { [string]: boolean },
+		parent: Instance,
+		entry: Entry,
+		order: number,
+		isActive: boolean
+	)
+		local key = `{if isActive then "Active" else "Stored"}:{entry.Charm.Id}`
+		local signature = `{entry.Count}`
+		used[key] = true
+		local cached = cards[key]
+		if cached and cached.Signature == signature then
+			cached.Frame.LayoutOrder = order
+			cached.Frame.Parent = parent
+			return
+		end
+		if cached then
+			cached.Cleanup()
+			cached.Frame:Destroy()
+		end
+		local cardTrove = Trove.new()
+		local frame = buildCard(cardTrove, parent, entry, order, isActive)
+		cards[key] = {
+			Frame = frame,
+			Cleanup = function()
+				cardTrove:Destroy()
+			end,
+			Signature = signature,
+		}
 	end
 
 	local function renderEmpty()
@@ -251,9 +297,26 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		})
 	end
 
+	local function signatureOf(): string
+		local ids = {}
+		for id, count in owned do
+			table.insert(ids, `{id}={count}`)
+		end
+		table.sort(ids)
+		return table.concat(ids, ",")
+	end
+
 	local function render()
+		local signature = signatureOf()
+		if signature == lastSignature then
+			return
+		end
+		lastSignature = signature
 		renderTrove:Destroy()
 		renderTrove = Trove.new()
+		for _, cached in cards do
+			cached.Frame.Parent = nil
+		end
 		for _, child in scroll:GetChildren() do
 			if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
 				child:Destroy()
@@ -264,7 +327,18 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			total += count
 		end
 		ownedPill.SetText(`{total} {if total == 1 then "pet" else "pets"}`)
+		local used: { [string]: boolean } = {}
+		local function dropUnused()
+			for key, cached in cards do
+				if not used[key] then
+					cached.Cleanup()
+					cached.Frame:Destroy()
+					cards[key] = nil
+				end
+			end
+		end
 		if total == 0 then
+			dropUnused()
 			renderEmpty()
 			return
 		end
@@ -327,7 +401,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		local cell = UDim2.new(1 / columns, -cardGap, 0, cardHeight)
 		local activeGrid = addGrid("Active", #active, 4, cell, cardHeight, cardGap)
 		for index, entry in active do
-			addCard(activeGrid, entry, index, true)
+			placeCard(used, activeGrid, entry, index, true)
 		end
 
 		if #stored > 0 then
@@ -344,9 +418,10 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			})
 			local storedGrid = addGrid("Stored", #stored, 7, cell, cardHeight, cardGap)
 			for index, entry in stored do
-				addCard(storedGrid, entry, index, false)
+				placeCard(used, storedGrid, entry, index, false)
 			end
 		end
+		dropUnused()
 	end
 
 	trove:Add(dataController:Observe({ "Charms" }, function(value: any)

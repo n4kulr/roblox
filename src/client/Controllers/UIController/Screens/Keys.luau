@@ -19,6 +19,9 @@ type Entry = {
 	Id: string,
 	Key: Keys.Key,
 	Tier: number,
+	Income: number,
+	Rank: number,
+	Name: string,
 	Cell: Cells.Cell,
 }
 
@@ -678,7 +681,15 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		})
 		cell.Instance.Visible = false
 		cell.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
-		local entry: Entry = { Id = keyId, Key = key, Tier = tier, Cell = cell }
+		local entry: Entry = {
+			Id = keyId,
+			Key = key,
+			Tier = tier,
+			Income = Keys.GetIncome(keyId),
+			Rank = Cells.RarityRank[key.Rarity] or 1,
+			Name = Variants.Name(keyId),
+			Cell = cell,
+		}
 		entries[keyId] = entry
 		return entry
 	end
@@ -690,12 +701,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			table.insert(list, entry)
 		end
 		table.sort(list, function(a: Entry, b: Entry): boolean
-			local incomeA = Keys.GetIncome(a.Id)
-			local incomeB = Keys.GetIncome(b.Id)
-			local rankA = Cells.RarityRank[a.Key.Rarity] or 1
-			local rankB = Cells.RarityRank[b.Key.Rarity] or 1
-			local nameA = Variants.Name(a.Id)
-			local nameB = Variants.Name(b.Id)
+			local incomeA, incomeB = a.Income, b.Income
+			local rankA, rankB = a.Rank, b.Rank
+			local nameA, nameB = a.Name, b.Name
 			if mode == "NAME" then
 				return nameA < nameB
 			end

@@ -27,6 +27,8 @@ local theme = Kit.Theme
 local hintStep = 2
 local margin = Kit.ScreenMargin
 local pulseSeconds = 1.8
+local balanceSeconds = 0.1
+local slowSeconds = 1
 local cell = 86
 local cellGap = 10
 local menuWidth = cell * 2 + cellGap
@@ -62,7 +64,10 @@ function Hud.new(context: Types.Context): Types.Screen
 	local rollController = context.Controllers.RollController
 	local playUi = Kit.UiSound(context.Controllers)
 	local gui, root = Kit.ScreenGui("ThockHud", Kit.Layer.Hud, context.PlayerGui, trove)
-	local tracker = Economy.Track(dataController, trove)
+	local isDirty = true
+	local tracker = Economy.Track(dataController, trove, function()
+		isDirty = true
+	end)
 	local tutorialStep = 0
 	local lastIncome = ""
 	local lastStats = ""
@@ -762,18 +767,20 @@ function Hud.new(context: Types.Context): Types.Screen
 		return if type(value) == "table" then value else {}
 	end
 
-	local function refresh()
-		local balance = tracker.Balance()
-		local current = tracker.GetStats()
-		cashCount.SetTarget(balance)
-		local incomeText = if balance then `+{NumberFormat.Compact(current.Rate)}/s` else ""
+	local stats = tracker.GetStats()
+	local upgradeCost: number? = nil
+	local rebirthCost = 0
+	local hasBalance = false
+
+	local function writeStats(balance: number?)
+		local incomeText = if balance then `+{NumberFormat.Compact(stats.Rate)}/s` else ""
 		if incomeText ~= lastIncome then
 			lastIncome = incomeText
 			incomeLabel.Text = incomeText
 		end
-		local luckText = if balance then multiplierText(current.Luck) else ""
-		local speedText = if balance then string.format("%.1f/s", current.RollsPerSecond) else ""
-		local incomeMultiplierText = if balance then multiplierText(current.IncomeMultiplier) else ""
+		local luckText = if balance then multiplierText(stats.Luck) else ""
+		local speedText = if balance then string.format("%.1f/s", stats.RollsPerSecond) else ""
+		local incomeMultiplierText = if balance then multiplierText(stats.IncomeMultiplier) else ""
 		local statsText = `{luckText}|{speedText}|{incomeMultiplierText}`
 		if statsText ~= lastStats then
 			lastStats = statsText
@@ -781,10 +788,26 @@ function Hud.new(context: Types.Context): Types.Screen
 			statText.Speed.Text = speedText
 			statText.Income.Text = incomeMultiplierText
 		end
-		local cost = cheapestCost()
-		local canAfford = balance ~= nil and cost ~= nil and balance >= cost
+	end
+
+	local function refreshBalance()
+		local balance = tracker.Balance()
+		cashCount.SetTarget(balance)
+		if (balance ~= nil) ~= hasBalance then
+			hasBalance = balance ~= nil
+			writeStats(balance)
+		end
+		local canAfford = balance ~= nil and upgradeCost ~= nil and balance >= upgradeCost
 		upgradesBadge.Visible = canAfford
-		rebirthBadge.Visible = balance ~= nil and balance >= Rebirth.Cost(tracker.GetRebirths())
+		rebirthBadge.Visible = balance ~= nil and balance >= rebirthCost
+		setHinting(tutorialStep == hintStep and canAfford)
+	end
+
+	local function refreshSlow()
+		stats = tracker.GetStats()
+		upgradeCost = cheapestCost()
+		rebirthCost = Rebirth.Cost(tracker.GetRebirths())
+		writeStats(tracker.Balance())
 		passBadge.Visible = #Season.Claimable(
 			currentSeason(),
 			tracker.Boosts.Owns(GameConfig.Season.PremiumPassId)
@@ -799,22 +822,32 @@ function Hud.new(context: Types.Context): Types.Screen
 		if nextLeft then
 			dailyTimerText.Text = TimeFormat.Clock(nextLeft)
 		end
-		setHinting(tutorialStep == hintStep and canAfford)
+	end
+
+	local function refresh()
+		isDirty = false
+		refreshSlow()
+		refreshBalance()
 	end
 
 	trove:Add(dataController:Observe({ "Tutorial" }, function(value: any)
 		tutorialStep = if type(value) == "number" then value else 0
 	end))
+	trove:Add(dataController:Observe({ "Season" }, function()
+		isDirty = true
+	end))
 
-	local elapsedSinceRefresh = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		elapsedSinceRefresh += dt
-		if elapsedSinceRefresh >= 0.1 then
-			elapsedSinceRefresh = 0
-			refresh()
+	local slowElapsed = 0
+	Kit.Poll(trove, 0, nil, function(dt: number)
+		slowElapsed += dt
+		if isDirty or slowElapsed >= slowSeconds then
+			slowElapsed = 0
+			isDirty = false
+			refreshSlow()
 		end
-		cashCount.Step(dt)
 	end)
+	Kit.Poll(trove, balanceSeconds, nil, refreshBalance)
+	Kit.Poll(trove, 0, nil, cashCount.Step)
 	refresh()
 	cashCount.Step(1)
 
