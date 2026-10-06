@@ -1,5 +1,9 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Trove = require(ReplicatedStorage.Packages.Trove)
+
 export type Options = {
 	Parent: Instance,
 	Name: string?,
@@ -24,6 +28,7 @@ export type Handle = {
 	Lift: number,
 	Zoom: number,
 	Streak: Frame?,
+	Legend: (() -> ())?,
 }
 
 local defaultDirection = Vector3.new(0, 0.45, 1)
@@ -38,6 +43,16 @@ local popPeak = 1.12
 local glintSweep = 0.5
 local glintPeriod = 2.8
 local minZoom = 0.02
+local legendFacingThreshold = 0.15
+local legendTextScale = 0.82
+local legendStrokeThickness = 2
+local legendMinTextSize = 4
+local legendZIndex = 10
+local legendAnchorName = "LegendAnchor"
+local defaultLegendFont = Enum.Font.FredokaOne
+local defaultLegendFill = 0.62
+local defaultLegendStrokeColor = Color3.fromRGB(20, 18, 28)
+local defaultLegendStrokeTransparency = 0.2
 
 local Viewport = {}
 
@@ -74,10 +89,110 @@ function Viewport.new(options: Options): Handle
 		Lift = 0,
 		Zoom = 1,
 		Streak = nil,
+		Legend = nil,
 	}
 end
 
+local function noop() end
+
+local function attributeOr(model: Model, name: string, fallback: any): any
+	local value = model:GetAttribute(name)
+	if value == nil then
+		return fallback
+	end
+	return value
+end
+
+function Viewport.TrackLegend(frame: ViewportFrame, model: Model, camera: Camera): () -> ()
+	local anchor = model:FindFirstChild(legendAnchorName, true)
+	local text = model:GetAttribute("LegendText")
+	if not anchor or not anchor:IsA("Attachment") or type(text) ~= "string" then
+		return noop
+	end
+	local cap = anchor.Parent
+	if not cap or not cap:IsA("BasePart") then
+		return noop
+	end
+	local fill: number = attributeOr(model, "LegendFill", defaultLegendFill)
+	local fontName: string = attributeOr(model, "LegendFont", defaultLegendFont.Name)
+	local font = defaultLegendFont
+	for _, item in Enum.Font:GetEnumItems() do
+		if item.Name == fontName then
+			font = item
+		end
+	end
+
+	local trove = Trove.new()
+	local label = Instance.new("TextLabel")
+	label.Name = "Legend"
+	label.BackgroundTransparency = 1
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Active = false
+	label.ZIndex = legendZIndex
+	label.Font = font
+	label.Text = text
+	label.TextColor3 = attributeOr(model, "LegendColor", Color3.new(1, 1, 1))
+	label.TextScaled = false
+	label.Visible = false
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Stroke"
+	stroke.Thickness = legendStrokeThickness
+	stroke.Color = attributeOr(model, "LegendStrokeColor", defaultLegendStrokeColor)
+	stroke.Transparency = attributeOr(model, "LegendStrokeTransparency", defaultLegendStrokeTransparency)
+	stroke.Parent = label
+	label.Parent = frame
+	trove:Add(label)
+
+	local function project(point: Vector3, pixels: Vector2, viewportSize: Vector2): (Vector2, boolean)
+		local screen, onScreen = camera:WorldToViewportPoint(point)
+		return Vector2.new(screen.X / viewportSize.X * pixels.X, screen.Y / viewportSize.Y * pixels.Y),
+			onScreen and screen.Z > 0
+	end
+
+	local function update()
+		local pixels = frame.AbsoluteSize
+		local viewportSize = camera.ViewportSize
+		if pixels.X <= 0 or pixels.Y <= 0 or viewportSize.X <= 0 or viewportSize.Y <= 0 then
+			label.Visible = false
+			return
+		end
+		local cframe = cap.CFrame
+		local center = cframe:PointToWorldSpace(anchor.Position)
+		local toCamera = camera.CFrame.Position - center
+		if toCamera.Magnitude < 1e-6 or cframe.UpVector:Dot(toCamera.Unit) < legendFacingThreshold then
+			label.Visible = false
+			return
+		end
+		local halfWidth = cframe.RightVector * (cap.Size.X / 2)
+		local middle, isVisible = project(center, pixels, viewportSize)
+		local left = project(center - halfWidth, pixels, viewportSize)
+		local right = project(center + halfWidth, pixels, viewportSize)
+		if not isVisible then
+			label.Visible = false
+			return
+		end
+		local edge = right - left
+		local side = math.max(edge.Magnitude * fill * legendTextScale, legendMinTextSize)
+		label.Position = UDim2.fromOffset(middle.X, middle.Y)
+		label.Size = UDim2.fromOffset(side, side)
+		label.TextSize = math.floor(side)
+		label.Rotation = math.deg(math.atan2(edge.Y, edge.X))
+		label.Visible = true
+	end
+
+	trove:Connect(RunService.RenderStepped, update)
+	update()
+	return function()
+		trove:Destroy()
+	end
+end
+
 function Viewport.Clear(handle: Handle)
+	local legend = handle.Legend
+	if legend then
+		legend()
+		handle.Legend = nil
+	end
 	local streak = handle.Streak
 	if streak then
 		streak.Visible = false
@@ -189,6 +304,7 @@ function Viewport.Set(handle: Handle, model: Model, direction: Vector3?)
 	model.Parent = handle.Frame
 	local box, size = model:GetBoundingBox()
 	handle.Model = model
+	handle.Legend = Viewport.TrackLegend(handle.Frame, model, handle.Camera)
 	handle.Center = box.Position
 	handle.Radius = math.max(math.sqrt(size.X * size.X + size.Z * size.Z) / 2, size.Y / 2, 0.5)
 	handle.Yaw, handle.Roll, handle.Pitch, handle.Lift = 0, 0, 0, 0

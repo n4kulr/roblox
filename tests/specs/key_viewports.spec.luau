@@ -97,7 +97,7 @@ describe("Key model viewports", function()
 				cards:Step(0.1)
 				expect(#frames(playerGui)):toBe(baseline)
 				for _, frame in frames(playerGui) do
-					expect(#frame:GetChildren() <= 2):toBe(true)
+					expect(#frame:GetChildren() <= 3):toBe(true)
 				end
 			end
 			trove:Destroy()
@@ -141,7 +141,7 @@ describe("Key model viewports", function()
 				cine:Step(0.3)
 				cine:Step(10)
 				expect(#frames(playerGui)):toBe(1)
-				expect(#frames(playerGui)[1]:GetChildren() <= 2):toBe(true)
+				expect(#frames(playerGui)[1]:GetChildren() <= 3):toBe(true)
 			end
 			cine:Destroy()
 			trove:Destroy()
