@@ -15,7 +15,7 @@ type PlayerOrbit = Orbit.Orbit
 type State = {
 	Name: string,
 	Hatched: Signal.Signal<string, string>,
-	Hatch: (self: State, slot: number, eggId: string) -> (),
+	Hatch: (self: State, index: number, eggId: string) -> (),
 	_trove: TroveInstance?,
 }
 
@@ -23,7 +23,7 @@ local scanSeconds = 1
 local promptHold = 0.6
 local promptRange = 12
 local attributeName = "EquippedCharms"
-local folderName = "Incubators"
+local folderName = "PlacedEggs"
 local promptName = "HatchPrompt"
 
 local CharmController = {
@@ -92,13 +92,13 @@ local function toast(text: string, kind: string)
 	end
 end
 
-function CharmController.Hatch(_self: State, slot: number, eggId: string)
+function CharmController.Hatch(_self: State, index: number, eggId: string)
 	if isHatching then
 		return
 	end
 	isHatching = true
 	task.spawn(function()
-		local charmId = Packets.HatchEgg:Fire(slot)
+		local charmId = Packets.HatchEgg:Fire(index)
 		isHatching = false
 		if type(charmId) == "string" and charmId ~= "" then
 			CharmController.Hatched:Fire(eggId, charmId)
@@ -109,11 +109,11 @@ function CharmController.Hatch(_self: State, slot: number, eggId: string)
 end
 
 local function syncPrompt(self: State, model: Model, isMine: boolean)
-	local pedestal = model:FindFirstChild("Pedestal")
-	if not pedestal or not pedestal:IsA("BasePart") then
+	local body = model:FindFirstChild("EggBody")
+	if not body or not body:IsA("BasePart") then
 		return
 	end
-	local existing = pedestal:FindFirstChild(promptName)
+	local existing = body:FindFirstChild(promptName)
 	local prompt = if existing and existing:IsA("ProximityPrompt") then existing else nil
 	local eggId = model:GetAttribute("EggId")
 	local readyAt = model:GetAttribute("ReadyAt")
@@ -136,11 +136,11 @@ local function syncPrompt(self: State, model: Model, isMine: boolean)
 	created.MaxActivationDistance = promptRange
 	created.RequiresLineOfSight = false
 	created.KeyboardKeyCode = Enum.KeyCode.E
-	created.Parent = pedestal
-	local slot = model:GetAttribute("Index")
+	created.Parent = body
 	created.Triggered:Connect(function()
-		if type(slot) == "number" then
-			self:Hatch(slot, (egg :: Eggs.Egg).Id)
+		local index = model:GetAttribute("Index")
+		if type(index) == "number" then
+			self:Hatch(index, (egg :: Eggs.Egg).Id)
 		end
 	end)
 end

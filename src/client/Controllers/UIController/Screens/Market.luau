@@ -36,7 +36,7 @@ local cardSize = Vector2.new(205, 304)
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
-local fullMessage = "Your incubators are full!"
+local fullMessage = "Your egg bag is full!"
 
 local MarketScreen = {}
 
@@ -110,10 +110,14 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Size = UDim2.new(1, -12, 1, -52),
 		CellSize = UDim2.fromOffset(cardSize.X, cardSize.Y),
 	})
-	local incubatorLabel = Kit.Label({
+	local gridPadding = grid:FindFirstChildOfClass("UIPadding")
+	if gridPadding then
+		gridPadding.PaddingLeft = UDim.new(0, Kit.Space.M)
+	end
+	local bagLabel = Kit.Label({
 		Parent = modal.Body,
-		Name = "Incubators",
-		Text = "Incubators free: 3/3",
+		Name = "Bag",
+		Text = `Egg bag: 0/{Eggs.BagCap}`,
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -8),
 		Size = UDim2.new(1, -24, 0, 30),
@@ -134,17 +138,17 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		return math.max(0, offer.Stock - boughtOf(offer.Index))
 	end
 
-	local function freeIncubators(): number
-		local list = dataController:Get({ "Incubators" })
-		local free = 0
-		if type(list) == "table" then
-			for index = 1, Eggs.Slots do
-				if list[index] == "" then
-					free += 1
+	local function bagCount(): number
+		local bag = dataController:Get({ "EggInventory" })
+		local total = 0
+		if type(bag) == "table" then
+			for _, count in bag do
+				if type(count) == "number" then
+					total += count
 				end
 			end
 		end
-		return free
+		return total
 	end
 
 	local function currentRate(): number
@@ -155,9 +159,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local function refreshCards()
 		local balance = tracker.Balance() or 0
 		local rate = currentRate()
-		local free = freeIncubators()
-		incubatorLabel.Text = `Incubators free: {free}/{Eggs.Slots}`
-		incubatorLabel.TextColor3 = if free > 0 then theme.Text else theme.Bad
+		local held = bagCount()
+		local isFull = held >= Eggs.BagCap
+		bagLabel.Text = `Egg bag: {held}/{Eggs.BagCap}`
+		bagLabel.TextColor3 = if isFull then theme.Bad else theme.Text
 		for _, card in cards do
 			local offer = card.Offer
 			local left = leftOf(offer)
@@ -168,10 +173,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			if left <= 0 then
 				card.Action.SetDisabled(true)
 				card.Action.SetText("SOLD OUT")
-			elseif free <= 0 then
+			elseif isFull then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Grey)
-				card.Action.SetText("INCUBATORS FULL")
+				card.Action.SetText("BAG FULL")
 			elseif balance < card.Price then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Red)
@@ -189,14 +194,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local offer = card.Offer
-		local egg = Eggs.ById[offer.EggId]
 		local balance = tracker.Balance() or 0
 		if leftOf(offer) <= 0 then
 			playUi("Error")
 			context.Toast("Sold out! Check back for new stock!", "Bad")
 			return
 		end
-		if freeIncubators() <= 0 then
+		if bagCount() >= Eggs.BagCap then
 			playUi("Error")
 			Kit.Shake(card.Panel)
 			context.Toast(fullMessage, "Bad")
@@ -219,11 +223,11 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if bought == true then
 				playUi("Confirm")
-				context.Toast(`{egg.Name} is hatching on your base!`, "Good")
+				context.Toast("Egg added to your backpack! Place it on your base.", "Good")
 			else
 				playUi("Error")
 				context.Toast(
-					if freeIncubators() <= 0
+					if bagCount() >= Eggs.BagCap
 						then fullMessage
 						elseif isNearCounter() then "Couldn't buy that one!"
 						else "Get closer to the market!",
@@ -446,7 +450,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			refreshCards()
 		end
 	end))
-	trove:Add(dataController:Observe({ "Incubators" }, function()
+	trove:Add(dataController:Observe({ "EggInventory" }, function()
 		if isOpen then
 			refreshCards()
 		end

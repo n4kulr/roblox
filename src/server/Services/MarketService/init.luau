@@ -83,7 +83,7 @@ local function buy(player: Player, index: number): boolean
 	if data.Cash < price or not services.DataService:AdjustCash(player, -price) then
 		return false
 	end
-	if services.EggService:PlaceEgg(player, offer.EggId) == 0 then
+	if not services.EggService:AddEgg(player, offer.EggId) then
 		services.DataService:AdjustCash(player, price)
 		return false
 	end

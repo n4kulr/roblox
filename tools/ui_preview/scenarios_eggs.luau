@@ -20,9 +20,9 @@ local function press(button: any)
 	button.Activated:Fire({ UserInputType = roblox.Enum.UserInputType.MouseButton1 })
 end
 
-local function stock(scene: any, incubators: { string })
-	scene.Data.Incubators = incubators
-	scene.Data.IncubatorReadyAt = { 0, 0, 0 }
+local function stock(scene: any, bag: { [string]: number })
+	scene.Data.EggInventory = bag
+	scene.Data.PlacedEggs = {}
 	scene.Data.Charms = {}
 	scene.Data.EquippedCharms = {}
 end
@@ -51,7 +51,7 @@ local ownedCharms = {
 }
 
 local function openCharms(scene: any, equipped: { string })
-	stock(scene, { "", "", "" })
+	stock(scene, {})
 	scene.Data.Charms = ownedCharms
 	scene.Data.EquippedCharms = equipped
 	local screen = build(scene, "Charms")
@@ -61,7 +61,7 @@ local function openCharms(scene: any, equipped: { string })
 end
 
 local function hatch(scene: any, eggId: string, charmId: string, seconds: number)
-	stock(scene, { "", "", "" })
+	stock(scene, {})
 	local screen = build(scene, "Hatch")
 	screen:Open()
 	screen:Play(eggId, charmId)
@@ -75,7 +75,7 @@ return {
 		Name = "egg_market",
 		Screens = {},
 		Run = function(scene)
-			stock(scene, { "Linear", "", "" })
+			stock(scene, { Linear = 2, Golden = 1 })
 			openMarket(scene)
 		end,
 	},
@@ -83,7 +83,7 @@ return {
 		Name = "egg_market_drops",
 		Screens = {},
 		Run = function(scene)
-			stock(scene, { "", "", "" })
+			stock(scene, {})
 			scene.Data.Cash = 900000
 			openMarket(scene)
 			local card = scene.PlayerGui:FindFirstChild("Offer2", true)
@@ -95,7 +95,7 @@ return {
 		Name = "egg_market_full",
 		Screens = {},
 		Run = function(scene)
-			stock(scene, { "Linear", "Golden", "Rainbow" })
+			stock(scene, { Linear = 4, Golden = 3, Rainbow = 3 })
 			openMarket(scene)
 		end,
 	},
@@ -117,7 +117,7 @@ return {
 		Name = "charms_empty",
 		Screens = {},
 		Run = function(scene)
-			stock(scene, { "", "", "" })
+			stock(scene, {})
 			local screen = build(scene, "Charms")
 			screen:Open()
 			tick(scene, 0.6)

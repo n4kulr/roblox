@@ -14,7 +14,6 @@ local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Caps = require(script.Caps)
-local Incubators = require(script.Incubators)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
@@ -24,12 +23,14 @@ type PlotInfo = Types.PlotInfo
 type State = {
 	Name: string,
 	LockChanged: Signal.Signal<Player>,
+	PlotAssigned: Signal.Signal<Player>,
 	_trove: TroveInstance?,
 }
 
 local PlotService = {
 	Name = "PlotService",
 	LockChanged = Signal.new() :: Signal.Signal<Player>,
+	PlotAssigned = Signal.new() :: Signal.Signal<Player>,
 	_trove = nil :: TroveInstance?,
 }
 local services: { [string]: any } = {}
@@ -278,6 +279,7 @@ local function assign(player: Player, data: PlayerData.Data)
 		applyWalkSpeed(player.Character)
 		teleport(player, player.Character)
 	end
+	PlotService.PlotAssigned:Fire(player)
 end
 
 local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholder: boolean)
@@ -325,7 +327,6 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 			board.CanCollide = false
 			info.Layout = FloorGrid.ForPlot(base, info.RollKey, board)
 			createCaps(info, trove)
-			trove:Add(Incubators.Build(model, base, board))
 			Walls.Build(info, 0)
 			info.Defense = Lock.Build()
 			presentLock(info)
@@ -499,6 +500,11 @@ end
 function PlotService.GetFloorCaps(_self: State, player: Player): { BasePart }?
 	local info = plotByPlayer[player]
 	return if info then info.FloorCaps else nil
+end
+
+function PlotService.GetRollKey(_self: State, player: Player): BasePart?
+	local info = plotByPlayer[player]
+	return if info then info.RollKey else nil
 end
 
 function PlotService.GetBase(_self: State, player: Player): BasePart?
