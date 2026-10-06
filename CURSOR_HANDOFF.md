@@ -79,7 +79,28 @@ The suite has **about 920 tests**, and all of them must stay green.
 
 ## 5. NOT DONE — still to build
 
-Claude agents were working on these when the handoff happened, and none of that work is on GitHub. Build each one from these specs. The contracts (data fields, packets and config) are already on the branch.
+The contracts (data fields, packets and config) for all of these are already on the branch.
+
+### Claude sub-agents still working (as of this handoff)
+
+The lead Claude session (in the cloud) runs Sonnet sub-agents in parallel. Each one works in its own git worktree on the cloud machine. **Their work is NOT on GitHub until the lead Claude reviews it, merges it into `claude/sharp-curie-svbmt1` and pushes.** Four were still running when this file was written:
+
+| Sub-agent | Working on | Section below | Files it owns |
+|---|---|---|---|
+| Economy | faster first-40-minute hook, tuned with the sim | A | Config numbers (`Keys`, `Upgrades`, the economy part of `GameConfig`), `tools/economy_sim.luau`, `docs/economy.md` |
+| UI batch | HUD swap, modal dim, Keys sort and income, Pass tile claim, simpler Store, roll only in base | C | `Screens/Hud.luau`, `Keys.luau`, `Season.luau`, `Shop.luau`, `Kit/Modal.luau`, `RollService`, `RollController/init.luau` |
+| Steal | best-key prompt, knocking thieves down, dropped key and take-back, jumpable walls | D | `StealService/**`, `StealController.luau`, `PlotService/Lock.luau` and `Walls.luau` |
+| Eggs | eggs in the Market, incubators, charms, Charms screen | E | `MarketService/**`, `Screens/Market.luau`, new `Config/Eggs.luau`, `Config/Charms.luau`, `Rules/Charms.luau`, `Screens/Charms.luau`, `PlotService/Incubators.luau`, `Rules/Stats` |
+
+**Before starting any of A, C, D or E:**
+1. Run `git pull`, then `git log --oneline -30`.
+2. Check whether a commit for that section has landed. Look for messages mentioning economy, Keys sort, steal or ragdoll, eggs or charms, or a "Merge ... worktree-agent-..." commit.
+3. If it has, that section is done. Review it instead of rebuilding it.
+4. If it hasn't, build it from the spec below.
+5. Avoid editing the same files as a still-running sub-agent, or you'll get merge conflicts.
+6. If the cloud session ends before they finish, their unpushed work is lost, and you build those sections from these specs.
+
+Already merged from sub-agents (DONE): the icon atlas, UI overhaul, roll popup, loading screen, obby keycaps, bulk upgrades, economy v1, base visuals and music, group chest, playtime gifts, and the big reveal cinematics.
 
 ### A. Faster early game (the hook)
 
