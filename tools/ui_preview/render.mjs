@@ -202,6 +202,20 @@ function renderNode(node) {
       inner.push(`<div class="missing">image</div>`);
     }
   }
+  if (node.viewport) {
+    const hue = [...node.viewport.label].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 360;
+    const box = [
+      "position:absolute;inset:6%",
+      `opacity:${1 - node.viewport.alpha}`,
+      "border:2px dashed rgba(255,255,255,0.8)",
+      "border-radius:12px",
+      `background:hsla(${hue},55%,45%,0.55)`,
+      "display:flex;align-items:center;justify-content:center",
+      "text-align:center;overflow:hidden",
+      "color:#fff;font:600 12px sans-serif;text-shadow:0 1px 2px #000",
+    ];
+    inner.push(`<div style="${box.join(";")}">${escapeHtml(node.viewport.label)}</div>`);
+  }
   if (node.text) {
     const text = node.text;
     const family = familyOf(text.font);

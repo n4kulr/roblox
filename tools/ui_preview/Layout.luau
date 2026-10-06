@@ -13,6 +13,7 @@ local guiClasses: { [string]: boolean } = {
 	TextBox = true,
 	ImageLabel = true,
 	ImageButton = true,
+	ViewportFrame = true,
 	ScrollingFrame = true,
 	CanvasGroup = true,
 }
@@ -557,6 +558,17 @@ function buildNode(node: any, parentW: number, parentH: number, k: number, force
 				tileH = round(tile.Y.Scale * h + tile.Y.Offset * kn),
 			}
 		end
+	end
+
+	if class == "ViewportFrame" then
+		local label = "3D"
+		for _, child in node:GetChildren() do
+			if child.ClassName == "Model" then
+				label = child.Name
+				break
+			end
+		end
+		record.viewport = { label = label, alpha = read(node, "ImageTransparency", 0) }
 	end
 
 	local ordered = {}

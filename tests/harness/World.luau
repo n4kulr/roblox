@@ -17,6 +17,7 @@ local guiClasses: { [string]: boolean } = {
 	ImageLabel = true,
 	ScrollingFrame = true,
 	UIScale = true,
+	ViewportFrame = true,
 }
 
 local bytecodeCache: { [string]: string } = {}

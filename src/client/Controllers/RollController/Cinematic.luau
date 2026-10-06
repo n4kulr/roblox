@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local Kit = require(script.Parent.Parent.UIController.Kit)
 local Tiers = require(script.Parent.Tiers)
+local Viewport = require(script.Parent.Parent.UIController.Viewport)
 
 type TroveInstance = typeof(Trove.new())
 
@@ -88,7 +90,7 @@ export type Cinematic = {
 	_flash: Frame,
 	_hint: TextLabel,
 	_glow: Frame,
-	_cap: Kit.Keycap,
+	_model: Viewport.Handle,
 	_title: TitleSet,
 	_name: TextLabel,
 	_nameScale: UIScale,
@@ -106,8 +108,7 @@ export type Cinematic = {
 	_hasImpacted: boolean,
 	_humanoid: Humanoid?,
 	_baseOffset: Vector3,
-	_capColor: Color3?,
-	_capGlyph: string,
+	_modelKey: string,
 	_destroyed: boolean,
 	CanAccept: (self: Cinematic) -> boolean,
 	Play: (self: Cinematic, payload: Payload, onDone: (() -> ())?) -> boolean,
@@ -124,6 +125,10 @@ export type Cinematic = {
 
 local displayOrder = 8
 local capSize = 230
+local staticYaw = 28
+local spinSpeed = 55
+local chargeSpin = 520
+local bobHeight = 0.06
 local capY = -10
 local titleY = -262
 local nameY = 196
@@ -371,28 +376,15 @@ function Cinematic.new(
 		})
 	end
 
-	local cap = Kit.Keycap({
+	local model = Viewport.new({
 		Parent = world,
-		Name = "Keycap",
+		Name = "KeyModel",
 		Size = UDim2.fromOffset(capSize, capSize),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = center(0, capY),
-		Color = Kit.Theme.Gold,
-		Glyph = "",
+		ZIndex = 10,
 	})
-	cap.Instance.ZIndex = 10
-	cap.Instance.Visible = false
-	for _, item in cap.Instance:GetDescendants() do
-		if item:IsA("GuiObject") then
-			item.ZIndex = 10
-		end
-		if item.Name == "Glyph" and item:IsA("TextLabel") then
-			local limit = item:FindFirstChildOfClass("UITextSizeConstraint")
-			if limit then
-				limit.MaxTextSize = 120
-			end
-		end
-	end
+	model.Frame.Visible = false
 
 	local particles: { Particle } = {}
 	for index = 1, particleCap do
@@ -470,7 +462,7 @@ function Cinematic.new(
 		_flash = flash,
 		_hint = hint,
 		_glow = glow,
-		_cap = cap,
+		_model = model,
 		_title = title,
 		_name = nameLabel,
 		_nameScale = nameScale,
@@ -488,8 +480,7 @@ function Cinematic.new(
 		_hasImpacted = false,
 		_humanoid = nil,
 		_baseOffset = Vector3.zero,
-		_capColor = nil,
-		_capGlyph = "",
+		_modelKey = "",
 		_destroyed = false,
 	}, Cinematic) :: any
 
@@ -506,13 +497,6 @@ function Cinematic.new(
 end
 
 local setDucked: (self: Cinematic, isDucked: boolean) -> ()
-
-local function setCapColor(self: Cinematic, color: Color3)
-	if self._capColor ~= color then
-		self._capColor = color
-		self._cap.SetColor(color)
-	end
-end
 
 local function hideAll(self: Cinematic)
 	for _, piece in self._particles do
@@ -541,7 +525,7 @@ local function hideAll(self: Cinematic)
 	self._title.Main.Visible = false
 	self._title.Red.Visible = false
 	self._title.Cyan.Visible = false
-	self._cap.Instance.Visible = false
+	self._model.Frame.Visible = false
 end
 
 local function armParticles(self: Cinematic, payload: Payload)
@@ -642,11 +626,13 @@ local function startEntry(self: Cinematic, entry: Entry)
 	self._t = 0
 	self._hasImpacted = false
 	self._low = self._isLowGraphics()
-	self._capColor = nil
 	hideAll(self)
 	local base = payload.Rarity.Color
-	setCapColor(self, base)
-	self._cap.SetGlyph(string.upper(string.sub(payload.Key.Name, 1, 1)))
+	if self._modelKey ~= payload.Key.Id or self._model.Model == nil then
+		Viewport.Set(self._model, KeyModels.Build(payload.Key.Id))
+		self._modelKey = payload.Key.Id
+	end
+	Viewport.Pose(self._model, staticYaw)
 	local text = titleText(payload, tier)
 	local title = self._title
 	title.Main.Text = text
@@ -757,16 +743,26 @@ local function renderCap(self: Cinematic, t: number, fade: number, charge: numbe
 	local collapse = 1 - fade
 	yOffset += 330 * inQuad(collapse)
 	scale *= 1 - 0.6 * collapse
-	local cap = self._cap.Instance
+	local cap = self._model.Frame
 	cap.Visible = t >= 0.02 and fade > 0
 	cap.Size = UDim2.fromOffset(capSize * sx * scale, capSize * sy * scale)
 	cap.Position = center(jitterX, capY + yOffset + jitterY)
 	cap.Rotation = rotation
+	local handle = self._model
+	if self._low then
+		Viewport.Pose(handle, staticYaw)
+	else
+		local spin = staticYaw + t * spinSpeed
+		if tier.Charge and t < ti then
+			spin += chargeSpin * charge * charge * t
+		end
+		Viewport.Pose(handle, spin % 360, 0, 0, math.sin(t * 3.2) * bobHeight * handle.Radius * (if post >= 0 then 1 else 0.3))
+	end
 	local base = if self._active then self._active.Payload.Rarity.Color else white
 	if tier.Rainbow and post >= 0 then
-		setCapColor(self, Color3.fromHSV((t * 0.6) % 1, 0.75, 1))
+		Viewport.Light(handle, Color3.fromHSV((t * 0.6) % 1, 0.45, 1), 0.2)
 	else
-		setCapColor(self, Kit.Shade(base, pulse * 0.5))
+		Viewport.Light(handle, Kit.Shade(base, 0.7), pulse * 0.6)
 	end
 end
 
@@ -1184,6 +1180,8 @@ function Cinematic.Destroy(self: Cinematic)
 	restoreCamera(self)
 	self._active = nil
 	self._queued = nil
+	Viewport.Clear(self._model)
+	self._modelKey = ""
 end
 
 return Cinematic

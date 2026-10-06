@@ -1,4 +1,5 @@
 local fs = require("@lune/fs")
+local roblox = require("@lune/roblox")
 local serde = require("@lune/serde")
 
 local Tree = {}
@@ -73,6 +74,32 @@ function methods.PivotTo(self, cframe: any)
 	if root then
 		root.CFrame = cframe
 	end
+end
+
+function methods.GetBoundingBox(self)
+	local low, high = nil, nil
+	local function include(point: any)
+		low = if low then roblox.Vector3.new(math.min(low.X, point.X), math.min(low.Y, point.Y), math.min(low.Z, point.Z)) else point
+		high = if high then roblox.Vector3.new(math.max(high.X, point.X), math.max(high.Y, point.Y), math.max(high.Z, point.Z)) else point
+	end
+	for _, item in methods.GetDescendants(self) do
+		local props = state[item].Props
+		if props.Size ~= nil and props.CFrame ~= nil then
+			local half = props.Size / 2
+			local radius = math.max(half.X, half.Y, half.Z)
+			include(props.CFrame.Position - roblox.Vector3.new(radius, radius, radius))
+			include(props.CFrame.Position + roblox.Vector3.new(radius, radius, radius))
+		end
+	end
+	if not low or not high then
+		return roblox.CFrame.new(), roblox.Vector3.zero
+	end
+	return roblox.CFrame.new((low + high) / 2), high - low
+end
+
+function methods.GetExtentsSize(self)
+	local _, size = methods.GetBoundingBox(self)
+	return size
 end
 
 function methods.GetAttribute(self, name: string)

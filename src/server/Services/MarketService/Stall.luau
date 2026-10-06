@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local Market = require(ReplicatedStorage.Rules.Market)
 
 local config = GameConfig.Market
@@ -13,7 +14,7 @@ local woodColor = Color3.fromRGB(140, 96, 64)
 local counterColor = Color3.fromRGB(176, 124, 82)
 local rugColor = Color3.fromRGB(70, 74, 86)
 local signColor = Color3.fromRGB(255, 99, 72)
-local eggSize = Vector3.new(1.5, 1.95, 1.5)
+local eggScale = 0.6
 local eggSpacing = 2.2
 local counterHeight = 3.5
 local counterZ = 3.5
@@ -105,17 +106,17 @@ function Stall.Build(name: string): (Model, BasePart)
 	local eggCount = #Eggs.Catalog
 	for index = 1, eggCount do
 		local x = (index - (eggCount + 1) / 2) * eggSpacing
-		local egg = newPart(
-			model,
-			`Egg{index}`,
-			eggSize,
-			Vector3.new(x, counterHeight + eggSize.Y / 2 + 0.2, counterZ),
-			Eggs.Catalog[index].Color,
-			false
-		)
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Parent = egg
+		local deco = Instance.new("Model")
+		deco.Name = `EggDeco{index}`
+		local height = EggModel.HeightOf(eggScale)
+		local parts = EggModel.Build(deco, Eggs.Catalog[index], {
+			Scale = eggScale,
+			Anchored = true,
+			BodyName = `Egg{index}`,
+			Origin = CFrame.new(center + Vector3.new(x, counterHeight + height / 2 + 0.2, counterZ)),
+		})
+		parts[1].Parent = model
+		deco.Parent = model
 	end
 	model.PrimaryPart = counter
 	return model, counter
@@ -157,6 +158,14 @@ function Stall.Paint(model: Model, slot: number)
 		if display and display:IsA("BasePart") then
 			local inStock = offer ~= nil and offer.Stock > 0
 			display.Transparency = if inStock then 0 else 1
+			local deco = model:FindFirstChild(`EggDeco{index}`)
+			if deco then
+				for _, part in deco:GetChildren() do
+					if part:IsA("BasePart") then
+						part.Transparency = if inStock then 0 else 1
+					end
+				end
+			end
 			if inStock and offer then
 				display.Color = Eggs.ById[offer.EggId].Color
 			end

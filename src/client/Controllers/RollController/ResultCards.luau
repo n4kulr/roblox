@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Kit = require(script.Parent.Parent.UIController.Kit)
+local Viewport = require(script.Parent.Parent.UIController.Viewport)
 local ResultSlots = require(script.Parent.ResultSlots)
 
 type TroveInstance = typeof(Trove.new())
@@ -44,6 +46,8 @@ type View = {
 	GoldFrame: Frame,
 	Card: Frame,
 	Face: Frame,
+	Model: Viewport.Handle,
+	ModelKey: string,
 	Name: TextLabel,
 	Shimmer: Frame,
 	ShimmerGradient: UIGradient,
@@ -116,6 +120,11 @@ local fadeSeconds = 0.25
 local fastFadeSeconds = 0.15
 local confettiCap = 30
 local gravity = 1100
+local modelSize = 88
+local modelInset = 64
+local staticYaw = 28
+local spinSpeed = 70
+local bobHeight = 0.07
 local nameTextSize = 46
 local chipTextSize = 20
 local bannerTextSize = 48
@@ -147,6 +156,7 @@ local fadeProperties: { [string]: { string } } = {
 	Frame = { "BackgroundTransparency" },
 	TextLabel = { "TextTransparency", "BackgroundTransparency" },
 	ImageLabel = { "ImageTransparency" },
+	ViewportFrame = { "ImageTransparency", "BackgroundTransparency" },
 	UIStroke = { "Transparency" },
 }
 
@@ -266,8 +276,8 @@ local function buildView(root: Instance, index: number): View
 	local name = Kit.Label({
 		Parent = face,
 		Name = "KeyName",
-		Size = UDim2.new(1, -20, 1, -6),
-		Position = UDim2.fromOffset(10, 3),
+		Size = UDim2.new(1, -modelInset - 28, 1, -6),
+		Position = UDim2.fromOffset(modelInset + 8, 3),
 		TextSize = nameTextSize,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -295,6 +305,14 @@ local function buildView(root: Instance, index: number): View
 	shimmerGradient.Offset = Vector2.new(-1, 0)
 	shimmerGradient.Parent = shimmer
 	shimmer.Parent = face
+
+	local model = Viewport.new({
+		Parent = holder,
+		Name = "KeyModel",
+		Size = UDim2.fromOffset(modelSize, modelSize),
+		Position = UDim2.fromOffset(-24, -12),
+		ZIndex = 5,
+	})
 
 	local row = Instance.new("Frame")
 	row.Name = "Row"
@@ -339,6 +357,8 @@ local function buildView(root: Instance, index: number): View
 		GoldFrame = goldFrame,
 		Card = card,
 		Face = face,
+		Model = model,
+		ModelKey = "",
 		Name = name,
 		Shimmer = shimmer,
 		ShimmerGradient = shimmerGradient,
@@ -525,7 +545,7 @@ local function sizeCard(
 	incomeText: string
 )
 	local limit = maxWidth(self)
-	local nameWidth = estimate(nameText, nameTextSize) + 44
+	local nameWidth = estimate(nameText, nameTextSize) + 44 + modelInset
 	local rarityWidth = estimate(rarityText, chipTextSize) + chipPad
 	local incomeWidth = estimate(incomeText, chipTextSize) + chipPad
 	local rowWidth = rarityWidth + incomeWidth + chipGap
@@ -653,6 +673,12 @@ function ResultCards.Show(self: ResultCards, slot: ResultSlots.Slot, payload: Pa
 	view.Age = 0
 	view.IsFading = false
 	view.Name.Text = key.Name
+	if view.ModelKey ~= key.Id or view.Model.Model == nil then
+		Viewport.Set(view.Model, KeyModels.Build(key.Id))
+		view.ModelKey = key.Id
+	end
+	Viewport.Light(view.Model, if isGolden then goldColor else white, if rank >= epicRank then 0.25 else 0)
+	Viewport.Pose(view.Model, staticYaw)
 	view.RarityLabel.Text = rarityText
 	view.IncomeLabel.Text = incomeText
 	paintCard(view, rarity, isGolden)
@@ -815,6 +841,14 @@ local function stepView(self: ResultCards, view: View, dt: number)
 	if self._isLowGraphics() then
 		view.Shimmer.Visible = false
 	else
+		local handle = view.Model
+		Viewport.Pose(
+			handle,
+			(staticYaw + view.Age * spinSpeed) % 360,
+			0,
+			0,
+			math.sin(view.Age * 2.6) * bobHeight * handle.Radius
+		)
 		if view.Burst.Visible then
 			view.Burst.Rotation = (view.Burst.Rotation + dt * 24) % 360
 			view.BurstEcho.Rotation = (view.BurstEcho.Rotation - dt * 38) % 360
@@ -920,6 +954,8 @@ function ResultCards.Destroy(self: ResultCards)
 	self._destroyed = true
 	for _, view in self._views do
 		cancelTweens(view)
+		Viewport.Clear(view.Model)
+		view.ModelKey = ""
 	end
 	local flashTween = self._flashTween
 	if flashTween then
