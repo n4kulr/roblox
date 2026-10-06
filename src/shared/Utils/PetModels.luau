@@ -59,7 +59,14 @@ local species: { [string]: Style } = {
 	Hare = style({ Ears = "Long", Tail = "Puff", Snout = true }),
 	Gecko = style({ Ears = "Fin", Tail = "Long", BigEyes = true, Spots = true }),
 	Raccoon = style({ Ears = "Round", Tail = "Ring", Mask = true, Snout = true }),
-	Owl = style({ Ears = "Tuft", Tail = "Feather", Beak = true, Wings = true, BigEyes = true, Accent = beakColor }),
+	Owl = style({
+		Ears = "Tuft",
+		Tail = "Feather",
+		Beak = true,
+		Wings = true,
+		BigEyes = true,
+		Accent = beakColor,
+	}),
 	Parrot = style({ Ears = "Fin", Tail = "Feather", Beak = true, Wings = true, Accent = beakColor }),
 	Fawn = style({ Ears = "Point", Tail = "Puff", Horns = true, Spots = true, Snout = true }),
 	Fox = style({ Ears = "Point", Tail = "Big", Snout = true }),
@@ -137,7 +144,8 @@ function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
 	): Part
 		local part = newPart(model, name, shape, size * s, partColor)
 		local turn = rotation or Vector3.zero
-		part.CFrame = CFrame.new(position * s) * CFrame.Angles(math.rad(turn.X), math.rad(turn.Y), math.rad(turn.Z))
+		part.CFrame = CFrame.new(position * s)
+			* CFrame.Angles(math.rad(turn.X), math.rad(turn.Y), math.rad(turn.Z))
 		return part
 	end
 
@@ -145,36 +153,116 @@ function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
 	add("Head", ball, Vector3.new(0.6, 0.6, 0.6), Vector3.new(0, 0.28, -0.5), color)
 	for _, side in { -1, 1 } do
 		local tag = if side < 0 then "Left" else "Right"
-		add(`{tag}Leg`, block, Vector3.new(0.16, legHeight * 2, 0.18), Vector3.new(side * 0.2, -0.275 - legHeight, -0.28), light)
-		add(`{tag}HindLeg`, block, Vector3.new(0.16, legHeight * 2, 0.18), Vector3.new(side * 0.2, -0.275 - legHeight, 0.3), light)
+		add(
+			`{tag}Leg`,
+			block,
+			Vector3.new(0.16, legHeight * 2, 0.18),
+			Vector3.new(side * 0.2, -0.275 - legHeight, -0.28),
+			light
+		)
+		add(
+			`{tag}HindLeg`,
+			block,
+			Vector3.new(0.16, legHeight * 2, 0.18),
+			Vector3.new(side * 0.2, -0.275 - legHeight, 0.3),
+			light
+		)
 		if look.Ears == "Round" then
 			add(`{tag}Ear`, ball, Vector3.new(0.2, 0.2, 0.12), Vector3.new(side * 0.22, 0.56, -0.45), color)
 		elseif look.Ears == "Long" then
-			add(`{tag}Ear`, block, Vector3.new(0.12, 0.5, 0.1), Vector3.new(side * 0.12, 0.85, -0.45), color, Vector3.new(-10, 0, side * 8))
+			add(
+				`{tag}Ear`,
+				block,
+				Vector3.new(0.12, 0.5, 0.1),
+				Vector3.new(side * 0.12, 0.85, -0.45),
+				color,
+				Vector3.new(-10, 0, side * 8)
+			)
 		elseif look.Ears == "Floppy" then
-			add(`{tag}Ear`, block, Vector3.new(0.14, 0.3, 0.1), Vector3.new(side * 0.3, 0.42, -0.5), accent, Vector3.new(0, 0, side * 25))
+			add(
+				`{tag}Ear`,
+				block,
+				Vector3.new(0.14, 0.3, 0.1),
+				Vector3.new(side * 0.3, 0.42, -0.5),
+				accent,
+				Vector3.new(0, 0, side * 25)
+			)
 		elseif look.Ears == "Fin" then
-			add(`{tag}Ear`, block, Vector3.new(0.06, 0.18, 0.2), Vector3.new(side * 0.3, 0.38, -0.5), color, Vector3.new(0, 0, side * 40))
+			add(
+				`{tag}Ear`,
+				block,
+				Vector3.new(0.06, 0.18, 0.2),
+				Vector3.new(side * 0.3, 0.38, -0.5),
+				color,
+				Vector3.new(0, 0, side * 40)
+			)
 		elseif look.Ears == "Tuft" then
-			add(`{tag}Ear`, block, Vector3.new(0.16, 0.3, 0.12), Vector3.new(side * 0.2, 0.64, -0.5), color, Vector3.new(0, 0, side * 14))
-			add(`{tag}EarTip`, block, Vector3.new(0.06, 0.14, 0.06), Vector3.new(side * 0.24, 0.84, -0.5), darkColor, Vector3.new(0, 0, side * 14))
+			add(
+				`{tag}Ear`,
+				block,
+				Vector3.new(0.16, 0.3, 0.12),
+				Vector3.new(side * 0.2, 0.64, -0.5),
+				color,
+				Vector3.new(0, 0, side * 14)
+			)
+			add(
+				`{tag}EarTip`,
+				block,
+				Vector3.new(0.06, 0.14, 0.06),
+				Vector3.new(side * 0.24, 0.84, -0.5),
+				darkColor,
+				Vector3.new(0, 0, side * 14)
+			)
 		else
-			add(`{tag}Ear`, block, Vector3.new(0.16, 0.28, 0.12), Vector3.new(side * 0.2, 0.62, -0.5), color, Vector3.new(0, 0, side * 10))
+			add(
+				`{tag}Ear`,
+				block,
+				Vector3.new(0.16, 0.28, 0.12),
+				Vector3.new(side * 0.2, 0.62, -0.5),
+				color,
+				Vector3.new(0, 0, side * 10)
+			)
 		end
 		if look.BigEyes then
-			add(`{tag}EyeWhite`, ball, Vector3.new(0.2, 0.2, 0.16), Vector3.new(side * 0.15, 0.4, -0.76), white)
+			add(
+				`{tag}EyeWhite`,
+				ball,
+				Vector3.new(0.2, 0.2, 0.16),
+				Vector3.new(side * 0.15, 0.4, -0.76),
+				white
+			)
 			add(`{tag}Eye`, ball, Vector3.new(0.1, 0.1, 0.1), Vector3.new(side * 0.15, 0.4, -0.84), eyeColor)
 		else
 			add(`{tag}Eye`, ball, Vector3.new(0.1, 0.1, 0.1), Vector3.new(side * 0.14, 0.34, -0.78), eyeColor)
 		end
 		if look.Mask then
-			add(`{tag}Patch`, ball, Vector3.new(0.17, 0.2, 0.08), Vector3.new(side * 0.14, 0.34, -0.74), darkColor)
+			add(
+				`{tag}Patch`,
+				ball,
+				Vector3.new(0.17, 0.2, 0.08),
+				Vector3.new(side * 0.14, 0.34, -0.74),
+				darkColor
+			)
 		end
 		if look.Wings then
-			add(`{tag}Wing`, block, Vector3.new(0.05, 0.3, 0.42), Vector3.new(side * 0.38, 0.12, 0.08), accent, Vector3.new(0, 0, side * -18))
+			add(
+				`{tag}Wing`,
+				block,
+				Vector3.new(0.05, 0.3, 0.42),
+				Vector3.new(side * 0.38, 0.12, 0.08),
+				accent,
+				Vector3.new(0, 0, side * -18)
+			)
 		end
 		if look.Horns then
-			add(`{tag}Horn`, block, Vector3.new(0.06, 0.22, 0.06), Vector3.new(side * 0.13, 0.66, -0.52), if look.Accent then look.Accent else light, Vector3.new(0, 0, side * 12))
+			add(
+				`{tag}Horn`,
+				block,
+				Vector3.new(0.06, 0.22, 0.06),
+				Vector3.new(side * 0.13, 0.66, -0.52),
+				if look.Accent then look.Accent else light,
+				Vector3.new(0, 0, side * 12)
+			)
 		end
 	end
 
@@ -188,19 +276,68 @@ function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
 	if look.Tail == "Puff" then
 		add("Tail", ball, Vector3.new(0.22, 0.22, 0.22), Vector3.new(0, 0.1, 0.55), white)
 	elseif look.Tail == "Long" then
-		add("Tail", block, Vector3.new(0.1, 0.1, 0.5), Vector3.new(0, 0.14, 0.72), color, Vector3.new(-20, 0, 0))
+		add(
+			"Tail",
+			block,
+			Vector3.new(0.1, 0.1, 0.5),
+			Vector3.new(0, 0.14, 0.72),
+			color,
+			Vector3.new(-20, 0, 0)
+		)
 	elseif look.Tail == "Big" then
 		add("Tail", ball, Vector3.new(0.3, 0.38, 0.5), Vector3.new(0, 0.26, 0.64), color)
 		add("TailTip", ball, Vector3.new(0.22, 0.26, 0.2), Vector3.new(0, 0.3, 0.86), white)
 	elseif look.Tail == "Ring" then
-		add("Tail", block, Vector3.new(0.14, 0.14, 0.56), Vector3.new(0, 0.14, 0.74), light, Vector3.new(-18, 0, 0))
-		add("TailBand1", block, Vector3.new(0.15, 0.15, 0.1), Vector3.new(0, 0.12, 0.66), darkColor, Vector3.new(-18, 0, 0))
-		add("TailBand2", block, Vector3.new(0.15, 0.15, 0.1), Vector3.new(0, 0.18, 0.88), darkColor, Vector3.new(-18, 0, 0))
+		add(
+			"Tail",
+			block,
+			Vector3.new(0.14, 0.14, 0.56),
+			Vector3.new(0, 0.14, 0.74),
+			light,
+			Vector3.new(-18, 0, 0)
+		)
+		add(
+			"TailBand1",
+			block,
+			Vector3.new(0.15, 0.15, 0.1),
+			Vector3.new(0, 0.12, 0.66),
+			darkColor,
+			Vector3.new(-18, 0, 0)
+		)
+		add(
+			"TailBand2",
+			block,
+			Vector3.new(0.15, 0.15, 0.1),
+			Vector3.new(0, 0.18, 0.88),
+			darkColor,
+			Vector3.new(-18, 0, 0)
+		)
 	elseif look.Tail == "Feather" then
-		add("Tail", block, Vector3.new(0.18, 0.05, 0.5), Vector3.new(0, 0.12, 0.74), accent, Vector3.new(-14, 0, 0))
+		add(
+			"Tail",
+			block,
+			Vector3.new(0.18, 0.05, 0.5),
+			Vector3.new(0, 0.12, 0.74),
+			accent,
+			Vector3.new(-14, 0, 0)
+		)
 	elseif look.Tail == "Fin" then
-		add("Tail", block, Vector3.new(0.06, 0.34, 0.26), Vector3.new(0, 0.2, 0.62), accent, Vector3.new(20, 0, 0))
-		add("Fin", block, Vector3.new(0.06, 0.3, 0.3), Vector3.new(0, 0.42, -0.05), accent, Vector3.new(-25, 0, 0))
+		add(
+			"Tail",
+			block,
+			Vector3.new(0.06, 0.34, 0.26),
+			Vector3.new(0, 0.2, 0.62),
+			accent,
+			Vector3.new(20, 0, 0)
+		)
+		add(
+			"Fin",
+			block,
+			Vector3.new(0.06, 0.3, 0.3),
+			Vector3.new(0, 0.42, -0.05),
+			accent,
+			Vector3.new(-25, 0, 0)
+		)
 	end
 	if look.Spots then
 		add("Spot1", ball, Vector3.new(0.14, 0.05, 0.14), Vector3.new(-0.15, 0.285, 0.1), accent)
@@ -209,7 +346,13 @@ function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
 	end
 
 	if order >= epicOrder then
-		add("Gem", ball, Vector3.new(0.1, 0.1, 0.06), Vector3.new(0, 0.46, -0.78), charm.Color:Lerp(white, 0.5))
+		add(
+			"Gem",
+			ball,
+			Vector3.new(0.1, 0.1, 0.06),
+			Vector3.new(0, 0.46, -0.78),
+			charm.Color:Lerp(white, 0.5)
+		)
 	end
 	if order >= legendaryOrder then
 		local crown = add("Crown", block, Vector3.new(0.34, 0.1, 0.34), Vector3.new(0, 0.64, -0.5), gold)
@@ -217,7 +360,13 @@ function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
 		mesh.MeshType = Enum.MeshType.Cylinder
 		mesh.Parent = crown
 		for index, offset in { -0.11, 0, 0.11 } do
-			add(`CrownPoint{index}`, block, Vector3.new(0.07, 0.14, 0.07), Vector3.new(offset, 0.74, -0.5), gold)
+			add(
+				`CrownPoint{index}`,
+				block,
+				Vector3.new(0.07, 0.14, 0.07),
+				Vector3.new(offset, 0.74, -0.5),
+				gold
+			)
 		end
 	end
 

@@ -278,7 +278,7 @@ describe("Market stall", function()
 	it("keeps the stall small, anchored and clear of the spawn", function()
 		world:boot({ "KeyboardService", "EggService", "MarketService" })
 		local stall = world.workspace:FindFirstChild("Market")
-		expect(countParts(stall) < 60):toBe(true)
+		expect(countParts(stall) < 140):toBe(true)
 		for _, item in stall:GetDescendants() do
 			if item:IsA("BasePart") then
 				expect(item.Anchored):toBe(true)

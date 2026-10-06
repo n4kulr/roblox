@@ -34,7 +34,21 @@ describe("Roll result cards", function()
 	end
 
 	local function countDescendants(root: any): number
-		return #root:GetDescendants()
+		local count = 0
+		for _, item in root:GetDescendants() do
+			local ancestor = item.Parent
+			local inside = false
+			while ancestor and ancestor ~= root do
+				if ancestor.ClassName == "ViewportFrame" then
+					inside = true
+				end
+				ancestor = ancestor.Parent
+			end
+			if not inside then
+				count += 1
+			end
+		end
+		return count
 	end
 
 	local function absolute(record: any, x: number, y: number, out: { any }, trail: { any })

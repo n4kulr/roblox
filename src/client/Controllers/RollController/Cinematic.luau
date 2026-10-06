@@ -756,7 +756,13 @@ local function renderCap(self: Cinematic, t: number, fade: number, charge: numbe
 		if tier.Charge and t < ti then
 			spin += chargeSpin * charge * charge * t
 		end
-		Viewport.Pose(handle, spin % 360, 0, 0, math.sin(t * 3.2) * bobHeight * handle.Radius * (if post >= 0 then 1 else 0.3))
+		Viewport.Pose(
+			handle,
+			spin % 360,
+			0,
+			0,
+			math.sin(t * 3.2) * bobHeight * handle.Radius * (if post >= 0 then 1 else 0.3)
+		)
 	end
 	local base = if self._active then self._active.Payload.Rarity.Color else white
 	if tier.Rainbow and post >= 0 then

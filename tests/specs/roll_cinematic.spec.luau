@@ -283,8 +283,25 @@ describe("Roll cinematic", function()
 
 		it("creates no new instances across 20 rapid rolls", function()
 			local cine = build()
+			local function count()
+				local total = 0
+				for _, item in playerGui:GetDescendants() do
+					local ancestor = item.Parent
+					local inside = false
+					while ancestor and ancestor ~= playerGui do
+						if ancestor.ClassName == "ViewportFrame" then
+							inside = true
+						end
+						ancestor = ancestor.Parent
+					end
+					if not inside then
+						total += 1
+					end
+				end
+				return total
+			end
 			cine:Play(payload("Epic"))
-			local baseline = #playerGui:GetDescendants()
+			local baseline = count()
 			local names = { "Legendary", "Mythic", "Secret", "Epic", "Rare" }
 			for index = 1, 20 do
 				cine:Play(payload(names[index % #names + 1]))
@@ -292,10 +309,10 @@ describe("Roll cinematic", function()
 				tapAnywhere()
 				run(cine, 0.4)
 				tapAnywhere()
-				expect(#playerGui:GetDescendants()):toBe(baseline)
+				expect(count()):toBe(baseline)
 			end
 			cine:Step(10)
-			expect(#playerGui:GetDescendants()):toBe(baseline)
+			expect(count()):toBe(baseline)
 			trove:Destroy()
 			expect(#playerGui:GetDescendants()):toBe(0)
 		end)

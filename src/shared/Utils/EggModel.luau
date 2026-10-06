@@ -170,7 +170,11 @@ local function surface(y: number, thetaDegrees: number): (Vector3, Vector3)
 	local position = Vector3.new(math.cos(theta) * radius, y, math.sin(theta) * radius)
 	local relative = position - shape.Center
 	local half = shape.Size / 2
-	local normal = Vector3.new(relative.X / (half.X * half.X), relative.Y / (half.Y * half.Y), relative.Z / (half.Z * half.Z))
+	local normal = Vector3.new(
+		relative.X / (half.X * half.X),
+		relative.Y / (half.Y * half.Y),
+		relative.Z / (half.Z * half.Z)
+	)
 	return position, if normal.Magnitude > 0 then normal.Unit else Vector3.new(0, 1, 0)
 end
 
@@ -213,13 +217,7 @@ function EggModel.Build(parent: Instance, egg: Eggs.Egg, options: Options): { Ba
 	local ghost = options.Ghost
 	local look = EggModel.StyleOf(egg.Id)
 	local parts: { BasePart } = {}
-	local function add(
-		name: string,
-		size: Vector3,
-		offset: CFrame,
-		color: Color3,
-		mesh: Enum.MeshType?
-	): Part
+	local function add(name: string, size: Vector3, offset: CFrame, color: Color3, mesh: Enum.MeshType?): Part
 		local scaled = CFrame.new(offset.Position * scale) * (offset - offset.Position)
 		local part = piece(parent, name, size * scale, origin * scaled, if ghost then ghost else color, mesh)
 		part.Anchored = options.Anchored
