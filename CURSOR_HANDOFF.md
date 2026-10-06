@@ -204,3 +204,9 @@ Each plot has 8 key slots (`GameConfig.BoardSlots = 8` and `GameConfig.SlotCells
 - **Charms are now PETS:** keyboard-themed animals, stored in `PlayerData.Charms`. The best 6 are active automatically (`Rules/Charms.Best`). There is no Charms screen or button, and the `EquipCharm` packet is unused.
 - **Pet visuals:** active pets wander the owner's base as part-built placeholder animals (`EggService/Pets.luau`, `CharmController/Walkers.luau`, `Utils/PetWander.luau`). Swap in real animal models later.
 - **Base keys:** legends are A-Z only, the 8 slot keys are raised 0.6 studs, and each plot's filler keys are a pastel tint of its Base colour. The cosmetic circle uses the tint of its own colour.
+
+
+## Owner changes via Cursor (c36a443, reviewed)
+
+- **Admin commands:** `AdminService` adds `/readyeggs [player|all]` and `/hatchall [player|all]` in chat, plus `_G.ThockAdmin` (ReadyEggs/HatchAll). Admins are anyone in Studio, the place creator, or user ids in the `allowlist` table.
+- **Market prices:** eggs now cost a fixed price (`egg.MinPrice`) instead of scaling with income. The market always lists every egg; eggs that didn't roll into stock show 0 stock.

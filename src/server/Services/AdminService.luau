@@ -8,9 +8,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 type TroveInstance = typeof(Trove.new())
 
-local allowlist: { [number]: boolean } = {
-	-- [123456789] = true,
-}
+local allowlist: { [number]: boolean } = {}
 
 local AdminService = {
 	Name = "AdminService",
