@@ -45,7 +45,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Text = "Rebirth 0 > 1",
 		Position = UDim2.fromOffset(10, 12),
 		Size = UDim2.new(1, -20, 0, 44),
-		TextSize = 36,
+		TextSize = Kit.Text.Headline,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -73,7 +73,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 			Text = caption,
 			Position = UDim2.fromOffset(0, 8),
 			Size = UDim2.new(1, 0, 0, 26),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Color = theme.TextDim,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -84,7 +84,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 			Text = "",
 			Position = UDim2.fromOffset(6, 40),
 			Size = UDim2.new(1, -12, 0, 60),
-			TextSize = 32,
+			TextSize = Kit.Text.Big,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -106,7 +106,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Text = "Requires",
 		Position = UDim2.fromOffset(10, 200),
 		Size = UDim2.new(1, -20, 0, 26),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -117,7 +117,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(40, 230),
 		Size = UDim2.new(1, -80, 0, 40),
 		Color = theme.Green,
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 	})
 
 	local action = Kit.Button(trove, {
@@ -131,7 +131,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(300, 70),
 		Color = theme.Green,
-		TextSize = 40,
+		TextSize = Kit.Text.Jumbo,
 		Callback = function()
 			if isBusy then
 				return
@@ -166,7 +166,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0, 10, 1, -8),
 		AnchorPoint = Vector2.new(0, 1),
 		Size = UDim2.new(1, -20, 0, 32),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,

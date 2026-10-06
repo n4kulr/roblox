@@ -58,7 +58,7 @@ function EggArt.Build(parent: Instance, egg: Eggs.Egg, height: number, name: str
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
 	if egg.Id == "Rainbow" then
-		body.BackgroundColor3 = Color3.new(1, 1, 1)
+		body.BackgroundColor3 = theme.White
 		gradient.Color = rainbow
 		gradient.Rotation = 60
 	else
@@ -88,7 +88,7 @@ function EggArt.Build(parent: Instance, egg: Eggs.Egg, height: number, name: str
 	shine.Position = UDim2.fromScale(0.16, 0.12)
 	shine.Size = UDim2.fromScale(0.14, 0.24)
 	shine.BorderSizePixel = 0
-	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.BackgroundColor3 = theme.White
 	shine.BackgroundTransparency = 0.45
 	shine.Rotation = 18
 	shine.Parent = body
@@ -106,7 +106,7 @@ function EggArt.Build(parent: Instance, egg: Eggs.Egg, height: number, name: str
 		crack.BorderSizePixel = 0
 		crack.BackgroundColor3 = theme.Ink
 		crack.Visible = false
-		crack.ZIndex = 3
+		crack.ZIndex = Kit.ZIndex.Fill
 		crack.Parent = body
 		table.insert(cracks, crack)
 	end

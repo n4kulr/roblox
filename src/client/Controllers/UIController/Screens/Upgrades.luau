@@ -45,7 +45,7 @@ local modeAmounts: { [string]: number } = { x1 = 1, x10 = 10, MAX = 0 }
 
 local cardColors: { [string]: Color3 } = {
 	Luck = theme.Green,
-	Speed = theme.Yellow,
+	Speed = theme.Gold,
 	Slots = theme.Blue,
 	Income = theme.Gold,
 	Walls = theme.Orange,
@@ -64,7 +64,6 @@ local lockButtonWidth = 200
 local lockCardOrder = 900
 local lockReadyText = "LOCK BASE"
 local lockToast = "Lasers on! Your base is locked."
-local greyColor = Color3.fromRGB(120, 124, 134)
 
 local effectShortenings: { { string } } = {
 	{ " each level", "" },
@@ -122,7 +121,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Name = "List",
 		Position = UDim2.fromOffset(6, modeBarHeight + modeBarGap * 2),
 		Size = UDim2.new(1, -12, 1, -(modeBarHeight + modeBarGap * 2 + 4)),
-		Padding = 12,
+		Padding = Kit.Space.M,
 	})
 
 	local function buyPlan(upgrade: Upgrades.Upgrade, level: number): (number, number, boolean)
@@ -271,7 +270,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Selected = mode,
 		Position = UDim2.new(0.5, -modeBarWidth // 2, 0, modeBarGap),
 		Size = UDim2.fromOffset(modeBarWidth, modeBarHeight),
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		OnSelect = function(id: string)
 			mode = id
 			refreshAll()
@@ -313,7 +312,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Text = "",
 			Position = UDim2.fromOffset(layout.Left, 42),
 			Size = UDim2.new(1, -(layout.Left + layout.Right), 0, 24),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Color = theme.Subtext,
 			Subtle = true,
 			Scaled = true,
@@ -345,7 +344,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0.5),
 			Size = UDim2.fromOffset(buyWidth, 60),
 			Color = theme.Green,
-			TextSize = 26,
+			TextSize = Kit.Text.Subhead,
 			Callback = function()
 				buy(row)
 			end,
@@ -392,7 +391,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			lockButton.SetDisabled(true)
 		elseif type(cooldownUntil) == "number" and now < cooldownUntil then
 			lockButton.SetText(`READY IN {clock(cooldownUntil - now)}`)
-			lockButton.SetColor(greyColor)
+			lockButton.SetColor(theme.GreyDeep)
 			lockButton.SetDisabled(true)
 		else
 			lockButton.SetText(lockReadyText)
@@ -447,7 +446,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0.5),
 			Size = UDim2.fromOffset(lockButtonWidth, 56),
 			Color = theme.Red,
-			TextSize = 26,
+			TextSize = Kit.Text.Subhead,
 			Callback = pressLock,
 			Sound = playUi,
 		})

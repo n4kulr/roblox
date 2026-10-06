@@ -234,7 +234,7 @@ describe("HUD", function()
 			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Grey:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
 			rollController.InBaseChanged:Fire(true)
 			expect(tag().Visible):toBe(false)
-			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Yellow:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
+			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Gold:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
 		end)
 
 		it("toasts and refuses a roll click outside the base", function()

@@ -33,11 +33,10 @@ type Stored = { Slot: number?, Bought: { [string]: number }? }
 
 local theme = Kit.Theme
 local config = GameConfig.Market
-local accent = Color3.fromRGB(255, 96, 48)
 local barHeight = 84
 local expandedExtra = 84
-local expandInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local popInfo = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local expandInfo = Kit.Motion.Base
+local popInfo = Kit.Motion.Pop
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
@@ -135,7 +134,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Title = "EGG MARKET",
 		Glyph = "Shop",
 		MaxSize = Vector2.new(900, 680),
-		HeaderColor = accent,
+		HeaderColor = theme.Ember,
 		OnClose = function()
 			context.Close("Market")
 		end,
@@ -147,7 +146,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Glyph = "Clock",
 		Text = "New stock in 0:00",
 		Size = UDim2.fromOffset(260, 40),
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 	})
 	local timer = timerPill.Label
 	local list = Kit.Scroll({
@@ -330,7 +329,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 				Size = UDim2.new(1 / count, -gap, 0, 30),
 				Position = UDim2.new((index - 1) / count, 0, 0, barHeight + 6),
 				Color = rarity.Color,
-				TextSize = 20,
+				TextSize = Kit.Text.Label,
 			})
 		end
 		Kit.Label({
@@ -339,7 +338,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Text = egg.Tagline,
 			Position = UDim2.fromOffset(2, barHeight + 42),
 			Size = UDim2.new(1, -2, 0, 24),
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 			Subtle = true,
 			Scaled = true,
 		})
@@ -408,7 +407,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Text = egg.Name,
 			Position = UDim2.fromOffset(112, 8),
 			Size = UDim2.new(1, -330, 0, 34),
-			TextSize = 30,
+			TextSize = Kit.Text.Banner,
 			Title = true,
 		})
 		Kit.Label({
@@ -417,7 +416,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Text = `Hatches in {TimeFormat.Clock(egg.HatchSeconds)}`,
 			Position = UDim2.fromOffset(112, 48),
 			Size = UDim2.fromOffset(176, 26),
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 			Subtle = true,
 		})
 		local stockText = Kit.Chip({
@@ -427,7 +426,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(104, 26),
 			Position = UDim2.fromOffset(296, 48),
 			Color = theme.Blue,
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 		})
 		local stockChip = stockText.Parent :: Frame
 		local stockScale = Instance.new("UIScale")
@@ -445,7 +444,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0.5),
 			Size = UDim2.fromOffset(190, 62),
 			Color = theme.Green,
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Callback = function()
 				buy(card)
 			end,
@@ -474,18 +473,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			scale.Name = "Intro"
 			scale.Scale = 0.85
 			scale.Parent = wrapper
-			Kit.Tween(
-				scale,
-				TweenInfo.new(
-					0.2,
-					Enum.EasingStyle.Back,
-					Enum.EasingDirection.Out,
-					0,
-					false,
-					(offer.Index - 1) * 0.04
-				),
-				{ Scale = 1 }
-			)
+			Kit.Tween(scale, Kit.Retime(Kit.Motion.Pop, 0.2, (offer.Index - 1) * 0.04), { Scale = 1 })
 		end
 	end
 

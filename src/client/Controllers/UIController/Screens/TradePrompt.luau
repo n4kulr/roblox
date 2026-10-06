@@ -16,7 +16,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local controller = context.Controllers.TradeController
 	local playUi = Kit.UiSound(context.Controllers)
-	local gui, root = Kit.ScreenGui("ThockTradePrompt", 9, context.PlayerGui, trove)
+	local gui, root = Kit.ScreenGui("ThockTradePrompt", Kit.Layer.Prompt, context.PlayerGui, trove)
 	local sendToken = 0
 	local inviteToken = 0
 	local pendingTarget: Player? = nil
@@ -31,7 +31,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(0.5, 1),
 			Color = theme.Panel,
 			Radius = Kit.Radius.Panel,
-			StrokeThickness = 4,
+			StrokeThickness = Kit.StrokeSize.Heavy,
 			Shards = true,
 		})
 		Kit.Icon({
@@ -48,7 +48,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			Text = title,
 			Position = UDim2.fromOffset(68, 10),
 			Size = UDim2.new(1, -80, 0, 48),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -80,7 +80,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0, 14, 1, -14),
 		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Green,
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Callback = function()
 			local target = pendingTarget
 			hideSend()
@@ -98,7 +98,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(1, -14, 1, -14),
 		AnchorPoint = Vector2.new(1, 1),
 		Color = theme.Red,
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Callback = hideSend,
 		Sound = playUi,
 	})
@@ -112,7 +112,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0, 14, 1, -14),
 		AnchorPoint = Vector2.new(0, 1),
 		Color = theme.Green,
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 		Callback = function()
 			hideInvite()
 			controller:Respond(pendingUserId, true)
@@ -129,7 +129,7 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(1, -14, 1, -14),
 		AnchorPoint = Vector2.new(1, 1),
 		Color = theme.Red,
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 		Callback = function()
 			hideInvite()
 			controller:Respond(pendingUserId, false)

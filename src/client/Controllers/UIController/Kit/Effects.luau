@@ -4,18 +4,12 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Core = require(script.Parent.Core)
+local Theme = require(script.Parent.Theme)
 
 type TroveInstance = typeof(Trove.new())
 
-local white = Color3.new(1, 1, 1)
-local rainbow = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 92, 110)),
-	ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 190, 70)),
-	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(110, 235, 110)),
-	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(70, 200, 255)),
-	ColorSequenceKeypoint.new(0.8, Color3.fromRGB(170, 110, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 92, 110)),
-})
+local white = Theme.Colors.White
+local rainbow = Theme.RainbowSequence()
 
 local Effects = {
 	RainbowColors = rainbow,
@@ -45,7 +39,7 @@ function Effects.Shimmer(trove: TroveInstance, parent: GuiObject, radius: number
 	band.BackgroundTransparency = 0
 	band.BorderSizePixel = 0
 	band.Size = UDim2.fromScale(1, 1)
-	band.ZIndex = 3
+	band.ZIndex = Theme.ZIndex.Fill
 	Core.Corner(band, radius)
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 25

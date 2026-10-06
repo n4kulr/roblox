@@ -51,7 +51,7 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Glyph = "Star",
 		Text = "Found 0/0",
 		Size = UDim2.fromOffset(190, 40),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Color = theme.Track,
 	})
 	local foundLabel = foundPill.Label
@@ -95,7 +95,7 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.new(1, 0, 0, filterHeight),
 			LayoutOrder = order,
 			Color = rarity.Color,
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Callback = function()
 				selected = if selected == rarity.Name then nil else rarity.Name
 				applyFilter()

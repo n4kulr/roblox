@@ -29,7 +29,7 @@ local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
 	SeasonPremium = { Glyph = "Pass" },
 	StarterPack = { Glyph = "Gift" },
 	LuckPotion = { Glyph = "Potion" },
-	ClicksPotion = { Glyph = "Potion", Color = Color3.fromRGB(255, 190, 40) },
+	ClicksPotion = { Glyph = "Potion", Color = theme.Amber },
 	ServerLuck = { Glyph = "Globe" },
 	ClicksSmall = { Glyph = "Clicks" },
 	ClicksLarge = { Glyph = "Income" },
@@ -38,7 +38,7 @@ local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
 local productColors: { [string]: Color3 } = {
 	StarterPack = theme.Orange,
 	LuckPotion = theme.Green,
-	ClicksPotion = theme.Yellow,
+	ClicksPotion = theme.Gold,
 	ServerLuck = theme.Purple,
 	Clicks = theme.Blue,
 }
@@ -158,7 +158,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 				Text = description,
 				Position = UDim2.fromOffset(10, iconSize + nameSize + 18),
 				Size = UDim2.new(1, -20, 0, 20),
-				TextSize = 16,
+				TextSize = Kit.Text.Small,
 				Align = Enum.TextXAlignment.Center,
 				Scaled = true,
 			})
@@ -196,7 +196,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Shards = true,
 		Radius = Kit.Radius.L,
 		Gloss = true,
-		StrokeThickness = 4,
+		StrokeThickness = Kit.StrokeSize.Heavy,
 	})
 	Kit.Icon({
 		Parent = banner,
@@ -211,7 +211,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Text = "STARTER PACK",
 		Position = UDim2.fromOffset(130, 18),
 		Size = UDim2.new(0.5, -130, 0, 48),
-		TextSize = 40,
+		TextSize = Kit.Text.Jumbo,
 		Title = true,
 		Scaled = true,
 	})
@@ -221,7 +221,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Text = "Clicks, a potion and an Epic key!",
 		Position = UDim2.fromOffset(130, 70),
 		Size = UDim2.new(0.5, -130, 0, 30),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Scaled = true,
 	})
 	local bannerButton = Kit.Button(trove, {
@@ -234,7 +234,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(1, 0.5),
 		Size = UDim2.fromOffset(190, 64),
 		Color = theme.Green,
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Callback = if starter then productCallback(starter) else comingSoon,
 		Sound = playUi,
 	})

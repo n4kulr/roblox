@@ -75,7 +75,7 @@ function Settings.new(context: Types.Context): Types.Screen
 		Name = "List",
 		Position = UDim2.fromOffset(6, 4),
 		Size = UDim2.new(1, -12, 1, -8),
-		Padding = 12,
+		Padding = Kit.Space.M,
 	})
 
 	local toggles: { [string]: Kit.Toggle } = {}
@@ -115,7 +115,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = title,
 			Position = UDim2.fromOffset(78, 8),
 			Size = UDim2.new(1, -230, 0, 36),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Scaled = true,
 			Title = true,
 		})
@@ -125,7 +125,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = detail,
 			Position = UDim2.fromOffset(78, 46),
 			Size = UDim2.new(1, -230, 0, 26),
-			TextSize = 17,
+			TextSize = Kit.Text.Note,
 			Subtle = true,
 			Scaled = true,
 		})
@@ -151,7 +151,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = title,
 			Position = UDim2.fromOffset(78, 6),
 			Size = UDim2.new(1, -230, 0, 36),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Scaled = true,
 			Title = true,
 		})
@@ -162,7 +162,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Position = UDim2.new(1, -14, 0, 8),
 			AnchorPoint = Vector2.new(1, 0),
 			Size = UDim2.fromOffset(90, 34),
-			TextSize = 26,
+			TextSize = Kit.Text.Subhead,
 			Align = Enum.TextXAlignment.Right,
 		})
 		local slider = Kit.Slider(trove, {
@@ -191,7 +191,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = "Big Reveal Effects",
 			Position = UDim2.fromOffset(78, 6),
 			Size = UDim2.new(1, -92, 0, 36),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Scaled = true,
 			Title = true,
 		})
@@ -201,7 +201,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Text = "Which pulls get the full-screen show",
 			Position = UDim2.fromOffset(78, 42),
 			Size = UDim2.new(1, -92, 0, 24),
-			TextSize = 17,
+			TextSize = Kit.Text.Note,
 			Subtle = true,
 			Scaled = true,
 		})
@@ -216,7 +216,7 @@ function Settings.new(context: Types.Context): Types.Screen
 			Size = UDim2.new(1, -24, 0, 46),
 			Tabs = tabs,
 			Selected = tostring(effectsDefault),
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 			OnSelect = function(id: string)
 				send("EffectsMinRarity", tonumber(id) or effectsDefault)
 			end,
@@ -238,7 +238,7 @@ function Settings.new(context: Types.Context): Types.Screen
 		Text = "CODES",
 		Position = UDim2.fromOffset(78, 8),
 		Size = UDim2.new(1, -92, 0, 36),
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Scaled = true,
 		Title = true,
 	})
@@ -259,7 +259,7 @@ function Settings.new(context: Types.Context): Types.Screen
 	codeBox.Position = UDim2.fromOffset(10, 0)
 	codeBox.Size = UDim2.new(1, -20, 1, 0)
 	codeBox.Font = Kit.Font
-	codeBox.TextSize = 24
+	codeBox.TextSize = Kit.Text.Title
 	codeBox.TextColor3 = theme.Text
 	codeBox.PlaceholderText = "Enter code"
 	codeBox.PlaceholderColor3 = theme.Disabled
@@ -278,7 +278,7 @@ function Settings.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(1, 0),
 		Size = UDim2.fromOffset(170, 56),
 		Color = theme.Green,
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		Callback = function()
 			local text = codeBox.Text
 			if isRedeeming or #text == 0 then

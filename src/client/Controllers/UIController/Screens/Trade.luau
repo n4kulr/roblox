@@ -14,7 +14,6 @@ type Entry = { KeyId: string, Count: number }
 type Picker = { Wrapper: Frame, Cell: Cells.Cell }
 
 local theme = Kit.Theme
-local teal = Color3.fromRGB(0, 168, 168)
 local warnRarity = "Epic"
 local pickerCellSize = UDim2.fromOffset(124, 196)
 local panelHeight = 0.4
@@ -51,7 +50,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Title = "TRADE",
 		Glyph = "Trade",
 		MaxSize = Vector2.new(920, 700),
-		HeaderColor = teal,
+		HeaderColor = theme.TealDeep,
 		OnClose = function()
 			context.Close("Trade")
 		end,
@@ -65,7 +64,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = offerTexts.Open,
 		Position = UDim2.fromOffset(8, 4),
 		Size = UDim2.new(1, -16, 0, 30),
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		Color = theme.Gold,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -93,7 +92,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Text = name,
 			Position = UDim2.fromOffset(8, 4),
 			Size = UDim2.new(1, -16, 0, 26),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -126,7 +125,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.new(0.5, -9, 1, 0),
 		Color = theme.Grey,
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Callback = function()
 			local state = controller:GetState()
 			if state then
@@ -149,7 +148,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = "Waiting...",
 		Position = UDim2.fromOffset(8, 0),
 		Size = UDim2.new(1, -16, 1, 0),
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -160,7 +159,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = offerTexts.Warning,
 		Position = UDim2.new(0, 8, panelHeight, 100),
 		Size = UDim2.new(1, -16, 0, 24),
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Color = theme.Orange,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -173,7 +172,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = "YOUR SPARE KEYS",
 		Position = UDim2.new(0, 8, panelHeight, 126),
 		Size = UDim2.new(1, -16, 0, 22),
-		TextSize = 18,
+		TextSize = Kit.Text.Body,
 		Color = theme.TextDim,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -219,7 +218,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(58, 36),
 			Position = UDim2.fromOffset(0, 152),
 			Color = theme.Red,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			Callback = function()
 				adjust(keyId, -1)
 			end,
@@ -232,7 +231,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(58, 36),
 			Position = UDim2.fromOffset(66, 152),
 			Color = theme.Green,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			Callback = function()
 				adjust(keyId, 1)
 			end,

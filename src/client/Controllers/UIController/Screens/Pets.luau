@@ -75,7 +75,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		Title = "PETS",
 		Glyph = "Heart",
 		MaxSize = Vector2.new(900, 640),
-		HeaderColor = theme.Yellow,
+		HeaderColor = theme.Gold,
 		OnClose = function()
 			context.Close("Pets")
 		end,
@@ -87,7 +87,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		Glyph = "Heart",
 		Text = "0 pets",
 		Size = UDim2.fromOffset(170, 40),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Color = theme.Track,
 	})
 	local scroll = Kit.Scroll({
@@ -164,7 +164,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			Text = charm.Name,
 			Position = UDim2.fromOffset(70, 8),
 			Size = UDim2.new(1, -80, 0, 28),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Scaled = true,
 			Title = true,
 		})
@@ -175,7 +175,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			Position = UDim2.fromOffset(70, 40),
 			Size = UDim2.fromOffset(110, 24),
 			Color = Kit.Shade(color, -0.35),
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 		})
 		Kit.Label({
 			Parent = card,
@@ -183,7 +183,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			Text = Charms.Describe(charm.Id),
 			Position = UDim2.fromOffset(8, 72),
 			Size = UDim2.new(1, -16, 0, 44),
-			TextSize = 30,
+			TextSize = Kit.Text.Banner,
 			Align = Enum.TextXAlignment.Center,
 			Color = if isActive then theme.Text else theme.TextDim,
 			Scaled = true,
@@ -198,7 +198,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 				Position = UDim2.new(1, -8, 0, 40),
 				Size = UDim2.fromOffset(52, 24),
 				Color = theme.Ink,
-				TextSize = 18,
+				TextSize = Kit.Text.Body,
 			})
 		end
 	end
@@ -224,7 +224,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			Text = "Hatch eggs at the Egg Market to get pets!",
 			Position = UDim2.fromOffset(16, 98),
 			Size = UDim2.new(1, -32, 0, 40),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 			Title = true,
@@ -239,7 +239,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 			Position = UDim2.new(0.5, 0, 1, -18),
 			Size = UDim2.fromOffset(200, 58),
 			Color = theme.Orange,
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Pill = true,
 			Callback = function()
 				local ok, reason = rollController:TeleportToMarket()
@@ -310,7 +310,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		)
 		local summaryPadding = Instance.new("UIPadding")
 		summaryPadding.PaddingLeft = UDim.new(0, 14)
-		summaryPadding.PaddingTop = UDim.new(0, 4)
+		summaryPadding.PaddingTop = UDim.new(0, Kit.Space.Xs)
 		summaryPadding.Parent = summary
 		for index, bonus in bonuses do
 			local info = CharmConfig.Kinds[bonus.Kind]
@@ -321,7 +321,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 				Text = bonus.Text,
 				DiscColor = info.Color,
 				LayoutOrder = index,
-				TextSize = 22,
+				TextSize = Kit.Text.Strong,
 			})
 		end
 
@@ -339,7 +339,7 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 				Name = "StoredNote",
 				Text = `Only your best {CharmConfig.ActiveLimit} pets are active`,
 				Size = UDim2.new(1, 0, 0, 24),
-				TextSize = 20,
+				TextSize = Kit.Text.Label,
 				Subtle = true,
 				Scaled = true,
 				LayoutOrder = 6,

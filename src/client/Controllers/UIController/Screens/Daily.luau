@@ -28,7 +28,7 @@ local refreshSeconds = 0.25
 local claimedColor = Kit.Shade(theme.Green, 0.6)
 local iconRest = UDim2.fromScale(0.2, 0.08)
 local iconUp = UDim2.fromScale(0.2, -0.02)
-local bounceInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, true)
+local bounceInfo = Kit.Motion.Bounce
 
 local rewardGlyph: { [string]: string } = {
 	Cash = "Clicks",
@@ -37,7 +37,7 @@ local rewardGlyph: { [string]: string } = {
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
-	ClicksPotion = Color3.fromRGB(255, 190, 40),
+	ClicksPotion = theme.Amber,
 }
 
 local function minutesText(seconds: number): string
@@ -75,7 +75,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Text = "Play to unlock gifts!",
 		Position = UDim2.fromOffset(10, 8),
 		Size = UDim2.new(1, -20, 0, 40),
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -212,7 +212,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Text = "",
 			Color = theme.Grey,
 			LayoutOrder = index,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			IconScale = 0.4,
 			Callback = function()
 				claim(index)
@@ -232,7 +232,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Text = Playtime.Name(tier.Seconds),
 			Position = UDim2.fromOffset(8, 4),
 			Size = UDim2.new(0.5, 0, 0, 20),
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 		})
 		local row = Instance.new("Frame")
 		row.Name = "Row"
@@ -243,7 +243,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		rowList.FillDirection = Enum.FillDirection.Horizontal
 		rowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rowList.VerticalAlignment = Enum.VerticalAlignment.Center
-		rowList.Padding = UDim.new(0, 4)
+		rowList.Padding = UDim.new(0, Kit.Space.Xs)
 		rowList.Parent = row
 		row.Parent = face
 		Kit.Icon({
@@ -259,7 +259,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Name = "Reward",
 			Text = "",
 			Size = UDim2.new(1, -34, 1, 0),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Align = Enum.TextXAlignment.Left,
 			Scaled = true,
 			LayoutOrder = 2,

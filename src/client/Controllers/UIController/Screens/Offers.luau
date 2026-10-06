@@ -34,7 +34,7 @@ function Offers.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local dataController = context.Controllers.DataController
 	local boostState = BoostState.Track(dataController, trove)
-	local gui, root = Kit.ScreenGui("ThockOffers", 1, context.PlayerGui, trove)
+	local gui, root = Kit.ScreenGui("ThockOffers", Kit.Layer.Hud, context.PlayerGui, trove)
 
 	local stack = Instance.new("Frame")
 	stack.Name = "BoostBadges"
@@ -66,7 +66,7 @@ function Offers.new(context: Types.Context): Types.Screen
 			DiscColor = color,
 			Size = UDim2.fromOffset(chipWidth - 10, statHeight),
 			LayoutOrder = order,
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 		})
 		pill.Instance.Visible = false
 		return { Frame = pill.Instance, Caption = pill, Timer = pill.Label }

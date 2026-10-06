@@ -17,7 +17,7 @@ type Page = { Name: string, Scroll: ScrollingFrame, Tab: TextButton, Order: numb
 local developerAttribute = "IsDeveloper"
 local confirmSeconds = 3
 local confirmText = "CONFIRM?"
-local displayOrder = 200
+local displayOrder = Kit.Layer.Debug
 local windowWidth = 300
 local minWindowWidth = 240
 local minWindowHeight = 180
@@ -627,7 +627,7 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 			handle.BorderSizePixel = 0
 			handle.Position = at
 			handle.Size = extent
-			handle.ZIndex = 5
+			handle.ZIndex = Kit.ZIndex.Badge
 			handle.Parent = window
 			table.insert(resizeHandles, handle)
 			own:Connect(handle.InputBegan, function(input: InputObject)

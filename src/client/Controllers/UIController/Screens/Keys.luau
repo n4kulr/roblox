@@ -85,7 +85,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.fromOffset(172, 46),
 		Color = theme.Blue,
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		LayoutOrder = -1,
 		Callback = function()
 			sortMode = sortMode % #sortModes + 1
@@ -102,7 +102,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.fromOffset(176, 46),
 		Color = theme.Green,
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Callback = function()
 			if isEquipping then
 				return
@@ -138,7 +138,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "No keys yet! Hit ROLL to find some!",
 		Position = UDim2.new(0, 20, 0.5, -30),
 		Size = UDim2.new(1, -40, 0, 60),
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 		Align = Enum.TextXAlignment.Center,
 		Wrapped = true,
 	})
@@ -150,7 +150,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(gridShare, 3, 0, 6),
 		Color = theme.PanelDeep,
 		Radius = Kit.Radius.Panel,
-		StrokeThickness = 4,
+		StrokeThickness = Kit.StrokeSize.Heavy,
 	})
 	detail.Visible = false
 	local scroller = Instance.new("ScrollingFrame")
@@ -196,11 +196,11 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	viewport.Parent = previewArea
 	local flash = Instance.new("Frame")
 	flash.Name = "Flash"
-	flash.BackgroundColor3 = Color3.new(1, 1, 1)
+	flash.BackgroundColor3 = theme.White
 	flash.BackgroundTransparency = 1
 	flash.BorderSizePixel = 0
 	flash.Size = UDim2.fromScale(1, 1)
-	flash.ZIndex = 8
+	flash.ZIndex = Kit.ZIndex.Hover
 	flash.Parent = previewArea
 	Kit.Corner(flash, Kit.Radius.L)
 
@@ -210,7 +210,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(6, 144),
 		Size = UDim2.new(1, -12, 0, 34),
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Title = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -223,7 +223,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0.5, -4, 0, 182),
 		AnchorPoint = Vector2.new(1, 0),
 		Color = theme.Grey,
-		TextSize = 14,
+		TextSize = Kit.Text.Caption,
 	})
 	local tierChip = Kit.Chip({
 		Parent = content,
@@ -232,7 +232,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Size = UDim2.fromOffset(104, 24),
 		Position = UDim2.new(0.5, 4, 0, 182),
 		Color = theme.Grey,
-		TextSize = 14,
+		TextSize = Kit.Text.Caption,
 	})
 	local detailIncome = Kit.Label({
 		Parent = content,
@@ -240,7 +240,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(6, 212),
 		Size = UDim2.new(1, -12, 0, 42),
-		TextSize = 36,
+		TextSize = Kit.Text.Headline,
 		Color = theme.Good,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -253,7 +253,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(6, 256),
 		Size = UDim2.new(1, -12, 0, 22),
-		TextSize = 18,
+		TextSize = Kit.Text.Body,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -263,7 +263,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(6, 278),
 		Size = UDim2.new(1, -12, 0, 22),
-		TextSize = 18,
+		TextSize = Kit.Text.Body,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -274,7 +274,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(6, 300),
 		Size = UDim2.new(1, -12, 0, 22),
-		TextSize = 18,
+		TextSize = Kit.Text.Body,
 		Color = theme.Gold,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -285,9 +285,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Name = "Fuse",
 		Size = UDim2.new(1, -12, 0, 150),
 		Position = UDim2.fromOffset(6, 326),
-		Color = theme.Well,
+		Color = theme.Inset,
 		Radius = Kit.Radius.L,
-		StrokeThickness = 3,
+		StrokeThickness = Kit.StrokeSize.Normal,
 	})
 	local fuseTitle = Kit.Label({
 		Parent = fusePanel,
@@ -295,7 +295,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(8, 6),
 		Size = UDim2.new(1, -16, 0, 26),
-		TextSize = 17,
+		TextSize = Kit.Text.Note,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -306,7 +306,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(12, 36),
 		Color = theme.Green,
 		Text = "0/5",
-		TextSize = 16,
+		TextSize = Kit.Text.Small,
 	})
 	local fuseBoost = Kit.Label({
 		Parent = fusePanel,
@@ -314,7 +314,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "",
 		Position = UDim2.fromOffset(8, 66),
 		Size = UDim2.new(1, -16, 0, 22),
-		TextSize = 17,
+		TextSize = Kit.Text.Note,
 		Color = theme.Gold,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -329,7 +329,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	sellRow.Parent = content
 	local sellLayout = Instance.new("UIListLayout")
 	sellLayout.FillDirection = Enum.FillDirection.Horizontal
-	sellLayout.Padding = UDim.new(0, 8)
+	sellLayout.Padding = UDim.new(0, Kit.Space.S)
 	sellLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sellLayout.Parent = sellRow
 
@@ -419,7 +419,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local function setLayout(showDetail: boolean)
 		detail.Visible = showDetail
-		Kit.Tween(grid, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+		Kit.Tween(grid, Kit.Motion.Base, {
 			Size = if showDetail then splitGridSize else fullGridSize,
 		})
 	end
@@ -547,21 +547,17 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				Position = start,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 			})
-			flyer.Instance.ZIndex = 10
-			Kit.Tween(
-				flyer.Instance,
-				TweenInfo.new(fuseSeconds * 0.65, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-				{ Position = center }
-			)
+			flyer.Instance.ZIndex = Kit.ZIndex.Hit
+			Kit.Tween(flyer.Instance, Kit.Retime(Kit.Motion.Pull, fuseSeconds * 0.65), { Position = center })
 			task.delay(fuseSeconds * 0.65, function()
 				flyer.Instance:Destroy()
 			end)
 		end
 		task.delay(fuseSeconds * 0.65, function()
 			flash.BackgroundTransparency = 0.1
-			Kit.Tween(flash, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { BackgroundTransparency = 1 })
+			Kit.Tween(flash, Kit.Motion.Slow, { BackgroundTransparency = 1 })
 			previewPop.Scale = 0.6
-			Kit.Tween(previewPop, Kit.PopInfo(), { Scale = 1 })
+			Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
 		end)
 	end
 
@@ -611,7 +607,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(12, 94),
 		Size = UDim2.new(1, -24, 0, 50),
 		Color = theme.Grey,
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Title = true,
 		Callback = fuse,
 		Sound = playUi,
@@ -625,7 +621,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.new(0.5, -4, 1, 0),
 		Color = theme.Green,
-		TextSize = 17,
+		TextSize = Kit.Text.Note,
 		LayoutOrder = 1,
 		Callback = function()
 			local keyId = detailKey
@@ -644,7 +640,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.new(0.5, -4, 1, 0),
 		Color = theme.Orange,
-		TextSize = 17,
+		TextSize = Kit.Text.Note,
 		LayoutOrder = 2,
 		Callback = function()
 			local keyId = detailKey
@@ -685,7 +681,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		isConfirming = false
 		setLayout(true)
 		previewPop.Scale = 0.85
-		Kit.Tween(previewPop, Kit.PopInfo(), { Scale = 1 })
+		Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
 		refreshDetail()
 	end
 

@@ -128,9 +128,10 @@ export type TabBar = {
 }
 
 local colors = Theme.Colors
-local pressInfo = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local hoverInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local springInfo = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local motion = Theme.Motion
+local pressInfo = motion.Press
+local hoverInfo = motion.Fast
+local springInfo = motion.Spring
 
 local Controls = {
 	ButtonHeight = 52,
@@ -151,7 +152,7 @@ local function buildTooltip(root: GuiObject, text: string, side: string): Frame
 	tip.BorderSizePixel = 0
 	tip.AutomaticSize = Enum.AutomaticSize.X
 	tip.Size = UDim2.fromOffset(0, 34)
-	tip.ZIndex = 20
+	tip.ZIndex = Theme.ZIndex.Tooltip
 	tip.Visible = false
 	if side == "Left" then
 		tip.AnchorPoint = Vector2.new(1, 0.5)
@@ -167,24 +168,24 @@ local function buildTooltip(root: GuiObject, text: string, side: string): Frame
 		tip.Position = UDim2.new(1, 12, 0.5, 0)
 	end
 	Core.Corner(tip, 10)
-	local edge = Core.Stroke(tip, colors.Text, 2)
-	edge.Transparency = 0.6
+	local edge = Core.Stroke(tip, colors.Text, Theme.Stroke.Thin)
+	edge.Transparency = Theme.Transparency.Heavy
 	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 12)
-	padding.PaddingRight = UDim.new(0, 12)
+	padding.PaddingLeft = UDim.new(0, Theme.Space.M)
+	padding.PaddingRight = UDim.new(0, Theme.Space.M)
 	padding.Parent = tip
 	local label = Core.Label({
 		Parent = tip,
 		Name = "Text",
 		Text = text,
 		Size = UDim2.fromOffset(0, 34),
-		TextSize = 17,
+		TextSize = Theme.Text.Note,
 		Outline = false,
 		Align = Enum.TextXAlignment.Center,
 	})
 	label.AutomaticSize = Enum.AutomaticSize.X
 	label.TextTruncate = Enum.TextTruncate.None
-	label.ZIndex = 21
+	label.ZIndex = Theme.ZIndex.TooltipText
 	tip.Parent = root
 	return tip
 end
@@ -198,7 +199,7 @@ function Controls.Tooltip(trove: TroveInstance, target: GuiObject, text: string,
 	hit.BorderSizePixel = 0
 	hit.Text = ""
 	hit.Size = UDim2.fromScale(1, 1)
-	hit.ZIndex = 10
+	hit.ZIndex = Theme.ZIndex.Hit
 	hit.Parent = target
 	trove:Connect(hit.MouseEnter, function()
 		if UserInputService:GetLastInputType() == Enum.UserInputType.MouseMovement then
@@ -343,7 +344,7 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 			return
 		end
 		outline.Color = if isSelected then colors.Gold else colors.Ink
-		outline.Thickness = if isSelected then 4.5 else Theme.Stroke.Normal
+		outline.Thickness = if isSelected then Theme.Stroke.Selected else Theme.Stroke.Normal
 	end
 
 	local function settle()
@@ -456,9 +457,8 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 			end
 			isGlowing = isOn
 			if isOn then
-				outline.Color = Color3.fromRGB(255, 240, 150)
-				local loop = TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-				glowTween = TweenService:Create(outline, loop, { Thickness = 6 })
+				outline.Color = colors.Ring
+				glowTween = TweenService:Create(outline, motion.Glow, { Thickness = Theme.Stroke.Outline })
 				if glowTween then
 					glowTween:Play()
 				end
@@ -484,10 +484,10 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 				badge.AnchorPoint = Vector2.new(1, 0)
 				badge.Position = UDim2.new(1, 0, 0, -8)
 				badge.Size = UDim2.fromOffset(26, 26)
-				badge.ZIndex = 4
+				badge.ZIndex = Theme.ZIndex.Mark
 				Core.Paint(badge, colors.Track)
 				Core.Round(badge)
-				Core.Stroke(badge, colors.Ink, 2)
+				Core.Stroke(badge, colors.Ink, Theme.Stroke.Thin)
 				Core.Icon({
 					Parent = badge,
 					Name = "Icon",
@@ -533,7 +533,7 @@ local function styleScroll(scroll: ScrollingFrame)
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
 	scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroll.ScrollBarThickness = 8
+	scroll.ScrollBarThickness = Theme.Space.S
 	scroll.ScrollBarImageColor3 = Theme.Shade(colors.InsetEdge, -0.3)
 end
 
@@ -613,7 +613,7 @@ function Controls.Slider(trove: TroveInstance, props: SliderProps): Slider
 		Gloss = true,
 		Pill = true,
 	})
-	knob.ZIndex = 5
+	knob.ZIndex = Theme.ZIndex.Badge
 	hit.Parent = props.Parent
 
 	local function show(newValue: number)
@@ -701,7 +701,7 @@ function Controls.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 		Name = "State",
 		Text = "OFF",
 		Size = UDim2.new(0, 50, 1, 0),
-		TextSize = 22,
+		TextSize = Theme.Text.Strong,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -714,7 +714,7 @@ function Controls.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 		Color = colors.Text,
 		Pill = true,
 	})
-	knob.ZIndex = 3
+	knob.ZIndex = Theme.ZIndex.Fill
 	local pressScale = Instance.new("UIScale")
 	pressScale.Parent = button
 	button.Parent = props.Parent
@@ -816,7 +816,7 @@ end
 
 function Controls.Pulse(target: GuiObject, color: Color3?, peak: number?)
 	local top = peak or 1.04
-	local settle = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local settle = motion.Fast
 	if top ~= 1 then
 		local existing = target:FindFirstChild("PulseScale")
 		local scale: UIScale
@@ -827,10 +827,7 @@ function Controls.Pulse(target: GuiObject, color: Color3?, peak: number?)
 			scale.Name = "PulseScale"
 			scale.Parent = target
 		end
-		local rise =
-			Controls.Tween(scale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Scale = top,
-			})
+		local rise = Controls.Tween(scale, motion.SpringQuick, { Scale = top })
 		rise.Completed:Once(function()
 			Controls.Tween(scale, settle, { Scale = 1 })
 		end)
@@ -845,9 +842,7 @@ function Controls.Pulse(target: GuiObject, color: Color3?, peak: number?)
 		local rest = base :: Color3
 		local flash = Controls.Tween(stroke, settle, { Color = color or colors.Good })
 		flash.Completed:Once(function()
-			Controls.Tween(stroke, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Color = rest,
-			})
+			Controls.Tween(stroke, motion.Fade, { Color = rest })
 		end)
 	end
 end

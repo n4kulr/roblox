@@ -45,8 +45,6 @@ local rollHeight = 104
 local barGap = 14
 local barHalfWidth = rollWidth / 2 + barGap + cell
 local sideReserve = 260
-local goldenColor = Color3.fromHex("FFB820")
-local ringColor = Color3.fromRGB(255, 240, 150)
 local countRate = 9
 
 local function multiplierText(value: number): string
@@ -63,7 +61,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local dataController = context.Controllers.DataController
 	local rollController = context.Controllers.RollController
 	local playUi = Kit.UiSound(context.Controllers)
-	local gui, root = Kit.ScreenGui("ThockHud", 1, context.PlayerGui, trove)
+	local gui, root = Kit.ScreenGui("ThockHud", Kit.Layer.Hud, context.PlayerGui, trove)
 	local tracker = Economy.Track(dataController, trove)
 	local tutorialStep = 0
 	local lastCash = ""
@@ -114,7 +112,7 @@ function Hud.new(context: Types.Context): Types.Screen
 			Color = color,
 			Size = UDim2.fromOffset(cell, cell),
 			LayoutOrder = order,
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 			IconScale = 0.6,
 			Tooltip = tip,
 			TooltipSide = side,
@@ -145,7 +143,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local dailyButton =
 		leftButton("DailyRewards", "Gift", "GIFTS", theme.Teal, 5, "Free gifts for playing!", "Daily")
 	local petsButton =
-		leftButton("Pets", "Heart", "PETS", theme.Yellow, 6, "See your pets and what they do!", "Pets")
+		leftButton("Pets", "Heart", "PETS", theme.Gold, 6, "See your pets and what they do!", "Pets")
 	local petsBadge = Kit.Badge(petsButton.Instance, "!")
 	petsBadge.Visible = false
 	local ownedPets = 0
@@ -187,17 +185,14 @@ function Hud.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(1, 8, 0, -8),
 		AnchorPoint = Vector2.new(1, 0),
 		Color = theme.Blue,
-		TextSize = 16,
+		TextSize = Kit.Text.Small,
 	}).Parent :: Frame
-	dailyTimer.ZIndex = 5
+	dailyTimer.ZIndex = Kit.ZIndex.Badge
 	dailyTimer.Visible = false
 	local dailyTimerText = dailyTimer:FindFirstChild("Text") :: TextLabel
 	local dailyBadgeHome = dailyBadge.Position
-	local dailyBadgeHop = Kit.Tween(
-		dailyBadge,
-		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, true),
-		{ Position = dailyBadgeHome - UDim2.fromOffset(0, 5) }
-	)
+	local dailyBadgeHop =
+		Kit.Tween(dailyBadge, Kit.Motion.Bounce, { Position = dailyBadgeHome - UDim2.fromOffset(0, 5) })
 	trove:Add(function()
 		dailyBadgeHop:Cancel()
 	end)
@@ -254,8 +249,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		"See the best players!",
 		"Leaderboards"
 	)
-	local passButton =
-		sideButton("Pass", "Pass", "PASS", theme.Yellow, 3, "Season rewards to claim!", "Season")
+	local passButton = sideButton("Pass", "Pass", "PASS", theme.Gold, 3, "Season rewards to claim!", "Season")
 	local passBadge = Kit.Badge(passButton.Instance, "!")
 	passBadge.Visible = false
 
@@ -308,7 +302,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Size = UDim2.fromOffset(270, 46),
 		Position = UDim2.new(0, hintX, 0.5, hintY),
 		AnchorPoint = Vector2.new(0, 0.5),
-		Color = theme.Yellow,
+		Color = theme.Gold,
 		Pill = true,
 		Gloss = true,
 	})
@@ -319,15 +313,11 @@ function Hud.new(context: Types.Context): Types.Screen
 		Text = "Buy your first upgrade!",
 		Position = UDim2.fromOffset(12, 0),
 		Size = UDim2.new(1, -24, 1, 0),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	local bounce = Kit.Tween(
-		tooltip,
-		TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = UDim2.new(0, hintX - 10, 0.5, hintY) }
-	)
+	local bounce = Kit.Tween(tooltip, Kit.Motion.Throb, { Position = UDim2.new(0, hintX - 10, 0.5, hintY) })
 	bounce:Pause()
 	trove:Add(function()
 		bounce:Cancel()
@@ -358,7 +348,7 @@ function Hud.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(topButtonWidth, Kit.TabBarHeight),
 			Position = UDim2.fromOffset(x, 0),
 			Color = color,
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Pill = true,
 			Callback = function()
 				local ok, reason = go()
@@ -417,7 +407,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Name = "Cash",
 		Text = "...",
 		Size = UDim2.fromOffset(0, Kit.ClicksHeight),
-		TextSize = 34,
+		TextSize = Kit.Text.Display,
 		LayoutOrder = 2,
 	})
 	cashLabel.AutomaticSize = Enum.AutomaticSize.X
@@ -427,7 +417,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Name = "Income",
 		Text = "",
 		Size = UDim2.fromOffset(0, Kit.ClicksHeight),
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Color = theme.Good,
 		LayoutOrder = 3,
 	})
@@ -464,14 +454,14 @@ function Hud.new(context: Types.Context): Types.Screen
 			DiscColor = discColor,
 			Size = UDim2.fromOffset(statWidth - 10, statHeight),
 			LayoutOrder = order,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 		})
 		Kit.Tooltip(trove, pill.Instance, tip, "Left")
 		return pill.Label
 	end
 	local statText: StatLabels = {
 		Luck = statChip("Luck", "LUCK", "Luck", theme.Green, 1, "Higher Luck finds rarer keys!"),
-		Speed = statChip("Speed", "SPEED", "Speed", theme.Yellow, 2, "Rolls you make every second!"),
+		Speed = statChip("Speed", "SPEED", "Speed", theme.Gold, 2, "Rolls you make every second!"),
 		Income = statChip("Income", "CLICKS", "Clicks", theme.Orange, 3, "Multiplies your Clicks!"),
 	}
 
@@ -527,8 +517,8 @@ function Hud.new(context: Types.Context): Types.Screen
 		Name = "Roll",
 		Text = "ROLL!",
 		Size = UDim2.fromScale(1, 1),
-		Color = theme.Yellow,
-		TextSize = 54,
+		Color = theme.Gold,
+		TextSize = Kit.Text.Hero,
 		Title = true,
 		Lip = 10,
 		Immediate = true,
@@ -548,23 +538,23 @@ function Hud.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0.5, 0, 0, -12),
 		AnchorPoint = Vector2.new(0.5, 0),
 		Color = theme.Red,
-		StrokeThickness = 2,
+		StrokeThickness = Kit.StrokeSize.Thin,
 		Pill = true,
 	})
-	baseTag.ZIndex = 6
+	baseTag.ZIndex = Kit.ZIndex.BadgeText
 	baseTag.Visible = false
 	local baseTagText = Kit.Label({
 		Parent = baseTag,
 		Name = "Text",
 		Text = "GO TO YOUR BASE",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 16,
+		TextSize = Kit.Text.Small,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	baseTagText.ZIndex = 7
+	baseTagText.ZIndex = Kit.ZIndex.Float
 	local function showBaseState(isInBase: boolean)
-		rollButton.SetColor(if isInBase then theme.Yellow else theme.Grey)
+		rollButton.SetColor(if isInBase then theme.Gold else theme.Grey)
 		baseTag.Visible = not isInBase
 	end
 	showBaseState(rollController:IsInBase())
@@ -576,21 +566,21 @@ function Hud.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(-10, -12),
 		Color = theme.Track,
 		StrokeColor = theme.Text,
-		StrokeThickness = 2,
-		Radius = 12,
+		StrokeThickness = Kit.StrokeSize.Thin,
+		Radius = Kit.Radius.M,
 		Flat = true,
 	})
-	hint.ZIndex = 6
+	hint.ZIndex = Kit.ZIndex.BadgeText
 	local hintLabel = Kit.Label({
 		Parent = hint,
 		Name = "Key",
 		Text = "E",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	hintLabel.ZIndex = 7
+	hintLabel.ZIndex = Kit.ZIndex.Float
 
 	local autoButton = Kit.Button(trove, {
 		Parent = bottom,
@@ -601,7 +591,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0, -(rollWidth / 2 + barGap), 1, 0),
 		AnchorPoint = Vector2.new(1, 1),
 		Color = theme.Grey,
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		IconScale = 0.6,
 		Tooltip = "Roll over and over by itself!",
 		TooltipSide = "Above",
@@ -617,20 +607,20 @@ function Hud.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0.5, 0, 0, -10),
 		AnchorPoint = Vector2.new(0.5, 0),
 		Color = theme.Grey,
-		StrokeThickness = 2,
+		StrokeThickness = Kit.StrokeSize.Thin,
 		Pill = true,
 	})
-	autoChip.ZIndex = 5
+	autoChip.ZIndex = Kit.ZIndex.Badge
 	local autoChipText = Kit.Label({
 		Parent = autoChip,
 		Name = "Text",
 		Text = "OFF",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 16,
+		TextSize = Kit.Text.Small,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	autoChipText.ZIndex = 6
+	autoChipText.ZIndex = Kit.ZIndex.BadgeText
 	local function showAuto(isOn: boolean)
 		autoButton.SetColor(if isOn then theme.Green else theme.Grey)
 		autoButton.SetGlow(isOn)
@@ -674,7 +664,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	goldenBody.Position = UDim2.fromScale(0, 1)
 	goldenBody.Size = UDim2.fromOffset(cell, cell)
 	Kit.Corner(goldenBody, Kit.Radius.L)
-	Kit.Paint(goldenBody, goldenColor)
+	Kit.Paint(goldenBody, theme.GoldenBody)
 	Kit.Gloss(goldenBody, Kit.Radius.L)
 	goldenBody.Parent = goldenFill
 	goldenFill.Parent = golden
@@ -685,18 +675,18 @@ function Hud.new(context: Types.Context): Types.Screen
 		Size = UDim2.fromScale(1, 0.56),
 		Position = UDim2.fromScale(0, 0.06),
 	})
-	goldenIcon.ZIndex = 4
+	goldenIcon.ZIndex = Kit.ZIndex.Mark
 	local goldenLabel = Kit.Label({
 		Parent = golden,
 		Name = "Progress",
 		Text = `0/{GameConfig.GoldenRollEvery}`,
 		Position = UDim2.fromScale(0, 0.6),
 		Size = UDim2.fromScale(1, 0.34),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	goldenLabel.ZIndex = 4
+	goldenLabel.ZIndex = Kit.ZIndex.Mark
 	Kit.Tooltip(trove, golden, "Every few rolls is a Golden key!", "Above")
 	local goldenStroke = Kit.StrokeOf(golden)
 	local goldenShimmer = Kit.Shimmer(trove, golden, Kit.Radius.L, 1.1)
@@ -713,17 +703,13 @@ function Hud.new(context: Types.Context): Types.Screen
 			goldenPulse:Destroy()
 			goldenPulse = nil
 		end
-		goldenStroke.Thickness = 3
+		goldenStroke.Thickness = Kit.StrokeSize.Normal
 		goldenStroke.Color = theme.Ink
 		goldenShimmer.Visible = value
 		goldenBreath.Scale = 1
 		if value then
-			goldenStroke.Color = ringColor
-			goldenPulse = Kit.Tween(
-				goldenBreath,
-				TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Scale = 1.08 }
-			)
+			goldenStroke.Color = theme.Ring
+			goldenPulse = Kit.Tween(goldenBreath, Kit.Motion.Beat, { Scale = 1.08 })
 		end
 	end
 	trove:Add(function()

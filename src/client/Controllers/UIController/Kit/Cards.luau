@@ -59,7 +59,6 @@ export type Row = {
 }
 
 local colors = Theme.Colors
-local cardTint = Color3.fromHex("F1F6FF")
 
 local Cards = {}
 
@@ -99,7 +98,7 @@ function Cards.Card(props: CardProps): Frame
 		Position = props.Position,
 		AnchorPoint = props.AnchorPoint,
 		LayoutOrder = props.LayoutOrder,
-		Color = props.Tint or cardTint,
+		Color = props.Tint or colors.CardTint,
 		Radius = props.Radius or Theme.Radius.L,
 		StrokeThickness = Theme.Stroke.Normal,
 	})
@@ -145,7 +144,7 @@ function Cards.Row(props: RowProps): Row
 			Text = props.Subtitle,
 			Position = UDim2.fromOffset(left, 40),
 			Size = UDim2.new(1, -(left + right), 0, 20),
-			TextSize = 17,
+			TextSize = Theme.Text.Note,
 			Subtle = true,
 			Scaled = true,
 		})

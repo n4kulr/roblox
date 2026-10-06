@@ -39,8 +39,6 @@ export type Modal = Modal.Modal
 
 type SoundPlayer = (name: string) -> ()
 
-local popInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
 local Kit = {
 	TabBarTop = 16,
 	TabBarHeight = 58,
@@ -53,11 +51,19 @@ local Kit = {
 	Radius = Theme.Radius,
 	StrokeSize = Theme.Stroke,
 	Fonts = Theme.Fonts,
+	Text = Theme.Text,
+	Motion = Theme.Motion,
+	Layer = Theme.Layer,
+	ZIndex = Theme.ZIndex,
+	Transparency = Theme.Transparency,
+	Rainbow = Theme.Rainbow,
+	RainbowSequence = Theme.RainbowSequence,
 	Font = Theme.Fonts.Body,
 	HeaderHeight = Modal.HeaderHeight,
 	ButtonHeight = Controls.ButtonHeight,
 	TouchSize = Controls.TouchSize,
 	Shade = Theme.Shade,
+	Retime = Theme.Retime,
 	Tween = Controls.Tween,
 	Corner = Core.Corner,
 	Round = Core.Round,
@@ -74,7 +80,7 @@ local Kit = {
 	Row = Cards.Row,
 	RarityPaint = Cards.RarityPaint,
 	Shimmer = Effects.Shimmer,
-	Rainbow = Effects.Rainbow,
+	RainbowFill = Effects.Rainbow,
 	Breathe = Effects.Breathe,
 	Wobble = Effects.Wobble,
 	Label = Core.Label,
@@ -102,7 +108,7 @@ local Kit = {
 }
 
 function Kit.PopInfo(): TweenInfo
-	return popInfo
+	return Theme.Motion.Spring
 end
 
 function Kit.UiSound(controllers: { [string]: any }): SoundPlayer

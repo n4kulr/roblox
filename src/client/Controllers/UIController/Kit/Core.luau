@@ -7,9 +7,8 @@ local IconAtlas = require(script.Parent.Parent.IconAtlas)
 local Theme = require(script.Parent.Theme)
 
 local colors = Theme.Colors
-local white = Color3.new(1, 1, 1)
+local white = colors.White
 local TweenService = game:GetService("TweenService")
-local badgeInfo = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 export type PanelProps = {
 	Parent: Instance,
@@ -211,8 +210,8 @@ end
 function Core.TextStroke(parent: Instance, thickness: number?): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Name = "TextStroke"
-	stroke.Color = colors.TextInk
-	stroke.Thickness = thickness or 2
+	stroke.Color = colors.Ink
+	stroke.Thickness = thickness or Theme.Stroke.Thin
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	stroke.Parent = parent
 	return stroke
@@ -255,11 +254,11 @@ function Core.Gloss(parent: GuiObject, radius: number)
 	local gloss = Instance.new("Frame")
 	gloss.Name = "Gloss"
 	gloss.BackgroundColor3 = white
-	gloss.BackgroundTransparency = 0.78
+	gloss.BackgroundTransparency = Theme.Transparency.Soft
 	gloss.BorderSizePixel = 0
 	gloss.Position = UDim2.fromOffset(4, 4)
 	gloss.Size = UDim2.new(1, -8, 0.45, -4)
-	gloss.ZIndex = 0
+	gloss.ZIndex = Theme.ZIndex.Behind
 	Core.Corner(gloss, math.max(radius - 4, 4))
 	local fade = Instance.new("UIGradient")
 	fade.Rotation = 90
@@ -279,9 +278,9 @@ function Core.Panel(props: PanelProps): Frame
 	frame.AnchorPoint = props.AnchorPoint or Vector2.zero
 	frame.LayoutOrder = props.LayoutOrder or 0
 	if props.Flat == true then
-		frame.BackgroundColor3 = props.Color or colors.Cell
+		frame.BackgroundColor3 = props.Color or colors.Panel
 	else
-		Core.Paint(frame, props.Color or colors.Cell)
+		Core.Paint(frame, props.Color or colors.Panel)
 	end
 	if props.Pill == true then
 		Core.Round(frame)
@@ -314,7 +313,7 @@ function Core.Plate(props: PlateProps): Frame
 	edge.Name = "Edge"
 	edge.Color = white
 	edge.Transparency = 0.86
-	edge.Thickness = 2
+	edge.Thickness = Theme.Stroke.Thin
 	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	edge.Parent = plate
 	plate.Parent = props.Parent
@@ -342,7 +341,7 @@ function Core.Label(props: LabelProps): TextLabel
 		label.TextScaled = true
 		local constraint = Instance.new("UITextSizeConstraint")
 		constraint.MaxTextSize = textSize
-		constraint.MinTextSize = 8
+		constraint.MinTextSize = Theme.Text.Min
 		constraint.Parent = label
 	else
 		label.TextSize = textSize
@@ -423,10 +422,10 @@ function Core.Badge(parent: Instance, text: string?): Frame
 	badge.AnchorPoint = Vector2.new(1, 0)
 	badge.Position = UDim2.new(1, 5, 0, -7)
 	badge.Size = UDim2.fromOffset(30, 30)
-	badge.ZIndex = 5
+	badge.ZIndex = Theme.ZIndex.Badge
 	Core.Paint(badge, colors.Red)
 	Core.Round(badge)
-	Core.Stroke(badge, colors.Ink, 3)
+	Core.Stroke(badge, colors.Ink, Theme.Stroke.Normal)
 	Core.Gloss(badge, 15)
 	local pop = Instance.new("UIScale")
 	pop.Name = "Pop"
@@ -436,16 +435,16 @@ function Core.Badge(parent: Instance, text: string?): Frame
 		Name = "Text",
 		Text = text or "!",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 20,
+		TextSize = Theme.Text.Label,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	label.ZIndex = 6
+	label.ZIndex = Theme.ZIndex.BadgeText
 	badge.Parent = parent
 	badge:GetPropertyChangedSignal("Visible"):Connect(function()
 		if badge.Visible then
 			pop.Scale = 0.2
-			local tween = TweenService:Create(pop, badgeInfo, { Scale = 1 })
+			local tween = TweenService:Create(pop, Theme.Motion.Badge, { Scale = 1 })
 			tween:Play()
 		end
 	end)
@@ -466,7 +465,7 @@ function Core.Keycap(props: KeycapProps): Keycap
 	base.Position = UDim2.fromScale(0, 0.14)
 	base.Size = UDim2.fromScale(1, 0.86)
 	Core.Corner(base, 9)
-	Core.Stroke(base, colors.Ink, 3)
+	Core.Stroke(base, colors.Ink, Theme.Stroke.Normal)
 	base.Parent = holder
 	local top = Instance.new("Frame")
 	top.Name = "Top"
@@ -474,12 +473,12 @@ function Core.Keycap(props: KeycapProps): Keycap
 	top.Position = UDim2.fromScale(0.08, 0)
 	top.Size = UDim2.fromScale(0.84, 0.74)
 	Core.Corner(top, 7)
-	Core.Stroke(top, colors.Ink, 2)
+	Core.Stroke(top, colors.Ink, Theme.Stroke.Thin)
 	top.Parent = holder
 	local shine = Instance.new("Frame")
 	shine.Name = "Shine"
 	shine.BackgroundColor3 = white
-	shine.BackgroundTransparency = 0.6
+	shine.BackgroundTransparency = Theme.Transparency.Heavy
 	shine.BorderSizePixel = 0
 	shine.Position = UDim2.fromScale(0.1, 0.08)
 	shine.Size = UDim2.fromScale(0.5, 0.1)
@@ -490,7 +489,7 @@ function Core.Keycap(props: KeycapProps): Keycap
 		Name = "Glyph",
 		Text = props.Glyph or "",
 		Size = UDim2.fromScale(1, 1),
-		TextSize = 34,
+		TextSize = Theme.Text.Display,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -571,7 +570,7 @@ function Core.Bar(props: BarProps): Bar
 	local gloss = Instance.new("Frame")
 	gloss.Name = "Gloss"
 	gloss.BackgroundColor3 = white
-	gloss.BackgroundTransparency = 0.78
+	gloss.BackgroundTransparency = Theme.Transparency.Soft
 	gloss.BorderSizePixel = 0
 	gloss.Position = UDim2.new(0, 6, 0, 3)
 	gloss.Size = UDim2.new(1, -12, 0.35, 0)
@@ -587,7 +586,7 @@ function Core.Bar(props: BarProps): Bar
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	label.ZIndex = 3
+	label.ZIndex = Theme.ZIndex.Fill
 	return {
 		Instance = track,
 		Fill = fill,
@@ -646,7 +645,7 @@ function Core.Pill(props: PillProps): Pill
 			Text = props.Caption,
 			Position = UDim2.new(0, textLeft, 0, 3),
 			Size = UDim2.new(1, -(textLeft + Theme.Space.M), 0.36, 0),
-			TextSize = 13,
+			TextSize = Theme.Text.Tiny,
 			Color = colors.TextDim,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -697,7 +696,7 @@ function Core.Section(props: SectionProps): Frame
 	line.Position = UDim2.fromScale(1, 0.5)
 	line.Size = UDim2.new(0.6, 0, 0, 6)
 	Core.Round(line)
-	Core.Stroke(line, colors.Ink, 2)
+	Core.Stroke(line, colors.Ink, Theme.Stroke.Thin)
 	local fade = Instance.new("UIGradient")
 	fade.Color = ColorSequence.new(Theme.Shade(color, 0.15), color)
 	fade.Parent = line
@@ -732,7 +731,7 @@ function Core.Section(props: SectionProps): Frame
 		Name = "Text",
 		Text = props.Text,
 		Size = UDim2.fromOffset(0, 34),
-		TextSize = 26,
+		TextSize = Theme.Text.Subhead,
 		LayoutOrder = 2,
 		Title = true,
 	})

@@ -25,7 +25,6 @@ local theme = Kit.Theme
 local refreshSeconds = 0.25
 local columnWidth = 112
 local claimDelay = 0.3
-local lockedColor = Color3.fromHex("E3E9F5")
 
 local rewardGlyph: { [string]: string } = {
 	Clicks = "Clicks",
@@ -34,7 +33,7 @@ local rewardGlyph: { [string]: string } = {
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
-	ClicksPotion = Color3.fromRGB(255, 190, 40),
+	ClicksPotion = theme.Amber,
 }
 
 local SeasonScreen = {}
@@ -107,7 +106,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.fromOffset(230, 46),
 		Color = theme.Purple,
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Callback = function()
 			if boostState.Owns(GameConfig.Season.PremiumPassId) then
 				return
@@ -140,7 +139,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = "Text",
 			Text = text,
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -162,7 +161,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local columns = Instance.new("UIListLayout")
 	columns.FillDirection = Enum.FillDirection.Horizontal
 	columns.SortOrder = Enum.SortOrder.LayoutOrder
-	columns.Padding = UDim.new(0, 8)
+	columns.Padding = UDim.new(0, Kit.Space.S)
 	columns.Parent = scroll
 	scroll.Parent = modal.Body
 
@@ -173,7 +172,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = if premium then "Premium" else "Free",
 			Position = UDim2.fromScale(0, if premium then 0.58 else 0.14),
 			Size = UDim2.fromScale(1, 0.38),
-			Color = lockedColor,
+			Color = theme.Locked,
 			Shards = true,
 		})
 		Kit.Icon({
@@ -190,7 +189,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Text = reward.Label,
 			Position = UDim2.fromScale(0.04, 0.55),
 			Size = UDim2.fromScale(0.92, 0.4),
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 			Align = Enum.TextXAlignment.Center,
 			Wrapped = true,
 			Scaled = true,
@@ -218,7 +217,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		hit.BorderSizePixel = 0
 		hit.Text = ""
 		hit.Size = UDim2.fromScale(1, 1)
-		hit.ZIndex = 6
+		hit.ZIndex = Kit.ZIndex.BadgeText
 		hit.Parent = panel
 		trove:Connect(hit.Activated, function()
 			if isBusy then
@@ -250,7 +249,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = "Level",
 			Text = `LVL {entry.Level}`,
 			Size = UDim2.fromScale(1, 0.12),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Color = theme.Gold,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -272,7 +271,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Text = "Lvl 0",
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.new(0, 120, 1, 0),
-		TextSize = 36,
+		TextSize = Kit.Text.Headline,
 		Color = theme.Gold,
 		Scaled = true,
 	})
@@ -283,7 +282,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0, 0.5),
 		Size = UDim2.new(1, -130 - 190, 0, 40),
 		Color = theme.Orange,
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 	})
 
 	local claimButton: Kit.Button
@@ -321,13 +320,13 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 					Size = UDim2.fromOffset(30, 30),
 				})
 			elseif isLockedByPass then
-				Kit.Paint(tile.Panel, lockedColor)
+				Kit.Paint(tile.Panel, theme.Locked)
 				tile.Mark.Visible = true
 			elseif isReached then
 				Kit.Paint(tile.Panel, theme.Green)
 				tile.Mark.Visible = false
 			else
-				Kit.Paint(tile.Panel, lockedColor)
+				Kit.Paint(tile.Panel, theme.Locked)
 				tile.Mark.Visible = true
 			end
 		end
@@ -350,7 +349,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(1, 0.5),
 		Size = UDim2.fromOffset(180, 56),
 		Color = theme.Green,
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Callback = function()
 			if isBusy then
 				return
