@@ -165,6 +165,27 @@ describe("PurchaseService grants", function()
 		expect(data.StarterPackBought):toBe(true)
 	end)
 
+	it("grants nothing from the starter pack when the key cannot be added, then grants once on retry", function()
+		local keyboard = services.KeyboardService
+		local original = keyboard.AddKey
+		keyboard.AddKey = function()
+			return false
+		end
+		expect(buy(201, 900)):toBe(false)
+		keyboard.AddKey = original
+		expect(data.Cash):toBe(0)
+		expect(data.TotalEarned):toBe(0)
+		expect(data.Boosts.LuckUntil):toBe(0)
+		expect(data.StarterPackBought):toBe(false)
+		expect(data.Receipts["900"]):toBeNil()
+		expect(buy(201, 900)):toBe(true)
+		expect(buy(201, 900)):toBe(true)
+		expect(data.Cash):toBe(10000)
+		expect(data.Boosts.LuckUntil):toBe(world.now + 900)
+		expect(keysOfRarity("Epic")):toBe(1)
+		expect(data.StarterPackBought):toBe(true)
+	end)
+
 	it("never grants the same receipt twice", function()
 		expect(buy(205, 777)):toBe(true)
 		expect(buy(205, 777)):toBe(true)

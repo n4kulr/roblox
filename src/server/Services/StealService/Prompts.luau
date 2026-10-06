@@ -13,6 +13,7 @@ local Prompts = {
 	KnockName = "KnockPrompt",
 	TakeBackName = "TakeBackPrompt",
 	OpenAttribute = "Open",
+	BaseHoldAttribute = "BaseHold",
 	KnockSlack = 2,
 	TakeBackSlack = 4,
 	TakeBackHold = 0.5,
@@ -34,7 +35,9 @@ end
 function Prompts.Update(prompt: ProximityPrompt, keyId: string, lessonPending: boolean, isOpen: boolean)
 	local key = Keys.Resolve(keyId)
 	prompt.ObjectText = if key then Variants.Name(keyId) else ""
-	prompt.HoldDuration = Steal.HoldSeconds(Steal.RarityIndex(keyId), lessonPending)
+	local baseHold = Steal.HoldSeconds(Steal.RarityIndex(keyId), lessonPending)
+	prompt.HoldDuration = baseHold
+	prompt:SetAttribute(Prompts.BaseHoldAttribute, baseHold)
 	prompt.Enabled = isOpen
 	prompt:SetAttribute(Prompts.OpenAttribute, isOpen)
 	prompt:SetAttribute("KeyId", keyId)

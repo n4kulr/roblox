@@ -14,6 +14,7 @@ export type PromptRecord = {
 	Prompt: ProximityPrompt,
 	Trove: any,
 	Holding: { [Player]: string },
+	HoldStarted: { [Player]: number },
 }
 
 export type Lock = {

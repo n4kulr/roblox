@@ -45,6 +45,23 @@ local function isBusy(player: Player): boolean
 	return carried ~= nil or (type(keyfall) == "number" and keyfall > 0)
 end
 
+local function rootOf(player: Player): BasePart?
+	local character = player.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+	return if root and root:IsA("BasePart") then root else nil
+end
+
+local function isInRange(first: Player, second: Player): boolean
+	if config.MaxRange <= 0 then
+		return true
+	end
+	local firstRoot, secondRoot = rootOf(first), rootOf(second)
+	if not firstRoot or not secondRoot then
+		return false
+	end
+	return (firstRoot.CFrame.Position - secondRoot.CFrame.Position).Magnitude <= config.MaxRange
+end
+
 local function partnerOf(session: Types.Session, player: Player): Player
 	return if session.Players[1] == player then session.Players[2] else session.Players[1]
 end
@@ -189,7 +206,12 @@ local function onRequest(sender: Player, userId: number): boolean
 	if not target or target == sender or not canTrade(sender) then
 		return false
 	end
-	if getData(target) == nil or sessions[target] ~= nil or isBusy(target) then
+	if
+		getData(target) == nil
+		or sessions[target] ~= nil
+		or isBusy(target)
+		or not isInRange(sender, target)
+	then
 		return false
 	end
 	local request: Types.Request = { Sender = sender, Target = target }
@@ -248,6 +270,7 @@ local function onRespond(responder: Player, userId: number, isAccepted: boolean)
 		or sessions[responder] ~= nil
 		or isBusy(sender)
 		or isBusy(responder)
+		or not isInRange(sender, responder)
 	then
 		Packets.TradeState:FireClient(
 			responder,

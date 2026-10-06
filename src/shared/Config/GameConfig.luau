@@ -31,6 +31,7 @@ return table.freeze({
 		HoldSecondsPerRarity = 0.75,
 		LessonHoldMultiplier = 2,
 		PromptRange = 8,
+		HoldToleranceSeconds = 0.25,
 		CarryWalkSpeed = 18,
 		NormalWalkSpeed = 24,
 		DeliverRadius = 24,
@@ -90,7 +91,7 @@ return table.freeze({
 	Trade = table.freeze({
 		RequestTimeoutSeconds = 20,
 		ConfirmCountdownSeconds = 3,
-		MaxRange = 0,
+		MaxRange = 60,
 		MaxDistinctKeys = 12,
 	}),
 	Market = table.freeze({

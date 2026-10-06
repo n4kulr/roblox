@@ -39,21 +39,17 @@ local function makeGrant(product: Monetization.Product): Grant?
 	elseif kind == "StarterPack" then
 		return function(player, services)
 			local data = services.DataService:GetData(player)
-			if not data then
-				return false
-			end
-			if not Rewards.AddClicks(player, services, product.Amount) then
+			if not data or not services.DataService:GetReplica(player) then
 				return false
 			end
 			if data.StarterPackBought then
-				return true
+				return Rewards.AddClicks(player, services, product.Amount)
 			end
 			if not Rewards.GrantRandomKey(player, services, starterKeyRarity) then
 				return false
 			end
-			if not Rewards.ExtendPotion(player, services, "LuckUntil", starterPotionSeconds) then
-				return false
-			end
+			Rewards.ExtendPotion(player, services, "LuckUntil", starterPotionSeconds)
+			Rewards.AddClicks(player, services, product.Amount)
 			services.DataService:Set(player, { "StarterPackBought" }, true)
 			return true
 		end

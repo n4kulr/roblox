@@ -17,6 +17,7 @@ type State = {
 	_trove: TroveInstance?,
 }
 
+local baseHoldAttribute = "BaseHold"
 local refreshSeconds = 0.2
 local beamColor = Color3.fromRGB(255, 96, 96)
 
@@ -181,17 +182,16 @@ function StealController.Start(self: State)
 		if not instance:IsA("ProximityPrompt") or instance.Name ~= stealPromptName then
 			return
 		end
-		local lastSet = -1
 		local function apply()
-			local speed = Charms.Effects(controllers.DataController:Get({ "EquippedCharms" })).StealSpeed
-			if instance.HoldDuration == lastSet or speed <= 1 then
+			local baseHold = instance:GetAttribute(baseHoldAttribute)
+			if type(baseHold) ~= "number" then
 				return
 			end
-			lastSet = instance.HoldDuration / speed
-			instance.HoldDuration = lastSet
+			local speed = Charms.Effects(controllers.DataController:Get({ "EquippedCharms" })).StealSpeed
+			instance.HoldDuration = baseHold / math.max(speed, 1)
 		end
 		apply()
-		trove:Connect(instance:GetPropertyChangedSignal("HoldDuration"), apply)
+		trove:Connect(instance:GetAttributeChangedSignal(baseHoldAttribute), apply)
 	end
 	local function onPrompt(instance: Instance)
 		if instance:IsA("ProximityPrompt") and PromptFocus.IsManaged(instance) then
