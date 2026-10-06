@@ -8,6 +8,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local Roll = require(script.Roll)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
@@ -42,9 +43,19 @@ local function takeToken(player: Player, rate: number): boolean
 	return true
 end
 
+local function isInOwnBase(player: Player): boolean
+	local base = services.PlotService:GetBase(player) :: BasePart?
+	local character = player.Character
+	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+	if not base or not root or not root:IsA("BasePart") then
+		return false
+	end
+	return BaseBounds.Contains(base.CFrame, base.Size, root.CFrame.Position, GameConfig.RollInBaseMargin)
+end
+
 local function handleRoll(player: Player): (number, boolean)
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	if not data or not services.PlotService:GetPlot(player) then
+	if not data or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
 		return 0, false
 	end
 	local passService = services.PassService

@@ -15,6 +15,7 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local BaseZone = require(script.BaseZone)
 local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
 local ResultCards = require(script.ResultCards)
@@ -42,6 +43,7 @@ end
 local RollController = {
 	Name = "RollController",
 	AutoChanged = Signal.new() :: Signal.Signal<boolean>,
+	InBaseChanged = Signal.new() :: Signal.Signal<boolean>,
 	_trove = nil :: TroveInstance?,
 }
 local controllers: { [string]: any } = {}
@@ -61,6 +63,7 @@ local isHolding = false
 local destroyed = false
 local isLowGraphics = false
 local isAuto = false
+local isInBase = false
 local rollInterval = 1 / GameConfig.RollsPerSecond
 local board: any = {}
 local upgradeLevels: any = {}
@@ -251,7 +254,7 @@ end
 
 local function press(autoRelease: boolean): boolean
 	local now = os.clock()
-	if destroyed or now - lastPress < rollInterval then
+	if destroyed or not isInBase or now - lastPress < rollInterval then
 		return false
 	end
 	lastPress = now
@@ -443,6 +446,18 @@ function RollController.SetAuto(_self: State, isOn: boolean)
 	RollController.AutoChanged:Fire(isOn)
 end
 
+function RollController.IsInBase(_self: State): boolean
+	return isInBase
+end
+
+local function refreshInBase()
+	local value = BaseZone.IsInside(plot, Players.LocalPlayer.Character)
+	if value ~= isInBase then
+		isInBase = value
+		RollController.InBaseChanged:Fire(value)
+	end
+end
+
 function RollController.IsAuto(_self: State): boolean
 	return isAuto
 end
@@ -487,6 +502,7 @@ function RollController.Start(self: State)
 	trove:Connect(UserInputService.InputBegan, onInput)
 	trove:Connect(UserInputService.InputEnded, onInputEnded)
 	trove:Connect(RunService.Heartbeat, function(dt: number)
+		refreshInBase()
 		if isAuto then
 			press(true)
 		end
@@ -519,6 +535,7 @@ function RollController.Destroy(self: State)
 	destroyed = true
 	isLowGraphics = false
 	isAuto = false
+	isInBase = false
 	isHolding = false
 	table.clear(squashTweens)
 	plot = nil

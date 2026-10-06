@@ -1,5 +1,6 @@
 --!strict
 
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Controls = require(script.Parent.Controls)
@@ -62,12 +63,13 @@ function Modal.ScreenGui(
 	name: string,
 	displayOrder: number,
 	parent: Instance,
-	trove: TroveInstance
+	trove: TroveInstance,
+	ignoresInset: boolean?
 ): (ScreenGui, Frame)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = false
+	gui.IgnoreGuiInset = ignoresInset == true
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = displayOrder
 	local root = Instance.new("Frame")
@@ -92,7 +94,7 @@ function Modal.ScreenGui(
 end
 
 function Modal.new(trove: TroveInstance, props: ModalProps): Modal
-	local gui, root = Modal.ScreenGui(`Thock{props.Name}`, 10, props.Parent, trove)
+	local gui, root = Modal.ScreenGui(`Thock{props.Name}`, 10, props.Parent, trove, true)
 	gui.Enabled = false
 	local token = 0
 	local headerColor = props.HeaderColor or colors.Blue
@@ -112,9 +114,16 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	area.Name = "Area"
 	area.BackgroundTransparency = 1
 	area.BorderSizePixel = 0
-	area.Position = UDim2.fromOffset(0, areaTop)
-	area.Size = UDim2.new(1, 0, 1, -(areaTop + areaBottom))
 	area.Parent = root
+	local function layoutArea()
+		local scale = root:FindFirstChild("ViewportScale")
+		local factor = if scale and scale:IsA("UIScale") and scale.Scale > 0 then scale.Scale else 1
+		local top = GuiService:GetGuiInset().Y / factor + areaTop
+		area.Position = UDim2.fromOffset(0, top)
+		area.Size = UDim2.new(1, 0, 1, -(top + areaBottom))
+	end
+	layoutArea()
+	trove:Connect(gui:GetPropertyChangedSignal("AbsoluteSize"), layoutArea)
 
 	local window = Instance.new("Frame")
 	window.Name = "Window"

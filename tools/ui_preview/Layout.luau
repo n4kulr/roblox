@@ -4,7 +4,7 @@ local Text = require("./Text")
 
 local Layout = {}
 
-local topInset = 36
+local topInset = 58
 
 local guiClasses: { [string]: boolean } = {
 	Frame = true,

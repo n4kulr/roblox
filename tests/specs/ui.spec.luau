@@ -126,6 +126,10 @@ describe("UI screens", function()
 			},
 			RollController = {
 				AutoChanged = Signal.new(),
+				InBaseChanged = Signal.new(),
+				IsInBase = function()
+					return true
+				end,
 				IsAuto = function()
 					return false
 				end,
@@ -233,6 +237,219 @@ describe("UI screens", function()
 			screen:Destroy()
 		end)
 	end
+
+	for _, name in modals do
+		it(`dims the whole screen including the top bar and keeps {name} below it`, function()
+			local screen = boot(name)
+			screen:Open()
+			world:flush()
+			local gui = playerGui:FindFirstChild(`Thock{name}`)
+			expect(gui.IgnoreGuiInset):toBe(true)
+			local backdrop = gui:FindFirstChild("Backdrop", true)
+			expect(backdrop.Size):toEqual(roblox.UDim2.fromScale(1, 1))
+			expect(backdrop.Parent.Name):toBe("Root")
+			local area = gui:FindFirstChild("Area", true)
+			local factor = gui:FindFirstChild("ViewportScale", true).Scale
+			expect(area.Position.Y.Offset * factor >= 58):toBe(true)
+			expect(area.Position.Y.Offset * factor <= 58 + 40 * factor + 1):toBe(true)
+			screen:Destroy()
+		end)
+	end
+
+	describe("Keys screen", function()
+		local function openKeys()
+			local screen = boot("Keys")
+			screen:Open()
+			world:flush()
+			return screen, playerGui:FindFirstChild("ThockKeys")
+		end
+
+		local function order(gui: any, id: string): number
+			return gui:FindFirstChild(id, true).LayoutOrder
+		end
+
+		it("has no ON BOARD tags or keyboard count line", function()
+			local _, gui = openKeys()
+			for _, item in gui:GetDescendants() do
+				if item.ClassName == "TextLabel" or item.ClassName == "TextButton" then
+					expect(string.find(item.Text, "ON BOARD", 1, true)):toBeNil()
+					expect(string.find(item.Text, "Keys on your keyboard", 1, true)):toBeNil()
+				end
+			end
+			expect(gui:FindFirstChild("OnBoard", true)):toBeNil()
+			expect(gui:FindFirstChild("BoardCount", true)):toBeNil()
+			local counts = {}
+			for _, item in gui:FindFirstChild("PlainClack", true):GetDescendants() do
+				if item.ClassName == "TextLabel" and string.sub(item.Text, 1, 1) == "x" then
+					table.insert(counts, item.Text)
+				end
+			end
+			expect(counts):toEqual({ "x3" })
+		end)
+
+		it("shows income as the biggest text on each card", function()
+			local _, gui = openKeys()
+			local card = gui:FindFirstChild("CreamyThock", true)
+			expect(card.Info.Text):toBe("+6/s")
+			local infoSize = card.Info:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize
+			local name = card:FindFirstChild("Name")
+			local nameSize = name:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize
+			expect(infoSize > nameSize * 1.5):toBe(true)
+			expect(card.Info.Position.Y.Offset < name.Position.Y.Offset):toBe(true)
+		end)
+
+		it("sorts BEST by default and cycles BEST, RARITY, AMOUNT, NAME", function()
+			local _, gui = openKeys()
+			local sort = gui:FindFirstChild("Sort", true)
+			expect(sort.Face.Text.Text):toBe("SORT: BEST")
+			expect(sort:FindFirstChild("Icon", true) ~= nil):toBe(true)
+			expect(order(gui, "CreamyThock") < order(gui, "PlainClack")):toBe(true)
+			press(sort)
+			expect(sort.Face.Text.Text):toBe("SORT: RARITY")
+			press(sort)
+			expect(sort.Face.Text.Text):toBe("SORT: AMOUNT")
+			expect(order(gui, "PlainClack") < order(gui, "CreamyThock")):toBe(true)
+			press(sort)
+			expect(sort.Face.Text.Text):toBe("SORT: NAME")
+			expect(order(gui, "CreamyThock") < order(gui, "PlainClack")):toBe(true)
+			press(sort)
+			expect(sort.Face.Text.Text):toBe("SORT: BEST")
+		end)
+
+		it("remembers the sort mode when reopened", function()
+			local screen, gui = openKeys()
+			press(gui:FindFirstChild("Sort", true))
+			screen:Close()
+			screen:Open()
+			world:flush()
+			expect(gui:FindFirstChild("Sort", true).Face.Text.Text):toBe("SORT: RARITY")
+		end)
+	end)
+
+	describe("Season screen", function()
+		local claims
+
+		local function openSeason()
+			claims = {}
+			world:packets().ClaimSeason.Fire = function(_self: any, level: number, premium: boolean)
+				table.insert(claims, { level, premium })
+				return true
+			end
+			local screen = boot("Season")
+			screen:Open()
+			world:flush()
+			return screen, playerGui:FindFirstChild("ThockSeason")
+		end
+
+		local function tile(gui: any, level: number, track: string): any
+			return gui:FindFirstChild(`Level{level}`, true):FindFirstChild(track)
+		end
+
+		it("claims a reward by clicking anywhere on its green tile", function()
+			local _, gui = openSeason()
+			local free = tile(gui, 1, "Free")
+			expect(free.Hit ~= nil):toBe(true)
+			expect(free.Hit.Size):toEqual(roblox.UDim2.fromScale(1, 1))
+			press(free.Hit)
+			world:advance(1)
+			expect(claims):toEqual({ { 1, false } })
+		end)
+
+		it("keeps the CLAIM button working", function()
+			local _, gui = openSeason()
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(1)
+			expect(claims):toEqual({ { 1, false } })
+		end)
+
+		it("ignores tiles that are not claimable", function()
+			local _, gui = openSeason()
+			press(tile(gui, 2, "Free").Hit)
+			press(tile(gui, 1, "Premium").Hit)
+			world:advance(1)
+			expect(#claims):toBe(0)
+		end)
+
+		it("does not double-claim while a claim is in flight", function()
+			local _, gui = openSeason()
+			press(tile(gui, 1, "Free").Hit)
+			press(tile(gui, 1, "Free").Hit)
+			world:advance(1)
+			expect(#claims):toBe(1)
+		end)
+	end)
+
+	describe("Store screen", function()
+		local toasts
+
+		local function openShop()
+			toasts = {}
+			context.Toast = function(text: string)
+				table.insert(toasts, text)
+			end
+			local screen = boot("Shop")
+			screen:Open()
+			world:flush()
+			return screen, playerGui:FindFirstChild("ThockShop")
+		end
+
+		it("is one scrolling page without tabs or section headers", function()
+			local _, gui = openShop()
+			expect(gui:FindFirstChild("Tabs", true)):toBeNil()
+			expect(gui:FindFirstChild("PassesHeader", true)):toBeNil()
+			expect(gui:FindFirstChild("ProductsHeader", true)):toBeNil()
+			local list = gui:FindFirstChild("List", true)
+			expect(list.ClassName):toBe("ScrollingFrame")
+			local names = {}
+			for _, child in list:GetChildren() do
+				if child.ClassName == "Frame" then
+					names[child.LayoutOrder] = child.Name
+				end
+			end
+			expect(names[1]):toBe("StarterBanner")
+			expect(names[2]):toBe("Passes")
+			expect(names[3]):toBe("Products")
+		end)
+
+		it("lays passes in two columns and potions in a single row", function()
+			local Monetization = world:require("ReplicatedStorage.Config.Monetization")
+			local _, gui = openShop()
+			local passes = gui:FindFirstChild("Passes", true)
+			local products = gui:FindFirstChild("Products", true)
+			expect(passes:FindFirstChildOfClass("UIGridLayout").CellSize.X.Scale):toBe(0.5)
+			expect(#passes:GetChildren() - 1):toBe(#Monetization.Passes)
+			local boosts = #Monetization.Products - 1
+			expect(#products:GetChildren() - 1):toBe(boosts)
+			expect(math.abs(products:FindFirstChildOfClass("UIGridLayout").CellSize.X.Scale - 1 / boosts) < 0.001):toBe(true)
+			expect(products.Size.Y.Offset):toBe(142)
+			expect(gui:FindFirstChild("StarterPack", true).Parent.Name):toBe("StarterBanner")
+		end)
+
+		it("keeps cards to an icon, a name, one short line and a price", function()
+			local _, gui = openShop()
+			local card = gui:FindFirstChild("Passes", true):FindFirstChild("DoubleLuck")
+			expect(card:FindFirstChild("Icon") ~= nil):toBe(true)
+			expect(card:FindFirstChild("Name").Text):toBe("x2 Luck")
+			expect(card:FindFirstChild("Description") ~= nil):toBe(true)
+			expect(card:FindFirstChild("Buy") ~= nil):toBe(true)
+			local potion = gui:FindFirstChild("Products", true):FindFirstChild("LuckPotion")
+			expect(potion:FindFirstChild("Description")):toBeNil()
+			expect(potion:FindFirstChild("Buy") ~= nil):toBe(true)
+		end)
+
+		it("keeps purchase flows: unavailable items say Coming soon", function()
+			local _, gui = openShop()
+			press(gui:FindFirstChild("StarterBanner", true):FindFirstChild("Buy"))
+			press(gui:FindFirstChild("Passes", true):FindFirstChild("DoubleClicks"):FindFirstChild("Buy"))
+			press(gui:FindFirstChild("Products", true):FindFirstChild("ServerLuck"):FindFirstChild("Buy"))
+			expect(toasts):toEqual({ "Coming soon!", "Coming soon!", "Coming soon!" })
+		end)
+	end)
+
+	it("keeps the HUD on the standard inset", function()
+		boot("Hud")
+		expect(playerGui:FindFirstChild("ThockHud").IgnoreGuiInset):toBe(false)
+	end)
 
 	it("keeps emojis out of every label and button on every screen", function()
 		for _, name in allScreens do

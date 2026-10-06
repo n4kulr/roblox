@@ -18,6 +18,7 @@ type Tile = {
 	Premium: boolean,
 	Panel: Frame,
 	Mark: GuiObject,
+	IsClaimable: boolean,
 }
 
 local theme = Kit.Theme
@@ -25,7 +26,6 @@ local refreshSeconds = 0.25
 local columnWidth = 112
 local claimDelay = 0.3
 local lockedColor = Color3.fromHex("E3E9F5")
-local reachedColor = Color3.fromHex("F6F9FF")
 
 local rewardGlyph: { [string]: string } = {
 	Clicks = "Clicks",
@@ -48,6 +48,43 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local tiles: { Tile } = {}
 	local isOpen = false
 	local isBusy = false
+	local refresh: () -> ()
+
+	local function currentSeason(): Season.Progress
+		local value = dataController:Get({ "Season" })
+		return if type(value) == "table" then value else {}
+	end
+
+	local function ownsPremium(): boolean
+		return boostState.Owns(GameConfig.Season.PremiumPassId)
+	end
+
+	local function claimAll(claims: { Season.Claim })
+		if isBusy or #claims == 0 then
+			return
+		end
+		isBusy = true
+		task.spawn(function()
+			local granted = 0
+			for _, claim in claims do
+				local ok = Packets.ClaimSeason:Fire(claim.Level, claim.Premium)
+				if ok ~= true then
+					break
+				end
+				granted += 1
+				task.wait(claimDelay)
+			end
+			isBusy = false
+			if granted > 0 then
+				playUi("Confirm")
+				context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
+			else
+				playUi("Error")
+				context.Toast("Couldn't claim that!", "Bad")
+			end
+			refresh()
+		end)
+	end
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -166,7 +203,39 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Position = UDim2.new(1, -4, 0, 4),
 			Size = UDim2.fromOffset(30, 30),
 		})
-		table.insert(tiles, { Level = entry.Level, Premium = premium, Panel = panel, Mark = mark })
+		local tile: Tile = {
+			Level = entry.Level,
+			Premium = premium,
+			Panel = panel,
+			Mark = mark,
+			IsClaimable = false,
+		}
+		table.insert(tiles, tile)
+		local hit = Instance.new("TextButton")
+		hit.Name = "Hit"
+		hit.AutoButtonColor = false
+		hit.BackgroundTransparency = 1
+		hit.BorderSizePixel = 0
+		hit.Text = ""
+		hit.Size = UDim2.fromScale(1, 1)
+		hit.ZIndex = 6
+		hit.Parent = panel
+		trove:Connect(hit.Activated, function()
+			if isBusy then
+				return
+			end
+			if not tile.IsClaimable then
+				return
+			end
+			local claims: { Season.Claim } = {}
+			for _, claim in Season.Claimable(currentSeason(), ownsPremium()) do
+				if claim.Premium == premium and claim.Level <= tile.Level then
+					table.insert(claims, claim)
+				end
+			end
+			playUi("Click")
+			claimAll(claims)
+		end)
 	end
 
 	for _, entry in SeasonLevels.Levels do
@@ -219,16 +288,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 
 	local claimButton: Kit.Button
 
-	local function ownsPremium(): boolean
-		return boostState.Owns(GameConfig.Season.PremiumPassId)
-	end
-
-	local function currentSeason(): Season.Progress
-		local value = dataController:Get({ "Season" })
-		return if type(value) == "table" then value else {}
-	end
-
-	local function refresh()
+	function refresh()
 		local season = currentSeason()
 		local owns = ownsPremium()
 		local xp = if type(season.Xp) == "number" then season.Xp else 0
@@ -247,6 +307,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			local isClaimed = tile.Level <= Season.Claimed(season, tile.Premium)
 			local isReached = tile.Level <= level
 			local isLockedByPass = tile.Premium and not owns
+			tile.IsClaimable = isReached and not isClaimed and not isLockedByPass
 			if isClaimed then
 				Kit.Paint(tile.Panel, Kit.Shade(theme.Green, 0.6))
 				tile.Mark.Visible = true
@@ -263,8 +324,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				Kit.Paint(tile.Panel, lockedColor)
 				tile.Mark.Visible = true
 			elseif isReached then
-				local isNext = tile.Level == Season.Claimed(season, tile.Premium) + 1
-				Kit.Paint(tile.Panel, if isNext then theme.Green else reachedColor)
+				Kit.Paint(tile.Panel, theme.Green)
 				tile.Mark.Visible = false
 			else
 				Kit.Paint(tile.Panel, lockedColor)
@@ -301,27 +361,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				context.Toast("Nothing to claim yet!", "Bad")
 				return
 			end
-			isBusy = true
-			task.spawn(function()
-				local granted = 0
-				for _, claim in claims do
-					local ok = Packets.ClaimSeason:Fire(claim.Level, claim.Premium)
-					if ok ~= true then
-						break
-					end
-					granted += 1
-					task.wait(claimDelay)
-				end
-				isBusy = false
-				if granted > 0 then
-					playUi("Confirm")
-					context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
-				else
-					playUi("Error")
-					context.Toast("Couldn't claim that!", "Bad")
-				end
-				refresh()
-			end)
+			claimAll(claims)
 		end,
 		Sound = playUi,
 	})

@@ -130,6 +130,11 @@ local function newScenario(world: any)
 	}
 	local rollController = {
 		AutoChanged = Signal.new(),
+		InBaseChanged = Signal.new(),
+		InBase = true,
+		IsInBase = function(self)
+			return self.InBase
+		end,
 		IsAuto = function()
 			return false
 		end,
@@ -373,7 +378,7 @@ local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (
 		Screens = { "Shop" },
 		Run = function(scene)
 			openModal(scene, "Shop")
-			scroll(scene, "ThockShop", "List", 420)
+			scroll(scene, "ThockShop", "List", 900)
 		end,
 	},
 	{

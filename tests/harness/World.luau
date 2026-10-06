@@ -248,6 +248,12 @@ local function makeFakeServices(world)
 		UnbindFromRenderStep = function() end,
 	}
 
+	services.GuiService = {
+		GetGuiInset = function()
+			return roblox.Vector2.new(0, 58)
+		end,
+	}
+
 	local guidCounter = 0
 	services.HttpService = {
 		GenerateGUID = function(_self, wrap: boolean?)
@@ -462,6 +468,7 @@ function World.new(
 		_kicked = {} :: { any },
 		gameLoaded = true,
 		defaultScreenRemovals = 0,
+		bases = {} :: { [any]: any },
 	}, World)
 
 	self.task = makeScheduler(self)
@@ -504,6 +511,17 @@ function World.new(
 			Name = "PlotService",
 			GetPlot = function(_self, player: any)
 				return if self.Players._list and table.find(self.Players._list, player) then {} else nil
+			end,
+			GetBase = function(_self, player: any)
+				if not (self.Players._list and table.find(self.Players._list, player)) then
+					return nil
+				end
+				if not self.bases[player] then
+					local base = self:newPart("Base", 0, 0, 0)
+					base.Size = roblox.Vector3.new(44, 1, 44)
+					self.bases[player] = base
+				end
+				return self.bases[player]
 			end,
 		},
 	}
@@ -912,6 +930,19 @@ function World.join(self, info: any?, overrides: any?, fireLoaded: boolean?)
 	local player = self:newPlayer(info)
 	local data = self.Data:Load(player, overrides, fireLoaded)
 	return player, data
+end
+
+function World.joinAtBase(self, info: any?, overrides: any?, fireLoaded: boolean?)
+	local player, data = self:join(info, overrides, fireLoaded)
+	self:placeAtBase(player)
+	return player, data
+end
+
+function World.placeAtBase(self, player: any)
+	local character = self:newInstance("Model")
+	character.Name = player.Name
+	self:newPart("HumanoidRootPart", 0, 3, 0).Parent = character
+	player.Character = character
 end
 
 function World.boot(self, names: { string }, extra: { [string]: any }?)

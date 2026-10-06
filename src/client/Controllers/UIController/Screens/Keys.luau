@@ -18,6 +18,9 @@ local confirmSeconds = 3
 local sellCooldown = 0.2
 local refreshSeconds = 0.2
 
+local sortModes = { "BEST", "RARITY", "AMOUNT", "NAME" }
+local sortMode = 1
+
 local KeysScreen = {}
 
 function KeysScreen.new(context: Types.Context): Types.Screen
@@ -51,6 +54,23 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 	local body = modal.Body
+	local refreshAll: () -> ()
+	local sortButton = Kit.Button(trove, {
+		Parent = modal.HeaderRight,
+		Name = "Sort",
+		Text = `SORT: {sortModes[sortMode]}`,
+		Glyph = "Arrow",
+		IconLeft = true,
+		Size = UDim2.fromOffset(172, 46),
+		Color = theme.Blue,
+		TextSize = 20,
+		LayoutOrder = -1,
+		Callback = function()
+			sortMode = sortMode % #sortModes + 1
+			refreshAll()
+		end,
+		Sound = playUi,
+	})
 
 	Kit.Button(trove, {
 		Parent = modal.HeaderRight,
@@ -58,9 +78,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Text = "EQUIP BEST",
 		Glyph = "Sparkle",
 		IconLeft = true,
-		Size = UDim2.fromOffset(210, 46),
+		Size = UDim2.fromOffset(176, 46),
 		Color = theme.Green,
-		TextSize = 22,
+		TextSize = 20,
 		Callback = function()
 			if isEquipping then
 				return
@@ -80,23 +100,11 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end,
 		Sound = playUi,
 	})
-	local boardPill = Kit.Pill({
-		Parent = body,
-		Name = "BoardCountPill",
-		Glyph = "Slots",
-		Text = "Keys on your keyboard: 0/10",
-		Position = UDim2.new(0.5, 0, 0, Kit.Space.M),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Size = UDim2.fromOffset(380, 40),
-		TextSize = 20,
-	})
-	local boardLabel = boardPill.Label
-	boardLabel.Name = "BoardCount"
 	local grid = Kit.GridScroll({
 		Parent = body,
 		Name = "Grid",
-		Position = UDim2.fromOffset(6, 64),
-		Size = UDim2.new(1, -12, 1, -70),
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.new(1, -12, 1, -12),
 		CellSize = Cells.Size,
 	})
 	local emptyLabel = Kit.Label({
@@ -375,9 +383,46 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		cells[key.Id] = cell
 	end
 
-	local function refreshAll()
+	local rankedKeys = Cells.SortedCatalog(true)
+	local function ordered(totals: { [string]: number }): { Keys.Key }
+		local mode = sortModes[sortMode]
+		local list = table.clone(rankedKeys)
+		table.sort(list, function(a: Keys.Key, b: Keys.Key): boolean
+			local incomeA = Keys.GetIncome(a.Id)
+			local incomeB = Keys.GetIncome(b.Id)
+			local rankA = Cells.RarityRank[a.Rarity] or 1
+			local rankB = Cells.RarityRank[b.Rarity] or 1
+			if mode == "NAME" then
+				return a.Name < b.Name
+			end
+			if mode == "AMOUNT" and totals[a.Id] ~= totals[b.Id] then
+				return (totals[a.Id] or 0) > (totals[b.Id] or 0)
+			end
+			if mode == "RARITY" and rankA ~= rankB then
+				return rankA > rankB
+			end
+			if incomeA ~= incomeB then
+				return incomeA > incomeB
+			end
+			if rankA ~= rankB then
+				return rankA > rankB
+			end
+			return a.Name < b.Name
+		end)
+		return list
+	end
+
+	function refreshAll()
 		isDirty = false
+		sortButton.SetText(`SORT: {sortModes[sortMode]}`)
 		local onBoard = boardCounts()
+		local totals: { [string]: number } = {}
+		for keyId in cells do
+			totals[keyId] = (inventory[keyId] or 0) + (onBoard[keyId] or 0)
+		end
+		for rank, key in ordered(totals) do
+			cells[key.Id].Instance.LayoutOrder = rank
+		end
 		local tags = stolenTags()
 		local ownedKinds = 0
 		for keyId, cell in cells do
@@ -388,10 +433,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				local count = cell.Count
 				if count then
 					count.Text = `x{total}`
-				end
-				local tag = cell.TagChip
-				if tag then
-					tag.Visible = (onBoard[keyId] or 0) > 0
 				end
 				local stolenChip = cell.StolenChip
 				local stolenLabel = cell.StolenLabel
@@ -405,11 +446,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			end
 		end
 		emptyLabel.Visible = ownedKinds == 0
-		local filled = 0
-		for _, count in onBoard do
-			filled += count
-		end
-		boardLabel.Text = `Keys on your keyboard: {filled}/{tracker.GetStats().Slots}`
 		refreshDetail()
 	end
 
