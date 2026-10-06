@@ -23,6 +23,13 @@ type PlotState = {
 	Base: BasePart?,
 	Caps: { [number]: CapState },
 }
+type CosmeticState = {
+	Model: Instance,
+	Frame: CFrame,
+	Pitch: number,
+	Height: number,
+	Caps: { [number]: CapState },
+}
 type State = {
 	Name: string,
 	_trove: TroveInstance?,
@@ -43,6 +50,9 @@ local blankSwitch = "MxBlack"
 local fillerVolume = 0.55
 local fillerSwitch = "CreamTravel"
 local capHeight = FloorGrid.CapHeight
+local cosmeticModelName = "CosmeticKeys"
+local gridOffset = 512
+local gridStride = 1024
 
 local KeyPressController = {
 	Name = "KeyPressController",
@@ -51,8 +61,17 @@ local KeyPressController = {
 local controllers: { [string]: any } = {}
 local plotStates: { [Model]: PlotState } = {}
 local standingOn: { [Player]: CapState } = {}
+local cosmetic: CosmeticState? = nil
 local destroyed = false
 local isLowGraphics = false
+
+local function isFillerPart(part: BasePart): boolean
+	return part:GetAttribute("Filler") == true or part:GetAttribute("Cosmetic") == true
+end
+
+local function gridKey(column: number, row: number): number
+	return (column + gridOffset) * gridStride + row + gridOffset
+end
 
 local function releaseTween(cap: CapState)
 	local tween = cap.Tween
@@ -65,7 +84,7 @@ end
 
 local function pressCap(cap: CapState)
 	local part = cap.Part
-	local depth = if part:GetAttribute("Filler") == true then fillerPressDepth else pressDepth
+	local depth = if isFillerPart(part) then fillerPressDepth else pressDepth
 	releaseTween(cap)
 	cap.Held = true
 	local down = TweenService:Create(
@@ -128,7 +147,7 @@ end
 local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")
 	local category = if player == Players.LocalPlayer then "Board" else "Other"
 	local key = capKey(cap)
-	local isFiller = cap.Part:GetAttribute("Filler") == true
+	local isFiller = isFillerPart(cap.Part)
 	local switchId = if key then key.Switch elseif isFiller then fillerSwitch else blankSwitch
 	local volume = if key then 1 elseif isFiller then fillerVolume else blankVolume
 	controllers.SoundController:PlaySwitch(switchId, kind, 1, volume, cap.Part.Position, category)
@@ -247,6 +266,21 @@ local function getBase(state: PlotState): BasePart?
 	return base
 end
 
+local function findCosmeticCap(position: Vector3): CapState?
+	local state = cosmetic
+	if not state then
+		return nil
+	end
+	local localPosition = state.Frame:PointToObjectSpace(position)
+	local height = localPosition.Y - state.Height
+	if height < minHeight or height > maxHeight then
+		return nil
+	end
+	local column = math.floor(localPosition.X / state.Pitch + 0.5)
+	local row = math.floor(localPosition.Z / state.Pitch + 0.5)
+	return state.Caps[gridKey(column, row)]
+end
+
 local function findCap(position: Vector3): CapState?
 	for _, state in plotStates do
 		local base = getBase(state)
@@ -263,7 +297,69 @@ local function findCap(position: Vector3): CapState?
 			end
 		end
 	end
-	return nil
+	return findCosmeticCap(position)
+end
+
+local function forgetCap(cap: CapState)
+	releaseTween(cap)
+	for player, standing in standingOn do
+		if standing == cap then
+			standingOn[player] = nil
+		end
+	end
+end
+
+local function clearCosmetic()
+	local state = cosmetic
+	cosmetic = nil
+	if state then
+		for _, cap in state.Caps do
+			forgetCap(cap)
+		end
+	end
+end
+
+local function bindCosmetic(model: Instance, parentTrove: TroveInstance)
+	local frame = model:GetAttribute("Frame") :: CFrame?
+	local pitch = model:GetAttribute("Pitch")
+	local height = model:GetAttribute("CapHeight")
+	if frame == nil or type(pitch) ~= "number" or type(height) ~= "number" then
+		return
+	end
+	clearCosmetic()
+	local state: CosmeticState = { Model = model, Frame = frame, Pitch = pitch, Height = height, Caps = {} }
+	cosmetic = state
+	local trove = Trove.new()
+	parentTrove:Add(trove)
+	local function add(child: Instance)
+		local column = child:GetAttribute("GridX")
+		local row = child:GetAttribute("GridZ")
+		if child:IsA("BasePart") and type(column) == "number" and type(row) == "number" then
+			local key = gridKey(column, row)
+			local existing = state.Caps[key]
+			if existing then
+				forgetCap(existing)
+			end
+			state.Caps[key] = {
+				Part = child,
+				Rest = child.CFrame,
+				LastPress = 0,
+				Tween = nil,
+				Held = false,
+				RaiseToken = nil,
+			}
+		end
+	end
+	for _, child in model:GetChildren() do
+		add(child)
+	end
+	trove:Connect(model.ChildAdded, add)
+	trove:Connect(model.Destroying, function()
+		trove:Destroy()
+		if cosmetic == state then
+			clearCosmetic()
+		end
+	end)
 end
 
 local function getRoot(player: Player): (BasePart?, boolean)
@@ -281,7 +377,7 @@ end
 
 local function update()
 	local camera = workspace.CurrentCamera
-	if not camera or next(plotStates) == nil then
+	if not camera or (next(plotStates) == nil and cosmetic == nil) then
 		return
 	end
 	local cameraPosition = camera.CFrame.Position
@@ -339,6 +435,16 @@ function KeyPressController.Start(self: State)
 	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
 		isLowGraphics = value == true
 	end))
+	trove:Connect(RunService.Heartbeat, update)
+	local existing = workspace:FindFirstChild(cosmeticModelName)
+	if existing then
+		bindCosmetic(existing, trove)
+	end
+	trove:Connect(workspace.ChildAdded, function(child: Instance)
+		if child.Name == cosmeticModelName then
+			bindCosmetic(child, trove)
+		end
+	end)
 	local promise = WaitFor.Child(workspace, "Plots", 30)
 		:andThen(function(folder: Instance)
 			if destroyed then
@@ -347,7 +453,6 @@ function KeyPressController.Start(self: State)
 			local plotsTrove = Trove.new()
 			trove:Add(plotsTrove)
 			watchPlots(folder, plotsTrove)
-			plotsTrove:Connect(RunService.Heartbeat, update)
 		end)
 		:catch(function(problem: any)
 			warn(`[KeyPressController] workspace.Plots not found: {tostring(problem)}`)
@@ -364,6 +469,7 @@ function KeyPressController.Destroy(self: State)
 		self._trove:Destroy()
 		self._trove = nil
 	end
+	cosmetic = nil
 	table.clear(plotStates)
 	table.clear(standingOn)
 end
