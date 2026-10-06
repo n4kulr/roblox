@@ -31,6 +31,8 @@ local cellGap = 10
 local menuWidth = cell * 2 + cellGap
 local menuHeight = cell * 3 + cellGap * 2
 local settingsSize = 58
+local devGap = 10
+local developerAttribute = "IsDeveloper"
 local topButtonWidth = 176
 local topGap = 10
 local statWidth = 150
@@ -272,6 +274,31 @@ function Hud.new(context: Types.Context): Types.Screen
 		end,
 		Sound = playUi,
 	})
+
+	local devButton = Kit.Button(trove, {
+		Parent = root,
+		Name = "Dev",
+		Glyph = "Code",
+		Size = UDim2.fromOffset(settingsSize, settingsSize),
+		Position = UDim2.new(0, margin + settingsSize + devGap, 1, -margin),
+		AnchorPoint = Vector2.new(0, 1),
+		Color = theme.Grey,
+		Tooltip = "Dev tools",
+		TooltipSide = "Right",
+		Callback = function()
+			toggleScreen("Cheats")
+		end,
+		Sound = playUi,
+	})
+	local localPlayer = Players.LocalPlayer
+	local function refreshDevButton()
+		devButton.Instance.Visible = localPlayer ~= nil
+			and localPlayer:GetAttribute(developerAttribute) == true
+	end
+	refreshDevButton()
+	if localPlayer then
+		trove:Connect(localPlayer:GetAttributeChangedSignal(developerAttribute), refreshDevButton)
+	end
 
 	local hintX = margin + menuWidth + 18
 	local hintY = -menuHeight / 2 + cell / 2

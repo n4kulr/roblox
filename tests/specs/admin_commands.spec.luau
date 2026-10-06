@@ -80,6 +80,15 @@ describe("AdminService commands", function()
 			expect(friend:GetAttribute("IsAdmin")):toBe(false)
 		end)
 
+		it("tells only admins to show the dev button with the IsDeveloper attribute", function()
+			expect(owner:GetAttribute("IsDeveloper")):toBe(true)
+			expect(friend:GetAttribute("IsDeveloper")):toBe(false)
+		end)
+
+		it("still refuses commands from a non-developer over the packet", function()
+			expect(world:invoke("AdminCommand", friend, "money", "1k")):toBe("Not allowed")
+		end)
+
 		it("serves the same command over the packet for admins", function()
 			local result = world:invoke("AdminCommand", owner, "money", "1k")
 			expect(result):toBe("Added 1K Clicks")

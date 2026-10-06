@@ -162,7 +162,7 @@ Six Sonnet agents are running; their work is not merged yet:
 
 ## Dev cheats and UI fixes (merged)
 
-- **Dev cheats:** `AdminService/` has one dispatcher behind both chat commands and `Packets.AdminCommand`. Admin is checked on the server; admins are anyone in Studio, the place creator, or the allowlist. Type `/help` for the list, or `/cheats` to open the dev-only DEV CHEATS menu (it checks the `IsAdmin` attribute). `RebirthService:Force` lets an admin rebirth without paying.
+- **Dev cheats:** `AdminService/` has one dispatcher behind both chat commands and `Packets.AdminCommand`. Admin is checked on the server; admins are anyone in Studio, the place creator, or the allowlist. Type `/help` for the list. The dev panel (small draggable THOCK DEV window, `Screens/Cheats.luau`) opens from the Dev button next to Settings in the HUD; the button and panel only exist for admins because `AdminService` sets the `IsDeveloper` player attribute and the server still validates every command. The panel is non-modal: it stays open until its X is pressed. Cosmetic (filler and blank) keys now play the NkCream switch at 0.9 pitch. `RebirthService:Force` lets an admin rebirth without paying.
 - **Egg market:** now a vertical list of expandable bars, Grow a Garden style.
 - **Upgrades:** rows no longer scale when they pulse, so buttons stay inside the list. `Kit.Pulse` takes a `peak` argument and always settles back.
 
