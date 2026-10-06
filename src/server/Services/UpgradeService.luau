@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local UpgradeCost = require(ReplicatedStorage.Rules.UpgradeCost)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 type State = {
@@ -14,8 +15,8 @@ local UpgradeService = {
 }
 local services: { [string]: any } = {}
 
-local function buyUpgrade(player: Player, upgradeId: string): boolean
-	if type(upgradeId) ~= "string" then
+local function buyUpgrade(player: Player, upgradeId: string, amount: number): boolean
+	if type(upgradeId) ~= "string" or type(amount) ~= "number" or amount % 1 ~= 0 or amount < 0 then
 		return false
 	end
 	local upgrade = Upgrades.ById[upgradeId]
@@ -32,16 +33,17 @@ local function buyUpgrade(player: Player, upgradeId: string): boolean
 	if type(level) ~= "number" or level >= upgrade.MaxLevel then
 		return false
 	end
-	local cost = Upgrades.Cost(upgrade, level)
-	if not cost or data.Cash < cost then
+	local count = UpgradeCost.Affordable(upgrade, level, data.Cash, amount)
+	if count < 1 then
 		return false
 	end
+	local cost = UpgradeCost.Total(upgrade, level, count)
 	local values: { [string]: any } = { Cash = data.Cash - cost }
 	if data.Tutorial < 3 then
 		values.Tutorial = 3
 	end
 	replica:SetValues({}, values)
-	replica:SetValues({ "Upgrades" }, { [upgrade.Id] = level + 1 })
+	replica:SetValues({ "Upgrades" }, { [upgrade.Id] = level + count })
 	if upgrade.Id == "Slots" or upgrade.Id == "Walls" then
 		services.KeyboardService.BoardChanged:Fire(player)
 	end

@@ -13,8 +13,11 @@ describe("UpgradeService", function()
 		Stats = world:require("ReplicatedStorage.Rules.Stats")
 	end)
 
-	local function buy(player: any, id: any)
-		return world:invoke("BuyUpgrade", player, id)
+	local function buy(player: any, id: any, amount: any)
+		if amount == nil then
+			amount = 1
+		end
+		return world:invoke("BuyUpgrade", player, id, amount)
 	end
 
 	it("charges the level cost and raises the level", function()

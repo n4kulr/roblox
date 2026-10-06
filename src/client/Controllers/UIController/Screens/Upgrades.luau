@@ -8,8 +8,10 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local UpgradeCost = require(ReplicatedStorage.Rules.UpgradeCost)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local RateLimit = require(ReplicatedStorage.Utils.RateLimit)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
@@ -21,12 +23,25 @@ type Row = {
 	Buy: Kit.Button,
 	Upgrade: Upgrades.Upgrade,
 	IsBusy: boolean,
+	Token: number,
 }
 
 local theme = Kit.Theme
 local cardHeight = 112
 local refreshSeconds = 0.2
-local buyWidth = 158
+local buyWidth = 190
+local safetySeconds = 2
+local clientBuysPerSecond = 8
+local modeBarHeight = 52
+local modeBarWidth = 360
+local modeBarGap = 8
+
+local modes: { Kit.Tab } = {
+	{ Id = "x1", Text = "x1", Color = theme.Green },
+	{ Id = "x10", Text = "x10", Color = theme.Green },
+	{ Id = "MAX", Text = "MAX", Color = theme.Gold },
+}
+local modeAmounts: { [string]: number } = { x1 = 1, x10 = 10, MAX = 0 }
 
 local cardColors: { [string]: Color3 } = {
 	Luck = theme.Green,
@@ -59,6 +74,8 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	local rows: { Row } = {}
 	local isOpen = false
 	local tracker: Economy.Tracker
+	local mode = "x1"
+	local limiter = RateLimit.new(clientBuysPerSecond, 1)
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -76,10 +93,21 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "List",
-		Position = UDim2.fromOffset(6, 4),
-		Size = UDim2.new(1, -12, 1, -8),
+		Position = UDim2.fromOffset(6, modeBarHeight + modeBarGap * 2),
+		Size = UDim2.new(1, -12, 1, -(modeBarHeight + modeBarGap * 2 + 4)),
 		Padding = 12,
 	})
+
+	local function buyPlan(upgrade: Upgrades.Upgrade, level: number): (number, number, boolean)
+		local want = modeAmounts[mode]
+		local cash = tracker.Balance() or 0
+		local count = UpgradeCost.Affordable(upgrade, level, cash, want)
+		local isAffordable = count > 0
+		if not isAffordable then
+			count = if want == 0 then 1 else math.min(want, UpgradeCost.Remaining(upgrade, level))
+		end
+		return count, UpgradeCost.Total(upgrade, level, count), isAffordable
+	end
 
 	local function previewText(upgrade: Upgrades.Upgrade, level: number): string
 		local board = tracker.GetBoard()
@@ -148,17 +176,15 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local maxLevel = row.Upgrade.MaxLevel
 		row.Bar.SetText(`Lv {level}/{maxLevel}`)
 		row.Bar.SetValue(level / maxLevel)
-		local cost = Upgrades.Cost(row.Upgrade, level)
-		if not cost then
+		if level >= maxLevel then
 			row.Buy.SetText("MAX")
 			row.Buy.SetIconVisible(false)
 			row.Buy.SetColor(theme.Gold)
 			row.Buy.SetLocked(false)
 			return
 		end
-		local balance = tracker.Balance()
-		local canBuy = balance ~= nil and balance >= cost
-		row.Buy.SetText(NumberFormat.Compact(cost))
+		local count, total, canBuy = buyPlan(row.Upgrade, level)
+		row.Buy.SetText(`x{count}  {NumberFormat.Compact(total)}`)
 		row.Buy.SetIconVisible(true)
 		row.Buy.SetColor(if canBuy then theme.Green else theme.Disabled)
 		row.Buy.SetLocked(not canBuy)
@@ -177,28 +203,44 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local level = tracker.GetLevel(row.Upgrade.Id)
-		local cost = Upgrades.Cost(row.Upgrade, level)
-		if not cost then
+		if level >= row.Upgrade.MaxLevel then
 			playUi("Confirm")
 			context.Toast("Already MAXED!", "Good")
 			Kit.Pulse(row.Frame, theme.Gold)
 			return
 		end
-		local balance = tracker.Balance() or 0
-		if balance < cost then
+		local count, total, canBuy = buyPlan(row.Upgrade, level)
+		if not canBuy then
 			playUi("Error")
 			Kit.Shake(row.Frame)
-			context.Toast(`Need {NumberFormat.Compact(cost - balance)} more Clicks!`, "Bad")
+			local balance = tracker.Balance() or 0
+			context.Toast(`Need {NumberFormat.Compact(total - balance)} more Clicks!`, "Bad")
+			return
+		end
+		if not limiter:Allow("Buy") then
 			return
 		end
 		row.IsBusy = true
+		row.Token += 1
+		local token = row.Token
+		task.delay(safetySeconds, function()
+			if row.Token == token and row.IsBusy then
+				row.IsBusy = false
+				refreshRow(row)
+			end
+		end)
 		task.spawn(function()
-			local success = Packets.BuyUpgrade:Fire(row.Upgrade.Id)
+			local success = Packets.BuyUpgrade:Fire(row.Upgrade.Id, modeAmounts[mode])
+			if row.Token ~= token then
+				refreshRow(row)
+				return
+			end
 			row.IsBusy = false
 			if success == true then
 				playUi("Confirm")
 				Kit.Pulse(row.Frame, theme.Good)
-				context.Toast(`Bought {row.Upgrade.Name}!`, "Good")
+				local suffix = if count > 1 then ` x{count}` else ""
+				context.Toast(`Bought {row.Upgrade.Name}{suffix}!`, "Good")
 			else
 				playUi("Error")
 				Kit.Shake(row.Frame)
@@ -207,6 +249,21 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			refreshRow(row)
 		end)
 	end
+
+	Kit.TabBar(trove, {
+		Parent = modal.Body,
+		Name = "Amount",
+		Tabs = modes,
+		Selected = mode,
+		Position = UDim2.new(0.5, -modeBarWidth // 2, 0, modeBarGap),
+		Size = UDim2.fromOffset(modeBarWidth, modeBarHeight),
+		TextSize = 24,
+		OnSelect = function(id: string)
+			mode = id
+			refreshAll()
+		end,
+		Sound = playUi,
+	})
 
 	local function addCaption(section: { Caption: string, Glyph: string }, order: number)
 		Kit.Section({
@@ -266,6 +323,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Buy = nil :: any,
 			Upgrade = upgrade,
 			IsBusy = false,
+			Token = 0,
 		}
 		row.Buy = Kit.Button(trove, {
 			Parent = card,
@@ -277,7 +335,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0.5),
 			Size = UDim2.fromOffset(buyWidth, 60),
 			Color = theme.Green,
-			TextSize = 28,
+			TextSize = 26,
 			Callback = function()
 				buy(row)
 			end,

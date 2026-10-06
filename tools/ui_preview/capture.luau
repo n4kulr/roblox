@@ -305,6 +305,24 @@ local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (
 		end,
 	},
 	{
+		Name = "upgrades_x10",
+		Screens = { "Upgrades" },
+		Run = function(scene)
+			openModal(scene, "Upgrades")
+			press(find(scene, "x10"))
+			tick(scene, 0.3)
+		end,
+	},
+	{
+		Name = "upgrades_max",
+		Screens = { "Upgrades" },
+		Run = function(scene)
+			openModal(scene, "Upgrades")
+			press(find(scene, "MAX"))
+			tick(scene, 0.3)
+		end,
+	},
+	{
 		Name = "upgrades_defense",
 		Screens = { "Upgrades" },
 		Run = function(scene)
