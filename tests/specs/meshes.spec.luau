@@ -172,7 +172,7 @@ describe("Mesh skins", function()
 		expect(walkway.Size.X):toBe(plot.Base.Size.X)
 		expect(walkway.Size.Z):toBe(plot.Base.Size.Z)
 		local top = plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight
-		expect(walkway.CFrame.Position.Y + walkway.Size.Y / 2):toBeCloseTo(top, 1e-4)
+		expect(walkway.CFrame.Position.Y + walkway.Size.Y / 2):toBeCloseTo(top - 1.1, 1e-4)
 		local cap = slotCaps(plot)[1]
 		expect(cap.CFrame.Position.Y + FloorGrid.CapHeight / 2):toBeCloseTo(top + 0.25, 1e-4)
 	end)

@@ -84,7 +84,11 @@ end
 
 local function pressCap(cap: CapState)
 	local part = cap.Part
-	local depth = if isFillerPart(part) then fillerPressDepth else pressDepth
+	local authored = part:GetAttribute("PressDepth")
+	local depth = if type(authored) == "number"
+		then authored
+		elseif isFillerPart(part) then fillerPressDepth
+		else pressDepth
 	releaseTween(cap)
 	cap.Held = true
 	local down = TweenService:Create(

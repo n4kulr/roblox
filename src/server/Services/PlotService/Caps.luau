@@ -13,6 +13,7 @@ local Types = require(script.Parent.Types)
 local Caps = {
 	FillerSink = 0.35,
 	SlotRaise = 0.6,
+	FillerPress = 0.75,
 	FillerLighten = 0.45,
 	EmptyLighten = 0.25,
 	EmptyTransparency = 0.4,
@@ -100,6 +101,10 @@ function Caps.ThemeColor(model: Instance, fallback: Color3): Color3
 	return if ok then result else fallback
 end
 
+function Caps.FloorTop(): number
+	return capHeight - Caps.FillerSink - Caps.FillerPress
+end
+
 function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	local slot = cell.Slot
 	local sink = if slot then Caps.FillerSink - Caps.SlotRaise else Caps.FillerSink
@@ -109,6 +114,7 @@ function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 		Caps.FillerColor(baseColor)
 	)
 	cap:SetAttribute("Cell", cell.Index)
+	cap:SetAttribute("PressDepth", capHeight - sink - Caps.FloorTop())
 	if slot then
 		cap.Name = `Slot{slot}`
 		cap:SetAttribute("Slot", slot)

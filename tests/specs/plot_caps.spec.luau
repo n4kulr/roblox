@@ -220,10 +220,15 @@ describe("Base keycap rendering", function()
 		expect(unlocked < GameConfig.BoardSlots):toBe(true)
 		local walkTop = plot.Keys.Walkway.CFrame.Position.Y + 0.1
 		expect(walkTop):toBeCloseTo(
-			plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight,
+			plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight - 1.1,
 			1e-6
 		)
 		expect(plot.Keys:FindFirstChild("Slot1").CanCollide):toBe(false)
+		for _, cap in capsOf(plot) do
+			local depth = cap:GetAttribute("PressDepth")
+			expect(type(depth)):toBe("number")
+			expect(restTop(plot, cap) - depth):toBeCloseTo(walkTop - plot.Base.CFrame.Position.Y, 1e-4)
+		end
 	end)
 
 	it("shows the placed key's initial on filled slots only", function()

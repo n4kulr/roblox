@@ -127,7 +127,7 @@ describe("CosmeticService", function()
 		expect(walkway.Anchored):toBe(true)
 		expect(walkway.Transparency):toBe(1)
 		local top = walkway.CFrame.Position.Y + 0.1
-		expect(top):toBeCloseTo(4 + FloorGrid.CapHeight, 1e-4)
+		expect(top):toBeCloseTo(4 + FloorGrid.CapHeight - 1.1, 1e-4)
 	end)
 
 	it("gives every cap one A-Z legend and tints from the part color with some accents", function()

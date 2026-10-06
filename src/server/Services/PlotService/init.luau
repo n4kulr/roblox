@@ -130,7 +130,8 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	walkway.CanTouch = false
 	walkway.Transparency = 1
 	walkway.Size = Vector3.new(baseSize.X, walkwayThickness, baseSize.Z)
-	walkway.CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + capHeight - walkwayThickness / 2, 0)
+	walkway.CFrame = info.Base.CFrame
+		* CFrame.new(0, baseSize.Y / 2 + Caps.FloorTop() - walkwayThickness / 2, 0)
 	info.Walkway = walkway
 	walkway.Parent = folder
 	info.Model:SetAttribute("FloorCell", FloorGrid.CellSize)

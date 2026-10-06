@@ -112,6 +112,7 @@ local function buildCap(plan: Plan, cell: Cell, base: Color3): BasePart
 	)
 	cap.Name = `Cosmetic{cell.I}_{cell.J}`
 	cap:SetAttribute("Cosmetic", true)
+	cap:SetAttribute("PressDepth", Caps.FillerPress)
 	cap:SetAttribute("GridX", cell.I)
 	cap:SetAttribute("GridZ", cell.J)
 	local seed = Legend.SeedOf(modelName, (cell.I + gridOffset) * gridStride + cell.J + gridOffset)
@@ -145,7 +146,7 @@ function CosmeticService.Build(part: BasePart): Model?
 	walkway.Transparency = 1
 	walkway.Size = Vector3.new(walkwayThickness, plan.Diameter, plan.Diameter)
 	walkway.CFrame = plan.Frame
-		* CFrame.new(0, capHeight - walkwayThickness / 2, 0)
+		* CFrame.new(0, Caps.FloorTop() - walkwayThickness / 2, 0)
 		* CFrame.Angles(0, 0, math.pi / 2)
 	walkway.Parent = model
 	model:SetAttribute("Frame", plan.Frame)
