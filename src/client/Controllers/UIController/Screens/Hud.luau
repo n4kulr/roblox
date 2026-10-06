@@ -603,12 +603,22 @@ function Hud.new(context: Types.Context): Types.Screen
 	golden.ClipsDescendants = true
 	local goldenFill = Instance.new("Frame")
 	goldenFill.Name = "Fill"
+	goldenFill.BackgroundTransparency = 1
 	goldenFill.BorderSizePixel = 0
+	goldenFill.ClipsDescendants = true
 	goldenFill.AnchorPoint = Vector2.new(0, 1)
 	goldenFill.Position = UDim2.fromScale(0, 1)
 	goldenFill.Size = UDim2.fromScale(1, 0)
-	Kit.Paint(goldenFill, goldenColor)
-	Kit.Gloss(goldenFill, 8)
+	local goldenBody = Instance.new("Frame")
+	goldenBody.Name = "Body"
+	goldenBody.BorderSizePixel = 0
+	goldenBody.AnchorPoint = Vector2.new(0, 1)
+	goldenBody.Position = UDim2.fromScale(0, 1)
+	goldenBody.Size = UDim2.fromOffset(cell, cell)
+	Kit.Corner(goldenBody, Kit.Radius.L)
+	Kit.Paint(goldenBody, goldenColor)
+	Kit.Gloss(goldenBody, Kit.Radius.L)
+	goldenBody.Parent = goldenFill
 	goldenFill.Parent = golden
 	local goldenIcon = Kit.Icon({
 		Parent = golden,
@@ -631,7 +641,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	goldenLabel.ZIndex = 4
 	Kit.Tooltip(trove, golden, "Every few rolls is a Golden key!", "Above")
 	local goldenStroke = Kit.StrokeOf(golden)
-	local goldenShimmer = Kit.Shimmer(trove, golden, 12, 1.1)
+	local goldenShimmer = Kit.Shimmer(trove, golden, Kit.Radius.L, 1.1)
 	goldenShimmer.Visible = false
 	local goldenPulse: Tween? = nil
 	local isGoldenNext = false

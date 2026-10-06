@@ -1,5 +1,6 @@
 local H = require("../harness/Harness")
 local roblox = require("@lune/roblox")
+local Layout = require("../../tools/ui_preview/Layout")
 
 local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, H.beforeEach, H.afterEach
 
@@ -38,7 +39,7 @@ describe("Market egg bars", function()
 	end
 
 	local function buyText(index: number): string
-		return find(index, "Buy").Face.Text.Text
+		return find(index, "Buy").Face:FindFirstChild("Text", true).Text
 	end
 
 	local function isLocked(index: number): boolean
@@ -241,5 +242,68 @@ describe("Market egg bars", function()
 		world.task.wait(0.2)
 		expect(fired):toEqual({})
 		expect(toasts[1].Kind):toBe("Bad")
+	end)
+
+	local function recordsNamed(record: any, name: string, out: { any }): { any }
+		if record.name == name then
+			table.insert(out, record)
+		end
+		for _, child in record.children do
+			recordsNamed(child, name, out)
+		end
+		return out
+	end
+
+	local function childNamed(record: any, name: string): any
+		for _, child in record.children do
+			if child.name == name then
+				return child
+			end
+		end
+		error(`no record {name}`)
+	end
+
+	it("keeps the coin icon left of the price text without overlap for every price size", function()
+		open(1e9, {})
+		local prices = { "250", "2.5K", "25K", "250K", "2.5M", "25M", "999.9M" }
+		local gui = playerGui:FindFirstChild("Offer1", true)
+		while gui and gui.ClassName ~= "ScreenGui" do
+			gui = gui.Parent
+		end
+		local checked = 0
+		for _, price in prices do
+			for index = 1, 5 do
+				find(index, "Buy").Face:FindFirstChild("Text", true).Text = price
+			end
+			local laidOut = Layout.Gui(gui, roblox.Vector2.new(1280, 720))
+			for _, top in laidOut.children do
+				for _, buy in recordsNamed(top, "Buy", {}) do
+					local face = childNamed(buy, "Face")
+					local holder = childNamed(face, "Price")
+					local icon = childNamed(holder, "Icon")
+					local text = childNamed(holder, "Text")
+					expect(icon.w):toBeGreaterThan(0)
+					expect(text.w):toBeGreaterThan(0)
+					expect(icon.x + icon.w <= text.x):toBe(true)
+					expect(text.x - (icon.x + icon.w) < 12):toBe(true)
+					expect(math.abs((icon.y + icon.h / 2) - (text.y + text.h / 2)) < 1.5):toBe(true)
+					local pairCenter = (icon.x + text.x + text.w) / 2
+					expect(math.abs(pairCenter - holder.w / 2) < 1.5):toBe(true)
+					expect(icon.x >= 0):toBe(true)
+					expect(text.x + text.w <= holder.w):toBe(true)
+					expect(holder.w <= face.w):toBe(true)
+					checked += 1
+				end
+			end
+		end
+		expect(checked):toBe(#prices * 5)
+	end)
+
+	it("does not treat the empty-text price button as an icon-only button", function()
+		open(1e9, {})
+		local icon = find(1, "Buy").Face:FindFirstChild("Icon", true)
+		expect(icon.Size.X.Offset):toBeGreaterThan(0)
+		expect(icon.Size.X.Offset):toBe(icon.Size.Y.Offset)
+		expect(icon.Parent.Name):toBe("Price")
 	end)
 end)

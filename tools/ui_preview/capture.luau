@@ -453,6 +453,9 @@ end
 for _, extra in require("./scenarios_eggs") do
 	table.insert(scenarios, extra)
 end
+for _, extra in require("./scenarios_fixes") do
+	table.insert(scenarios, extra)
+end
 
 fs.writeDir(outDir)
 local failures = 0
