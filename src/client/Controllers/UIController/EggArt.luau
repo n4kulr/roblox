@@ -34,18 +34,17 @@ local rainbow = ColorSequence.new({
 
 local EggArt = {}
 
-function EggArt.Build(parent: Instance, egg: Eggs.Egg, size: UDim2, name: string?): Art
+function EggArt.Build(parent: Instance, egg: Eggs.Egg, height: number, name: string?): Art
 	local root = Instance.new("Frame")
 	root.Name = name or "EggArt"
 	root.BackgroundTransparency = 1
-	root.Size = size
+	root.Size = UDim2.fromOffset(height, height)
 	root.Parent = parent
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.AnchorPoint = Vector2.new(0.5, 0.5)
 	body.Position = UDim2.fromScale(0.5, 0.5)
-	body.SizeConstraint = Enum.SizeConstraint.RelativeYY
-	body.Size = UDim2.fromScale(0.78, 1)
+	body.Size = UDim2.fromOffset(height * 0.78, height)
 	body.BorderSizePixel = 0
 	body.BackgroundColor3 = egg.Color
 	body.Parent = root

@@ -238,7 +238,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		local overlay = Kit.Panel({
 			Parent = panel,
 			Name = "Drops",
-			Size = UDim2.new(1, -12, 0, 236),
+			Size = UDim2.new(1, -12, 0, 170),
 			Position = UDim2.fromOffset(6, 6),
 			Color = theme.PanelDeep,
 			Radius = Kit.Radius.M,
@@ -268,8 +268,8 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 					Parent = overlay,
 					Name = rarity.Name,
 					Text = `{rarity.Name}  {percentText(weight / total)}`,
-					Size = UDim2.new(1, -20, 0, 30),
-					Position = UDim2.fromOffset(10, 38 + row * 36),
+					Size = UDim2.new(1, -20, 0, 28),
+					Position = UDim2.fromOffset(10, 34 + row * 32),
 					Color = rarity.Color,
 					TextSize = 20,
 				})
@@ -295,8 +295,9 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Shards = true,
 		})
 		cardsTrove:Add(panel)
-		EggArt.Build(panel, egg, UDim2.fromOffset(cardSize.X - 20, 118), "Art").Root.Position =
-			UDim2.fromOffset(10, 8)
+		local art = EggArt.Build(panel, egg, 118, "Art")
+		art.Root.AnchorPoint = Vector2.new(0.5, 0)
+		art.Root.Position = UDim2.new(0.5, 0, 0, 8)
 		Kit.Label({
 			Parent = panel,
 			Name = "EggName",
@@ -327,7 +328,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			TextSize = 16,
 		})
 		local drops = buildDrops(panel, egg)
-		local dropsButton = Kit.Button(cardsTrove, {
+		Kit.Button(cardsTrove, {
 			Parent = panel,
 			Name = "DropsButton",
 			Text = "DROPS",
@@ -341,7 +342,6 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			end,
 			Sound = playUi,
 		})
-		dropsButton.Instance.ZIndex = 8
 		local priceText = Kit.Chip({
 			Parent = panel,
 			Name = "Price",

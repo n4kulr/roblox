@@ -208,7 +208,7 @@ function CharmsScreen.new(context: Types.Context): Types.Screen
 			local slot = Kit.Panel({
 				Parent = slotRow,
 				Name = `Slot{index}`,
-				Size = UDim2.fromOffset(150, 76),
+				Size = UDim2.new(1 / 3, -6, 1, 0),
 				LayoutOrder = index,
 				Color = if charm then charm.Color else theme.Well,
 				Radius = Kit.Radius.M,
@@ -229,8 +229,8 @@ function CharmsScreen.new(context: Types.Context): Types.Screen
 					Name = "Name",
 					Text = charm.Name,
 					Position = UDim2.fromOffset(54, 4),
-					Size = UDim2.new(1, -58, 0, 26),
-					TextSize = 18,
+					Size = UDim2.new(1, -58, 0, 28),
+					TextSize = 22,
 					Title = true,
 					Scaled = true,
 				})
@@ -356,7 +356,7 @@ function CharmsScreen.new(context: Types.Context): Types.Screen
 			end,
 			Sound = playUi,
 		})
-		if count > 1 or equippedCount > 0 then
+		if count > 1 then
 			Kit.Badge(panel, `x{count}`)
 		end
 	end

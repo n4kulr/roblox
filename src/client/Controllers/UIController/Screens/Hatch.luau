@@ -84,6 +84,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local hint = Kit.Label({
 		Parent = root,
 		Name = "Hint",
+		Align = Enum.TextXAlignment.Center,
 		Text = "Hatching...",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0.47, eggSize / 2 + 24),
@@ -111,6 +112,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local banner = Kit.Label({
 		Parent = card,
 		Name = "Banner",
+		Align = Enum.TextXAlignment.Center,
 		Text = "NEW CHARM!",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 12),
@@ -129,6 +131,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local charmName = Kit.Label({
 		Parent = card,
 		Name = "CharmName",
+		Align = Enum.TextXAlignment.Center,
 		Text = "",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 160),
@@ -149,6 +152,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local effect = Kit.Label({
 		Parent = card,
 		Name = "Effect",
+		Align = Enum.TextXAlignment.Center,
 		Text = "",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 244),
@@ -239,9 +243,13 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		end
 		currentEgg = egg
 		currentCharm = charm
-		eggCluster:ClearAllChildren()
-		art = EggArt.Build(eggCluster, egg, UDim2.fromScale(1, 1), "Egg")
-		artHolder:ClearAllChildren()
+		for _, child in eggCluster:GetChildren() do
+			child:Destroy()
+		end
+		art = EggArt.Build(eggCluster, egg, eggSize, "Egg")
+		for _, child in artHolder:GetChildren() do
+			child:Destroy()
+		end
 		local kind = CharmConfig.Kinds[charm.Kind]
 		Kit.IconPlate({
 			Parent = artHolder,

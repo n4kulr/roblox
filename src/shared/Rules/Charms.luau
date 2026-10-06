@@ -86,7 +86,7 @@ function Charms.Describe(charmId: string): string
 	elseif kind == "Speed" then
 		return `+{trim(charm.Amount * 100)}% Roll Speed`
 	elseif kind == "Golden" then
-		return `Golden every -{trim(charm.Amount)} rolls`
+		return `Golden -{trim(charm.Amount)} rolls`
 	elseif kind == "Steal" then
 		return `+{trim(charm.Amount * 100)}% Steal Speed`
 	end
