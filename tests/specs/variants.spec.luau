@@ -330,7 +330,6 @@ describe("Keys screen detail panel", function()
 			Settings = { RollVolume = 1, BoardVolume = 1, OtherVolume = 1 },
 			Tutorial = 5,
 			Boosts = { LuckUntil = 0, ClicksUntil = 0 },
-			Daily = { Streak = 0, LastClaim = 0 },
 			Season = { Id = 1, Xp = 0, ClaimedFree = 0, ClaimedPremium = 0 },
 			Market = { Slot = 0, Bought = {} },
 			Rebirths = 0,

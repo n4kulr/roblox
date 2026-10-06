@@ -35,7 +35,6 @@ export type Data = {
 	PlaySeconds: number,
 	TheftLessonDone: boolean,
 	Boosts: { LuckUntil: number, ClicksUntil: number },
-	Daily: { Streak: number, LastClaim: number },
 	GroupChestAt: number,
 	Incubators: { string },
 	IncubatorReadyAt: { number },
@@ -88,7 +87,6 @@ PlayerData.Template = {
 	PlaySeconds = 0,
 	TheftLessonDone = false,
 	Boosts = { LuckUntil = 0, ClicksUntil = 0 },
-	Daily = { Streak = 0, LastClaim = 0 },
 	GroupChestAt = 0,
 	Incubators = { "", "", "" },
 	IncubatorReadyAt = { 0, 0, 0 },
@@ -113,6 +111,49 @@ local function natural(value: any): boolean
 		and math.abs(value) < math.huge
 		and value >= 0
 		and value % 1 == 0
+end
+
+local function finite(value: any): boolean
+	return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function countMap(value: any): boolean
+	if type(value) ~= "table" then
+		return false
+	end
+	for id, count in value do
+		if type(id) ~= "string" or not natural(count) then
+			return false
+		end
+	end
+	return true
+end
+
+local function stringList(value: any): boolean
+	if type(value) ~= "table" then
+		return false
+	end
+	for index, entry in value do
+		if type(index) ~= "number" or type(entry) ~= "string" then
+			return false
+		end
+	end
+	return true
+end
+
+local function placedEggs(value: any): boolean
+	if type(value) ~= "table" then
+		return false
+	end
+	for index, egg in value do
+		if type(index) ~= "number" or type(egg) ~= "table" then
+			return false
+		end
+		if type(egg.Id) ~= "string" or not finite(egg.ReadyAt) or not finite(egg.X) or not finite(egg.Z) then
+			return false
+		end
+	end
+	return true
 end
 
 function PlayerData.Validate(data: any): boolean
@@ -217,7 +258,7 @@ function PlayerData.Validate(data: any): boolean
 			end
 		end
 	end
-	for _, group in { "Boosts", "Daily", "Season" } do
+	for _, group in { "Boosts", "Season" } do
 		local value = data[group]
 		if value ~= nil then
 			if type(value) ~= "table" then
@@ -249,6 +290,18 @@ function PlayerData.Validate(data: any): boolean
 				return false
 			end
 		end
+	end
+	if data.Charms ~= nil and not countMap(data.Charms) then
+		return false
+	end
+	if data.EggInventory ~= nil and not countMap(data.EggInventory) then
+		return false
+	end
+	if data.EquippedCharms ~= nil and not stringList(data.EquippedCharms) then
+		return false
+	end
+	if data.PlacedEggs ~= nil and not placedEggs(data.PlacedEggs) then
+		return false
 	end
 	return true
 end

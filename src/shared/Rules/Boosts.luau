@@ -22,12 +22,12 @@ function Boosts.PassIncome(passes: { [string]: boolean }): number
 	return income
 end
 
-function Boosts.Modifiers(
+function Boosts.LuckMultiplier(
 	boosts: Stored,
 	passes: { [string]: boolean },
 	now: number,
 	serverLuckUntil: number
-): Modifiers
+): number
 	local luck = 1
 	if passes.DoubleLuck then
 		luck *= GameConfig.Boosts.DoubleLuckPassMultiplier
@@ -38,11 +38,20 @@ function Boosts.Modifiers(
 	if isActive(serverLuckUntil, now) then
 		luck *= GameConfig.Boosts.ServerLuckMultiplier
 	end
+	return luck
+end
+
+function Boosts.Modifiers(
+	boosts: Stored,
+	passes: { [string]: boolean },
+	now: number,
+	serverLuckUntil: number
+): Modifiers
 	local income = Boosts.PassIncome(passes)
 	if isActive(boosts.ClicksUntil, now) then
 		income *= GameConfig.Boosts.PotionMultiplier
 	end
-	return { Luck = luck, Income = income }
+	return { Luck = Boosts.LuckMultiplier(boosts, passes, now, serverLuckUntil), Income = income }
 end
 
 function Boosts.Extend(expiresAt: number, now: number, seconds: number): number

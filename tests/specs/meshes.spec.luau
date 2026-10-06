@@ -55,6 +55,9 @@ describe("Mesh skins", function()
 			world.meshFailures[id] = true
 		end
 		local keyboard = { Name = "KeyboardService", BoardChanged = Signal.new() }
+		function keyboard.NotifyBoardChanged(self: any, player: any)
+			self.BoardChanged:Fire(player)
+		end
 		boardChanges = {}
 		keyboard.BoardChanged:Connect(function(player: any)
 			table.insert(boardChanges, player)

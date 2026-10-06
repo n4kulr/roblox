@@ -47,6 +47,7 @@ end
 
 function FakeData.new(world: any)
 	local Signal = world:require("ReplicatedStorage.Packages.Signal")
+	local GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 	local self = setmetatable({ _world = world, _data = {}, _replicas = {} }, FakeData)
 	local service: any = {
 		Name = "DataService",
@@ -85,7 +86,7 @@ function FakeData.new(world: any)
 			return false
 		end
 		local nextBalance = data.Cash + amount
-		if nextBalance < 0 or nextBalance > 9007199254740991 then
+		if nextBalance < 0 or nextBalance > GameConfig.MaxCash then
 			return false
 		end
 		service:Set(player, { "Cash" }, nextBalance)

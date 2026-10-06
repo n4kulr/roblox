@@ -3,7 +3,7 @@ local S = require("../support")
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
-local maxCash = 9007199254740991
+local maxCash
 
 describe("KeyboardService", function()
 	local world, services, Keyboard, GameConfig, Keys, Upgrades, Stats
@@ -13,6 +13,7 @@ describe("KeyboardService", function()
 		services = world:boot({ "KeyboardService" })
 		Keyboard = services.KeyboardService
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
+		maxCash = GameConfig.MaxCash
 		Keys = world:require("ReplicatedStorage.Config.Keys")
 		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
 		Stats = world:require("ReplicatedStorage.Rules.Stats")

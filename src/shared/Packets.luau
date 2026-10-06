@@ -17,7 +17,6 @@ local Packets = {
 	SetSetting = Packet("SetSetting", Packet.String, Packet.NumberF32):RateLimit(10, 1),
 	StealAlert = Packet("StealAlert", Packet.String, Packet.NumberU16, Packet.NumberU8),
 	StealFeed = Packet("StealFeed", Packet.String, Packet.String, Packet.NumberU16),
-	TagThief = Packet("TagThief", Packet.NumberF64):Response(Packet.Boolean8):RateLimit(4, 1),
 	Knock = Packet("Knock", Packet.NumberF64):Response(Packet.Boolean8):RateLimit(3, 1),
 	KeyfallEvent = Packet("KeyfallEvent", Packet.NumberU8, Packet.String, Packet.NumberU16),
 	Rebirth = Packet("Rebirth"):Response(Packet.Boolean8):RateLimit(1, 1),
@@ -46,16 +45,12 @@ local Packets = {
 	),
 	LockBase = Packet("LockBase"):Response(Packet.Boolean8):RateLimit(2, 1),
 	MarketBuy = Packet("MarketBuy", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(4, 1),
-	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
 	ClaimPlaytime = Packet("ClaimPlaytime", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(5, 1),
 	ClaimGroupChest = Packet("ClaimGroupChest"):Response(Packet.NumberU8):RateLimit(2, 1),
 	HatchEgg = Packet("HatchEgg", Packet.NumberU8):Response(Packet.String, Packet.Boolean8):RateLimit(3, 1),
 	PlaceEgg = Packet("PlaceEgg", Packet.String, Packet.NumberF32, Packet.NumberF32)
 		:Response(Packet.Boolean8)
 		:RateLimit(4, 1),
-	EquipCharm = Packet("EquipCharm", Packet.String, Packet.Boolean8)
-		:Response(Packet.Boolean8)
-		:RateLimit(5, 1),
 	AdminCommand = Packet("AdminCommand", Packet.String, Packet.String)
 		:Response(Packet.String)
 		:RateLimit(10, 1),

@@ -770,7 +770,7 @@ describe("EggService", function()
 		end)
 
 		it("has no equip packet handler any more", function()
-			expect(world:packets().EquipCharm.OnServerInvoke):toBeNil()
+			expect(world:packets().EquipCharm):toBeNil()
 		end)
 	end)
 

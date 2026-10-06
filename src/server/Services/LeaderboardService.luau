@@ -24,7 +24,6 @@ local boards: { Board } = {
 
 local statsInterval = 1
 local statsFolderName = "leaderstats"
-local maxStoreValue = 9007199254740991
 
 local LeaderboardService = {
 	Name = "LeaderboardService",
@@ -38,7 +37,7 @@ local statValues: { [Player]: { Clicks: any, Rolls: any, Rebirths: any } } = {}
 
 local function fieldValue(data: PlayerData.Data, field: string): number
 	local value = (data :: any)[field]
-	return if type(value) == "number" then math.clamp(math.floor(value), 0, maxStoreValue) else 0
+	return if type(value) == "number" then math.clamp(math.floor(value), 0, GameConfig.MaxCash) else 0
 end
 
 local function fallbackEntries(board: Board): { Entry }

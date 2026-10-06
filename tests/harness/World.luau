@@ -842,6 +842,7 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		return p._attributes[attribute]
 	end
 	local attributeSignals: { [string]: any } = {}
+	player.AttributeChanged = Signal.new()
 	player.GetAttributeChangedSignal = function(_p: any, attribute: string)
 		local found = attributeSignals[attribute]
 		if not found then
@@ -851,11 +852,13 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		return found
 	end
 	player.SetAttribute = function(p: any, attribute: string, value: any)
-		local changed = p._attributes[attribute] ~= value
-		p._attributes[attribute] = value
-		local found = attributeSignals[attribute]
-		if changed and found then
-			found:Fire()
+		if p._attributes[attribute] ~= value then
+			p._attributes[attribute] = value
+			local found = attributeSignals[attribute]
+			if found then
+				found:Fire()
+			end
+			p.AttributeChanged:Fire(attribute)
 		end
 	end
 	player.FindFirstChild = function(p: any, childName: string)

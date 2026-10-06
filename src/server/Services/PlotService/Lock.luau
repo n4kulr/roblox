@@ -69,6 +69,8 @@ function Lock.Build(): Types.Defense
 		Label = nil,
 		ShownSeconds = -1,
 		Status = statusReady,
+		PublishedLocked = 0,
+		PublishedCooldown = 0,
 	}
 	return state
 end
@@ -175,10 +177,23 @@ function Lock.Present(info: Types.PlotInfo, state: Types.Defense, now: number)
 		state.ShownSeconds = remaining
 		label.Text = Lock.Format(remaining)
 	end
-	local lockedAttribute: number? = if state.LockedUntil > 0 then state.LockedUntil else nil
-	local cooldownAttribute: number? = if state.CooldownUntil > 0 then state.CooldownUntil else nil
-	info.Model:SetAttribute("LockedUntil", lockedAttribute)
-	info.Model:SetAttribute("LockCooldownUntil", cooldownAttribute)
+	if state.PublishedLocked ~= state.LockedUntil then
+		state.PublishedLocked = state.LockedUntil
+		info.Model:SetAttribute("LockedUntil", if state.LockedUntil > 0 then state.LockedUntil else nil)
+	end
+	if state.PublishedCooldown ~= state.CooldownUntil then
+		state.PublishedCooldown = state.CooldownUntil
+		info.Model:SetAttribute(
+			"LockCooldownUntil",
+			if state.CooldownUntil > 0 then state.CooldownUntil else nil
+		)
+	end
+end
+
+function Lock.Reach(info: Types.PlotInfo): number
+	local halfWidth = defense.EntranceWidth / 2 + planeHalfWidthSlack
+	local height = info.Base.Size.Y / 2 + math.max(info.WallHeight, minLaserHeight) + planeBelow
+	return halfWidth + planeHalfDepth + height
 end
 
 function Lock.InEntrance(info: Types.PlotInfo, position: Vector3): boolean
