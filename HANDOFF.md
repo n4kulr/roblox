@@ -102,3 +102,20 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
 - The obby entrance is 96 studs wide, opposite the Market. The owner will design later levels themselves using `ObbyRole` attributes (see `assets/map/README.md`).
 - Max players should be 6, set by the owner in Game Settings.
 - Robux passes and products still have AssetId 0 until the owner creates them.
+
+## In-flight (2026-10-06)
+
+Two Sonnet agents are running; their work is not merged yet.
+
+1. **Economy pacing and the rebirth bug.**
+   - **Rebirth:** fix "can instantly rebirth again". The owner's decision: rebirth also clears the board back into inventory.
+   - **Simulator:** add `tools/economy_sim.luau` and tune the Config numbers until it hits these targets:
+     - first upgrade at about 20-30s
+     - first Epic at 6-10 min
+     - first Legendary at 35-50 min
+     - first rebirth at 60-75 min, and each rebirth takes 1.4x longer than the last
+     - Mythic at 4-6h; Secret at 20h or more
+   - Results go in `docs/economy.md`.
+2. **Bulk upgrade buying and the click lockup.**
+   - **Bulk buying:** `BuyUpgrade` becomes `(id, amount)`, where amount 0 means MAX. It gets a 10/s rate limit and a new `Rules/UpgradeCost.luau`. The Upgrades panel gets an x1 / x10 / MAX toggle.
+   - **Lockup:** fix upgrade clicks locking up when they hit the rate limit.
