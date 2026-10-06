@@ -4,6 +4,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local AssetOverride = require(script.Parent.AssetOverride)
+local Gui = require(script.Parent.Gui)
+local KeyLegend = require(script.Parent.KeyLegend)
+local Parts = require(script.Parent.Parts)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 
 export type Context = {
@@ -43,11 +46,11 @@ local KeyModels = {
 }
 
 local outline = Color3.fromRGB(26, 21, 48)
-local legendFont = Enum.Font.FredokaOne
-local legendTextColor = Color3.new(1, 1, 1)
-local legendStrokeTransparency = 0.2
-local legendMeshStroke = Color3.fromRGB(20, 18, 28)
-local legendMeshFill = 0.62
+local legendFont = Gui.Font
+local legendTextColor = KeyLegend.TextColor
+local legendStrokeTransparency = KeyLegend.StrokeTransparency
+local legendMeshStroke = KeyLegend.StrokeColor
+local legendMeshFill = KeyLegend.Fill
 local legendBaseFill = 1
 local fallbackColor = Color3.fromRGB(200, 200, 205)
 local skirtHeight = 1.4
@@ -76,36 +79,25 @@ local function piece(
 	color: Color3,
 	options: Options?
 ): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Anchored = ctx.Anchored
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.Massless = true
-	part.Material = Enum.Material.SmoothPlastic
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Size = size * ctx.Scale
 	local rot = if options and options.Rot then options.Rot else Vector3.zero
-	part.CFrame = ctx.Origin
-		* CFrame.new(pos * ctx.Scale)
-		* CFrame.Angles(math.rad(rot.X), math.rad(rot.Y), math.rad(rot.Z))
-	part.Color = color
-	if options then
-		if options.Shape then
-			part.Shape = options.Shape
-		end
-		if options.Reflectance then
-			part.Reflectance = options.Reflectance
-		end
-		if options.Transparency then
-			part.Transparency = options.Transparency
-		end
-	end
-	part.Parent = ctx.Parent
-	return part
+	return Parts.New({
+		Name = name,
+		Parent = ctx.Parent,
+		Anchored = ctx.Anchored,
+		Passive = true,
+		CastShadow = false,
+		Massless = true,
+		Material = Enum.Material.SmoothPlastic,
+		Smooth = true,
+		Size = size * ctx.Scale,
+		CFrame = ctx.Origin
+			* CFrame.new(pos * ctx.Scale)
+			* CFrame.Angles(math.rad(rot.X), math.rad(rot.Y), math.rad(rot.Z)),
+		Color = color,
+		Shape = if options then options.Shape else nil,
+		Reflectance = if options then options.Reflectance else nil,
+		Transparency = if options then options.Transparency else nil,
+	})
 end
 
 local ball = Enum.PartType.Ball
@@ -535,9 +527,7 @@ local function rects(shape: Shape): { Rect }
 	return { { X = 0, Z = 0, Width = KeyModels.BaseWidth, Depth = KeyModels.BaseWidth } }
 end
 
-local function legendLetter(key: Keys.Key): string
-	return string.upper(string.sub(key.Name, 1, 1))
-end
+local legendLetter = KeyLegend.LetterOf
 
 local function markLegend(model: Model, cap: BasePart, key: Keys.Key, strokeColor: Color3, fill: number)
 	local anchor = Instance.new("Attachment")
@@ -586,25 +576,19 @@ local function addBase(model: Model, key: Keys.Key?, color: Color3, shape: Shape
 		firstDish = firstDish or dish
 	end
 	if key and firstDish then
-		local gui = Instance.new("SurfaceGui")
-		gui.Name = "Legend"
-		gui.Face = Enum.NormalId.Top
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		gui.LightInfluence = 0
-		gui.Adornee = firstDish
-		local letter = Instance.new("TextLabel")
-		letter.Name = "Letter"
-		letter.BackgroundTransparency = 1
-		letter.Size = UDim2.fromScale(1, 1)
-		letter.Font = legendFont
-		letter.Text = legendLetter(key)
-		letter.TextColor3 = legendTextColor
-		letter.TextStrokeColor3 = outline
-		letter.TextStrokeTransparency = legendStrokeTransparency
-		letter.TextScaled = true
-		letter.Parent = gui
-		gui.Parent = firstDish
+		local gui = Gui.Surface(firstDish, {
+			Name = "Legend",
+			Face = Enum.NormalId.Top,
+			Adornee = firstDish,
+			PixelsPerStud = KeyLegend.PixelsPerStud,
+			LightInfluence = 0,
+		})
+		KeyLegend.Letter(gui, {
+			Text = legendLetter(key),
+			Fill = legendBaseFill,
+			Centered = false,
+			StrokeColor = outline,
+		})
 		markLegend(model, firstDish, key, outline, legendBaseFill)
 	end
 end
@@ -656,42 +640,7 @@ local function meshTemplate(name: string): MeshPart?
 end
 
 function KeyModels.Legend(cap: BasePart, key: Keys.Key, pixelsPerStud: number?): SurfaceGui
-	local rarity = Keys.GetRarity(key)
-	local surface = Instance.new("SurfaceGui")
-	surface.Name = "Top"
-	surface.Face = Enum.NormalId.Top
-	surface.Adornee = cap
-	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	surface.PixelsPerStud = pixelsPerStud or KeyModels.LegendPixelsPerStud
-	surface.LightInfluence = 0
-	surface.AlwaysOnTop = false
-	local rim = Instance.new("Frame")
-	rim.Name = "Rim"
-	rim.BackgroundTransparency = 1
-	rim.Size = UDim2.fromScale(1, 1)
-	local stroke = Instance.new("UIStroke")
-	stroke.Name = "Stroke"
-	stroke.Thickness = 3
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Color = rarity.Color:Lerp(Color3.new(1, 1, 1), 0.45)
-	stroke.Transparency = 0.1
-	stroke.Parent = rim
-	rim.Parent = surface
-	local letter = Instance.new("TextLabel")
-	letter.Name = "Letter"
-	letter.BackgroundTransparency = 1
-	letter.AnchorPoint = Vector2.new(0.5, 0.5)
-	letter.Position = UDim2.fromScale(0.5, 0.5)
-	letter.Size = UDim2.fromScale(legendMeshFill, legendMeshFill)
-	letter.Font = legendFont
-	letter.Text = legendLetter(key)
-	letter.TextColor3 = legendTextColor
-	letter.TextStrokeColor3 = legendMeshStroke
-	letter.TextStrokeTransparency = legendStrokeTransparency
-	letter.TextScaled = true
-	letter.Parent = surface
-	surface.Parent = cap
-	return surface
+	return KeyLegend.Mount(cap, key, pixelsPerStud or KeyModels.LegendPixelsPerStud)
 end
 
 function KeyModels.BuildMesh(variantId: string, template: MeshPart, scale: number): Model?

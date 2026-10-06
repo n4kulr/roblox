@@ -4,6 +4,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
+local Gui = require(ReplicatedStorage.Utils.Gui)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local Inventory = require(script.Parent.Inventory)
 
@@ -33,35 +35,22 @@ function Placed.IsPlot(plot: any): boolean
 end
 
 local function newLabel(model: Model, center: CFrame, height: number)
-	local anchor = Instance.new("Part")
-	anchor.Name = "LabelAnchor"
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanQuery = false
-	anchor.CanTouch = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	anchor.CFrame = center * CFrame.new(0, height / 2 + labelRise, 0)
-	anchor.Parent = model
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "Countdown"
-	gui.Size = UDim2.fromOffset(190, 56)
-	gui.AlwaysOnTop = false
-	gui.MaxDistance = 90
-	gui.Parent = anchor
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Text = ""
-	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2.5
-	stroke.Color = ink
-	stroke.Parent = label
+	local anchor = Parts.New({
+		Name = "LabelAnchor",
+		Parent = model,
+		Anchored = true,
+		Passive = true,
+		Transparency = 1,
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		CFrame = center * CFrame.new(0, height / 2 + labelRise, 0),
+	})
+	local gui = Gui.Billboard(anchor, {
+		Name = "Countdown",
+		Size = UDim2.fromOffset(190, 56),
+		AlwaysOnTop = false,
+		MaxDistance = 90,
+	})
+	Gui.Label(gui, { Name = "Text", Color = Color3.new(1, 1, 1), StrokeThickness = 2.5, StrokeColor = ink })
 end
 
 local function create(

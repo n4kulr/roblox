@@ -8,6 +8,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Rules = require(ReplicatedStorage.Rules.Keyfall)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 local Roll = require(script.Parent.RollService.Roll)
 local Arena = require(script.Arena)
 local Types = require(script.Types)
@@ -55,11 +56,6 @@ local isGoldenActive = false
 
 local function getData(player: Player): PlayerData.Data?
 	return services.DataService:GetData(player) :: PlayerData.Data?
-end
-
-local function rootOfCharacter(character: Model?): BasePart?
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	return if root and root:IsA("BasePart") then root else nil
 end
 
 local function goldenIndex(): number
@@ -128,7 +124,7 @@ local function refreshCarry(carry: Types.Carry)
 	for _, part in carry.Visuals do
 		part:Destroy()
 	end
-	local root = rootOfCharacter(carry.Character)
+	local root = Character.RootOfModel(carry.Character)
 	carry.Visuals = if root then Visual.Stack(carry.Character, root, carry.Keys, goldenId) else {}
 end
 
@@ -160,7 +156,7 @@ local function dropCarry(player: Player, character: Model)
 	if not carry then
 		return
 	end
-	local root = rootOfCharacter(character)
+	local root = Character.RootOfModel(character)
 	local position = if root then root.CFrame.Position else nil
 	endCarry(player)
 	for index, keyId in carry.Keys do
@@ -187,7 +183,7 @@ local function hookCharacter(player: Player, character: Model)
 	local trove = Trove.new()
 	hooks[player] = { Character = character, Trove = trove }
 	isDead[player] = nil
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoid = Character.HumanoidOf(character)
 	if humanoid then
 		trove:Connect(humanoid.Died, function()
 			isDead[player] = true
@@ -269,7 +265,7 @@ end
 
 local function updatePlayer(player: Player, now: number)
 	local character = player.Character
-	local root = rootOfCharacter(character)
+	local root = Character.RootOfModel(character)
 	if not character or not root or not getData(player) then
 		return
 	end
@@ -375,8 +371,8 @@ local function knock(player: Player, targetUserId: number): boolean
 	end
 	local target = Players:GetPlayerByUserId(targetUserId)
 	local carry = if target then carries[target] else nil
-	local ownRoot = rootOfCharacter(player.Character)
-	local targetRoot = if target then rootOfCharacter(target.Character) else nil
+	local ownRoot = Character.RootOfModel(player.Character)
+	local targetRoot = if target then Character.RootOfModel(target.Character) else nil
 	if not target or not ownRoot or not targetRoot then
 		return false
 	end

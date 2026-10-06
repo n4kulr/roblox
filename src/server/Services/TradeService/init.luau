@@ -7,6 +7,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trade = require(ReplicatedStorage.Rules.Trade)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 local Execution = require(script.Execution)
 local Types = require(script.Types)
 
@@ -45,17 +46,11 @@ local function isBusy(player: Player): boolean
 	return carried ~= nil or (type(keyfall) == "number" and keyfall > 0)
 end
 
-local function rootOf(player: Player): BasePart?
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	return if root and root:IsA("BasePart") then root else nil
-end
-
 local function isInRange(first: Player, second: Player): boolean
 	if config.MaxRange <= 0 then
 		return true
 	end
-	local firstRoot, secondRoot = rootOf(first), rootOf(second)
+	local firstRoot, secondRoot = Character.RootOf(first), Character.RootOf(second)
 	if not firstRoot or not secondRoot then
 		return false
 	end

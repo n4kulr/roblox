@@ -5,6 +5,7 @@ local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
 local PetModels = require(ReplicatedStorage.Utils.PetModels)
+local Gui = require(ReplicatedStorage.Utils.Gui)
 local PetWander = require(ReplicatedStorage.Utils.PetWander)
 
 export type Shown = {
@@ -33,27 +34,18 @@ local function build(charm: CharmConfig.Charm): (Model, number)
 	local model, s = PetModels.Build(charm)
 	local body = model.PrimaryPart :: BasePart
 	local color = charm.Color
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "Name"
-	gui.Adornee = body
-	gui.Size = UDim2.fromOffset(120, 22)
-	gui.StudsOffset = Vector3.new(0, 1.1 * s + 0.5, 0)
-	gui.MaxDistance = 40
-	gui.AlwaysOnTop = false
-	gui.Parent = body
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = color
-	label.Text = charm.Name
-	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2
-	stroke.Color = ink
-	stroke.Parent = label
+	local gui = Gui.Billboard(body, {
+		Name = "Name",
+		Adornee = body,
+		Size = UDim2.fromOffset(120, 22),
+		Offset = Vector3.new(0, 1.1 * s + 0.5, 0),
+		MaxDistance = 40,
+		AlwaysOnTop = false,
+	})
+	Gui.Label(
+		gui,
+		{ Name = "Text", Text = charm.Name, Color = color, StrokeThickness = 2, StrokeColor = ink }
+	)
 	return model, s
 end
 

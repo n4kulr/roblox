@@ -10,6 +10,7 @@ local Steal = require(ReplicatedStorage.Rules.Steal)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 local KeyVisual = require(script.Parent.Parent.Utils.KeyVisual)
 local Ragdoll = require(script.Parent.Parent.Utils.Ragdoll)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
@@ -50,12 +51,6 @@ local playClock: { [Player]: number } = {}
 
 local function getData(player: Player): PlayerData.Data?
 	return services.DataService:GetData(player) :: PlayerData.Data?
-end
-
-local function rootOf(player: Player): BasePart?
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	return if root and root:IsA("BasePart") then root else nil
 end
 
 local function distanceBetween(a: BasePart, b: BasePart): number
@@ -136,7 +131,7 @@ local function checkSteal(
 ): (boolean, string)
 	local thiefData = getData(thief)
 	local victimData = getData(owner)
-	local thiefRoot = rootOf(thief)
+	local thiefRoot = Character.RootOf(thief)
 	local lockedAt = math.max(lockedUntil[owner.UserId] or 0, services.PlotService:GetLockedUntil(owner))
 	local lock = locks[owner.UserId]
 	return Steal.CanSteal({
@@ -244,7 +239,7 @@ end
 
 local function startCarry(thief: Player, owner: Player, slot: number, keyId: string)
 	local character = thief.Character
-	local root = rootOf(thief)
+	local root = Character.RootOf(thief)
 	if not character or not root then
 		return
 	end
@@ -283,7 +278,7 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 	carryTrove:Connect(knockPrompt.Triggered, function(victim: Player)
 		StealService:_knock(victim, thief)
 	end)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoid = Character.HumanoidOf(character)
 	if humanoid then
 		carryTrove:Connect(humanoid.Died, function()
 			failCarry(thief)
@@ -495,7 +490,7 @@ local function spawnDrop(carrier: Types.Carrier, thief: Player, root: BasePart)
 		if player.UserId ~= drop.OwnerUserId or drops[part] ~= drop then
 			return
 		end
-		local ownerRoot = rootOf(player)
+		local ownerRoot = Character.RootOf(player)
 		if
 			not ownerRoot
 			or distanceBetween(ownerRoot, part) > Prompts.TakeBackRange + Prompts.TakeBackSlack
@@ -521,8 +516,8 @@ local function knock(victim: Player, thief: Player)
 	end
 	local data = getData(victim)
 	local range = Prompts.KnockRange(data ~= nil and data.TheftLessonDone == false)
-	local victimRoot = rootOf(victim)
-	local thiefRoot = rootOf(thief)
+	local victimRoot = Character.RootOf(victim)
+	local thiefRoot = Character.RootOf(thief)
 	if
 		not victimRoot
 		or not thiefRoot
@@ -558,7 +553,7 @@ end
 local function step()
 	for thief, carrier in table.clone(carriers) do
 		if carriers[thief] == carrier then
-			local root = rootOf(thief)
+			local root = Character.RootOf(thief)
 			local knockPrompt = carrier.KnockPrompt
 			if knockPrompt then
 				local readyAt = knockReadyAt[thief]

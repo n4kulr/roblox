@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
+local Character = require(script.Parent.Parent.Parent.Utils.Character)
 
 local heldScale = 0.7
 
@@ -65,7 +66,7 @@ end
 
 function Tools.Equip(player: Player)
 	local character = player.Character
-	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+	local humanoid = Character.HumanoidOf(character)
 	if not humanoid then
 		return
 	end

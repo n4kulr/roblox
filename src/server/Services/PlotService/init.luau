@@ -7,6 +7,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -51,15 +52,15 @@ local respawnPoints: { [Player]: CFrame } = {}
 local hasWarnedSlots = false
 
 local function newPart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Anchored = true
-	part.Size = size
-	part.CFrame = cframe
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.Parent = parent
-	return part
+	return Parts.New({
+		Name = name,
+		Parent = parent,
+		Anchored = true,
+		Size = size,
+		CFrame = cframe,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+	})
 end
 
 local function buildPlaceholderPlots(folder: Folder)
@@ -125,18 +126,18 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 		)
 	end
 	local baseSize = info.Base.Size
-	local walkway = Instance.new("Part")
-	walkway.Name = "Walkway"
-	walkway.Anchored = true
-	walkway.CanCollide = true
-	walkway.CanQuery = true
-	walkway.CanTouch = false
-	walkway.Transparency = 1
-	walkway.Size = Vector3.new(baseSize.X, walkwayThickness, baseSize.Z)
-	walkway.CFrame = info.Base.CFrame
-		* CFrame.new(0, baseSize.Y / 2 + Caps.FloorTop() - walkwayThickness / 2, 0)
+	local walkway = Parts.New({
+		Name = "Walkway",
+		Parent = folder,
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(baseSize.X, walkwayThickness, baseSize.Z),
+		CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + Caps.FloorTop() - walkwayThickness / 2, 0),
+	})
 	info.Walkway = walkway
-	walkway.Parent = folder
 	info.Model:SetAttribute("FloorCell", FloorGrid.CellSize)
 	info.Model:SetAttribute("FloorGap", FloorGrid.CellGap)
 	info.Model:SetAttribute("FloorColumns", layout.Columns)

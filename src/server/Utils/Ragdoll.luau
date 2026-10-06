@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Character = require(script.Parent.Character)
 
 local Ragdoll = {
 	Attribute = "Ragdolled",
@@ -44,7 +45,7 @@ local function disableMotor(trove: any, motor: Motor6D)
 end
 
 function Ragdoll.Apply(character: Model): (() -> ())?
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoid = Character.HumanoidOf(character)
 	if not humanoid or character:GetAttribute(Ragdoll.Attribute) == true then
 		return nil
 	end

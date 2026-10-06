@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local Caps = require(script.Parent.PlotService.Caps)
 local Legend = require(script.Parent.PlotService.Legend)
@@ -136,19 +137,20 @@ function CosmeticService.Build(part: BasePart): Model?
 	for _, cell in plan.Cells do
 		buildCap(plan, cell, part.Color).Parent = model
 	end
-	local walkway = Instance.new("Part")
-	walkway.Name = "Walkway"
-	walkway.Shape = Enum.PartType.Cylinder
-	walkway.Anchored = true
-	walkway.CanCollide = true
-	walkway.CanQuery = true
-	walkway.CanTouch = false
-	walkway.Transparency = 1
-	walkway.Size = Vector3.new(walkwayThickness, plan.Diameter, plan.Diameter)
-	walkway.CFrame = plan.Frame
-		* CFrame.new(0, Caps.FloorTop() - walkwayThickness / 2, 0)
-		* CFrame.Angles(0, 0, math.pi / 2)
-	walkway.Parent = model
+	Parts.New({
+		Name = "Walkway",
+		Parent = model,
+		Shape = Enum.PartType.Cylinder,
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(walkwayThickness, plan.Diameter, plan.Diameter),
+		CFrame = plan.Frame
+			* CFrame.new(0, Caps.FloorTop() - walkwayThickness / 2, 0)
+			* CFrame.Angles(0, 0, math.pi / 2),
+	})
 	model:SetAttribute("Frame", plan.Frame)
 	model:SetAttribute("Pitch", FloorGrid.CellSize)
 	model:SetAttribute("CapHeight", capHeight)

@@ -4,8 +4,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
+local Gui = require(ReplicatedStorage.Utils.Gui)
+local KeyLegend = require(ReplicatedStorage.Utils.KeyLegend)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
 local Legend = require(script.Parent.Legend)
@@ -55,9 +58,7 @@ function Caps.Blank(cframe: CFrame, color: Color3): BasePart
 	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
 	local capSize = FloorGrid.CapSize()
 	cap.Anchored = true
-	cap.CanCollide = false
-	cap.CanQuery = false
-	cap.CanTouch = false
+	Parts.Passive(cap)
 	cap.CastShadow = false
 	cap.Size = Vector3.new(capSize, capHeight, capSize)
 	cap.CFrame = cframe
@@ -127,60 +128,45 @@ function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	return cap
 end
 
-local function newLabel(parent: Instance, name: string, text: string, size: UDim2): TextLabel
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.Size = size
-	label.Font = Enum.Font.FredokaOne
-	label.Text = text
-	label.TextColor3 = white
-	label.TextScaled = true
-	label.Parent = parent
-	return label
-end
-
 local function newVisual(cap: BasePart): Types.CapVisual
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "Income"
-	billboard.Adornee = cap
-	billboard.Size = UDim2.fromOffset(110, 30)
-	billboard.StudsOffset = Vector3.new(0, 2.4, 0)
-	billboard.AlwaysOnTop = false
-	billboard.LightInfluence = 0
-	billboard.MaxDistance = Caps.IncomeMaxDistance
-	billboard.Enabled = false
-	local income = newLabel(billboard, "Amount", "", UDim2.fromScale(1, 1))
-	income.TextStrokeColor3 = strokeColor
-	income.TextStrokeTransparency = 0.15
+	local billboard = Gui.Billboard(nil, {
+		Name = "Income",
+		Adornee = cap,
+		Size = UDim2.fromOffset(110, 30),
+		Offset = Vector3.new(0, 2.4, 0),
+		AlwaysOnTop = false,
+		LightInfluence = 0,
+		MaxDistance = Caps.IncomeMaxDistance,
+		Enabled = false,
+	})
+	local income = Gui.Label(billboard, {
+		Name = "Amount",
+		Centered = true,
+		Color = white,
+		TextStrokeColor = strokeColor,
+		TextStrokeTransparency = 0.15,
+	})
 	billboard.Parent = cap
 
-	local surface = Instance.new("SurfaceGui")
-	surface.Name = "Top"
-	surface.Face = Enum.NormalId.Top
-	surface.Adornee = cap
-	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	surface.PixelsPerStud = 40
-	surface.LightInfluence = 0
-	surface.AlwaysOnTop = false
-	surface.MaxDistance = Caps.SurfaceMaxDistance
-	local rim = Instance.new("Frame")
-	rim.Name = "Rim"
-	rim.BackgroundTransparency = 1
-	rim.Size = UDim2.fromScale(1, 1)
-	local stroke = Instance.new("UIStroke")
-	stroke.Name = "Stroke"
-	stroke.Thickness = 3
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = rim
-	rim.Parent = surface
-	local plus = newLabel(surface, "Plus", "+", UDim2.fromScale(0.5, 0.5))
-	plus.TextTransparency = 0.45
-	local letter = newLabel(surface, "Letter", "", UDim2.fromScale(0.62, 0.62))
-	letter.TextStrokeColor3 = strokeColor
-	letter.TextStrokeTransparency = 0.2
+	local surface = Gui.Surface(nil, {
+		Name = "Top",
+		Face = Enum.NormalId.Top,
+		Adornee = cap,
+		PixelsPerStud = KeyLegend.PixelsPerStud,
+		LightInfluence = 0,
+		AlwaysOnTop = false,
+		MaxDistance = Caps.SurfaceMaxDistance,
+	})
+	local rim, stroke = KeyLegend.Rim(surface)
+	local plus = Gui.Label(surface, {
+		Name = "Plus",
+		Text = "+",
+		Centered = true,
+		Size = UDim2.fromScale(0.5, 0.5),
+		Color = white,
+		Transparency = 0.45,
+	})
+	local letter = KeyLegend.Letter(surface, { Text = "", StrokeColor = strokeColor })
 	letter.Visible = false
 	local lock = Instance.new("ImageLabel")
 	lock.Name = "Lock"

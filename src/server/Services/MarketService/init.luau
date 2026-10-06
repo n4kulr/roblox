@@ -6,6 +6,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Market = require(ReplicatedStorage.Rules.Market)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 local Stall = require(script.Stall)
 
 type TroveInstance = typeof(Trove.new())
@@ -37,9 +38,8 @@ end
 
 local function isNearCounter(player: Player): boolean
 	local stand = counter
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if not stand or not root or not root:IsA("BasePart") then
+	local root = Character.RootOf(player)
+	if not stand or not root then
 		return false
 	end
 	return (root.CFrame.Position - stand.CFrame.Position).Magnitude <= config.PromptRange + reachSlack

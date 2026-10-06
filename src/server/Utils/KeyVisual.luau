@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local MeshTemplates = require(script.Parent.MeshTemplates)
 
 local KeyVisual = {}
@@ -19,9 +20,7 @@ function KeyVisual.NewCap(keyId: string, name: string, size: Vector3): BasePart?
 	part.Anchored = false
 	part.Size = size
 	Keys.ApplyVariantFinish(part, keyId)
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
+	Parts.Passive(part)
 	part.Massless = true
 	return part
 end

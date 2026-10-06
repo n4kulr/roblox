@@ -5,6 +5,8 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local Market = require(ReplicatedStorage.Rules.Market)
+local Gui = require(ReplicatedStorage.Utils.Gui)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 
 local config = GameConfig.Market
 
@@ -35,41 +37,29 @@ local function newPart(
 	collide: boolean?,
 	tilt: number?
 ): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Anchored = true
-	part.Size = size
-	part.CFrame = CFrame.new(center + offset) * CFrame.Angles(tilt or 0, 0, 0)
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.CanCollide = collide ~= false
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = parent
-	return part
+	return Parts.New({
+		Name = name,
+		Parent = parent,
+		Anchored = true,
+		Size = size,
+		CFrame = CFrame.new(center + offset) * CFrame.Angles(tilt or 0, 0, 0),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = collide ~= false,
+		Smooth = true,
+	})
 end
 
 local function buildSign(model: Model)
 	local board = newPart(model, "SignBoard", Vector3.new(12, 3, 0.6), Vector3.new(0, 10.2, 5.8), signColor)
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "SignGui"
-	gui.Face = Enum.NormalId.Back
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
-	gui.Parent = board
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.Text = "EGG MARKET"
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextScaled = true
-	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(20, 20, 25)
-	stroke.Thickness = 3
-	stroke.Parent = label
+	local gui = Gui.Surface(board, { Name = "SignGui", Face = Enum.NormalId.Back, PixelsPerStud = 40 })
+	Gui.Label(gui, {
+		Name = "Text",
+		Text = "EGG MARKET",
+		Color = Color3.new(1, 1, 1),
+		StrokeThickness = 3,
+		StrokeColor = Color3.fromRGB(20, 20, 25),
+	})
 end
 
 function Stall.Build(name: string): (Model, BasePart)

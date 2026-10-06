@@ -10,6 +10,7 @@ local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local Roll = require(script.Roll)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -45,9 +46,8 @@ end
 
 local function isInOwnBase(player: Player): boolean
 	local base = services.PlotService:GetBase(player) :: BasePart?
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if not base or not root or not root:IsA("BasePart") then
+	local root = Character.RootOf(player)
+	if not base or not root then
 		return false
 	end
 	return BaseBounds.Contains(base.CFrame, base.Size, root.CFrame.Position, GameConfig.RollInBaseMargin)

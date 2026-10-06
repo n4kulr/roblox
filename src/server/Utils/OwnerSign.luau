@@ -1,6 +1,8 @@
 --!strict
 
-local Trove = require(game:GetService("ReplicatedStorage").Packages.Trove)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Trove = require(ReplicatedStorage.Packages.Trove)
+local Gui = require(ReplicatedStorage.Utils.Gui)
 
 type TroveInstance = typeof(Trove.new())
 type Face = { Face: Enum.NormalId, Normal: Vector3, Axis: string }
@@ -77,12 +79,8 @@ function OwnerSign.Faces(panel: BasePart, base: BasePart): (Face, Face, number)
 	return best :: Face, opposite :: Face, width / height
 end
 
-local function stroke(parent: Instance, thickness: number, color: Color3)
-	local line = Instance.new("UIStroke")
-	line.Color = color
-	line.Thickness = thickness
-	line.LineJoinMode = Enum.LineJoinMode.Round
-	line.Parent = parent
+local function stroke(parent: Instance, thickness: number)
+	Gui.Stroke(parent, thickness, outlineColor, Enum.LineJoinMode.Round)
 end
 
 local function newLabel(
@@ -93,19 +91,16 @@ local function newLabel(
 	color: Color3,
 	thickness: number
 )
-	local label = Instance.new("TextLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.Position = position
-	label.Size = size
-	label.Font = Enum.Font.FredokaOne
-	label.TextColor3 = color
-	label.TextScaled = true
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Text = ""
-	label.Parent = parent
-	stroke(label, thickness, outlineColor)
-	return label
+	return Gui.Label(parent, {
+		Name = name,
+		Position = position,
+		Size = size,
+		Color = color,
+		XAlignment = Enum.TextXAlignment.Left,
+		StrokeThickness = thickness,
+		StrokeColor = outlineColor,
+		StrokeJoin = Enum.LineJoinMode.Round,
+	})
 end
 
 local function fill(gui: Instance, aspect: number)
@@ -118,7 +113,7 @@ local function fill(gui: Instance, aspect: number)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.14, 0)
 	corner.Parent = plate
-	stroke(plate, 4, outlineColor)
+	stroke(plate, 4)
 	plate.Parent = gui
 
 	local headSize = 0.78
@@ -134,7 +129,7 @@ local function fill(gui: Instance, aspect: number)
 	local headCorner = Instance.new("UICorner")
 	headCorner.CornerRadius = UDim.new(0.2, 0)
 	headCorner.Parent = head
-	stroke(head, 3, outlineColor)
+	stroke(head, 3)
 	head.Parent = plate
 
 	local textX = head.Position.X.Scale + headWidth + 0.03

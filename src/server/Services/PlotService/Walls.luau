@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
 
 export type Segment = {
@@ -363,26 +364,30 @@ local function fenceRise(info: Types.PlotInfo): number
 end
 
 local function createPart(segment: Segment): Part
-	local part = Instance.new("Part")
-	part.Name = segment.Name
-	part.Anchored = true
-	part.CanTouch = false
 	if segment.Kind == Walls.Kinds.Glass then
-		part.Material = Enum.Material.Glass
-		part.Color = glassColor
-		part.Transparency = glassTransparency
-		part.Reflectance = glassReflectance
-		part.CastShadow = false
-		part.CanCollide = true
-		part.CanQuery = false
-	else
-		part.Material = Enum.Material.Metal
-		part.Color = steelColor
-		part.CastShadow = segment.Kind == Walls.Kinds.Pillar
-		part.CanCollide = true
-		part.CanQuery = false
+		return Parts.New({
+			Name = segment.Name,
+			Anchored = true,
+			CanTouch = false,
+			Material = Enum.Material.Glass,
+			Color = glassColor,
+			Transparency = glassTransparency,
+			Reflectance = glassReflectance,
+			CastShadow = false,
+			CanCollide = true,
+			CanQuery = false,
+		})
 	end
-	return part
+	return Parts.New({
+		Name = segment.Name,
+		Anchored = true,
+		CanTouch = false,
+		Material = Enum.Material.Metal,
+		Color = steelColor,
+		CastShadow = segment.Kind == Walls.Kinds.Pillar,
+		CanCollide = true,
+		CanQuery = false,
+	})
 end
 
 function Walls.Clear(info: Types.PlotInfo)

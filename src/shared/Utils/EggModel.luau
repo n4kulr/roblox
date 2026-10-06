@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local Parts = require(script.Parent.Parts)
 
 export type Options = {
 	Scale: number,
@@ -186,18 +187,16 @@ local function piece(
 	color: Color3,
 	mesh: Enum.MeshType?
 ): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.CFrame = cframe
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
+	local part = Parts.New({
+		Name = name,
+		Size = size,
+		CFrame = cframe,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Passive = true,
+		CastShadow = false,
+		Smooth = true,
+	})
 	if mesh then
 		local special = Instance.new("SpecialMesh")
 		special.MeshType = mesh

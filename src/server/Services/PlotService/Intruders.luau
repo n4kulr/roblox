@@ -1,5 +1,7 @@
 --!strict
 
+local Character = require(script.Parent.Parent.Parent.Utils.Character)
+
 local Intruders = {}
 
 local cellSize = 32
@@ -15,9 +17,8 @@ end
 function Intruders.Build(players: { Player }): Index
 	local index: Index = {}
 	for _, player in players do
-		local character = player.Character
-		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		if root and root:IsA("BasePart") then
+		local root = Character.RootOf(player)
+		if root then
 			local position = root.CFrame.Position
 			local key = cellKey(math.floor(position.X / cellSize), math.floor(position.Z / cellSize))
 			local bucket = index[key]
