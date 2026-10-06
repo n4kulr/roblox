@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
-local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Stats = require(ReplicatedStorage.Rules.Stats)
@@ -13,6 +12,7 @@ local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
+local Caps = require(script.Caps)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
@@ -89,44 +89,8 @@ local function findPart(model: Model, name: string): BasePart?
 	return if child and child:IsA("BasePart") then child else nil
 end
 
-local emptyCapColor = Color3.fromRGB(40, 41, 48)
-local emptyCapTransparency = 0.6
-local lockedCapColor = Color3.fromRGB(60, 60, 64)
-local lockedCapTransparency = 0.85
-local fillerCapColor = Color3.fromRGB(222, 218, 208)
 local capHeight = FloorGrid.CapHeight
 local walkwayThickness = 0.2
-
-local function applyFiller(cap: BasePart)
-	cap.Color = fillerCapColor
-	cap.Material = Enum.Material.SmoothPlastic
-	cap.Reflectance = 0
-	cap.Transparency = 0
-end
-
-local function newCap(info: PlotInfo, cell: FloorGrid.Cell): BasePart
-	local template = MeshTemplates.Get("Keycap")
-	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
-	local capSize = FloorGrid.CapSize()
-	cap.Anchored = true
-	cap.CanCollide = false
-	cap.CanQuery = false
-	cap.CanTouch = false
-	cap.CastShadow = false
-	cap.Size = Vector3.new(capSize, capHeight, capSize)
-	cap.CFrame = info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2, cell.Z)
-	cap:SetAttribute("Cell", cell.Index)
-	applyFiller(cap)
-	local slot = cell.Slot
-	if slot then
-		cap.Name = `Slot{slot}`
-		cap:SetAttribute("Slot", slot)
-	else
-		cap.Name = `Floor{cell.Index}`
-		cap:SetAttribute("Filler", true)
-	end
-	return cap
-end
 
 local function createCaps(info: PlotInfo, trove: TroveInstance)
 	local existing = info.Model:FindFirstChild("Keys")
@@ -138,8 +102,9 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 	folder.Name = "Keys"
 	table.clear(info.Caps)
 	table.clear(info.FloorCaps)
+	table.clear(info.Visuals)
 	for _, cell in layout.Cells do
-		local cap = newCap(info, cell)
+		local cap = Caps.Create(info, cell)
 		cap.Parent = folder
 		table.insert(info.FloorCaps, cap)
 		local slot = cell.Slot
@@ -197,36 +162,7 @@ local function skinRollKey(info: PlotInfo)
 end
 
 local function render(info: PlotInfo, data: PlayerData.Data?)
-	local unlocked = if data then Stats.Slots(data.Upgrades) else 0
-	for slot, cap in info.Caps do
-		local key = if data and slot <= unlocked then Keys.ById[data.Board[slot]] else nil
-		if key then
-			local rarity = Keys.GetRarity(key)
-			cap.Color = rarity.Color
-			Keys.ApplyFinish(cap, rarity)
-			cap.Transparency = 0
-			cap:SetAttribute("KeyId", key.Id)
-			cap:SetAttribute("Locked", nil)
-		elseif data and slot > unlocked then
-			cap.Color = lockedCapColor
-			cap.Material = Enum.Material.SmoothPlastic
-			cap.Reflectance = 0
-			cap.Transparency = lockedCapTransparency
-			cap:SetAttribute("KeyId", nil)
-			cap:SetAttribute("Locked", true)
-		elseif data then
-			cap.Color = emptyCapColor
-			cap.Material = Enum.Material.SmoothPlastic
-			cap.Reflectance = 0
-			cap.Transparency = emptyCapTransparency
-			cap:SetAttribute("KeyId", nil)
-			cap:SetAttribute("Locked", nil)
-		else
-			applyFiller(cap)
-			cap:SetAttribute("KeyId", nil)
-			cap:SetAttribute("Locked", nil)
-		end
-	end
+	Caps.Render(info, data, if data then Stats.Slots(data.Upgrades) else 0)
 end
 
 local function homeCFrame(info: PlotInfo): CFrame
@@ -366,6 +302,7 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 				Board = board,
 				Caps = {},
 				FloorCaps = {},
+				Visuals = {},
 				Layout = nil :: any,
 				Owner = nil,
 				Placeholder = useMeshes,

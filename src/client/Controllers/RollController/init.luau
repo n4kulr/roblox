@@ -19,6 +19,8 @@ local BaseZone = require(script.BaseZone)
 local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
 local ResultCards = require(script.ResultCards)
+local Cinematic = require(script.Cinematic)
+local Tiers = require(script.Tiers)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -62,6 +64,8 @@ local holdPitch = 1
 local isHolding = false
 local destroyed = false
 local isLowGraphics = false
+local effectsMinRank = 5
+local cinematic: Cinematic.Cinematic? = nil
 local isAuto = false
 local isInBase = false
 local rollInterval = 1 / GameConfig.RollsPerSecond
@@ -235,6 +239,22 @@ local function reveal(index: number, isGolden: boolean)
 	local rarity = Keys.GetRarity(key)
 	if isGolden then
 		goldenFeedback()
+	end
+	local shownCinematic = cinematic
+	if
+		shownCinematic
+		and Tiers.ShouldPlay(Tiers.RankOf(rarity), effectsMinRank)
+		and shownCinematic:CanAccept()
+	then
+		local sounds = controllers.SoundController
+		sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Roll")
+		sounds:PlayFlair(key, nil, "Roll")
+		shownCinematic:Play({ Key = key, Rarity = rarity, IsGolden = isGolden }, function()
+			if not destroyed then
+				showCard(key, rarity, isGolden)
+			end
+		end)
+		return
 	end
 	if rarity.BuildUpSeconds > 0 then
 		buildUp(rollKey, rarity)
@@ -488,8 +508,16 @@ function RollController.Start(self: State)
 	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
 		isLowGraphics = value == true
 	end))
+	trove:Add(controllers.DataController:Observe({ "Settings", "EffectsMinRarity" }, function(value: any)
+		effectsMinRank = Tiers.Clamp(value)
+	end))
 	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
 	if playerGui then
+		cinematic = Cinematic.new(playerGui, trove, function()
+			return isLowGraphics
+		end, function()
+			return controllers
+		end)
 		cards = ResultCards.new(playerGui, trove, function()
 			return isLowGraphics
 		end)
@@ -511,6 +539,10 @@ function RollController.Start(self: State)
 		if slots and shown then
 			shown:Run(slots:Tick(os.clock()))
 			shown:Step(dt)
+		end
+		local playing = cinematic
+		if playing then
+			playing:Step(dt)
 		end
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
@@ -542,6 +574,8 @@ function RollController.Destroy(self: State)
 	rollKey = nil
 	disconnectKeyWatch()
 	cards = nil
+	cinematic = nil
+	effectsMinRank = 5
 	resultSlots = nil
 	if self._trove then
 		self._trove:Destroy()

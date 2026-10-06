@@ -119,3 +119,28 @@ Two Sonnet agents are running; their work is not merged yet.
 2. **Bulk upgrade buying and the click lockup (DONE, merged; partial buys allowed, e.g. x10 with cash for 4 buys 4).**
    - **Bulk buying:** `BuyUpgrade` becomes `(id, amount)`, where amount 0 means MAX. It gets a 10/s rate limit and a new `Rules/UpgradeCost.luau`. The Upgrades panel gets an x1 / x10 / MAX toggle.
    - **Lockup:** fix upgrade clicks locking up when they hit the rate limit.
+
+## In-flight (2026-10-06, batch 2)
+
+The contracts are already pushed in 72dd429:
+- PlayerData: `Settings.MusicVolume`, `Settings.EffectsMinRarity` and `GroupChestAt`
+- Packets: `ClaimPlaytime` and `ClaimGroupChest`
+- GameConfig: `GroupChest`, `Playtime` and `RollInBaseMargin`
+
+Six Sonnet agents are running; their work is not merged yet:
+1. **Early game:** retune for a fast-paced first 40 minutes (Epic at about 2-3 min, Legendary at 12-20 min, first rebirth at 45-60 min).
+2. **Group chest (DONE, merged; set GameConfig.GroupChest.GroupId)** at the map centre: join the group to claim. `GroupId` is 0 until the owner sets it.
+3. **Playtime gifts** replace Daily: 10 tiers from 10s to 60 min, tracked per session. The HUD button becomes "GIFTS".
+4. **Big reveal effects:** Bubble Gum Sim-style reveals for Legendary, Mythic and Secret. Settings gets a "Big reveal effects" selector and a Music slider.
+5. **UI batch:**
+   - swap the Upgrades and Keys buttons
+   - make the modal dim cover the top bar (IgnoreGuiInset)
+   - Keys: sort button (Best, then Rarity, then Amount, then Name), remove "ON BOARD", make income the most prominent stat
+   - Pass: tapping a tile claims it
+   - simplify the Robux store
+   - you can only roll while inside your own base
+6. **Base and music (DONE, merged; lock icon uses UiAssets.IconAtlas/LockIcon; MusicController:SetDucked available):**
+   - filler keys go dark and sunk, slot keys stand out
+   - floating income labels over keys
+   - empty slots show "+"
+   - a classical MusicController with placeholder ids in `Config/Music.luau`

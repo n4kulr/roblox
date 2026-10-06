@@ -15,6 +15,17 @@ export type Defense = {
 	Status: string,
 }
 
+export type CapVisual = {
+	State: string,
+	Billboard: BillboardGui,
+	Amount: TextLabel,
+	Surface: SurfaceGui,
+	Rim: GuiObject,
+	Stroke: UIStroke,
+	Plus: TextLabel,
+	Lock: ImageLabel,
+}
+
 export type Frame = {
 	Left: number,
 	Right: number,
@@ -31,6 +42,7 @@ export type PlotInfo = {
 	Board: BasePart,
 	Caps: { BasePart },
 	FloorCaps: { BasePart },
+	Visuals: { [BasePart]: CapVisual },
 	Layout: FloorGrid.Layout,
 	Owner: Player?,
 	Placeholder: boolean,

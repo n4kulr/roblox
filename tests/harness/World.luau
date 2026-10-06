@@ -309,6 +309,16 @@ local function makeFakeServices(world)
 		end,
 	}
 
+	services.GroupService = {
+		PromptJoinAsync = function(_self, groupId: number)
+			if world.groupPromptUnavailable then
+				error("fake group service unavailable")
+			end
+			table.insert(world.groupPrompts, groupId)
+			return "Joined"
+		end,
+	}
+
 	services.DataStoreService = {
 		GetOrderedDataStore = function(_self, name: string)
 			if world.orderedDown then
@@ -455,6 +465,11 @@ function World.new(
 		prompts = {} :: { { Kind: string, Player: any, Id: number } },
 		ownedPasses = {} :: { [number]: { [number]: boolean } },
 		passCheckFailures = 0,
+		groupMembers = {} :: { [number]: { [number]: boolean } },
+		groupFailures = 0,
+		groupChecks = 0,
+		groupPrompts = {} :: { number },
+		groupPromptUnavailable = false,
 		meshRequests = {} :: { any },
 		meshFailures = {} :: { [any]: boolean },
 		meshDelay = 0,
@@ -549,6 +564,11 @@ end
 function World.own(self, player: any, assetId: number)
 	self.ownedPasses[player.UserId] = self.ownedPasses[player.UserId] or {}
 	self.ownedPasses[player.UserId][assetId] = true
+end
+
+function World.setGroupMember(self, player: any, groupId: number, isMember: boolean)
+	self.groupMembers[player.UserId] = self.groupMembers[player.UserId] or {}
+	self.groupMembers[player.UserId][groupId] = isMember
 end
 
 function World.receipt(self, player: any, productId: number, purchaseId: number?)
@@ -820,6 +840,15 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 		end
 		return child
 	end
+	player.IsInGroup = function(p: any, groupId: number)
+		self.groupChecks += 1
+		if self.groupFailures > 0 then
+			self.groupFailures -= 1
+			error("fake group lookup failure")
+		end
+		local groups = self.groupMembers[p.UserId]
+		return groups ~= nil and groups[groupId] == true
+	end
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"
 	end
@@ -864,6 +893,20 @@ function World.newInstance(self, className: string)
 			sound.Plays += 1
 		end
 		node.Stop = function() end
+		node.Pauses = 0
+		node.Resumes = 0
+		node.Pause = function(sound: any)
+			sound.Pauses += 1
+		end
+		node.Resume = function(sound: any)
+			sound.Resumes += 1
+		end
+		node.TimeLength = 0
+		node.TimePosition = 0
+		node.IsLoaded = false
+		node.Volume = 1
+		node.SoundId = ""
+		node.Looped = false
 	end
 	if className == "ProximityPrompt" then
 		node.Triggered = Signal.new()

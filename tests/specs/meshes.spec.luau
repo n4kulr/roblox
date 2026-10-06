@@ -145,7 +145,7 @@ describe("Mesh skins", function()
 				else
 					fillers += 1
 					expect(cap:GetAttribute("Filler")):toBe(true)
-					expect(cap.Color):toBe(Color3.fromRGB(222, 218, 208))
+					expect(cap.Color):toBe(Color3.fromRGB(58, 56, 62))
 					expect(cap.CastShadow):toBe(false)
 				end
 			end

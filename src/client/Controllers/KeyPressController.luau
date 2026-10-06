@@ -30,6 +30,7 @@ local viewRange = 60
 local lowViewRange = 30
 local maxCharacters = 8
 local pressDepth = 1.1
+local fillerPressDepth = 0.75
 local debounceSeconds = 0.12
 local minHeight = -1
 local maxHeight = 7
@@ -60,11 +61,12 @@ end
 
 local function pressCap(cap: CapState)
 	local part = cap.Part
+	local depth = if part:GetAttribute("Filler") == true then fillerPressDepth else pressDepth
 	releaseTween(cap)
 	local down = TweenService:Create(
 		part,
 		TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ CFrame = cap.Rest * CFrame.new(0, -pressDepth, 0) }
+		{ CFrame = cap.Rest * CFrame.new(0, -depth, 0) }
 	)
 	cap.Tween = down
 	down.Completed:Once(function(playbackState: Enum.PlaybackState)
