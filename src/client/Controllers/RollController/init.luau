@@ -4,8 +4,6 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TextChatService = game:GetService("TextChatService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
@@ -14,7 +12,6 @@ local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local AdminRewards = require(script.AdminRewards)
 local BaseZone = require(script.BaseZone)
@@ -22,7 +19,9 @@ local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
 local ResultCards = require(script.ResultCards)
 local Cinematic = require(script.Cinematic)
+local KeyVisual = require(script.KeyVisual)
 local Tiers = require(script.Tiers)
+local ChatNotice = require(script.Parent.Parent.Util.ChatNotice)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -50,16 +49,9 @@ local RollController = {
 }
 local controllers: { [string]: any } = {}
 local plot: Model? = nil
-local rollKey: BasePart? = nil
-local keyConnections: { RBXScriptConnection } = {}
-local originCFrame = CFrame.identity
-local originSize = Vector3.one
-local originColor = Color3.new(1, 1, 1)
 local lastPress = 0
 local lastComboPress = 0
 local combo = 0
-local buildingCount = 0
-local punching = false
 local holdPitch = 1
 local isHolding = false
 local destroyed = false
@@ -72,14 +64,11 @@ local rollInterval = 1 / GameConfig.RollsPerSecond
 local board: any = {}
 local upgradeLevels: any = {}
 local charmSpeed = 1
-local squashTweens: { Tween } = {}
-
-local function escapeRichText(text: string): string
-	local escaped = string.gsub(text, "&", "&amp;")
-	escaped = string.gsub(escaped, "<", "&lt;")
-	escaped = string.gsub(escaped, ">", "&gt;")
-	return escaped
-end
+local visual = KeyVisual.new(function()
+	return isLowGraphics
+end, function()
+	return destroyed
+end)
 
 local epicRank = rarityRank.Epic or 4
 local legendaryRank = rarityRank.Legendary or 5
@@ -122,108 +111,11 @@ local function goldenFeedback()
 	if shown then
 		shown:Flash(goldColor, 0.35, 0.4)
 	end
-	local part = rollKey
-	if part then
-		part.Color = goldColor
-		task.delay(0.5, function()
-			if not destroyed and part.Parent and buildingCount == 0 then
-				part.Color = originColor
-			end
-		end)
-	end
-end
-
-local function punchCamera()
-	local camera = workspace.CurrentCamera
-	if not camera or punching or isLowGraphics then
-		return
-	end
-	punching = true
-	local baseFov = camera.FieldOfView
-	local out = TweenService:Create(
-		camera,
-		TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ FieldOfView = baseFov + 8 }
-	)
-	local back = TweenService:Create(
-		camera,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-		{ FieldOfView = baseFov }
-	)
-	out.Completed:Once(function()
-		back:Play()
-	end)
-	back.Completed:Once(function()
-		punching = false
-		out:Destroy()
-		back:Destroy()
-	end)
-	out:Play()
-end
-
-local function squash()
-	local part = rollKey
-	if not part then
-		return
-	end
-	for _, active in squashTweens do
-		active:Cancel()
-		active:Destroy()
-	end
-	table.clear(squashTweens)
-	local down =
-		TweenService:Create(part, TweenInfo.new(0.04, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = Vector3.new(originSize.X * 1.08, originSize.Y * 0.6, originSize.Z * 1.08),
-			CFrame = originCFrame * CFrame.new(0, -originSize.Y * 0.2, 0),
-		})
-	local up = TweenService:Create(
-		part,
-		TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Size = originSize, CFrame = originCFrame }
-	)
-	squashTweens = { down, up }
-	down.Completed:Once(function(state: Enum.PlaybackState)
-		if state == Enum.PlaybackState.Completed then
-			up:Play()
-		end
-	end)
-	down:Play()
-end
-
-local function buildUp(part: BasePart?, rarity: Keys.Rarity)
-	local seconds = rarity.BuildUpSeconds
-	controllers.SoundController:PlaySwell(rarity, seconds, "Roll")
-	local startedAt = os.clock()
-	local connection: RBXScriptConnection? = nil
-	if part then
-		connection = RunService.RenderStepped:Connect(function()
-			local alpha = math.clamp((os.clock() - startedAt) / seconds, 0, 1)
-			local amplitude = 0.05 + 0.25 * alpha
-			if not isLowGraphics then
-				part.CFrame = originCFrame
-					* CFrame.new(
-						(math.random() - 0.5) * amplitude * 2,
-						0,
-						(math.random() - 0.5) * amplitude * 2
-					)
-			end
-			part.Color = originColor:Lerp(rarity.Color, alpha)
-		end)
-	end
-	buildingCount += 1
-	task.wait(seconds)
-	if connection then
-		connection:Disconnect()
-	end
-	buildingCount -= 1
-	if part and buildingCount == 0 and not destroyed and part.Parent then
-		part.CFrame = originCFrame
-		part.Color = originColor
-	end
+	KeyVisual.Tint(visual, goldColor)
 end
 
 local function isInRange(): boolean
-	local part = rollKey
+	local part = visual.Key
 	local character = Players.LocalPlayer.Character
 	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
 	if not part or not root or not root:IsA("BasePart") then
@@ -258,7 +150,8 @@ local function reveal(index: number, isGolden: boolean)
 		return
 	end
 	if rarity.BuildUpSeconds > 0 then
-		buildUp(rollKey, rarity)
+		controllers.SoundController:PlaySwell(rarity, rarity.BuildUpSeconds, "Roll")
+		KeyVisual.BuildUp(visual, rarity)
 	end
 	if destroyed then
 		return
@@ -269,7 +162,7 @@ local function reveal(index: number, isGolden: boolean)
 	sounds:PlayReveal(rarity, "Roll")
 	showCard(key, rarity, isGolden)
 	if rarity.Announce then
-		punchCamera()
+		KeyVisual.PunchCamera(visual)
 	end
 end
 
@@ -285,7 +178,7 @@ local function press(autoRelease: boolean): boolean
 		combo = 0
 	end
 	lastComboPress = now
-	squash()
+	KeyVisual.Squash(visual)
 	holdPitch = 1 + math.min(combo * comboStep, comboMax)
 	local sounds = controllers.SoundController
 	sounds:PlaySwitch(Keys.RollKeySwitch, "Press", holdPitch, 1, nil, "Roll")
@@ -307,7 +200,7 @@ local function press(autoRelease: boolean): boolean
 end
 
 local function isAimedAtKey(input: InputObject): boolean
-	local part = rollKey
+	local part = visual.Key
 	local camera = workspace.CurrentCamera
 	if not part or not camera then
 		return false
@@ -352,81 +245,12 @@ local function onInputEnded(input: InputObject, _gameProcessed: boolean)
 	end
 end
 
-local function disconnectKeyWatch()
-	for _, connection in keyConnections do
-		connection:Disconnect()
-	end
-	table.clear(keyConnections)
-end
-
-local function pickKey(model: Model?)
-	disconnectKeyWatch()
-	local key = if model then model:FindFirstChild("RollKey") else nil
-	if model and key and key:IsA("BasePart") then
-		rollKey = key
-		originCFrame = key.CFrame
-		originSize = key.Size
-		originColor = key.Color
-		table.insert(
-			keyConnections,
-			key.AncestryChanged:Connect(function()
-				if key.Parent ~= model then
-					pickKey(model)
-				end
-			end)
-		)
-	else
-		rollKey = nil
-	end
-	if model then
-		table.insert(
-			keyConnections,
-			model.ChildAdded:Connect(function(child: Instance)
-				if child.Name == "RollKey" and child ~= rollKey then
-					pickKey(model)
-				end
-			end)
-		)
-	end
-end
-
 local function setPlot(model: Model?)
 	if model == plot then
 		return
 	end
 	plot = model
-	pickKey(model)
-end
-
-local function refreshPlot(folder: Instance)
-	for _, child in folder:GetChildren() do
-		if child:IsA("Model") and child:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			setPlot(child)
-			return
-		end
-	end
-	setPlot(nil)
-end
-
-local function watchPlots(folder: Instance, trove: TroveInstance)
-	local function watch(child: Instance)
-		if child:IsA("Model") then
-			trove:Connect(child:GetAttributeChangedSignal("Owner"), function()
-				refreshPlot(folder)
-			end)
-		end
-	end
-	for _, child in folder:GetChildren() do
-		watch(child)
-	end
-	trove:Connect(folder.ChildAdded, function(child: Instance)
-		watch(child)
-		refreshPlot(folder)
-	end)
-	trove:Connect(folder.ChildRemoved, function()
-		refreshPlot(folder)
-	end)
-	refreshPlot(folder)
+	KeyVisual.Bind(visual, model)
 end
 
 local function updateRollInterval()
@@ -443,15 +267,11 @@ local function onRareRoll(playerName: string, index: number)
 		return
 	end
 	local rarity = Keys.GetRarity(key)
-	local channels = TextChatService:FindFirstChild("TextChannels")
-	local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
-	if general and general:IsA("TextChannel") then
-		general:DisplaySystemMessage(
-			`[{GameConfig.Name}] {escapeRichText(playerName)} rolled {key.Name} ({rarity.Name}, 1 in {NumberFormat.Commas(
-				rarity.Chance
-			)})!`
-		)
-	end
+	ChatNotice.Post(
+		`{ChatNotice.Escape(playerName)} rolled {key.Name} ({rarity.Name}, 1 in {NumberFormat.Commas(
+			rarity.Chance
+		)})!`
+	)
 	controllers.SoundController:PlayReveal(rarity, "Other")
 end
 
@@ -523,6 +343,7 @@ end
 
 function RollController.Init(self: State, registry: { [string]: any })
 	controllers = registry
+	destroyed = false
 	self._trove = Trove.new()
 end
 
@@ -578,21 +399,7 @@ function RollController.Start(self: State)
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
 	trove:Add(Packets.AdminReward.OnClientEvent:Connect(onAdminReward))
-	local promise = WaitFor.Child(workspace, "Plots", 30)
-		:andThen(function(folder: Instance)
-			if destroyed then
-				return
-			end
-			local newTrove = Trove.new()
-			trove:Add(newTrove)
-			watchPlots(folder, newTrove)
-		end)
-		:catch(function(problem: any)
-			warn(`[RollController] workspace.Plots not found: {tostring(problem)}`)
-		end)
-	trove:Add(function()
-		promise:cancel()
-	end)
+	trove:Add(controllers.PlotController:Observe(setPlot))
 end
 
 function RollController.Destroy(self: State)
@@ -601,10 +408,8 @@ function RollController.Destroy(self: State)
 	isAuto = false
 	isInBase = false
 	isHolding = false
-	table.clear(squashTweens)
 	plot = nil
-	rollKey = nil
-	disconnectKeyWatch()
+	KeyVisual.Clear(visual)
 	cards = nil
 	cinematic = nil
 	effectsMinRank = 5

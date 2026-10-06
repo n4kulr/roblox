@@ -1,0 +1,118 @@
+--!strict
+
+local Attributes = table.freeze({
+	Owner = "Owner",
+	LastOwner = "LastOwner",
+	OwnerUserId = "OwnerUserId",
+	VictimUserId = "VictimUserId",
+	FloorCell = "FloorCell",
+	FloorGap = "FloorGap",
+	FloorColumns = "FloorColumns",
+	FloorRows = "FloorRows",
+	WallHeight = "WallHeight",
+	LockedUntil = "LockedUntil",
+	LockCooldownUntil = "LockCooldownUntil",
+	UseMeshes = "UseMeshes",
+	Cell = "Cell",
+	Slot = "Slot",
+	Filler = "Filler",
+	PressDepth = "PressDepth",
+	KeyId = "KeyId",
+	Locked = "Locked",
+	Cosmetic = "Cosmetic",
+	GridX = "GridX",
+	GridZ = "GridZ",
+	Landed = "Landed",
+	Frame = "Frame",
+	Pitch = "Pitch",
+	CapHeight = "CapHeight",
+	LegendText = "LegendText",
+	LegendColor = "LegendColor",
+	LegendStrokeColor = "LegendStrokeColor",
+	LegendStrokeTransparency = "LegendStrokeTransparency",
+	LegendFont = "LegendFont",
+	LegendFill = "LegendFill",
+	EggId = "EggId",
+	X = "X",
+	Z = "Z",
+	Phase = "Phase",
+	Drop = "Drop",
+	BaseCFrame = "BaseCFrame",
+	Index = "Index",
+	ReadyAt = "ReadyAt",
+	PetId = "PetId",
+	Seed = "Seed",
+	Lift = "Lift",
+	Income = "Income",
+	RarityIndex = "RarityIndex",
+	Open = "Open",
+	BaseHold = "BaseHold",
+	SpinSpeed = "SpinSpeed",
+	CarryingKey = "CarryingKey",
+	Ragdolled = "Ragdolled",
+	StolenFromUserId = "StolenFromUserId",
+	TapSpeed = "TapSpeed",
+	KeyfallCount = "KeyfallCount",
+	IsAdmin = "IsAdmin",
+	IsDeveloper = "IsDeveloper",
+	ClientReady = "ClientReady",
+	Ready = "Ready",
+	PlaytimeStart = "PlaytimeStart",
+	PlaytimeClaimed = "PlaytimeClaimed",
+	OpenMarket = "OpenMarket",
+	EquippedCharms = "EquippedCharms",
+	ServerLuckUntil = "ServerLuckUntil",
+	ServerLuckBy = "ServerLuckBy",
+})
+
+local Tags = table.freeze({
+	Spinner = "Spinner",
+	EditorOnly = "EditorOnly",
+})
+
+local Folders = table.freeze({
+	Plots = "Plots",
+	Keys = "Keys",
+	PlacedEggs = "PlacedEggs",
+	Pets = "Pets",
+	KeyfallCaps = "KeyfallCaps",
+	KeyfallArena = "KeyfallArena",
+	CosmeticKeys = "CosmeticKeys",
+	GlassWalls = "GlassWalls",
+	Lasers = "Lasers",
+	Assets = "Assets",
+	Meshes = "Meshes",
+})
+
+local Parts = table.freeze({
+	Base = "Base",
+	RollKey = "RollKey",
+	EggBody = "EggBody",
+	Walkway = "Walkway",
+	Fence = "Fence",
+	Counter = "Counter",
+	Market = "Market",
+	MarketPlaceholder = "MarketPlaceholder",
+})
+
+local Prompts = table.freeze({
+	StealPrompt = "StealPrompt",
+	KnockPrompt = "KnockPrompt",
+	TakeBackPrompt = "TakeBackPrompt",
+	HatchPrompt = "HatchPrompt",
+	MarketPrompt = "MarketPrompt",
+})
+
+local Channels = table.freeze({
+	TextChannels = "TextChannels",
+	RBXGeneral = "RBXGeneral",
+})
+
+return table.freeze({
+	Attributes = Attributes,
+	Tags = Tags,
+	Folders = Folders,
+	Parts = Parts,
+	Prompts = Prompts,
+	Channels = Channels,
+})

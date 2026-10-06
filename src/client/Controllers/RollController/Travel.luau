@@ -2,17 +2,20 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Parts = WorldNames.Parts
 
 local Travel = {}
 
-Travel.CarryAttribute = "CarryingKey"
+Travel.CarryAttribute = Attributes.CarryingKey
 Travel.MarketDistance = 10
 Travel.StandHeight = 3.5
 Travel.CarryMessage = "Can't teleport while carrying a key!"
 Travel.BaseMessage = "Your base isn't ready yet!"
 Travel.MarketMessage = "The market isn't ready yet!"
 
-local stallNames = { "Market", "MarketPlaceholder" }
+local stallNames = { Parts.Market, Parts.MarketPlaceholder }
 
 function Travel.IsCarrying(character: Instance?): boolean
 	return character ~= nil and character:GetAttribute(Travel.CarryAttribute) ~= nil
@@ -21,7 +24,7 @@ end
 function Travel.FindCounter(world: Instance): BasePart?
 	for _, name in stallNames do
 		local stall = world:FindFirstChild(name)
-		local counter = if stall then stall:FindFirstChild("Counter", true) else nil
+		local counter = if stall then stall:FindFirstChild(Parts.Counter, true) else nil
 		if counter and counter:IsA("BasePart") then
 			return counter
 		end
@@ -42,7 +45,7 @@ function Travel.ToBase(character: Model?, plot: Model?): (boolean, string?)
 	if Travel.IsCarrying(character) then
 		return false, Travel.CarryMessage
 	end
-	local base = if plot then plot:FindFirstChild("Base") else nil
+	local base = if plot then plot:FindFirstChild(Parts.Base) else nil
 	if not base or not base:IsA("BasePart") or not character then
 		return false, Travel.BaseMessage
 	end

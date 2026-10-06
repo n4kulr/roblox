@@ -1,10 +1,11 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Folders = WorldNames.Folders
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -21,18 +22,10 @@ local board: { string } = {}
 local hasBoard = false
 
 local function findCap(slot: number): BasePart?
-	local folder = workspace:FindFirstChild("Plots")
-	if not folder then
-		return nil
-	end
-	for _, model in folder:GetChildren() do
-		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local keysFolder = model:FindFirstChild("Keys")
-			local cap = if keysFolder then keysFolder:FindFirstChild(`Slot{slot}`) else nil
-			return if cap and cap:IsA("BasePart") then cap else nil
-		end
-	end
-	return nil
+	local plot = controllers.PlotController:GetPlot()
+	local keysFolder = if plot then plot:FindFirstChild(Folders.Keys) else nil
+	local cap = if keysFolder then keysFolder:FindFirstChild(`Slot{slot}`) else nil
+	return if cap and cap:IsA("BasePart") then cap else nil
 end
 
 local function onBoardChanged(value: any)

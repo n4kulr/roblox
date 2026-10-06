@@ -30,6 +30,13 @@ local Keyfall = {
 		Empty = "They aren't carrying anything!",
 		TooFar = "Get closer to knock them!",
 	}),
+	Events = table.freeze({
+		Announce = 1,
+		Grabbed = 2,
+		Claimed = 3,
+		Delivered = 4,
+		Vanished = 5,
+	}),
 }
 
 function Keyfall.RandomPointInDisc(rng: Random, center: Vector3, radius: number): Vector3

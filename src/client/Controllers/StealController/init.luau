@@ -2,14 +2,17 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:GetService("TextChatService")
-local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Charms = require(ReplicatedStorage.Rules.Charms)
+local Steal = require(ReplicatedStorage.Rules.Steal)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PromptFocus = require(script.PromptFocus)
+local ChatNotice = require(script.Parent.Parent.Util.ChatNotice)
 local Ragdoll = require(script.Ragdoll)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Prompts = WorldNames.Prompts
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -17,7 +20,8 @@ type State = {
 	_trove: TroveInstance?,
 }
 
-local baseHoldAttribute = "BaseHold"
+local baseHoldAttribute = Attributes.BaseHold
+local alertPhase = Steal.AlertPhase
 local refreshSeconds = 0.2
 local beamColor = Color3.fromRGB(255, 96, 96)
 
@@ -25,16 +29,9 @@ local StealController = {
 	Name = "StealController",
 	_trove = nil :: TroveInstance?,
 }
-local stealPromptName = "StealPrompt"
+local stealPromptName = Prompts.StealPrompt
 local controllers: { [string]: any } = {}
 local carryTrove: TroveInstance? = nil
-
-local function escapeRichText(text: string): string
-	local escaped = string.gsub(text, "&", "&amp;")
-	escaped = string.gsub(escaped, "<", "&lt;")
-	escaped = string.gsub(escaped, ">", "&gt;")
-	return escaped
-end
 
 local function toast(text: string, kind: string)
 	local ui = controllers.UIController
@@ -63,21 +60,21 @@ local function playAlarm(index: number)
 end
 
 local function onAlert(name: string, keyIndex: number, phase: number)
-	if phase == 1 then
+	if phase == alertPhase.Stealing then
 		toast(`{name} is stealing your {keyName(keyIndex)}!`, "Bad")
 		playAlarm(keyIndex)
-	elseif phase == 2 then
+	elseif phase == alertPhase.Stolen then
 		toast(`{name} stole your {keyName(keyIndex)}! Chase them!`, "Bad")
 		playAlarm(keyIndex)
-	elseif phase == 3 then
+	elseif phase == alertPhase.Returned then
 		toast("Your key came back!", "Good")
-	elseif phase == 4 then
+	elseif phase == alertPhase.GotAway then
 		toast(`{name} got away with your {keyName(keyIndex)}!`, "Bad")
-	elseif phase == 10 then
+	elseif phase == alertPhase.Info then
 		toast(name, "Info")
-	elseif phase == 11 then
+	elseif phase == alertPhase.Good then
 		toast(name, "Good")
-	elseif phase == 9 then
+	elseif phase == alertPhase.Rejected then
 		toast(name, "Bad")
 		local sounds = controllers.SoundController
 		if sounds then
@@ -88,30 +85,10 @@ end
 
 local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 	local name = keyName(keyIndex)
-	local channels = TextChatService:FindFirstChild("TextChannels")
-	local general = if channels then channels:FindFirstChild("RBXGeneral") else nil
-	if general and general:IsA("TextChannel") then
-		general:DisplaySystemMessage(
-			`[{GameConfig.Name}] {escapeRichText(thiefName)} stole {name} from {escapeRichText(victimName)}!`
-		)
-	end
+	ChatNotice.Post(`{ChatNotice.Escape(thiefName)} stole {name} from {ChatNotice.Escape(victimName)}!`)
 	if thiefName == Players.LocalPlayer.DisplayName then
 		toast(`You stole {name}!`, "Good")
 	end
-end
-
-local function findOwnBase(): BasePart?
-	local folder = workspace:FindFirstChild("Plots")
-	if not folder then
-		return nil
-	end
-	for _, model in folder:GetChildren() do
-		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local base = model:FindFirstChild("Base")
-			return if base and base:IsA("BasePart") then base else nil
-		end
-	end
-	return nil
 end
 
 local function stopCarrying()
@@ -125,7 +102,7 @@ end
 local function startCarrying(character: Model)
 	stopCarrying()
 	local root = character:FindFirstChild("HumanoidRootPart")
-	local base = findOwnBase()
+	local base = controllers.PlotController:GetBase()
 	toast("Run home to keep it!", "Info")
 	if not root or not root:IsA("BasePart") or not base then
 		return
@@ -156,14 +133,14 @@ end
 
 local function watchCharacter(character: Model, trove: TroveInstance)
 	local function refresh()
-		if character:GetAttribute("CarryingKey") ~= nil then
+		if character:GetAttribute(Attributes.CarryingKey) ~= nil then
 			startCarrying(character)
 		else
 			stopCarrying()
 		end
 	end
-	trove:Connect(character:GetAttributeChangedSignal("CarryingKey"), refresh)
-	if character:GetAttribute("CarryingKey") ~= nil then
+	trove:Connect(character:GetAttributeChangedSignal(Attributes.CarryingKey), refresh)
+	if character:GetAttribute(Attributes.CarryingKey) ~= nil then
 		refresh()
 	end
 end
@@ -220,7 +197,7 @@ function StealController.Start(self: State)
 			PromptFocus.Refresh(list, {
 				UserId = Players.LocalPlayer.UserId,
 				Origin = if root and root:IsA("BasePart") then root.CFrame.Position else nil,
-				IsCarrying = character ~= nil and character:GetAttribute("CarryingKey") ~= nil,
+				IsCarrying = character ~= nil and character:GetAttribute(Attributes.CarryingKey) ~= nil,
 			})
 		end
 	end))
@@ -241,7 +218,6 @@ end
 
 function StealController.Destroy(self: State)
 	stopCarrying()
-	table.clear(controllers)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

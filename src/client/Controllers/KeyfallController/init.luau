@@ -5,12 +5,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local KeyfallRules = require(ReplicatedStorage.Rules.Keyfall)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.UIController.Kit)
 local Beacon = require(script.Beacon)
 local CarryBeam = require(script.CarryBeam)
 local Pill = require(script.Pill)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Folders = WorldNames.Folders
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -19,11 +23,7 @@ type State = {
 }
 
 local config = GameConfig.Keyfall
-local eventAnnounce = 1
-local eventGrabbed = 2
-local eventClaimed = 3
-local eventDelivered = 4
-local eventVanished = 5
+local events = KeyfallRules.Events
 local knockButtonOffset = -198
 local beaconRefreshSeconds = 0.25
 
@@ -51,31 +51,31 @@ local function toast(text: string, kind: string)
 end
 
 local function onEvent(kind: number, text: string, keyIndex: number)
-	if kind == eventAnnounce then
+	if kind == events.Announce then
 		toast("A GOLDEN SPACEBAR fell in the arena! GO GO GO!", "Gold")
 		local sounds = controllers.SoundController
 		local mythic = Keys.RarityByName.Mythic
 		if sounds and mythic then
 			sounds:PlayReveal(mythic, "Other")
 		end
-	elseif kind == eventGrabbed then
+	elseif kind == events.Grabbed then
 		toast(`{text} grabbed the Golden Spacebar!`, "Gold")
-	elseif kind == eventClaimed then
+	elseif kind == events.Claimed then
 		toast(`{text} claimed the Golden Spacebar!`, "Gold")
-	elseif kind == eventVanished then
+	elseif kind == events.Vanished then
 		toast("The Golden Spacebar vanished...", "Info")
-	elseif kind == eventDelivered then
+	elseif kind == events.Delivered then
 		toast(`Delivered {keyIndex} {if keyIndex == 1 then "key" else "keys"}!`, "Good")
 	end
 end
 
 local function findGoldenCap(): BasePart?
-	local folder = workspace:FindFirstChild("KeyfallCaps")
+	local folder = workspace:FindFirstChild(Folders.KeyfallCaps)
 	if not folder then
 		return nil
 	end
 	for _, child in folder:GetChildren() do
-		if child:IsA("BasePart") and child:GetAttribute("KeyId") == config.GoldenSpacebarKeyId then
+		if child:IsA("BasePart") and child:GetAttribute(Attributes.KeyId) == config.GoldenSpacebarKeyId then
 			return child
 		end
 	end
@@ -111,20 +111,6 @@ local function placeBeacon()
 	end
 end
 
-local function findOwnBase(): BasePart?
-	local folder = workspace:FindFirstChild("Plots")
-	if not folder then
-		return nil
-	end
-	for _, model in folder:GetChildren() do
-		if model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local base = model:FindFirstChild("Base")
-			return if base and base:IsA("BasePart") then base else nil
-		end
-	end
-	return nil
-end
-
 local function stopBeam()
 	local current = beamTrove
 	beamTrove = nil
@@ -134,7 +120,7 @@ local function stopBeam()
 end
 
 local function onCountChanged(character: Model)
-	local rawCount = character:GetAttribute("KeyfallCount")
+	local rawCount = character:GetAttribute(Attributes.KeyfallCount)
 	local count = if type(rawCount) == "number" then rawCount else 0
 	local show = setPillCount
 	if show then
@@ -149,7 +135,7 @@ local function onCountChanged(character: Model)
 	lastCount = count
 	if count > 0 and not beamTrove then
 		local root = character:FindFirstChild("HumanoidRootPart")
-		local base = findOwnBase()
+		local base = controllers.PlotController:GetBase()
 		if root and root:IsA("BasePart") and base then
 			beamTrove = CarryBeam.Start(root, base)
 		end
@@ -159,7 +145,7 @@ local function onCountChanged(character: Model)
 end
 
 local function watchCharacter(character: Model, trove: TroveInstance)
-	trove:Connect(character:GetAttributeChangedSignal("KeyfallCount"), function()
+	trove:Connect(character:GetAttributeChangedSignal(Attributes.KeyfallCount), function()
 		onCountChanged(character)
 	end)
 	onCountChanged(character)
@@ -177,7 +163,7 @@ local function findKnockTarget(): Player?
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		local carried = if character then character:GetAttribute("KeyfallCount") else nil
+		local carried = if character then character:GetAttribute(Attributes.KeyfallCount) else nil
 		if
 			player ~= localPlayer
 			and root
@@ -300,7 +286,6 @@ function KeyfallController.Destroy(self: State)
 	isLowGraphics = false
 	lastCount = 0
 	sinceBeaconRefresh = 0
-	table.clear(controllers)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

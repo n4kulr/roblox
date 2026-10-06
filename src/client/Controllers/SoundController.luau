@@ -54,22 +54,23 @@ local function acquire(): Voice?
 		return nil
 	end
 	local playing = 0
-	for _, voice in pool do
+	local free: Voice? = nil
+	local freeIndex = 0
+	for offset = 1, count do
+		local index = (cursor + offset - 1) % count + 1
+		local voice = pool[index]
 		if voice.Sound.IsPlaying then
 			playing += 1
+		elseif not free then
+			free = voice
+			freeIndex = index
 		end
 	end
-	if playing >= maxPlaying then
+	if playing >= maxPlaying or not free then
 		return nil
 	end
-	for _ = 1, count do
-		cursor = cursor % count + 1
-		local voice = pool[cursor]
-		if not voice.Sound.IsPlaying then
-			return voice
-		end
-	end
-	return nil
+	cursor = freeIndex
+	return free
 end
 
 local function prepare(voice: Voice, tone: Keys.Tone, position: Vector3?)
@@ -308,7 +309,6 @@ end
 function SoundController.Destroy(self: State)
 	table.clear(pool)
 	table.clear(lastTake)
-	table.clear(controllers)
 	volumes.Roll = 1
 	volumes.Board = 1
 	volumes.Other = 1

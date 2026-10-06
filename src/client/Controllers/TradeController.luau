@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Packets = require(ReplicatedStorage.Packets)
+local TradeRules = require(ReplicatedStorage.Rules.Trade)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
@@ -29,7 +30,7 @@ type State = {
 
 local pickRange = 60
 local rayLength = 400
-local phaseDone, phaseCancelled = 3, 4
+local tradePhase = TradeRules.Phase
 
 local TradeController = {
 	Name = "TradeController",
@@ -121,13 +122,13 @@ local function onState(
 	theirReady: boolean,
 	seconds: number
 )
-	if phase == phaseDone then
+	if phase == tradePhase.Done then
 		current = nil
 		TradeController.StateChanged:Fire(nil)
 		toast("Trade complete!", "Good")
 		return
 	end
-	if phase == phaseCancelled then
+	if phase == tradePhase.Cancelled then
 		current = nil
 		TradeController.StateChanged:Fire(nil)
 		toast(partner, "Bad")

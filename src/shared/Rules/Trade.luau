@@ -19,6 +19,12 @@ local Trade = {
 		NotOwned = "You don't have that many!",
 		TooMany = "That's too many different keys!",
 	}),
+	Phase = table.freeze({
+		Open = 1,
+		Countdown = 2,
+		Done = 3,
+		Cancelled = 4,
+	}),
 }
 
 local function isCount(value: any): boolean

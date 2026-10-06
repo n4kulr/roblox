@@ -498,7 +498,7 @@ function World.new(
 			return Random.new(seed)
 		end,
 	}
-	self.workspace = Tree.node("Workspace", "Workspace")
+	self.workspace = Tree.node("Workspace", "Workspace", nil, makeSignalFactory(self))
 	self.workspace.GetServerTimeNow = function()
 		return self.now
 	end
@@ -897,8 +897,8 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 end
 
 function World.newInstance(self, className: string)
-	local node = Tree.node(className, className)
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
+	local node = Tree.node(className, className, nil, makeSignalFactory(self))
 	if className == "Part" or className == "MeshPart" then
 		node.Transparency = 0
 	end
@@ -943,10 +943,14 @@ function World.newInstance(self, className: string)
 	end
 	if className == "Sound" then
 		node.Plays = 0
+		node.IsPlaying = false
 		node.Play = function(sound: any)
 			sound.Plays += 1
+			sound.IsPlaying = true
 		end
-		node.Stop = function() end
+		node.Stop = function(sound: any)
+			sound.IsPlaying = false
+		end
 		node.Pauses = 0
 		node.Resumes = 0
 		node.Pause = function(sound: any)

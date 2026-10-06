@@ -256,18 +256,14 @@ describe("Egg guide", function()
 end)
 
 describe("EggController guide lifecycle", function()
-	local world, controller, player, playerGui, camera, observers, toasts, character
+	local world, controller, plotController, player, playerGui, camera, data, toasts, character
 
 	local function folder(): any
 		return world.workspace:FindFirstChild("EggGuide")
 	end
 
 	local function setHeld(value: string)
-		for _, observer in observers do
-			if observer.Path[1] == "HeldEgg" then
-				observer.Callback(value)
-			end
-		end
+		data:Set({ "HeldEgg" }, value)
 	end
 
 	local function frame()
@@ -300,20 +296,16 @@ describe("EggController guide lifecycle", function()
 		base.Parent = plot
 		character = world:spawnCharacter(player, 0, 3, 100)
 		character.HumanoidRootPart.Position = Vector3.new(0, 3, 100)
-		observers = {}
+		data = H.fakeDataController({ HeldEgg = "" })
 		toasts = {}
+		plotController = world:require(`{controllers}.PlotController`)
+		plotController:Init({})
+		plotController:Start()
+		world:flush()
 		controller = world:require(`{controllers}.EggController`)
 		controller:Init({
-			DataController = {
-				Get = function()
-					return nil
-				end,
-				Observe = function(_self: any, path: { any }, callback: any)
-					table.insert(observers, { Path = path, Callback = callback })
-					callback("")
-					return function() end
-				end,
-			},
+			PlotController = plotController,
+			DataController = data,
 			UIController = {
 				Toast = function(_self: any, text: string, kind: string)
 					table.insert(toasts, { Text = text, Kind = kind })
@@ -325,6 +317,7 @@ describe("EggController guide lifecycle", function()
 
 	afterEach(function()
 		controller:Destroy()
+		plotController:Destroy()
 		expect(world.errors):toEqual({})
 		world:destroy()
 	end)

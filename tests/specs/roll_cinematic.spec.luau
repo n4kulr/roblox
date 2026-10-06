@@ -322,10 +322,6 @@ end)
 describe("Settings reveal selector", function()
 	local world, sent, screen, playerGui, data
 
-	local function press(button: any)
-		button.Activated:Fire({ UserInputType = roblox.Enum.UserInputType.MouseButton1 })
-	end
-
 	beforeEach(function()
 		world = H.newWorld({ PrintErrors = false })
 		local Signal = world:require("ReplicatedStorage.Packages.Signal")
@@ -393,7 +389,7 @@ describe("Settings reveal selector", function()
 		local expected = { OFF = 8, ["MYTHIC+"] = 6, ["LEGENDARY+"] = 5, ["EPIC+"] = 4, ALL = 1 }
 		local order = { { "8", "OFF" }, { "6", "MYTHIC+" }, { "5", "LEGENDARY+" }, { "4", "EPIC+" }, { "1", "ALL" } }
 		for _, pair in order do
-			press(selector:FindFirstChild(pair[1]))
+			H.press(selector:FindFirstChild(pair[1]))
 			world:flush()
 			local last = sent[#sent]
 			expect(last[1]):toBe("EffectsMinRarity")

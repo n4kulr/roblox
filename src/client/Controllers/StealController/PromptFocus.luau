@@ -1,15 +1,20 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
+local Prompts = WorldNames.Prompts
+
 export type Context = {
 	UserId: number,
 	Origin: Vector3?,
 	IsCarrying: boolean,
 }
 
-local stealName = "StealPrompt"
-local knockName = "KnockPrompt"
-local takeBackName = "TakeBackPrompt"
-local openAttribute = "Open"
+local stealName = Prompts.StealPrompt
+local knockName = Prompts.KnockPrompt
+local takeBackName = Prompts.TakeBackPrompt
+local openAttribute = Attributes.Open
 
 local PromptFocus = {}
 
@@ -79,7 +84,7 @@ end
 local function victimOf(prompt: ProximityPrompt): number?
 	local part = prompt.Parent
 	local character = if part then part.Parent else nil
-	local value = if character then character:GetAttribute("StolenFromUserId") else nil
+	local value = if character then character:GetAttribute(Attributes.StolenFromUserId) else nil
 	return if type(value) == "number" then value else nil
 end
 
@@ -89,7 +94,7 @@ function PromptFocus.Refresh(prompts: { ProximityPrompt }, context: Context)
 		if
 			prompt.Name == stealName
 			and isOpen(prompt)
-			and prompt:GetAttribute("OwnerUserId") ~= context.UserId
+			and prompt:GetAttribute(Attributes.OwnerUserId) ~= context.UserId
 			and not context.IsCarrying
 		then
 			table.insert(candidates, prompt)
@@ -107,7 +112,7 @@ function PromptFocus.Refresh(prompts: { ProximityPrompt }, context: Context)
 		elseif prompt.Name == knockName then
 			shouldShow = isOpen(prompt) and victimOf(prompt) == context.UserId
 		elseif prompt.Name == takeBackName then
-			shouldShow = isOpen(prompt) and prompt:GetAttribute("OwnerUserId") == context.UserId
+			shouldShow = isOpen(prompt) and prompt:GetAttribute(Attributes.OwnerUserId) == context.UserId
 		end
 		if prompt.Enabled ~= shouldShow then
 			prompt.Enabled = shouldShow

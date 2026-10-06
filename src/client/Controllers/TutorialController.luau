@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -14,7 +13,6 @@ type State = {
 	_trove: TroveInstance?,
 }
 
-local scanSeconds = 0.5
 local baseHeight = 3
 local bounceHeight = 0.8
 local bounceSpeed = 5
@@ -26,11 +24,9 @@ local TutorialController = {
 local noHintStep = 99
 local step = noHintStep
 local controllers: { [string]: any } = {}
-local rollKey: BasePart? = nil
 local hint: BillboardGui? = nil
 local hintLabel: TextLabel? = nil
 local shownText = ""
-local sinceScan = scanSeconds
 local elapsed = 0
 
 local function hintText(): string?
@@ -45,30 +41,6 @@ local function hintText(): string?
 	return nil
 end
 
-local function findRollKey(): BasePart?
-	local plots = workspace:FindFirstChild("Plots")
-	if not plots then
-		return nil
-	end
-	for _, model in plots:GetChildren() do
-		if model:IsA("Model") and model:GetAttribute("Owner") == Players.LocalPlayer.UserId then
-			local key = model:FindFirstChild("RollKey")
-			if key and key:IsA("BasePart") then
-				return key
-			end
-		end
-	end
-	return nil
-end
-
-local function isKeyValid(key: BasePart?): boolean
-	if not key or not key:IsDescendantOf(workspace) then
-		return false
-	end
-	local model = key.Parent
-	return model ~= nil and model:GetAttribute("Owner") == Players.LocalPlayer.UserId
-end
-
 local function update(dt: number)
 	local gui = hint
 	local label = hintLabel
@@ -80,12 +52,7 @@ local function update(dt: number)
 		gui.Enabled = false
 		return
 	end
-	sinceScan += dt
-	if sinceScan >= scanSeconds or not isKeyValid(rollKey) then
-		sinceScan = 0
-		rollKey = findRollKey()
-	end
-	local key = rollKey
+	local key = controllers.PlotController:GetRollKey()
 	if not key then
 		gui.Enabled = false
 		return
@@ -134,15 +101,29 @@ function TutorialController.Start(self: State)
 	hint = gui
 	hintLabel = label
 	trove:Add(gui)
+	local beat: RBXScriptConnection? = nil
+	trove:Add(function()
+		if beat then
+			beat:Disconnect()
+			beat = nil
+		end
+	end)
 	trove:Add(controllers.DataController:Observe({ "Tutorial" }, function(value: any)
 		step = if type(value) == "number" then value else noHintStep
+		if hintText() then
+			if not beat then
+				beat = RunService.Heartbeat:Connect(update)
+			end
+		elseif beat then
+			beat:Disconnect()
+			beat = nil
+			gui.Enabled = false
+		end
 	end))
-	trove:Connect(RunService.Heartbeat, update)
 end
 
 function TutorialController.Destroy(self: State)
 	step = noHintStep
-	rollKey = nil
 	hint = nil
 	hintLabel = nil
 	shownText = ""

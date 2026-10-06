@@ -9,6 +9,8 @@ ReplicatedStorage:WaitForChild("ReplicaClient")
 
 local Lifecycle = require(ReplicatedStorage:WaitForChild("Lifecycle"))
 local controllers = require(script.Parent.Registry)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local Attributes = WorldNames.Attributes
 local runtime = Lifecycle.new(controllers)
 
 script.Destroying:Connect(function()
@@ -16,5 +18,5 @@ script.Destroying:Connect(function()
 end)
 
 runtime:Start()
-script:SetAttribute("Ready", true)
-Players.LocalPlayer:SetAttribute("ClientReady", true)
+script:SetAttribute(Attributes.Ready, true)
+Players.LocalPlayer:SetAttribute(Attributes.ClientReady, true)
