@@ -1,0 +1,456 @@
+{
+  "keys": [
+    {
+      "id": "PlainClack",
+      "file": "keys/PlainClack.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "BeigeBlock",
+      "file": "keys/BeigeBlock.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "OfficeTap",
+      "file": "keys/OfficeTap.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "DustyKeycap",
+      "file": "keys/DustyKeycap.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "StickyShift",
+      "file": "keys/StickyShift.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "PencilPad",
+      "file": "keys/PencilPad.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "CoffeeCap",
+      "file": "keys/CoffeeCap.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "CreamyThock",
+      "file": "keys/CreamyThock.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "MintLinear",
+      "file": "keys/MintLinear.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "CloverCap",
+      "file": "keys/CloverCap.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "MintTactile",
+      "file": "keys/MintTactile.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "PeachPastel",
+      "file": "keys/PeachPastel.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "LemonLinear",
+      "file": "keys/LemonLinear.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "SkyClick",
+      "file": "keys/SkyClick.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "GlassTink",
+      "file": "keys/GlassTink.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "TopazTap",
+      "file": "keys/TopazTap.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "TurboSwitch",
+      "file": "keys/TurboSwitch.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "OceanLinear",
+      "file": "keys/OceanLinear.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "CoralClick",
+      "file": "keys/CoralClick.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "MochiPink",
+      "file": "keys/MochiPink.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "ForestTactile",
+      "file": "keys/ForestTactile.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "CrystalChime",
+      "file": "keys/CrystalChime.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "AmethystPop",
+      "file": "keys/AmethystPop.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "GoldPlate",
+      "file": "keys/GoldPlate.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "NebulaClicky",
+      "file": "keys/NebulaClicky.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "SakuraPop",
+      "file": "keys/SakuraPop.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "ArcadeClacker",
+      "file": "keys/ArcadeClacker.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "FrostbiteClick",
+      "file": "keys/FrostbiteClick.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "ThunderKey",
+      "file": "keys/ThunderKey.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "SunburstKey",
+      "file": "keys/SunburstKey.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "FourLeafArtisan",
+      "file": "keys/FourLeafArtisan.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "DragonSpacebar",
+      "file": "keys/DragonSpacebar.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "PhoenixPlume",
+      "file": "keys/PhoenixPlume.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "FrostCrown",
+      "file": "keys/FrostCrown.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "TreasureTab",
+      "file": "keys/TreasureTab.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "LavaKey",
+      "file": "keys/LavaKey.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "GoldenSpacebar",
+      "file": "keys/GoldenSpacebar.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "GalaxyEnter",
+      "file": "keys/GalaxyEnter.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "AuroraAlt",
+      "file": "keys/AuroraAlt.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "EclipseShift",
+      "file": "keys/EclipseShift.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "MeowKey",
+      "file": "keys/MeowKey.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "VoidEsc",
+      "file": "keys/VoidEsc.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "PrismReturn",
+      "file": "keys/PrismReturn.obj",
+      "shape": "Square"
+    },
+    {
+      "id": "GlitchTab",
+      "file": "keys/GlitchTab.obj",
+      "shape": "Square"
+    }
+  ],
+  "eggs": [
+    {
+      "id": "Linear",
+      "file": "eggs/Linear.obj"
+    },
+    {
+      "id": "Tactile",
+      "file": "eggs/Tactile.obj"
+    },
+    {
+      "id": "Clicky",
+      "file": "eggs/Clicky.obj"
+    },
+    {
+      "id": "Golden",
+      "file": "eggs/Golden.obj"
+    },
+    {
+      "id": "Rainbow",
+      "file": "eggs/Rainbow.obj"
+    }
+  ],
+  "pets": [
+    {
+      "id": "KeycapKitty",
+      "charm_id": "KeycapPin",
+      "file": "pets/KeycapKitty.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 8780
+    },
+    {
+      "id": "ClickyChick",
+      "charm_id": "CloverFob",
+      "file": "pets/ClickyChick.obj",
+      "kind": "biped",
+      "batch": "sae-hi",
+      "verts": 6416
+    },
+    {
+      "id": "ThockPup",
+      "charm_id": "TinySwitch",
+      "file": "pets/ThockPup.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 8380
+    },
+    {
+      "id": "BrassBear",
+      "charm_id": "BrassStab",
+      "file": "pets/BrassBear.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 7972
+    },
+    {
+      "id": "LuckyFrog",
+      "charm_id": "LuckyLube",
+      "file": "pets/LuckyFrog.obj",
+      "kind": "frog",
+      "batch": "sae-hi",
+      "verts": 4604
+    },
+    {
+      "id": "SpringSquirrel",
+      "charm_id": "QuickSpring",
+      "file": "pets/SpringSquirrel.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 9166
+    },
+    {
+      "id": "GoldenHamster",
+      "charm_id": "GoldenTick",
+      "file": "pets/GoldenHamster.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 8236
+    },
+    {
+      "id": "ThockPanda",
+      "charm_id": "ThockPad",
+      "file": "pets/ThockPanda.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 11944
+    },
+    {
+      "id": "LuckyLizard",
+      "charm_id": "LuckyCable",
+      "file": "pets/LuckyLizard.obj",
+      "kind": "lizard",
+      "batch": "sae-hi",
+      "verts": 4348
+    },
+    {
+      "id": "TurboHare",
+      "charm_id": "TurboSpring",
+      "file": "pets/TurboHare.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 11580
+    },
+    {
+      "id": "GoldGecko",
+      "charm_id": "GoldTab",
+      "file": "pets/GoldGecko.obj",
+      "kind": "lizard",
+      "batch": "sae-hi",
+      "verts": 4068
+    },
+    {
+      "id": "StickyRaccoon",
+      "charm_id": "StickyFingers",
+      "file": "pets/StickyRaccoon.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 11948
+    },
+    {
+      "id": "LaserOwl",
+      "charm_id": "LaserLens",
+      "file": "pets/LaserOwl.obj",
+      "kind": "flyer",
+      "batch": "sae-hi",
+      "verts": 9296
+    },
+    {
+      "id": "RainbowParrot",
+      "charm_id": "RainbowCoil",
+      "file": "pets/RainbowParrot.obj",
+      "kind": "flyer",
+      "batch": "sae-hi",
+      "verts": 9424
+    },
+    {
+      "id": "FourLeafFawn",
+      "charm_id": "FourLeafCap",
+      "file": "pets/FourLeafFawn.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 12432
+    },
+    {
+      "id": "SwitchFox",
+      "charm_id": "HyperSwitch",
+      "file": "pets/SwitchFox.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 12150
+    },
+    {
+      "id": "GoldenGorilla",
+      "charm_id": "GoldenGear",
+      "file": "pets/GoldenGorilla.obj",
+      "kind": "gorilla",
+      "batch": "sae-hi",
+      "verts": 8300
+    },
+    {
+      "id": "GhostFerret",
+      "charm_id": "GhostHand",
+      "file": "pets/GhostFerret.obj",
+      "kind": "lizard",
+      "batch": "sae-hi",
+      "verts": 3448
+    },
+    {
+      "id": "LaserLynx",
+      "charm_id": "LaserCore",
+      "file": "pets/LaserLynx.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 12282
+    },
+    {
+      "id": "SpacebarBunny",
+      "charm_id": "GoldSpacebar",
+      "file": "pets/SpacebarBunny.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 13590
+    },
+    {
+      "id": "CrownKoala",
+      "charm_id": "CloverCrown",
+      "file": "pets/CrownKoala.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 14928
+    },
+    {
+      "id": "LightningLeopard",
+      "charm_id": "LightningSwitch",
+      "file": "pets/LightningLeopard.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 14474
+    },
+    {
+      "id": "GoldenGoose",
+      "charm_id": "MidasKey",
+      "file": "pets/GoldenGoose.obj",
+      "kind": "biped",
+      "batch": "sae-hi",
+      "verts": 12722
+    },
+    {
+      "id": "PhantomWolf",
+      "charm_id": "PhantomPaw",
+      "file": "pets/PhantomWolf.obj",
+      "kind": "quad",
+      "batch": "sae-hi",
+      "verts": 15020
+    },
+    {
+      "id": "MegaLaserShark",
+      "charm_id": "MegaLaser",
+      "file": "pets/MegaLaserShark.obj",
+      "kind": "shark",
+      "batch": "sae-hi",
+      "verts": 9086
+    },
+    {
+      "id": "DiamondDragon",
+      "charm_id": "DiamondSpacebar",
+      "file": "pets/DiamondDragon.obj",
+      "kind": "dragon",
+      "batch": "sae-hi",
+      "verts": 24460
+    }
+  ]
+}
