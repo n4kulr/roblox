@@ -34,7 +34,6 @@ local LeaderboardsScreen = {}
 
 function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local playUi = Kit.UiSound(context.Controllers)
 	local selected = 1
 	local requestToken = 0
 	local tabBar: Kit.TabBar

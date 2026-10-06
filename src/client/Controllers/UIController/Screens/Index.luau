@@ -21,7 +21,6 @@ local IndexScreen = {}
 
 function IndexScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local playUi = Kit.UiSound(context.Controllers)
 	local cells: { [string]: Cells.Cell } = {}
 	local filters: { Filter } = {}
 	local discovered: { [string]: number } = {}

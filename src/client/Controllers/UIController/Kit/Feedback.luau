@@ -1,8 +1,12 @@
 --!strict
 
 local TweenService = game:GetService("TweenService")
-local Core = require(script.Parent.Core)
+local Tweens = require(script.Parent.Tweens)
+local Primitives = require(script.Parent.Primitives)
 local Theme = require(script.Parent.Theme)
+
+local colors = Theme.Colors
+local motion = Theme.Motion
 
 export type Flash = {
 	Instance: Frame,
@@ -41,7 +45,7 @@ function Feedback.Flash(props: FlashProps): Flash
 	frame.BorderSizePixel = 0
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.ZIndex = props.ZIndex
-	Core.Corner(frame, props.Radius)
+	Primitives.Corner(frame, props.Radius)
 	frame.Parent = props.Parent
 	return {
 		Instance = frame,
@@ -94,6 +98,51 @@ function Feedback.CountUp(props: CountUpProps): CountUp
 			return shown
 		end,
 	}
+end
+
+function Feedback.Pulse(target: GuiObject, color: Color3?, peak: number?)
+	local top = peak or 1.04
+	local settle = motion.Fast
+	if top ~= 1 then
+		local existing = target:FindFirstChild("PulseScale")
+		local scale: UIScale
+		if existing and existing:IsA("UIScale") then
+			scale = existing
+		else
+			scale = Instance.new("UIScale")
+			scale.Name = "PulseScale"
+			scale.Parent = target
+		end
+		local rise = Tweens.Tween(scale, motion.SpringQuick, { Scale = top })
+		rise.Completed:Once(function()
+			Tweens.Tween(scale, settle, { Scale = 1 })
+		end)
+	end
+	local stroke = target:FindFirstChild("Stroke")
+	if stroke and stroke:IsA("UIStroke") then
+		local base = stroke:GetAttribute("PulseBase")
+		if typeof(base) ~= "Color3" then
+			base = stroke.Color
+			stroke:SetAttribute("PulseBase", base)
+		end
+		local rest = base :: Color3
+		local flash = Tweens.Tween(stroke, settle, { Color = color or colors.Good })
+		flash.Completed:Once(function()
+			Tweens.Tween(stroke, motion.Fade, { Color = rest })
+		end)
+	end
+end
+
+function Feedback.Shake(target: GuiObject)
+	task.spawn(function()
+		for _, rotation in { 3, -3, 2, -2, 0 } do
+			if not target.Parent then
+				return
+			end
+			target.Rotation = rotation
+			task.wait(0.035)
+		end
+	end)
 end
 
 return Feedback

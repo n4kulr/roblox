@@ -2,8 +2,12 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Core = require(script.Parent.Core)
 local Effects = require(script.Parent.Effects)
+local Icons = require(script.Parent.Icons)
+local Labels = require(script.Parent.Labels)
+local Primitives = require(script.Parent.Primitives)
+local Surfaces = require(script.Parent.Surfaces)
+local Widgets = require(script.Parent.Widgets)
 local Theme = require(script.Parent.Theme)
 
 type TroveInstance = typeof(Trove.new())
@@ -69,14 +73,14 @@ function Cards.Plate(props: PlateProps): Frame
 	plate.Position = props.Position or UDim2.new()
 	plate.AnchorPoint = props.AnchorPoint or Vector2.zero
 	plate.LayoutOrder = props.LayoutOrder or 0
-	Core.Paint(plate, props.Color)
-	Core.Corner(plate, radius)
-	Core.Stroke(plate, colors.Ink, Theme.Stroke.Normal)
+	Primitives.Paint(plate, props.Color)
+	Primitives.Corner(plate, radius)
+	Primitives.Stroke(plate, colors.Ink, Theme.Stroke.Normal)
 	if props.Burst == true then
-		Core.Burst({ Parent = plate, Diameter = 80, Color = Theme.Shade(props.Color, 0.5) })
+		Widgets.Burst({ Parent = plate, Diameter = 80, Color = Theme.Shade(props.Color, 0.5) })
 	end
-	Core.Gloss(plate, radius)
-	Core.Icon({
+	Primitives.Gloss(plate, radius)
+	Icons.Icon({
 		Parent = plate,
 		Name = "Icon",
 		Glyph = props.Glyph,
@@ -88,7 +92,7 @@ function Cards.Plate(props: PlateProps): Frame
 end
 
 function Cards.Card(props: CardProps): Frame
-	return Core.Panel({
+	return Surfaces.Panel({
 		Parent = props.Parent,
 		Name = props.Name or "Card",
 		Size = props.Size or UDim2.new(1, 0, 0, 96),
@@ -122,7 +126,7 @@ function Cards.Row(props: RowProps): Row
 	local left = plateSize + Theme.Space.M * 2
 	local right = (props.RightWidth or 0) + Theme.Space.M * 2
 	local hasSubtitle = props.Subtitle ~= nil
-	local title = Core.Label({
+	local title = Labels.Label({
 		Parent = card,
 		Name = "Name",
 		Text = props.Title,
@@ -134,7 +138,7 @@ function Cards.Row(props: RowProps): Row
 	})
 	local subtitle: TextLabel? = nil
 	if props.Subtitle then
-		subtitle = Core.Label({
+		subtitle = Labels.Label({
 			Parent = card,
 			Name = "Subtitle",
 			Text = props.Subtitle,
@@ -167,7 +171,7 @@ function Cards.RarityPaint(
 		Effects.Rainbow(trove, target)
 		return
 	end
-	Core.Paint(target, color)
+	Primitives.Paint(target, color)
 	if rarityName == "Legendary" or rarityName == "Mythic" then
 		Effects.Shimmer(trove, target, radius, if rarityName == "Mythic" then 1.4 else 2)
 	end

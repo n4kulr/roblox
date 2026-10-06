@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local HudLayout = require(script.Parent.HudLayout)
 local Kit = require(script.Parent.Kit)
 
 type TroveInstance = typeof(Trove.new())
@@ -19,7 +20,7 @@ type Entry = {
 
 local Toast = {}
 
-local toastTop = Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap + Kit.ClicksHeight + Kit.ToastGap
+local toastTop = HudLayout.ToastTop
 local toastHeight = 54
 local slideDistance = 28
 local maxStacked = 3

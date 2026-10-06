@@ -37,7 +37,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local controller = context.Controllers.TradeController
 	local dataController = context.Controllers.DataController
-	local playUi = Kit.UiSound(context.Controllers)
 	local inventory: { [string]: number } = {}
 	local mine: { [string]: number } = {}
 	local pickers: { [string]: Picker } = {}

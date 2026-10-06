@@ -3,8 +3,12 @@
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Controls = require(script.Parent.Controls)
-local Core = require(script.Parent.Core)
+local Buttons = require(script.Parent.Buttons)
+local Icons = require(script.Parent.Icons)
+local Labels = require(script.Parent.Labels)
+local Primitives = require(script.Parent.Primitives)
+local Surfaces = require(script.Parent.Surfaces)
+local Tweens = require(script.Parent.Tweens)
 local Theme = require(script.Parent.Theme)
 
 type TroveInstance = typeof(Trove.new())
@@ -44,10 +48,7 @@ local areaTop = 40
 local areaBottom = 20
 local areaSide = 24
 
-local Modal = {
-	HeaderHeight = headerHeight,
-	AreaTop = areaTop,
-}
+local Modal = {}
 
 local function viewportScale(size: Vector2): number
 	local shortest = math.min(size.X, size.Y)
@@ -146,10 +147,10 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	shadow.BorderSizePixel = 0
 	shadow.Position = UDim2.fromOffset(0, 8)
 	shadow.Size = UDim2.fromScale(1, 1)
-	Core.Corner(shadow, Theme.Radius.Panel)
+	Primitives.Corner(shadow, Theme.Radius.Panel)
 	shadow.Parent = window
 
-	local panel = Core.Panel({
+	local panel = Surfaces.Panel({
 		Parent = window,
 		Name = "Panel",
 		Color = colors.PanelDeep,
@@ -161,7 +162,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		paint.Color = ColorSequence.new(colors.Panel, colors.PanelDeep)
 	end
 
-	local body = Core.Panel({
+	local body = Surfaces.Panel({
 		Parent = panel,
 		Name = "Body",
 		Position = UDim2.fromOffset(frameGap, headerHeight + frameGap * 2),
@@ -173,7 +174,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	})
 	body.ClipsDescendants = true
 
-	local header = Core.Panel({
+	local header = Surfaces.Panel({
 		Parent = panel,
 		Name = "Header",
 		Position = UDim2.fromOffset(frameGap, frameGap),
@@ -182,8 +183,8 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		Radius = Theme.Radius.L,
 		Shards = true,
 	})
-	Core.Gloss(header, Theme.Radius.L)
-	local badge = Core.Panel({
+	Primitives.Gloss(header, Theme.Radius.L)
+	local badge = Surfaces.Panel({
 		Parent = header,
 		Name = "IconBadge",
 		Position = UDim2.new(0, -20, 0.5, 0),
@@ -195,7 +196,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		Gloss = true,
 	})
 	badge.ZIndex = Theme.ZIndex.Fill
-	local badgeIcon = Core.Icon({
+	local badgeIcon = Icons.Icon({
 		Parent = badge,
 		Name = "Icon",
 		Glyph = props.Glyph,
@@ -203,7 +204,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		Position = UDim2.fromScale(0.14, 0.14),
 	})
 	badgeIcon.ZIndex = Theme.ZIndex.Mark
-	Core.Label({
+	Labels.Label({
 		Parent = header,
 		Name = "Title",
 		Text = props.Title,
@@ -228,7 +229,7 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 	rightList.Padding = UDim.new(0, Theme.Space.S)
 	rightList.Parent = headerRight
 	headerRight.Parent = header
-	Controls.CloseButton(trove, panel, props.OnClose, props.Sound).Instance.ZIndex = Theme.ZIndex.BadgeText
+	Buttons.CloseButton(trove, panel, props.OnClose, props.Sound).Instance.ZIndex = Theme.ZIndex.BadgeText
 
 	return {
 		Gui = gui,
@@ -241,8 +242,8 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 			pop.Scale = 0.7
 			backdrop.BackgroundTransparency = 1
 			gui.Enabled = true
-			Controls.Tween(pop, openInfo, { Scale = 1 })
-			Controls.Tween(backdrop, fadeInfo, { BackgroundTransparency = dimTransparency })
+			Tweens.Tween(pop, openInfo, { Scale = 1 })
+			Tweens.Tween(backdrop, fadeInfo, { BackgroundTransparency = dimTransparency })
 		end,
 		Hide = function()
 			if not gui.Enabled then
@@ -250,8 +251,8 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 			end
 			token += 1
 			local mine = token
-			Controls.Tween(backdrop, closeInfo, { BackgroundTransparency = 1 })
-			local closing = Controls.Tween(pop, closeInfo, { Scale = 0.8 })
+			Tweens.Tween(backdrop, closeInfo, { BackgroundTransparency = 1 })
+			local closing = Tweens.Tween(pop, closeInfo, { Scale = 0.8 })
 			closing.Completed:Once(function()
 				if token == mine then
 					gui.Enabled = false

@@ -64,7 +64,6 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 	local renderTrove = Trove.new()
 	local dataController = context.Controllers.DataController
 	local rollController = context.Controllers.RollController
-	local playUi = Kit.UiSound(context.Controllers)
 	local owned: { [string]: number } = {}
 	local cards: { [string]: CachedCard } = {}
 	local lastSignature: string? = nil

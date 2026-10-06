@@ -3,7 +3,7 @@
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Core = require(script.Parent.Core)
+local Primitives = require(script.Parent.Primitives)
 local Theme = require(script.Parent.Theme)
 
 type TroveInstance = typeof(Trove.new())
@@ -40,7 +40,7 @@ function Effects.Shimmer(trove: TroveInstance, parent: GuiObject, radius: number
 	band.BorderSizePixel = 0
 	band.Size = UDim2.fromScale(1, 1)
 	band.ZIndex = Theme.ZIndex.Fill
-	Core.Corner(band, radius)
+	Primitives.Corner(band, radius)
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 25
 	gradient.Offset = Vector2.new(-1, 0)
@@ -70,11 +70,6 @@ end
 
 function Effects.Breathe(trove: TroveInstance, scale: UIScale, amount: number, seconds: number)
 	loop(trove, scale, seconds, Enum.EasingStyle.Sine, true, { Scale = 1 + amount })
-end
-
-function Effects.Wobble(trove: TroveInstance, target: GuiObject, degrees: number, seconds: number)
-	target.Rotation = -degrees
-	loop(trove, target, seconds, Enum.EasingStyle.Sine, true, { Rotation = degrees })
 end
 
 return Effects
