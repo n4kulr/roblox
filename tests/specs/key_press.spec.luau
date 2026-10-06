@@ -11,7 +11,7 @@ local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, 
 describe("KeyPressController", function()
 	local world, controller, keysFolder, Keys, FloorGrid, Signal
 	local localPlayer, played, tweens, heartbeat
-	local capHeight, baseTop
+	local capHeight, baseTop, registryUnderTest
 	local offPoint = 20
 
 	local fillerCell = 6
@@ -178,6 +178,7 @@ describe("KeyPressController", function()
 				end,
 			},
 		}
+		registryUnderTest = registry
 		controller = world:require("StarterPlayer.StarterPlayerScripts.Controllers.KeyPressController")
 		addCap(fillerCell, { Filler = true })
 		addCap(blankCell, {})
@@ -479,5 +480,17 @@ describe("KeyPressController", function()
 			beat()
 			expect(cosmeticDepth(cap)):toBeCloseTo(0.75, 1e-4)
 		end)
+	end)
+
+	it("attaches its plot watchers again after a destroy and restart", function()
+		controller:Destroy()
+		controller:Init(registryUnderTest)
+		controller:Start()
+		world:flush()
+		local cap = capAt(slotCell)
+		standOn(localPlayer, slotCell)
+		beat()
+		expect(depthOf(cap)):toBeCloseTo(1.1, 1e-6)
+		expect(#played):toBe(1)
 	end)
 end)

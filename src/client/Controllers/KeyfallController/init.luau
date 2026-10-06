@@ -286,7 +286,6 @@ function KeyfallController.Destroy(self: State)
 	isLowGraphics = false
 	lastCount = 0
 	sinceBeaconRefresh = 0
-	table.clear(controllers)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

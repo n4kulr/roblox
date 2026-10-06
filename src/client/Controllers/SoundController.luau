@@ -308,7 +308,6 @@ end
 function SoundController.Destroy(self: State)
 	table.clear(pool)
 	table.clear(lastTake)
-	table.clear(controllers)
 	volumes.Roll = 1
 	volumes.Board = 1
 	volumes.Other = 1

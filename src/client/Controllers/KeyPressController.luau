@@ -461,6 +461,7 @@ end
 
 function KeyPressController.Init(self: State, registry: { [string]: any })
 	controllers = registry
+	destroyed = false
 	self._trove = Trove.new()
 end
 
@@ -506,6 +507,8 @@ function KeyPressController.Destroy(self: State)
 	cosmetic = nil
 	table.clear(plotStates)
 	table.clear(standingOn)
+	table.clear(seenPlayers)
+	table.clear(candidates)
 end
 
 return KeyPressController

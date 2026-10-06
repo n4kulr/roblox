@@ -10,6 +10,7 @@ local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Kit = require(script.Parent.Parent.UIController.Kit)
 local Viewport = require(script.Parent.Parent.UIController.Viewport)
+local CameraShake = require(script.Parent.CameraShake)
 local ResultSlots = require(script.Parent.ResultSlots)
 
 type TroveInstance = typeof(Trove.new())
@@ -90,7 +91,6 @@ export type ResultCards = {
 	_flash: Frame,
 	_flashTween: Tween?,
 	_humanoid: Humanoid?,
-	_baseOffset: Vector3,
 	_shakeLeft: number,
 	_shakeTotal: number,
 	_shakeStrength: number,
@@ -462,7 +462,6 @@ function ResultCards.new(playerGui: Instance, trove: TroveInstance, isLowGraphic
 		_flash = flash,
 		_flashTween = nil,
 		_humanoid = nil,
-		_baseOffset = Vector3.zero,
 		_shakeLeft = 0,
 		_shakeTotal = 0,
 		_shakeStrength = 0,
@@ -611,7 +610,6 @@ local function startShake(self: ResultCards, strength: number)
 			return
 		end
 		self._humanoid = humanoid
-		self._baseOffset = humanoid.CameraOffset
 	end
 	self._shakeTotal = 0.32
 	self._shakeLeft = 0.32
@@ -912,12 +910,15 @@ local function stepShake(self: ResultCards, dt: number)
 	end
 	if self._shakeLeft <= 0 then
 		self._shakeLeft = 0
-		humanoid.CameraOffset = self._baseOffset
+		CameraShake.Clear(humanoid, self)
 		return
 	end
 	local amplitude = self._shakeStrength * (self._shakeLeft / self._shakeTotal)
-	humanoid.CameraOffset = self._baseOffset
-		+ Vector3.new((math.random() - 0.5) * 2 * amplitude, (math.random() - 0.5) * 2 * amplitude, 0)
+	CameraShake.Set(
+		humanoid,
+		self,
+		Vector3.new((math.random() - 0.5) * 2 * amplitude, (math.random() - 0.5) * 2 * amplitude, 0)
+	)
 end
 
 function ResultCards.Step(self: ResultCards, dt: number)
@@ -930,8 +931,12 @@ function ResultCards.Step(self: ResultCards, dt: number)
 		end
 	end
 	stepConfetti(self, dt)
-	if self._isLowGraphics() then
+	if self._isLowGraphics() and self._shakeLeft > 0 then
 		self._shakeLeft = 0
+		local humanoid = self._humanoid
+		if humanoid then
+			CameraShake.Clear(humanoid, self)
+		end
 	end
 	stepShake(self, dt)
 end
@@ -973,8 +978,8 @@ function ResultCards.Destroy(self: ResultCards)
 		self._flashTween = nil
 	end
 	local humanoid = self._humanoid
-	if humanoid and self._shakeLeft > 0 then
-		humanoid.CameraOffset = self._baseOffset
+	if humanoid then
+		CameraShake.Clear(humanoid, self)
 	end
 	self._shakeLeft = 0
 	table.clear(self._views)

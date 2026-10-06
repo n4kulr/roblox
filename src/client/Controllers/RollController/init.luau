@@ -494,6 +494,7 @@ end
 
 function RollController.Init(self: State, registry: { [string]: any })
 	controllers = registry
+	destroyed = false
 	self._trove = Trove.new()
 end
 

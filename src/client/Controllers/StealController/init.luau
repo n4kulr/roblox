@@ -233,7 +233,6 @@ end
 
 function StealController.Destroy(self: State)
 	stopCarrying()
-	table.clear(controllers)
 	if self._trove then
 		self._trove:Destroy()
 		self._trove = nil

@@ -8,6 +8,7 @@ local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local Kit = require(script.Parent.Parent.UIController.Kit)
+local CameraShake = require(script.Parent.CameraShake)
 local Tiers = require(script.Parent.Tiers)
 local Viewport = require(script.Parent.Parent.UIController.Viewport)
 
@@ -109,7 +110,6 @@ export type Cinematic = {
 	_low: boolean,
 	_hasImpacted: boolean,
 	_humanoid: Humanoid?,
-	_baseOffset: Vector3,
 	_modelKey: string,
 	_destroyed: boolean,
 	CanAccept: (self: Cinematic) -> boolean,
@@ -482,7 +482,6 @@ function Cinematic.new(
 		_low = false,
 		_hasImpacted = false,
 		_humanoid = nil,
-		_baseOffset = Vector3.zero,
 		_modelKey = "",
 		_destroyed = false,
 	}, Cinematic) :: any
@@ -657,7 +656,6 @@ local function startEntry(self: Cinematic, entry: Entry)
 	local character = if player then player.Character else nil
 	local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
 	self._humanoid = humanoid
-	self._baseOffset = if humanoid then humanoid.CameraOffset else Vector3.zero
 	self._gui.Enabled = true
 	setDucked(self, true)
 	if tier.Swell then
@@ -678,7 +676,7 @@ end
 local function restoreCamera(self: Cinematic)
 	local humanoid = self._humanoid
 	if humanoid then
-		humanoid.CameraOffset = self._baseOffset
+		CameraShake.Clear(humanoid, self)
 	end
 	self._humanoid = nil
 end
@@ -1042,8 +1040,11 @@ local function renderShake(self: Cinematic, t: number)
 	local humanoid = self._humanoid
 	if humanoid and tier.ShakeCamera > 0 then
 		local studs = tier.ShakeCamera * 0.5 * (decay + charge)
-		humanoid.CameraOffset = self._baseOffset
-			+ Vector3.new((noise(t * 47) - 0.5) * 2 * studs, (noise(t * 47 + 9) - 0.5) * 2 * studs, 0)
+		CameraShake.Set(
+			humanoid,
+			self,
+			Vector3.new((noise(t * 47) - 0.5) * 2 * studs, (noise(t * 47 + 9) - 0.5) * 2 * studs, 0)
+		)
 	end
 end
 
