@@ -22,4 +22,19 @@ export type Command = {
 	) -> (boolean, string),
 }
 
+export type Run = (
+	context: Context,
+	admin: Player,
+	target: Player,
+	args: { string },
+	count: number?
+) -> (boolean, string)
+
+export type Builder = {
+	Define: (command: Command) -> (),
+	Simple: (name: string, usage: string, summary: string, run: Run) -> (),
+	WithArgument: (name: string, usage: string, summary: string, run: Run) -> (),
+	WithCount: (name: string, usage: string, summary: string, run: Run) -> (),
+}
+
 return {}

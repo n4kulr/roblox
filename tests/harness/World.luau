@@ -1054,11 +1054,17 @@ function World.boot(self, names: { string }, extra: { [string]: any }?)
 		registry[name] = override
 	end
 	local order = {}
-	local ordered = names
-	local needsMeshes = table.find(names, "PlotService") or table.find(names, "CosmeticService")
-	if needsMeshes and not table.find(names, "MeshService") then
-		ordered = table.clone(names)
-		table.insert(ordered, 1, "MeshService")
+	local implied = {
+		PlotService = "MeshService",
+		CosmeticService = "MeshService",
+		StealService = "PlaytimeService",
+	}
+	local ordered = table.clone(names)
+	for _, name in names do
+		local dependency = implied[name]
+		if dependency and not table.find(ordered, dependency) then
+			table.insert(ordered, 1, dependency)
+		end
 	end
 	for _, name in ordered do
 		if registry[name] == nil then

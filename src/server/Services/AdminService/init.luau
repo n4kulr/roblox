@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lifecycle = require(ReplicatedStorage.Lifecycle)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Config = require(script.Parent.Parent.Config.Admin)
 local Commands = require(script.Commands)
 local Targets = require(script.Targets)
 local Types = require(script.Types)
@@ -14,7 +15,6 @@ local ServerTypes = require(script.Parent.Parent.Types)
 type TroveInstance = typeof(Trove.new())
 
 local allowlist: { [number]: boolean } = {}
-local maxArgumentLength = 200
 local deniedMessage = "Not allowed"
 local adminAttribute = "IsAdmin"
 local developerAttribute = "IsDeveloper"
@@ -148,8 +148,11 @@ function AdminService.Start(_self: Lifecycle.System)
 		if type(command) ~= "string" or type(argument) ~= "string" then
 			return "Bad request"
 		end
-		local _, result =
-			execute(player, string.sub(command, 1, 32), string.sub(argument, 1, maxArgumentLength))
+		local _, result = execute(
+			player,
+			string.sub(command, 1, Config.MaxCommandLength),
+			string.sub(argument, 1, Config.MaxArgumentLength)
+		)
 		return result
 	end
 	installConsole()

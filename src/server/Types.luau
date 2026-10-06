@@ -77,6 +77,11 @@ export type MeshService = {
 	Wait: (self: any, timeout: number?) -> (),
 }
 
+export type PlaytimeService = {
+	Name: string,
+	GetPendingSeconds: (self: any, player: Player) -> number,
+}
+
 export type SeasonService = {
 	Name: string,
 	AddRoll: (self: any, player: Player, isGolden: boolean) -> (),
@@ -106,6 +111,7 @@ export type AdminService = {
 export type Registry = {
 	DataService: DataService,
 	MeshService: MeshService,
+	PlaytimeService: PlaytimeService,
 	PassService: PassService,
 	KeyboardService: KeyboardService,
 	PlotService: PlotService,

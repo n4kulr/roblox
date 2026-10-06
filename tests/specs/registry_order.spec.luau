@@ -8,7 +8,7 @@ describe("Server registry order", function()
 		KeyboardService = { "DataService", "PassService" },
 		PlotService = { "DataService", "KeyboardService", "MeshService" },
 		CosmeticService = { "MeshService" },
-		StealService = { "DataService", "KeyboardService", "PlotService" },
+		StealService = { "DataService", "KeyboardService", "PlotService", "PlaytimeService" },
 		RollService = { "DataService", "KeyboardService", "PlotService", "SeasonService" },
 		EggService = { "DataService", "PlotService", "KeyboardService" },
 		MarketService = { "DataService", "EggService" },

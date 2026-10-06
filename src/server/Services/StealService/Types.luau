@@ -1,5 +1,7 @@
 --!strict
 
+local ServerTypes = require(script.Parent.Parent.Parent.Types)
+
 export type Carrier = {
 	KeyId: string,
 	VictimUserId: number,
@@ -30,6 +32,19 @@ export type Drop = {
 	Part: BasePart,
 	Prompt: ProximityPrompt,
 	Trove: any,
+}
+
+export type Context = {
+	Services: ServerTypes.Registry,
+	Prompts: { [Player]: { [number]: PromptRecord } },
+	Carriers: { [Player]: Carrier },
+	Locks: { [number]: Lock },
+	LockedUntil: { [number]: number },
+	KnockReadyAt: { [Player]: number },
+	Ragdolls: { [Player]: { Trove: any } },
+	Drops: { [BasePart]: Drop },
+	SyncPrompts: (owner: Player) -> (),
+	Knock: (victim: Player, thief: Player) -> (),
 }
 
 return {}
