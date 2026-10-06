@@ -97,6 +97,7 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
 ## Known notes
 
 - `GameConfig.Keyfall.Enabled = false`; the owner doesn't want Keyfall.
+- **The obby is DISABLED for now (owner request):** ObbyService and ObbyController are removed from the server and client Registry.luau files. Re-add those two lines to turn it back on.
 - The obby gives +1 speed per tap, up to 80. The level 1 gate needs 40, which a straight run reaches.
 - The obby entrance is 96 studs wide, opposite the Market. The owner will design later levels themselves using `ObbyRole` attributes (see `assets/map/README.md`).
 - Max players should be 6, set by the owner in Game Settings.

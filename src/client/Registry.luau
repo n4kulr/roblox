@@ -15,7 +15,6 @@ local controllers: { Lifecycle.System } = {
 	require(script.Parent.Controllers.StealController),
 	require(script.Parent.Controllers.TradeController),
 	require(script.Parent.Controllers.KeyfallController),
-	require(script.Parent.Controllers.ObbyController),
 	require(script.Parent.Controllers.ComponentController),
 }
 
