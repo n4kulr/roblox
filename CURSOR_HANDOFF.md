@@ -89,7 +89,7 @@ The lead Claude session (in the cloud) runs Sonnet sub-agents in parallel. Each 
 |---|---|---|---|
 | Economy | faster first-40-minute hook, tuned with the sim | A | Config numbers (`Keys`, `Upgrades`, the economy part of `GameConfig`), `tools/economy_sim.luau`, `docs/economy.md` |
 | UI batch (**DONE, merged**) | HUD swap, modal dim, Keys sort and income, Pass tile claim, simpler Store, roll only in base | C | `Screens/Hud.luau`, `Keys.luau`, `Season.luau`, `Shop.luau`, `Kit/Modal.luau`, `RollService`, `RollController/init.luau` |
-| Steal | best-key prompt, knocking thieves down, dropped key and take-back, jumpable walls | D | `StealService/**`, `StealController.luau`, `PlotService/Lock.luau` and `Walls.luau` |
+| Steal (**DONE, merged**) | best-key prompt, knocking thieves down, dropped key and take-back, jumpable walls | D | `StealService/**`, `StealController.luau`, `PlotService/Lock.luau` and `Walls.luau` |
 | Eggs | eggs in the Market, incubators, charms, Charms screen | E | `MarketService/**`, `Screens/Market.luau`, new `Config/Eggs.luau`, `Config/Charms.luau`, `Rules/Charms.luau`, `Screens/Charms.luau`, `PlotService/Incubators.luau`, `Rules/Stats` |
 
 **Before starting any of A, C, D or E:**
@@ -130,7 +130,7 @@ Tune only the Config numbers, using `lune run tools/economy_sim`. Targets on the
    - auto-roll pauses outside the base
    - the E key respects this too
 
-### D. Steal rework
+### D. Steal rework (DONE, merged; kept for reference)
 
 1. **Steal prompt:** only the best stealable key within range shows its "Steal!" prompt. Toggle this client-side in StealController.
 2. **Knocking down a thief:** replace the tag mechanic.
