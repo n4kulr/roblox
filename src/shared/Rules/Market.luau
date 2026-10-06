@@ -60,12 +60,12 @@ function Market.BaseRate(board: { string }, upgrades: any): number
 	return Stats.Compute(board, upgrades).Rate
 end
 
-function Market.Price(offer: Offer, rate: number): number
+function Market.Price(offer: Offer, _rate: number): number
 	local egg = Eggs.ById[offer.EggId]
 	if not egg then
 		return 0
 	end
-	return math.max(egg.MinPrice, Market.RoundNice(rate * 60 * egg.PriceMinutes * offer.Multiplier))
+	return egg.MinPrice
 end
 
 function Market.Offers(slot: number): { Offer }
@@ -73,18 +73,19 @@ function Market.Offers(slot: number): { Offer }
 	local offers: { Offer } = {}
 	for _, egg in Eggs.Catalog do
 		local appears = draw() < egg.AppearChance
-		local multiplier = Eggs.PriceSpreadMin + (Eggs.PriceSpreadMax - Eggs.PriceSpreadMin) * draw()
-		local stock = egg.StockMin + math.floor(draw() * (egg.StockMax - egg.StockMin + 1))
-		stock = math.min(stock, egg.StockMax)
+		draw()
+		local stock = 0
 		if appears then
-			table.insert(offers, {
-				Index = #offers + 1,
-				EggId = egg.Id,
-				Stock = stock,
-				Multiplier = multiplier,
-				IsDeal = multiplier < Eggs.DealBelow,
-			})
+			stock = egg.StockMin + math.floor(draw() * (egg.StockMax - egg.StockMin + 1))
+			stock = math.min(stock, egg.StockMax)
 		end
+		table.insert(offers, {
+			Index = egg.Index,
+			EggId = egg.Id,
+			Stock = stock,
+			Multiplier = 1,
+			IsDeal = false,
+		})
 	end
 	return offers
 end

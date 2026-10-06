@@ -19,6 +19,9 @@ type TroveInstance = typeof(Trove.new())
 type State = {
 	Name: string,
 	HasRoom: (self: State, player: Player) -> boolean,
+	ReadyEggs: (self: State, player: Player) -> number,
+	Hatch: (self: State, player: Player, index: any) -> string,
+	HatchAll: (self: State, player: Player) -> { string },
 	_trove: TroveInstance?,
 }
 
@@ -245,6 +248,46 @@ function EggService.Hatch(_self: State, player: Player, index: any): string
 	end
 	showPlaced(player, now)
 	return charmId
+end
+
+function EggService.ReadyEggs(_self: State, player: Player): number
+	local data = dataOf(player)
+	if not data or #data.PlacedEggs == 0 then
+		return 0
+	end
+	local now = os.time()
+	local list = table.clone(data.PlacedEggs)
+	local count = 0
+	for index, entry in list do
+		if entry.ReadyAt > now then
+			list[index] = { Id = entry.Id, ReadyAt = now, X = entry.X, Z = entry.Z }
+			count += 1
+		end
+	end
+	if count == 0 then
+		return 0
+	end
+	services.DataService:Set(player, { "PlacedEggs" }, list)
+	services.DataService:RequestSave(player)
+	showPlaced(player, now)
+	return count
+end
+
+function EggService.HatchAll(self: State, player: Player): { string }
+	self:ReadyEggs(player)
+	local charms: { string } = {}
+	while true do
+		local data = dataOf(player)
+		if not data or #data.PlacedEggs == 0 then
+			break
+		end
+		local charmId = self:Hatch(player, 1)
+		if charmId == "" then
+			break
+		end
+		table.insert(charms, charmId)
+	end
+	return charms
 end
 
 local function releasePlayer(player: Player)

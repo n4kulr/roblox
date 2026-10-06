@@ -381,6 +381,32 @@ describe("EggService", function()
 			expect(hatch(1) ~= ""):toBe(true)
 			expect(data.PlacedEggs[1].Id):toBe("Golden")
 		end)
+
+		it("ReadyEggs sets every unready egg to now", function()
+			plant("Linear", world.now + 90)
+			plant("Golden", world.now + 10)
+			plant("Tactile", 0)
+			local service = world.registry.EggService
+			expect(service:ReadyEggs(player)):toBe(2)
+			expect(data.PlacedEggs[1].ReadyAt):toBe(world.now)
+			expect(data.PlacedEggs[2].ReadyAt):toBe(world.now)
+			expect(data.PlacedEggs[3].ReadyAt):toBe(0)
+			expect(service:ReadyEggs(player)):toBe(0)
+		end)
+
+		it("HatchAll readies and hatches every placed egg", function()
+			plant("Linear", world.now + 40)
+			plant("Golden", world.now + 80)
+			local service = world.registry.EggService
+			local charms = service:HatchAll(player)
+			expect(#charms):toBe(2)
+			expect(data.PlacedEggs):toEqual({})
+			local total = 0
+			for _, amount in data.Charms do
+				total += amount
+			end
+			expect(total):toBe(2)
+		end)
 	end)
 
 	describe("legacy incubators", function()

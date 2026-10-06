@@ -168,11 +168,11 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			local left = leftOf(offer)
 			card.Price = Market.Price(offer, rate)
 			card.PriceText.Text = NumberFormat.Commas(card.Price)
-			card.StockText.Text = if left > 0 then `x{left} left` else "SOLD OUT"
+			card.StockText.Text = if left > 0 then `x{left} left` else "NO STOCK"
 			Kit.Paint(card.StockChip, if left > 0 then theme.Blue else theme.Grey)
 			if left <= 0 then
 				card.Action.SetDisabled(true)
-				card.Action.SetText("SOLD OUT")
+				card.Action.SetText("NO STOCK")
 			elseif isFull then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Grey)
@@ -197,7 +197,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		local balance = tracker.Balance() or 0
 		if leftOf(offer) <= 0 then
 			playUi("Error")
-			context.Toast("Sold out! Check back for new stock!", "Bad")
+			context.Toast("No stock! Wait for the restock timer.", "Bad")
 			return
 		end
 		if bagCount() >= Eggs.BagCap then

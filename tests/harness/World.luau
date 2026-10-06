@@ -605,6 +605,8 @@ function World._makeGame(self)
 		PlaceId = 1,
 		GameId = 1,
 		JobId = "harness",
+		CreatorId = 1,
+		CreatorType = roblox.Enum.CreatorType.User,
 	}
 	function game.GetService(_self, name: string)
 		if table.find(roots, name) then
@@ -833,6 +835,7 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
 	player.CharacterAdded = Signal.new()
 	player.CharacterRemoving = Signal.new()
+	player.Chatted = Signal.new()
 	player.GetAttribute = function(p: any, attribute: string)
 		return p._attributes[attribute]
 	end

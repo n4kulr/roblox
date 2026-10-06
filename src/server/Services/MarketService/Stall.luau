@@ -155,8 +155,9 @@ function Stall.Paint(model: Model, slot: number)
 		local display = model:FindFirstChild(`Egg{index}`, true)
 		local offer = offers[index]
 		if display and display:IsA("BasePart") then
-			display.Transparency = if offer then 0 else 1
-			if offer then
+			local inStock = offer ~= nil and offer.Stock > 0
+			display.Transparency = if inStock then 0 else 1
+			if inStock and offer then
 				display.Color = Eggs.ById[offer.EggId].Color
 			end
 		end

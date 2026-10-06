@@ -111,13 +111,15 @@ describe("MarketService", function()
 		expect(data.Cash):toBe(0)
 	end)
 
-	it("charges more when the board earns more", function()
+	it("keeps egg prices fixed when the board earns more", function()
+		local basePrice = Market.Price(offers()[1], 0)
 		for index = 1, GameConfig.BaseSlots do
 			data.Board[index] = "PlainClack"
 		end
 		local rate = Market.BaseRate(data.Board, data.Upgrades)
 		local price = Market.Price(offers()[1], rate)
-		expect(price > Market.Price(offers()[1], 0)):toBe(true)
+		expect(price):toBe(basePrice)
+		expect(price):toBe(Eggs.ById.Linear.MinPrice)
 		data.Cash = price + 5
 		data.IncomeAt = world.now
 		expect(buy(1)):toBe(true)
@@ -155,11 +157,19 @@ describe("MarketService", function()
 		expect(data.EggInventory):toEqual({})
 	end)
 
-	it("rejects an index beyond the offers of the current slot", function()
-		local count = #offers()
-		for index = count + 1, #Eggs.Catalog do
-			expect(buy(index)):toBe(false)
+	it("rejects an index with no stock this restock", function()
+		local empty: number? = nil
+		for _, offer in offers() do
+			if offer.Stock == 0 then
+				empty = offer.Index
+				break
+			end
 		end
+		if empty then
+			expect(buy(empty)):toBe(false)
+			expect(data.EggInventory):toEqual({})
+		end
+		expect(buy(#Eggs.Catalog + 1)):toBe(false)
 	end)
 
 	it("fails for players without data", function()
@@ -311,8 +321,9 @@ describe("Market stall", function()
 			for index = 1, #Eggs.Catalog do
 				local display = stall:FindFirstChild(`Egg{index}`)
 				local offer = offers[index]
-				expect(display.Transparency):toBe(if offer then 0 else 1)
-				if offer then
+				local inStock = offer ~= nil and offer.Stock > 0
+				expect(display.Transparency):toBe(if inStock then 0 else 1)
+				if inStock then
 					expect(display.Color):toBe(Eggs.ById[offer.EggId].Color)
 				end
 			end
