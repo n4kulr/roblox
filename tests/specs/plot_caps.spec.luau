@@ -79,27 +79,71 @@ describe("Base keycap rendering", function()
 		expect(fillers > 0):toBe(true)
 	end)
 
-	it("renders fillers as sunk matte charcoal floor", function()
+	local function setBaseColor(color: any): any
+		local bases = {}
+		for _, plotModel in plots:GetChildren() do
+			local base = plotModel:FindFirstChild("Base")
+			if base then
+				base.Color = color
+			end
+		end
+		return color
+	end
+
+	local function expectedTint(color: any): any
+		return color:Lerp(Color3.new(1, 1, 1), 0.45)
+	end
+
+	local function luminance(color: any): number
+		return color.R * 0.299 + color.G * 0.587 + color.B * 0.114
+	end
+
+	it("renders fillers as sunk matte keys tinted lighter than the base color", function()
 		local _, _, plot = join()
+		local base = plot.Base.Color
 		local full = plot.Base.Size.Y / 2 + FloorGrid.CapHeight
+		local count = 0
 		for _, cap in capsOf(plot) do
 			if cap:GetAttribute("Filler") then
-				expect(sameColor(cap.Color, Color3.fromRGB(58, 56, 62))):toBe(true)
+				count += 1
+				expect(sameColor(cap.Color, expectedTint(base))):toBe(true)
+				expect(luminance(cap.Color) >= luminance(base)):toBe(true)
 				expect(cap.Material):toBe(roblox.Enum.Material.SmoothPlastic)
 				expect(cap.Reflectance):toBe(0)
 				expect(cap.Transparency):toBe(0)
-				local top = plot.Base.CFrame:ToObjectSpace(cap.CFrame).Position.Y + cap.Size.Y / 2
-				expect(top):toBeCloseTo(full - 0.35, 1e-6)
+				expect(restTop(plot, cap)):toBeCloseTo(full - 0.35, 1e-6)
 				expect(cap:FindFirstChild("Income")):toBeNil()
 				expect(cap:FindFirstChild("Top")):toBeNil()
 			end
 		end
+		expect(count > 20):toBe(true)
 	end)
 
-	it("gives every filler cap one deterministic keyboard legend and slots none", function()
+	it("themes filler caps after each plot's own base color", function()
+		local colors = {}
+		for index, color in { Color3.fromRGB(200, 60, 60), Color3.fromRGB(50, 90, 210) } do
+			local localWorld = H.newWorld({ Time = 1700000000 })
+			localWorld.workspace = localWorld:newInstance("Folder")
+			local service = localWorld:require("ServerScriptService.Services.PlotService")
+			localWorld:boot({ "KeyboardService", "PlotService" }, { PlotService = service })
+			local firstPlot = localWorld.workspace:FindFirstChild("Plots"):GetChildren()[1]
+			firstPlot.Base.Color = color
+			localWorld:destroy()
+			colors[index] = color
+		end
+		local first, second = colors[1], colors[2]
+		expect(sameColor(expectedTint(first), expectedTint(second))):toBe(false)
+		expect(setBaseColor(first) ~= nil):toBe(true)
+		local player = world:join({ Name = "Themed" }, { PlaySeconds = 5000, Board = S.board("GlassTink") }, true)
+		local plot = ownedPlot(player)
+		expect(plot ~= nil):toBe(true)
+	end)
+
+	it("gives every filler cap one deterministic A-Z legend in a darker shade of the base hue", function()
 		local _, _, plot = join()
 		local seen: { [string]: boolean } = {}
 		local count = 0
+		local base = plot.Base.Color
 		for _, cap in capsOf(plot) do
 			local legend = cap:FindFirstChild("Legend")
 			if cap:GetAttribute("Filler") then
@@ -108,9 +152,10 @@ describe("Base keycap rendering", function()
 				expect(legend.PixelsPerStud):toBe(40)
 				expect(legend.LightInfluence):toBe(1)
 				expect(legend.Glyph.Font):toBe(roblox.Enum.Font.FredokaOne)
-				expect(sameColor(legend.Glyph.TextColor3, Color3.fromRGB(210, 206, 198))):toBe(true)
-				expect(legend.Glyph.TextTransparency > 0):toBe(true)
-				expect(#legend.Glyph.Text >= 1):toBe(true)
+				expect(sameColor(legend.Glyph.TextColor3, base:Lerp(Color3.new(0, 0, 0), 0.5))):toBe(true)
+				expect(luminance(legend.Glyph.TextColor3) < luminance(cap.Color)):toBe(true)
+				expect(legend.Glyph.TextTransparency > 0 and legend.Glyph.TextTransparency < 0.3):toBe(true)
+				expect(string.match(legend.Glyph.Text, "^[A-Z]$") ~= nil):toBe(true)
 				seen[legend.Glyph.Text] = true
 				count += 1
 			else
@@ -123,6 +168,29 @@ describe("Base keycap rendering", function()
 		end
 		expect(count > 20):toBe(true)
 		expect(variety > 10):toBe(true)
+	end)
+
+	it("raises every slot cap 0.6 studs above the filler caps in all states", function()
+		local _, _, plot = join()
+		local unlocked = Stats.Slots({})
+		local fillerTop
+		for _, cap in capsOf(plot) do
+			if cap:GetAttribute("Filler") then
+				fillerTop = restTop(plot, cap)
+				break
+			end
+		end
+		local checked = 0
+		for slot = 1, GameConfig.BoardSlots do
+			local cap = plot.Keys:FindFirstChild(`Slot{slot}`)
+			expect(restTop(plot, cap)):toBeCloseTo(fillerTop + 0.6, 1e-6)
+			checked += 1
+		end
+		expect(checked):toBe(GameConfig.BoardSlots)
+		expect(unlocked < GameConfig.BoardSlots):toBe(true)
+		local walkTop = plot.Keys.Walkway.CFrame.Position.Y + 0.1
+		expect(walkTop):toBeCloseTo(plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight, 1e-6)
+		expect(plot.Keys:FindFirstChild("Slot1").CanCollide):toBe(false)
 	end)
 
 	it("shows the placed key's initial on filled slots only", function()
@@ -146,7 +214,7 @@ describe("Base keycap rendering", function()
 			expect(cap:GetAttribute("KeyId")):toBe(keyId)
 			expect(sameColor(cap.Color, rarity.Color)):toBe(true)
 			expect(cap.Transparency):toBe(0)
-			expect(restTop(plot, cap)):toBeCloseTo(full, 1e-6)
+			expect(restTop(plot, cap)):toBeCloseTo(full + 0.25, 1e-6)
 			local billboard = cap:FindFirstChild("Income")
 			expect(billboard.Enabled):toBe(true)
 			expect(billboard.AlwaysOnTop):toBe(false)
@@ -170,8 +238,8 @@ describe("Base keycap rendering", function()
 		expect(cap:GetAttribute("KeyId")):toBeNil()
 		expect(cap:GetAttribute("Locked")):toBeNil()
 		expect(cap.Transparency):toBe(0.4)
-		expect(sameColor(cap.Color, Color3.fromRGB(196, 210, 228))):toBe(true)
-		expect(restTop(plot, cap)):toBeCloseTo(plot.Base.Size.Y / 2 + FloorGrid.CapHeight, 1e-6)
+		expect(sameColor(cap.Color, plot.Base.Color:Lerp(Color3.new(1, 1, 1), 0.25))):toBe(true)
+		expect(restTop(plot, cap)):toBeCloseTo(plot.Base.Size.Y / 2 + FloorGrid.CapHeight + 0.25, 1e-6)
 		expect(cap:FindFirstChild("Income").Enabled):toBe(false)
 		local surface = cap:FindFirstChild("Top")
 		expect(surface.Plus.Visible):toBe(true)

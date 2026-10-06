@@ -11,9 +11,10 @@ local Legend = require(script.Parent.Legend)
 local Types = require(script.Parent.Types)
 
 local Caps = {
-	FillerColor = Color3.fromRGB(58, 56, 62),
 	FillerSink = 0.35,
-	EmptyColor = Color3.fromRGB(196, 210, 228),
+	SlotRaise = 0.6,
+	FillerLighten = 0.45,
+	EmptyLighten = 0.25,
 	EmptyTransparency = 0.4,
 	LockedColor = Color3.fromRGB(26, 26, 30),
 	LockedTransparency = 0.45,
@@ -32,14 +33,22 @@ local noState = "None"
 local emptyState = "Empty"
 local lockedState = "Locked"
 
-local function applyFiller(cap: BasePart)
-	cap.Color = Caps.FillerColor
+function Caps.FillerColor(base: Color3): Color3
+	return base:Lerp(white, Caps.FillerLighten)
+end
+
+function Caps.EmptyColor(base: Color3): Color3
+	return base:Lerp(white, Caps.EmptyLighten)
+end
+
+local function applyFiller(cap: BasePart, color: Color3)
+	cap.Color = color
 	cap.Material = Enum.Material.SmoothPlastic
 	cap.Reflectance = 0
 	cap.Transparency = 0
 end
 
-function Caps.Blank(cframe: CFrame): BasePart
+function Caps.Blank(cframe: CFrame, color: Color3): BasePart
 	local template = MeshTemplates.Get("Keycap")
 	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
 	local capSize = FloorGrid.CapSize()
@@ -50,15 +59,18 @@ function Caps.Blank(cframe: CFrame): BasePart
 	cap.CastShadow = false
 	cap.Size = Vector3.new(capSize, capHeight, capSize)
 	cap.CFrame = cframe
-	applyFiller(cap)
+	applyFiller(cap, color)
 	return cap
 end
 
 function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	local slot = cell.Slot
-	local sink = if slot then 0 else Caps.FillerSink
-	local cap =
-		Caps.Blank(info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z))
+	local sink = if slot then Caps.FillerSink - Caps.SlotRaise else Caps.FillerSink
+	local baseColor = info.Base.Color
+	local cap = Caps.Blank(
+		info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z),
+		Caps.FillerColor(baseColor)
+	)
 	cap:SetAttribute("Cell", cell.Index)
 	if slot then
 		cap.Name = `Slot{slot}`
@@ -66,7 +78,7 @@ function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	else
 		cap.Name = `Floor{cell.Index}`
 		cap:SetAttribute("Filler", true)
-		Legend.Attach(cap, Legend.SeedOf(info.Model.Name, cell.Index))
+		Legend.Attach(cap, Legend.SeedOf(info.Model.Name, cell.Index), Legend.ColorFor(baseColor))
 	end
 	return cap
 end
@@ -182,8 +194,8 @@ local function showKey(cap: BasePart, visual: Types.CapVisual, key: Keys.Key)
 	visual.Letter.Visible = true
 end
 
-local function showEmpty(cap: BasePart, visual: Types.CapVisual)
-	cap.Color = Caps.EmptyColor
+local function showEmpty(cap: BasePart, visual: Types.CapVisual, base: Color3)
+	cap.Color = Caps.EmptyColor(base)
 	cap.Material = Enum.Material.SmoothPlastic
 	cap.Reflectance = 0
 	cap.Transparency = Caps.EmptyTransparency
@@ -230,7 +242,7 @@ function Caps.Render(info: Types.PlotInfo, data: PlayerData.Data?, unlocked: num
 			if key then
 				showKey(cap, visual, key)
 			elseif state == emptyState then
-				showEmpty(cap, visual)
+				showEmpty(cap, visual, info.Base.Color)
 			else
 				showLocked(cap, visual, data ~= nil)
 			end

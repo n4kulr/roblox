@@ -41,7 +41,7 @@ local CosmeticService = {
 	_trove = nil :: TroveInstance?,
 }
 
-local accents: { Color3 } = {}
+local accentRarities: { Color3 } = {}
 for _, rarity in Keys.Rarities do
 	if
 		rarity.Name == "Uncommon"
@@ -49,7 +49,7 @@ for _, rarity in Keys.Rarities do
 		or rarity.Name == "Epic"
 		or rarity.Name == "Legendary"
 	then
-		table.insert(accents, rarity.Color:Lerp(Caps.FillerColor, accentBlend))
+		table.insert(accentRarities, rarity.Color)
 	end
 end
 
@@ -105,17 +105,23 @@ function CosmeticService.Plan(part: BasePart): Plan?
 	return { Frame = frame, Diameter = diameter, Cells = cells }
 end
 
-local function buildCap(plan: Plan, cell: Cell): BasePart
-	local cap = Caps.Blank(plan.Frame * CFrame.new(cell.X, capHeight / 2 - Caps.FillerSink, cell.Z))
+local function buildCap(plan: Plan, cell: Cell, base: Color3): BasePart
+	local cap = Caps.Blank(
+		plan.Frame * CFrame.new(cell.X, capHeight / 2 - Caps.FillerSink, cell.Z),
+		Caps.FillerColor(base)
+	)
 	cap.Name = `Cosmetic{cell.I}_{cell.J}`
 	cap:SetAttribute("Cosmetic", true)
 	cap:SetAttribute("GridX", cell.I)
 	cap:SetAttribute("GridZ", cell.J)
 	local seed = Legend.SeedOf(modelName, (cell.I + gridOffset) * gridStride + cell.J + gridOffset)
-	if #accents > 0 and Legend.Hash(seed + 7919) % 100 < accentChance then
-		cap.Color = accents[Legend.Hash(seed + 104729) % #accents + 1]
+	local legendBase = base
+	if #accentRarities > 0 and Legend.Hash(seed + 7919) % 100 < accentChance then
+		cap.Color =
+			accentRarities[Legend.Hash(seed + 104729) % #accentRarities + 1]:Lerp(cap.Color, accentBlend)
+		legendBase = cap.Color
 	end
-	Legend.Attach(cap, seed)
+	Legend.Attach(cap, seed, Legend.ColorFor(legendBase))
 	return cap
 end
 
@@ -127,7 +133,7 @@ function CosmeticService.Build(part: BasePart): Model?
 	local model = Instance.new("Model")
 	model.Name = modelName
 	for _, cell in plan.Cells do
-		buildCap(plan, cell).Parent = model
+		buildCap(plan, cell, part.Color).Parent = model
 	end
 	local walkway = Instance.new("Part")
 	walkway.Name = "Walkway"

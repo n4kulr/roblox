@@ -145,7 +145,7 @@ describe("Mesh skins", function()
 				else
 					fillers += 1
 					expect(cap:GetAttribute("Filler")):toBe(true)
-					expect(cap.Color):toBe(Color3.fromRGB(58, 56, 62))
+					expect(cap.Color):toBe(plot.Base.Color:Lerp(Color3.new(1, 1, 1), 0.45))
 					expect(cap.CastShadow):toBe(false)
 				end
 			end
@@ -174,7 +174,7 @@ describe("Mesh skins", function()
 		local top = plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight
 		expect(walkway.CFrame.Position.Y + walkway.Size.Y / 2):toBeCloseTo(top, 1e-4)
 		local cap = slotCaps(plot)[1]
-		expect(cap.CFrame.Position.Y + FloorGrid.CapHeight / 2):toBeCloseTo(top, 1e-4)
+		expect(cap.CFrame.Position.Y + FloorGrid.CapHeight / 2):toBeCloseTo(top + 0.25, 1e-4)
 	end)
 
 	it("returns only the slot caps from GetCaps", function()

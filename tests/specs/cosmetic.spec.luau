@@ -24,6 +24,7 @@ describe("CosmeticService", function()
 		part.Name = name
 		part.CFrame = cframe
 		part.Size = size
+		part.Color = roblox.Color3.fromRGB(70, 74, 86)
 		part.Parent = parent or world.workspace
 		return part
 	end
@@ -129,10 +130,13 @@ describe("CosmeticService", function()
 		expect(top):toBeCloseTo(4 + FloorGrid.CapHeight, 1e-4)
 	end)
 
-	it("gives every cap one legend and colors mostly dark with some soft accents", function()
-		addPart("keyboardstuff", CFrame.new(0, 3, 0), Vector3.new(80, 2, 80))
+	it("gives every cap one A-Z legend and tints from the part color with some accents", function()
+		local part = addPart("keyboardstuff", CFrame.new(0, 3, 0), Vector3.new(80, 2, 80))
+		part.Color = roblox.Color3.fromRGB(60, 140, 90)
 		local model = boot()
 		local caps = capsOf(model)
+		local tint = part.Color:Lerp(roblox.Color3.new(1, 1, 1), 0.45)
+		local dark = part.Color:Lerp(roblox.Color3.new(0, 0, 0), 0.5)
 		local accents = 0
 		local seen: { [string]: boolean } = {}
 		for _, cap in caps do
@@ -141,12 +145,16 @@ describe("CosmeticService", function()
 			expect(legend.Face):toBe(roblox.Enum.NormalId.Top)
 			expect(legend.LightInfluence):toBe(1)
 			expect(legend.PixelsPerStud):toBe(40)
+			expect(string.match(legend.Glyph.Text, "^[A-Z]$") ~= nil):toBe(true)
 			seen[legend.Glyph.Text] = true
 			local color = cap.Color
-			if math.abs(color.R - 58 / 255) > 0.001 or math.abs(color.G - 56 / 255) > 0.001 then
+			local legendColor = legend.Glyph.TextColor3
+			expect(legendColor.R + legendColor.G + legendColor.B < color.R + color.G + color.B):toBe(true)
+			if math.abs(color.R - tint.R) > 0.001 or math.abs(color.G - tint.G) > 0.001 then
 				accents += 1
+			else
+				expect(math.abs(legendColor.R - dark.R) < 0.001 and math.abs(legendColor.G - dark.G) < 0.001):toBe(true)
 			end
-			expect(color.R < 0.75 and color.G < 0.75 and color.B < 0.75):toBe(true)
 		end
 		local share = accents / #caps
 		expect(share > 0.07 and share < 0.28):toBe(true)

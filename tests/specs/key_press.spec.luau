@@ -4,6 +4,7 @@ local H = require("../harness/Harness")
 local Enum = roblox.Enum
 local CFrame = roblox.CFrame
 local Vector3 = roblox.Vector3
+local Color3 = roblox.Color3
 
 local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, H.beforeEach, H.afterEach
 
@@ -32,14 +33,15 @@ describe("KeyPressController", function()
 		return -2 * size + (column + 0.5) * size, -2 * size + (row + 0.5) * size
 	end
 
-	local function addCap(index: number, attributes: { [string]: any }): any
+	local function addCap(index: number, attributes: { [string]: any }, lift: number?): any
 		local x, z = cellCenter(index)
 		local cap = world:newInstance("Part")
 		cap.Name = `Cap{index}`
 		cap.Size = Vector3.new(3.28, capHeight, 3.28)
-		cap.CFrame = CFrame.new(x, baseTop - capHeight / 2, z)
+		cap.CFrame = CFrame.new(x, baseTop - capHeight / 2 + (lift or 0), z)
 		cap.Position = cap.CFrame.Position
 		cap:SetAttribute("Cell", index)
+		cap:SetAttribute("TestLift", lift)
 		for name, value in attributes do
 			cap:SetAttribute(name, value)
 		end
@@ -76,7 +78,7 @@ describe("KeyPressController", function()
 	end
 
 	local function depthOf(cap: any): number
-		return restY() - cap.CFrame.Position.Y
+		return restY() + (cap:GetAttribute("TestLift") or 0) - cap.CFrame.Position.Y
 	end
 
 	local function raises(): { any }
@@ -176,7 +178,7 @@ describe("KeyPressController", function()
 		}
 		controller = world:require("StarterPlayer.StarterPlayerScripts.Controllers.KeyPressController")
 		addCap(fillerCell, { Filler = true })
-		addCap(slotCell, { Slot = 1, KeyId = "GlassTink" })
+		addCap(slotCell, { Slot = 1, KeyId = "GlassTink" }, 0.6)
 		controller:Init(registry)
 		controller:Start()
 		table.insert(world.started, controller)
@@ -186,6 +188,19 @@ describe("KeyPressController", function()
 	afterEach(function()
 		expect(world.errors):toEqual({})
 		world:destroy()
+	end)
+
+	it("presses and raises a raised slot key from its own rest position", function()
+		local cap = capAt(slotCell)
+		local rest = restY() + 0.6
+		expect(cap.CFrame.Position.Y):toBeCloseTo(rest, 1e-6)
+		standOn(localPlayer, slotCell)
+		beat()
+		expect(rest - cap.CFrame.Position.Y):toBeCloseTo(1.1, 1e-6)
+		stepOff(localPlayer)
+		beat()
+		world:advance(0.2)
+		expect(cap.CFrame.Position.Y):toBeCloseTo(rest, 1e-6)
 	end)
 
 	it("presses a slot key down when a player steps on it and plays its own switch", function()
@@ -357,6 +372,7 @@ describe("KeyPressController", function()
 			part.Name = "keyboardstuff"
 			part.CFrame = cframe
 			part.Size = Vector3.new(40, 2, 40)
+			part.Color = Color3.fromRGB(70, 74, 86)
 			model = cosmeticService.Build(part)
 			for _, child in model:GetChildren() do
 				child.Position = child.CFrame.Position

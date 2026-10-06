@@ -1,8 +1,8 @@
 --!strict
 
 local Legend = {
-	Color = Color3.fromRGB(210, 206, 198),
-	Transparency = 0.12,
+	Transparency = 0.1,
+	Darken = 0.5,
 	PixelsPerStud = 40,
 	MaxDistance = 70,
 }
@@ -34,24 +34,7 @@ local characters = {
 	"X",
 	"Y",
 	"Z",
-	"0",
-	"1",
-	"2",
-	"3",
-	"4",
-	"5",
-	"6",
-	"7",
-	"8",
-	"9",
-	";",
-	"'",
-	"/",
-	"[",
-	"]",
 }
-local modifiers = { "ESC", "TAB", "ALT", "FN" }
-local modifierChance = 12
 local modulus = 4294967296
 
 function Legend.Hash(seed: number): number
@@ -69,16 +52,16 @@ function Legend.SeedOf(name: string, index: number): number
 	return value
 end
 
-function Legend.Text(seed: number): (string, boolean)
-	local value = Legend.Hash(seed)
-	if value % modifierChance == 0 then
-		return modifiers[(value // modifierChance) % #modifiers + 1], true
-	end
-	return characters[(value // 7) % #characters + 1], false
+function Legend.Text(seed: number): string
+	return characters[(Legend.Hash(seed) // 7) % #characters + 1]
 end
 
-function Legend.Attach(cap: BasePart, seed: number): SurfaceGui
-	local text, isModifier = Legend.Text(seed)
+function Legend.ColorFor(color: Color3): Color3
+	return color:Lerp(Color3.new(0, 0, 0), Legend.Darken)
+end
+
+function Legend.Attach(cap: BasePart, seed: number, color: Color3): SurfaceGui
+	local text = Legend.Text(seed)
 	local surface = Instance.new("SurfaceGui")
 	surface.Name = "Legend"
 	surface.Face = Enum.NormalId.Top
@@ -93,10 +76,10 @@ function Legend.Attach(cap: BasePart, seed: number): SurfaceGui
 	label.BackgroundTransparency = 1
 	label.AnchorPoint = Vector2.new(0.5, 0.5)
 	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.Size = if isModifier then UDim2.fromScale(0.62, 0.3) else UDim2.fromScale(0.5, 0.5)
+	label.Size = UDim2.fromScale(0.5, 0.5)
 	label.Font = Enum.Font.FredokaOne
 	label.Text = text
-	label.TextColor3 = Legend.Color
+	label.TextColor3 = color
 	label.TextTransparency = Legend.Transparency
 	label.TextScaled = true
 	label.Parent = surface
