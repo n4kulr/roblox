@@ -2,7 +2,17 @@
 
 return table.freeze({
 	Name = "THOCK",
-	BoardSlots = 60,
+	BoardSlots = 8,
+	SlotCells = table.freeze({
+		table.freeze({ Row = 2, Col = 2 }),
+		table.freeze({ Row = 2, Col = 5 }),
+		table.freeze({ Row = 2, Col = 8 }),
+		table.freeze({ Row = 2, Col = 11 }),
+		table.freeze({ Row = 4, Col = 2 }),
+		table.freeze({ Row = 4, Col = 5 }),
+		table.freeze({ Row = 4, Col = 8 }),
+		table.freeze({ Row = 4, Col = 11 }),
+	}),
 	BaseSlots = 6,
 	BoardColumns = 10,
 	PlotCount = 8,

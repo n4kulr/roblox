@@ -34,6 +34,7 @@ local FloorGrid = {
 	CapHeight = 2.2,
 	EdgeMargin = 1.0,
 	RollKeyMargin = 1.0,
+	ReferenceSize = 12,
 }
 
 local epsilon = 1e-6
@@ -47,7 +48,13 @@ function FloorGrid.CapSize(): number
 	return FloorGrid.CellSize - FloorGrid.CellGap
 end
 
-function FloorGrid.Build(baseX: number, baseZ: number, rollKey: Rect?, boardX: number, boardZ: number): Layout
+function FloorGrid.Build(
+	baseX: number,
+	baseZ: number,
+	rollKey: Rect?,
+	_boardX: number,
+	_boardZ: number
+): Layout
 	local size = FloorGrid.CellSize
 	local half = size / 2
 	local columns = math.max(0, math.floor((baseX - FloorGrid.EdgeMargin * 2) / size + epsilon))
@@ -68,29 +75,32 @@ function FloorGrid.Build(baseX: number, baseZ: number, rollKey: Rect?, boardX: n
 			end
 		end
 	end
-	local ranked: { Cell } = table.clone(cells)
-	local distances: { [Cell]: number } = {}
-	for _, cell in ranked do
-		distances[cell] = (cell.X - boardX) ^ 2 + (cell.Z - boardZ) ^ 2
-	end
-	table.sort(ranked, function(a: Cell, b: Cell): boolean
-		local distanceA, distanceB = distances[a], distances[b]
-		if math.abs(distanceA - distanceB) > epsilon then
-			return distanceA < distanceB
-		end
-		return a.Index < b.Index
-	end)
-	local chosen: { Cell } = {}
-	for position = 1, math.min(GameConfig.BoardSlots, #ranked) do
-		chosen[position] = ranked[position]
-	end
-	table.sort(chosen, function(a: Cell, b: Cell): boolean
-		return a.Index < b.Index
-	end)
 	local slots: { Cell } = {}
-	for slot, cell in chosen do
-		cell.Slot = slot
-		slots[slot] = cell
+	local taken: { [Cell]: boolean } = {}
+	local reference = FloorGrid.ReferenceSize
+	for slot, spec in GameConfig.SlotCells do
+		local fromBackRow = math.clamp(math.floor((spec.Row - 0.5) * rows / reference), 0, rows - 1)
+		local fromLeftColumn = math.clamp(math.floor((spec.Col - 0.5) * columns / reference), 0, columns - 1)
+		local row = rows - 1 - fromBackRow
+		local column = columns - 1 - fromLeftColumn
+		local targetX = minX + (column + 0.5) * size
+		local targetZ = minZ + (row + 0.5) * size
+		local best: Cell? = nil
+		local bestDistance = math.huge
+		for _, cell in cells do
+			if not taken[cell] then
+				local distance = (cell.X - targetX) ^ 2 + (cell.Z - targetZ) ^ 2
+				if distance < bestDistance - epsilon then
+					best = cell
+					bestDistance = distance
+				end
+			end
+		end
+		if best then
+			taken[best] = true
+			best.Slot = slot
+			slots[slot] = best
+		end
 	end
 	return {
 		Cells = cells,
