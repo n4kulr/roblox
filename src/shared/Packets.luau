@@ -54,6 +54,9 @@ local Packets = {
 	EquipCharm = Packet("EquipCharm", Packet.String, Packet.Boolean8)
 		:Response(Packet.Boolean8)
 		:RateLimit(5, 1),
+	AdminCommand = Packet("AdminCommand", Packet.String, Packet.String)
+		:Response(Packet.String)
+		:RateLimit(10, 1),
 	Ping = Packet("Ping"):Response(Packet.NumberF64):RateLimit(5, 1),
 }
 

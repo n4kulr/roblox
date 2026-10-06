@@ -4,17 +4,24 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lifecycle = require(ReplicatedStorage.Lifecycle)
+local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Commands = require(script.Commands)
+local Targets = require(script.Targets)
+local Types = require(script.Types)
 
 type TroveInstance = typeof(Trove.new())
 
 local allowlist: { [number]: boolean } = {}
+local maxArgumentLength = 200
+local deniedMessage = "Not allowed"
 
 local AdminService = {
 	Name = "AdminService",
 	Console = nil :: any,
-} :: Lifecycle.System & { Console: any }
+} :: Lifecycle.System & { Console: any, IsAdmin: any, Execute: any }
 local services: { [string]: any } = {}
+local context: Types.Context = { Services = services }
 local trove: TroveInstance? = nil
 
 local function isAdmin(player: Player): boolean
@@ -30,33 +37,33 @@ local function isAdmin(player: Player): boolean
 	return false
 end
 
-local function findPlayer(query: string): Player?
-	local lowered = string.lower(query)
-	for _, player in Players:GetPlayers() do
-		if string.lower(player.Name) == lowered or string.lower(player.DisplayName) == lowered then
-			return player
-		end
+local function execute(player: Player, command: string, argument: string): (boolean, string)
+	if not isAdmin(player) then
+		return false, deniedMessage
 	end
-	for _, player in Players:GetPlayers() do
-		if
-			string.find(string.lower(player.Name), lowered, 1, true)
-			or string.find(string.lower(player.DisplayName), lowered, 1, true)
-		then
-			return player
-		end
-	end
-	return nil
+	return Commands.Execute(context, player, command, argument)
 end
 
-local function resolveTargets(arg: string?): { Player }
-	if arg == nil or arg == "" or string.lower(arg) == "all" then
-		return Players:GetPlayers()
+local function handleChat(player: Player, message: string)
+	local command, argument = string.match(message, "^/(%S+)%s*(.*)$")
+	if not command or not Commands.Has(command) or not isAdmin(player) then
+		return
 	end
-	local player = findPlayer(arg)
-	if player then
-		return { player }
+	local ok, result = execute(player, command, argument or "")
+	local prefix = `[Admin] {player.Name} /{string.lower(command)}`
+	if ok then
+		print(`{prefix}: {result}`)
+	else
+		warn(`{prefix} failed: {result}`)
 	end
-	return {}
+end
+
+local function bindPlayer(player: Player)
+	player:SetAttribute("IsAdmin", isAdmin(player))
+	local serviceTrove = trove :: TroveInstance
+	serviceTrove:Connect(player.Chatted, function(message: string)
+		handleChat(player, message)
+	end)
 end
 
 local function readyTargets(targets: { Player }): number
@@ -80,46 +87,13 @@ local function targetsFrom(target: any): { Player }
 		return Players:GetPlayers()
 	end
 	if type(target) == "string" then
-		return resolveTargets(target)
+		local found = Targets.Resolve(Players:GetPlayers()[1], target, true)
+		return found
 	end
 	if typeof(target) == "Instance" and target:IsA("Player") then
 		return { target }
 	end
 	return {}
-end
-
-local function handleChat(player: Player, message: string)
-	if not isAdmin(player) then
-		return
-	end
-	local command, arg = string.match(message, "^/(%S+)%s*(.*)$")
-	if not command then
-		return
-	end
-	command = string.lower(command)
-	local argument = if arg == nil or arg == "" then nil else arg
-	if command ~= "readyeggs" and command ~= "hatchall" then
-		return
-	end
-	local targets = resolveTargets(argument)
-	if #targets == 0 then
-		print(`[Admin] {player.Name}: no player matched`)
-		return
-	end
-	if command == "readyeggs" then
-		local count = readyTargets(targets)
-		print(`[Admin] {player.Name}: ready {count} egg(s) for {#targets} player(s)`)
-		return
-	end
-	local count = hatchTargets(targets)
-	print(`[Admin] {player.Name}: hatched {count} egg(s) for {#targets} player(s)`)
-end
-
-local function bindPlayer(player: Player)
-	local serviceTrove = trove :: TroveInstance
-	serviceTrove:Connect(player.Chatted, function(message: string)
-		handleChat(player, message)
-	end)
 end
 
 local function installConsole()
@@ -130,6 +104,9 @@ local function installConsole()
 		HatchAll = function(target: any): number
 			return hatchTargets(targetsFrom(target))
 		end,
+		Run = function(player: Player, command: string, argument: string?): (boolean, string)
+			return Commands.Execute(context, player, command, argument or "")
+		end,
 		IsAdmin = isAdmin,
 	}
 	AdminService.Console = admin
@@ -137,8 +114,22 @@ local function installConsole()
 	g.ThockAdmin = admin
 end
 
+function AdminService.IsAdmin(_self: any, player: Player): boolean
+	return isAdmin(player)
+end
+
+function AdminService.Execute(
+	_self: any,
+	player: Player,
+	command: string,
+	argument: string
+): (boolean, string)
+	return execute(player, command, argument)
+end
+
 function AdminService.Init(_self: Lifecycle.System, registry: { [string]: any })
 	services = registry
+	context = { Services = registry }
 	trove = Trove.new()
 end
 
@@ -148,10 +139,19 @@ function AdminService.Start(_self: Lifecycle.System)
 	for _, player in Players:GetPlayers() do
 		bindPlayer(player)
 	end
+	Packets.AdminCommand.OnServerInvoke = function(player: Player, command: string, argument: string): string
+		if type(command) ~= "string" or type(argument) ~= "string" then
+			return "Bad request"
+		end
+		local _, result =
+			execute(player, string.sub(command, 1, 32), string.sub(argument, 1, maxArgumentLength))
+		return result
+	end
 	installConsole()
 end
 
 function AdminService.Destroy(_self: Lifecycle.System)
+	Packets.AdminCommand.OnServerInvoke = nil
 	AdminService.Console = nil
 	local g = _G :: any
 	if g.ThockAdmin then
