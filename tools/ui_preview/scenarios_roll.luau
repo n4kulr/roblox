@@ -42,7 +42,47 @@ local function show(scene: any, specs: { any }, settle: number)
 	scene.Cards = cards
 end
 
+local function cinematic(scene: any, rarityName: string, seconds: number, isGolden: boolean?)
+	local world = scene.World
+	local Trove = world:require("ReplicatedStorage.Packages.Trove")
+	local Keys = world:require("ReplicatedStorage.Config.Keys")
+	local Cinematic = world:require(`{screensPath}.Cinematic`)
+	local trove = Trove.new()
+	local cine = Cinematic.new(scene.PlayerGui, trove, function()
+		return false
+	end, function()
+		return {}
+	end)
+	local key = pickKey(world, rarityName, true)
+	cine:Play({ Key = key, Rarity = Keys.GetRarity(key), IsGolden = isGolden == true }, nil)
+	cine:Seek(seconds)
+	world:flush()
+	scene.Cine = cine
+end
+
+local function cineScenario(name: string, rarity: string, seconds: number): any
+	return {
+		Name = name,
+		Screens = {},
+		NoBase = true,
+		Run = function(scene)
+			cinematic(scene, rarity, seconds)
+		end,
+	}
+end
+
 return {
+	cineScenario("cine_legendary_drop", "Legendary", 0.38),
+	cineScenario("cine_legendary", "Legendary", 0.95),
+	cineScenario("cine_legendary_hold", "Legendary", 1.5),
+	cineScenario("cine_epic", "Epic", 0.5),
+	cineScenario("cine_mini", "Rare", 0.22),
+	cineScenario("cine_mythic_charge", "Mythic", 1.2),
+	cineScenario("cine_mythic_impact", "Mythic", 1.62),
+	cineScenario("cine_mythic", "Mythic", 2.2),
+	cineScenario("cine_secret_descend", "Secret", 0.9),
+	cineScenario("cine_secret_impact", "Secret", 2.15),
+	cineScenario("cine_secret", "Secret", 2.9),
 	{
 		Name = "roll_common",
 		Screens = {},

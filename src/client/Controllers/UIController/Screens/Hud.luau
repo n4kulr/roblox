@@ -1,17 +1,19 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Daily = require(ReplicatedStorage.Rules.Daily)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Season = require(ReplicatedStorage.Rules.Season)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
+local Playtime = require(script.Parent.Parent.Playtime)
 local Types = require(script.Parent.Parent.Types)
 
 type StatLabels = {
@@ -136,7 +138,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local rebirthButton =
 		leftButton("Rebirth", "Rebirth", "REBIRTH", theme.Pink, 4, "Start over for a big bonus!", "Rebirth")
 	local dailyButton =
-		leftButton("DailyRewards", "Daily", "DAILY", theme.Teal, 5, "Free rewards every day!", "Daily")
+		leftButton("DailyRewards", "Gift", "GIFTS", theme.Teal, 5, "Free gifts for playing!", "Daily")
 	local giftButton = squareButton(
 		menu,
 		"StarterPack",
@@ -158,8 +160,31 @@ function Hud.new(context: Types.Context): Types.Screen
 	upgradesBadge.Visible = false
 	local rebirthBadge = Kit.Badge(rebirthButton.Instance, "!")
 	rebirthBadge.Visible = false
-	local dailyBadge = Kit.Badge(dailyButton.Instance, "!")
+	local dailyBadge = Kit.Badge(dailyButton.Instance, "1")
 	dailyBadge.Visible = false
+	local dailyBadgeText = dailyBadge:FindFirstChild("Text") :: TextLabel
+	local dailyTimer = Kit.Chip({
+		Parent = dailyButton.Instance,
+		Name = "GiftTimer",
+		Text = "",
+		Size = UDim2.fromOffset(46, 22),
+		Position = UDim2.new(1, 8, 0, -8),
+		AnchorPoint = Vector2.new(1, 0),
+		Color = theme.Blue,
+		TextSize = 16,
+	}).Parent :: Frame
+	dailyTimer.ZIndex = 5
+	dailyTimer.Visible = false
+	local dailyTimerText = dailyTimer:FindFirstChild("Text") :: TextLabel
+	local dailyBadgeHome = dailyBadge.Position
+	local dailyBadgeHop = Kit.Tween(
+		dailyBadge,
+		TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, true),
+		{ Position = dailyBadgeHome - UDim2.fromOffset(0, 5) }
+	)
+	trove:Add(function()
+		dailyBadgeHop:Cancel()
+	end)
 
 	local side = Instance.new("Frame")
 	side.Name = "Side"
@@ -324,9 +349,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	local coin = Kit.IconPlate({
 		Parent = money,
 		Name = "Coin",
-		Position = UDim2.new(0, -6, 0.5, 0),
+		Position = UDim2.new(0, 0, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
-		Size = UDim2.fromOffset(Kit.ClicksHeight + 18, Kit.ClicksHeight + 18),
+		Size = UDim2.fromOffset(Kit.TabBarHeight, Kit.TabBarHeight),
 		Color = theme.Gold,
 		Glyph = "Clicks",
 		Radius = 20,
@@ -677,9 +702,16 @@ function Hud.new(context: Types.Context): Types.Screen
 			currentSeason(),
 			tracker.Boosts.Owns(GameConfig.Season.PremiumPassId)
 		) > 0
-		local dailyData = dataController:Get({ "Daily" })
-		dailyBadge.Visible = type(dailyData) == "table"
-			and Daily.Status(dailyData, workspace:GetServerTimeNow()).CanClaim
+		local gifts = Playtime.Read(Players.LocalPlayer, workspace:GetServerTimeNow())
+		dailyBadge.Visible = gifts.ReadyCount > 0
+		if gifts.ReadyCount > 0 then
+			dailyBadgeText.Text = tostring(gifts.ReadyCount)
+		end
+		local nextLeft = gifts.NextLeft
+		dailyTimer.Visible = gifts.ReadyCount == 0 and nextLeft ~= nil
+		if nextLeft then
+			dailyTimerText.Text = TimeFormat.Clock(nextLeft)
+		end
 		setHinting(tutorialStep == hintStep and canAfford)
 	end
 
