@@ -369,6 +369,42 @@ describe("EggService", function()
 			expect(world:invoke("HatchEgg", stranger, 1)):toBe("")
 		end)
 
+		it("returns whether the hatched charm is active", function()
+			plant("Linear", 0)
+			local charmId, isActive = world:invoke("HatchEgg", player, 1)
+			expect(charmId ~= ""):toBe(true)
+			expect(isActive):toBe(true)
+			expect(table.find(data.EquippedCharms, charmId) ~= nil):toBe(true)
+		end)
+
+		it("reports a hatched charm as inactive when stronger charms fill the slots", function()
+			local top = Charms.Catalog[1].Id
+			for _, charm in Charms.Catalog do
+				if Rules.Score(charm.Id) > Rules.Score(top) then
+					top = charm.Id
+				end
+			end
+			data.Charms = { [top] = Charms.ActiveLimit }
+			for _ = 1, 4 do
+				plant("Linear", 0)
+			end
+			for _ = 1, 4 do
+				local charmId, isActive = world:invoke("HatchEgg", player, 1)
+				expect(isActive):toBe(table.find(data.EquippedCharms, charmId) ~= nil)
+				expect(isActive):toBe(Rules.IsActive(data.Charms, charmId))
+				if charmId ~= top then
+					expect(isActive):toBe(false)
+				end
+			end
+		end)
+
+		it("returns an empty failure for a hatch that is not ready", function()
+			plant("Linear", world.now + 100)
+			local charmId, isActive = world:invoke("HatchEgg", player, 1)
+			expect(charmId):toBe("")
+			expect(isActive):toBe(false)
+		end)
+
 		it("hatches each placed egg independently", function()
 			plant("Linear", 0)
 			plant("Golden", world.now + 500)

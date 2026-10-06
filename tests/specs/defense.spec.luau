@@ -849,6 +849,7 @@ describe("Base defense", function()
 		local function attempt(cap: any, thief: any)
 			local prompt = cap:FindFirstChild("StealPrompt")
 			prompt.PromptButtonHoldBegan:Fire(thief)
+			world:advance(prompt.HoldDuration)
 			prompt.Triggered:Fire(thief)
 			prompt.PromptButtonHoldEnded:Fire(thief)
 		end

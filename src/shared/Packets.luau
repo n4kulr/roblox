@@ -49,7 +49,7 @@ local Packets = {
 	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
 	ClaimPlaytime = Packet("ClaimPlaytime", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(5, 1),
 	ClaimGroupChest = Packet("ClaimGroupChest"):Response(Packet.NumberU8):RateLimit(2, 1),
-	HatchEgg = Packet("HatchEgg", Packet.NumberU8):Response(Packet.String):RateLimit(3, 1),
+	HatchEgg = Packet("HatchEgg", Packet.NumberU8):Response(Packet.String, Packet.Boolean8):RateLimit(3, 1),
 	PlaceEgg = Packet("PlaceEgg", Packet.String, Packet.NumberF32, Packet.NumberF32)
 		:Response(Packet.Boolean8)
 		:RateLimit(4, 1),

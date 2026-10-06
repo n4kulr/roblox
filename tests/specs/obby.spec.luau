@@ -1160,6 +1160,7 @@ describe("ObbyService", function()
 		local function trySteal()
 			local prompt = caps[victim][1]:FindFirstChild("StealPrompt")
 			prompt.PromptButtonHoldBegan:Fire(thief)
+			world:advance(prompt.HoldDuration)
 			prompt.Triggered:Fire(thief)
 			prompt.PromptButtonHoldEnded:Fire(thief)
 		end

@@ -19,12 +19,16 @@ describe("TradeService", function()
 	end)
 
 	local function join(name: string, inventory: any?)
-		local player, data = world:join({ Name = name, DisplayName = `{name}!` }, { Inventory = inventory or {} })
+		local player, data = world:joinAtBase({ Name = name, DisplayName = `{name}!` }, { Inventory = inventory or {} })
 		return player, data
 	end
 
 	local function request(from: any, to: any): any
 		return world:invoke("TradeRequest", from, to.UserId)
+	end
+
+	local function moveApart(player: any, distance: number)
+		world:moveCharacter(player, distance, 3, 0)
 	end
 
 	local function respond(responder: any, sender: any, accept: boolean)
@@ -88,6 +92,34 @@ describe("TradeService", function()
 			expect(invites[1].Target):toBe(b)
 			expect(invites[1].Args[1]):toBe("Ann!")
 			expect(invites[1].Args[2]):toBe(a.UserId)
+		end)
+
+		it("rejects a request from beyond the maximum range and accepts one at the edge", function()
+			expect(config.MaxRange > 0):toBe(true)
+			local a = join("Ann")
+			local b = join("Bob")
+			moveApart(b, config.MaxRange + 1)
+			expect(request(a, b)):toBe(false)
+			expect(#world:firedOf("TradeInvite")):toBe(0)
+			moveApart(b, config.MaxRange)
+			expect(request(a, b)):toBe(true)
+		end)
+
+		it("rejects a request when a character is missing", function()
+			local a = join("Ann")
+			local b = join("Bob")
+			world:resetCharacter(b)
+			expect(request(a, b)):toBe(false)
+		end)
+
+		it("refuses to open the session when the players moved apart before accepting", function()
+			local a = join("Ann")
+			local b = join("Bob")
+			expect(request(a, b)):toBe(true)
+			moveApart(b, config.MaxRange + 10)
+			respond(b, a, true)
+			expect(lastState(a)[1]):toBe(4)
+			expect(lastState(b)[1]):toBe(4)
 		end)
 
 		it("rejects yourself, strangers and bad ids", function()

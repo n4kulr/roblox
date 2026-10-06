@@ -38,6 +38,7 @@ local Steal = {
 		Gone = "Too slow! That key is gone!",
 		TooFar = "Get closer to steal it!",
 		Busy = "Someone is already stealing from them!",
+		TooFast = "Keep holding to steal it!",
 	}),
 }
 

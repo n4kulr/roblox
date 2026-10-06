@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Steal = require(ReplicatedStorage.Rules.Steal)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -304,6 +305,7 @@ local function onHoldBegan(
 	local data = getData(owner)
 	local current = if data then boardKey(data, slot) else ""
 	record.Holding[thief] = current
+	record.HoldStarted[thief] = os.clock()
 	local isAllowed = checkSteal(thief, owner, slot, cap, current)
 	local key = Keys.Resolve(current)
 	if isAllowed and key then
@@ -325,8 +327,20 @@ local function onTriggered(
 	local data = getData(owner)
 	local current = if data then boardKey(data, slot) else ""
 	local held = record.Holding[thief] or current
+	local startedAt = record.HoldStarted[thief]
 	record.Holding[thief] = nil
+	record.HoldStarted[thief] = nil
 	local isAllowed, reason = checkSteal(thief, owner, slot, cap, held)
+	if isAllowed then
+		local thiefData = getData(thief)
+		local speed = Charms.Effects(if thiefData then thiefData.EquippedCharms else nil).StealSpeed
+		local required =
+			Steal.HoldSeconds(Steal.RarityIndex(held), data ~= nil and data.TheftLessonDone == false, speed)
+		if not startedAt or os.clock() - startedAt < required - config.HoldToleranceSeconds then
+			isAllowed = false
+			reason = Steal.Reasons.TooFast
+		end
+	end
 	if not isAllowed then
 		releaseLock(owner.UserId, thief)
 		alert(thief, reason, 0, rejectedPhase)
@@ -349,12 +363,14 @@ local function createRecord(owner: Player, slot: number, cap: BasePart): Types.P
 	local recordTrove = Trove.new()
 	local prompt = Prompts.Create(cap, owner.UserId, slot)
 	recordTrove:Add(prompt)
-	local record: Types.PromptRecord = { Prompt = prompt, Trove = recordTrove, Holding = {} }
+	local record: Types.PromptRecord =
+		{ Prompt = prompt, Trove = recordTrove, Holding = {}, HoldStarted = {} }
 	recordTrove:Connect(prompt.PromptButtonHoldBegan, function(thief: Player)
 		onHoldBegan(owner, slot, cap, record, thief)
 	end)
 	recordTrove:Connect(prompt.PromptButtonHoldEnded, function(thief: Player)
 		record.Holding[thief] = nil
+		record.HoldStarted[thief] = nil
 		releaseLock(owner.UserId, thief)
 	end)
 	recordTrove:Connect(prompt.Triggered, function(thief: Player)

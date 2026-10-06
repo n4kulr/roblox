@@ -8,7 +8,6 @@ local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Packets = require(ReplicatedStorage.Packets)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Charms = require(ReplicatedStorage.Rules.Charms)
 local Walkers = require(script.Walkers)
 
 type TroveInstance = typeof(Trove.new())
@@ -48,22 +47,11 @@ function CharmController.Hatch(_self: State, index: number, eggId: string)
 	end
 	isHatching = true
 	task.spawn(function()
-		local charmId = Packets.HatchEgg:Fire(index)
+		local charmId, isActive = Packets.HatchEgg:Fire(index)
 		isHatching = false
 		local pet = if type(charmId) == "string" then CharmConfig.ById[charmId] else nil
 		if pet then
-			local owned: { [string]: number } = {}
-			local stored = controllers.DataController:Get({ "Charms" })
-			if type(stored) == "table" then
-				for id, count in stored do
-					if type(id) == "string" and type(count) == "number" then
-						owned[id] = count
-					end
-				end
-			end
-			owned[pet.Id] = math.max(owned[pet.Id] or 0, 1)
-			local isActive = Charms.IsActive(owned, pet.Id)
-			CharmController.Hatched:Fire(eggId, pet.Id, isActive)
+			CharmController.Hatched:Fire(eggId, pet.Id, isActive == true)
 		else
 			toast("Not ready yet!", "Bad")
 		end

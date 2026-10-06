@@ -208,7 +208,7 @@ function EggService.PlaceEgg(_self: State, player: Player, eggId: any, x: any, z
 	return true
 end
 
-function EggService.Hatch(_self: State, player: Player, index: any): string
+function EggService.Hatch(_self: State, player: Player, index: any): (string, boolean)
 	local data = dataOf(player)
 	if
 		not data
@@ -218,23 +218,23 @@ function EggService.Hatch(_self: State, player: Player, index: any): string
 		or index < 1
 		or index > #data.PlacedEggs
 	then
-		return ""
+		return "", false
 	end
 	local entry = data.PlacedEggs[index]
 	if Eggs.ById[entry.Id] == nil then
-		return ""
+		return "", false
 	end
 	local now = os.time()
 	if now < entry.ReadyAt then
-		return ""
+		return "", false
 	end
 	local rng = random
 	if not rng then
-		return ""
+		return "", false
 	end
 	local charmId = Charms.Roll(rng, entry.Id)
 	if CharmConfig.ById[charmId] == nil then
-		return ""
+		return "", false
 	end
 	local list = table.clone(data.PlacedEggs)
 	table.remove(list, index)
@@ -247,7 +247,7 @@ function EggService.Hatch(_self: State, player: Player, index: any): string
 		Placed.Remove(state, index)
 	end
 	showPlaced(player, now)
-	return charmId
+	return charmId, table.find(data.EquippedCharms, charmId) ~= nil
 end
 
 function EggService.ReadyEggs(_self: State, player: Player): number
@@ -281,7 +281,7 @@ function EggService.HatchAll(self: State, player: Player): { string }
 		if not data or #data.PlacedEggs == 0 then
 			break
 		end
-		local charmId = self:Hatch(player, 1)
+		local charmId = (self:Hatch(player, 1))
 		if charmId == "" then
 			break
 		end
