@@ -75,7 +75,7 @@ local function buy(player: Player, index: number): boolean
 	if bought >= offer.Stock then
 		return false
 	end
-	if not services.EggService:HasRoom(player) then
+	if services.EggService:CanBuy(player) ~= "Ok" then
 		return false
 	end
 	services.KeyboardService:Settle(player)

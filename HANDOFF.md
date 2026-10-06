@@ -187,3 +187,10 @@ Place models in ReplicatedStorage.Assets and they are used automatically, fallin
 - Assets.Pets.<PetId> used by the hatch reveal.
 - Assets.Keys.<KeyId> used by KeyModels.Build (roll cards, cinematic, Keys panel). A variant id falls back to its base key id.
 - Assets.Meshes.Keycap and Assets.Meshes.RollKey are replicated by the server from the Keycap and RollKey templates; KeyModels.Build clones Keycap so the spinning key matches the base cap.
+
+## Buy, hold, place egg flow
+
+- **Flow:** buying an egg sets `PlayerData.HeldEgg` (egg id, `""` for none), closes the Market and equips a single egg Tool. Buying is refused (`EggService:CanBuy` returns `Holding` or `Full`) while an egg is held or the base has `Eggs.PlacedCap` placed eggs. `PlaceEgg` only accepts the held egg id, then clears `HeldEgg`. The tool is re-given on respawn and rejoin.
+- **Guide:** `EggController/Guide.luau` (beam to a base target, bouncing part-built arrow, off-screen edge arrow via `Utils/EdgeIndicator`, placement hint inside the base). Tunables live in `Config/Eggs.Guide`. Created while `HeldEgg` is set, destroyed when it clears.
+- **Market buttons:** price, `PLACE YOUR EGG FIRST`, `BASE FULL`. The egg bag label and `Eggs.BagCap` are gone.
+- **Migration:** `PlayerData.EggInventory` is now a legacy queue only. On load, if `HeldEgg` is empty one queued egg moves into it (catalog order), and each placement promotes the next queued egg. Nothing is lost or created. `/giveegg` uses `EggService:GrantEgg` (first egg held, the rest queued).

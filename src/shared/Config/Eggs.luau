@@ -103,9 +103,33 @@ for _, egg in definitions do
 	byId[egg.Id] = egg
 end
 
+local guide = table.freeze({
+	Color = Color3.fromHex("FFC93C"),
+	TargetHeight = 3,
+	BeamWidth = 1.6,
+	BeamPulse = 0.3,
+	BeamPulseSpeed = 3,
+	BeamCurve = 7,
+	BeamSegments = 24,
+	BeamTransparency = 0.15,
+	BeamTransparencyPulse = 0.12,
+	ArrowSize = 1.4,
+	ArrowHeight = 16,
+	ArrowBounce = 2.5,
+	ArrowBounceSpeed = 3.2,
+	ArrowSpin = 50,
+	EdgeMargin = 70,
+	EdgeArrowSize = 56,
+	EdgeText = "PLACE YOUR EGG",
+	HintText = "Click your base to place your egg",
+	HintTouchText = "Tap your base to place your egg",
+	PlacedToast = "Egg placed! It will be ready to hatch soon",
+	BoughtToast = "Take your egg to your base!",
+})
+
 return table.freeze({
-	BagCap = 10,
 	PlacedCap = 3,
+	Guide = guide,
 	PlaceSpacing = 4,
 	PlaceInset = 2,
 	RollKeyClear = 1.5,

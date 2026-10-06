@@ -18,7 +18,7 @@ type TroveInstance = typeof(Trove.new())
 
 type State = {
 	Name: string,
-	HasRoom: (self: State, player: Player) -> boolean,
+	CanBuy: (self: State, player: Player) -> string,
 	ReadyEggs: (self: State, player: Player) -> number,
 	Hatch: (self: State, player: Player, index: any) -> string,
 	HatchAll: (self: State, player: Player) -> { string },
@@ -110,7 +110,7 @@ end
 local function syncTools(player: Player)
 	local data = dataOf(player)
 	if data then
-		Tools.Sync(player, data.EggInventory)
+		Tools.Sync(player, data.HeldEgg)
 	end
 end
 
@@ -167,19 +167,57 @@ function EggService.Sync(_self: State, player: Player)
 	end
 end
 
-function EggService.HasRoom(_self: State, player: Player): boolean
+function EggService.CanBuy(_self: State, player: Player): string
 	local data = dataOf(player)
-	return data ~= nil and Inventory.Total(data.EggInventory) < Eggs.BagCap
+	if not data then
+		return "NoData"
+	end
+	if data.HeldEgg ~= "" then
+		return "Holding"
+	end
+	if #data.PlacedEggs >= Eggs.PlacedCap then
+		return "Full"
+	end
+	return "Ok"
+end
+
+local function hold(player: Player, eggId: string)
+	services.DataService:Set(player, { "HeldEgg" }, eggId)
+	syncTools(player)
+	Tools.Equip(player)
 end
 
 function EggService.AddEgg(self: State, player: Player, eggId: string): boolean
+	if Eggs.ById[eggId] == nil or self:CanBuy(player) ~= "Ok" then
+		return false
+	end
+	hold(player, eggId)
+	return true
+end
+
+function EggService.GrantEgg(_self: State, player: Player, eggId: string): boolean
 	local data = dataOf(player)
-	if not data or Eggs.ById[eggId] == nil or not self:HasRoom(player) then
+	if not data or Eggs.ById[eggId] == nil then
+		return false
+	end
+	if data.HeldEgg == "" then
+		hold(player, eggId)
+		return true
+	end
+	if Inventory.Count(data.EggInventory, eggId) >= Inventory.MaxCount then
 		return false
 	end
 	services.DataService:Set(player, { "EggInventory" }, Inventory.Added(data.EggInventory, eggId))
-	syncTools(player)
 	return true
+end
+
+local function promoteQueued(player: Player, data: PlayerData.Data)
+	local nextId = Inventory.Next(data.EggInventory)
+	if data.HeldEgg ~= "" or nextId == nil then
+		return
+	end
+	services.DataService:Set(player, { "EggInventory" }, Inventory.Removed(data.EggInventory, nextId))
+	services.DataService:Set(player, { "HeldEgg" }, nextId)
 end
 
 function EggService.PlaceEgg(_self: State, player: Player, eggId: any, x: any, z: any): boolean
@@ -187,7 +225,7 @@ function EggService.PlaceEgg(_self: State, player: Player, eggId: any, x: any, z
 	if not data or type(eggId) ~= "string" or Eggs.ById[eggId] == nil then
 		return false
 	end
-	if Inventory.Count(data.EggInventory, eggId) < 1 or #data.PlacedEggs >= Eggs.PlacedCap then
+	if data.HeldEgg ~= eggId or #data.PlacedEggs >= Eggs.PlacedCap then
 		return false
 	end
 	local _, base, rollKey = plotOf(player)
@@ -200,10 +238,12 @@ function EggService.PlaceEgg(_self: State, player: Player, eggId: any, x: any, z
 	end
 	local list = table.clone(placed)
 	table.insert(list, { Id = eggId, ReadyAt = os.time() + Eggs.ById[eggId].HatchSeconds, X = x, Z = z })
-	services.DataService:Set(player, { "EggInventory" }, Inventory.Removed(data.EggInventory, eggId))
 	services.DataService:Set(player, { "PlacedEggs" }, list)
+	services.DataService:Set(player, { "HeldEgg" }, "")
+	promoteQueued(player, data)
 	services.DataService:RequestSave(player)
 	syncTools(player)
+	Tools.Equip(player)
 	showPlaced(player, os.time())
 	return true
 end
@@ -314,6 +354,10 @@ local function loadPlayer(player: Player, data: PlayerData.Data)
 	if not Inventory.Same(bag, data.EggInventory) then
 		services.DataService:Set(player, { "EggInventory" }, bag)
 	end
+	if type(data.HeldEgg) ~= "string" or (data.HeldEgg ~= "" and Eggs.ById[data.HeldEgg] == nil) then
+		services.DataService:Set(player, { "HeldEgg" }, "")
+	end
+	promoteQueued(player, data)
 	local placed = Inventory.CleanPlaced(data.PlacedEggs)
 	if not Inventory.Same(placed, data.PlacedEggs) then
 		services.DataService:Set(player, { "PlacedEggs" }, placed)

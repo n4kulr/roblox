@@ -52,117 +52,198 @@ describe("EggService", function()
 	end
 
 	local function give(eggId: string, count: number)
-		data.EggInventory[eggId] = (data.EggInventory[eggId] or 0) + count
+		if data.HeldEgg == "" then
+			data.HeldEgg = eggId
+			count -= 1
+		end
+		if count > 0 then
+			data.EggInventory[eggId] = (data.EggInventory[eggId] or 0) + count
+		end
 	end
 
 	local function plant(eggId: string, readyAt: number, x: number?, z: number?)
 		table.insert(data.PlacedEggs, { Id = eggId, ReadyAt = readyAt, X = x or (#data.PlacedEggs * 8), Z = z or 10 })
 	end
 
-	describe("egg bag", function()
-		it("adds a bought egg to the inventory", function()
+	describe("buying an egg", function()
+		it("holds a bought egg instead of adding it to an inventory", function()
 			local service = world.registry.EggService
+			expect(service:CanBuy(player)):toBe("Ok")
 			expect(service:AddEgg(player, "Golden")):toBe(true)
-			expect(service:AddEgg(player, "Golden")):toBe(true)
-			expect(service:AddEgg(player, "Linear")):toBe(true)
-			expect(data.EggInventory):toEqual({ Golden = 2, Linear = 1 })
+			expect(data.HeldEgg):toBe("Golden")
+			expect(data.EggInventory):toEqual({})
 			expect(data.PlacedEggs):toEqual({})
 		end)
 
-		it("caps the bag at ten eggs in total", function()
+		it("refuses a second egg while one is still unplaced", function()
 			local service = world.registry.EggService
-			expect(Eggs.BagCap):toBe(10)
-			for _ = 1, 6 do
-				expect(service:AddEgg(player, "Linear")):toBe(true)
-			end
-			for _ = 1, 4 do
-				expect(service:AddEgg(player, "Rainbow")):toBe(true)
-			end
-			expect(service:HasRoom(player)):toBe(false)
+			expect(service:AddEgg(player, "Golden")):toBe(true)
+			expect(service:CanBuy(player)):toBe("Holding")
 			expect(service:AddEgg(player, "Linear")):toBe(false)
-			expect(service:AddEgg(player, "Tactile")):toBe(false)
-			expect(data.EggInventory):toEqual({ Linear = 6, Rainbow = 4 })
+			expect(data.HeldEgg):toBe("Golden")
+			expect(data.EggInventory):toEqual({})
+			expect(toolNames(player)):toEqual({ "Golden Egg" })
 		end)
 
-		it("makes room again after an egg is placed", function()
+		it("refuses to buy when the base already holds the maximum placed eggs", function()
 			local service = world.registry.EggService
-			give("Linear", 10)
-			expect(service:HasRoom(player)):toBe(false)
+			for index = 1, Eggs.PlacedCap do
+				plant("Linear", world.now + 100, index * 8, 10)
+			end
+			expect(service:CanBuy(player)):toBe("Full")
+			expect(service:AddEgg(player, "Linear")):toBe(false)
+			expect(data.HeldEgg):toBe("")
+			expect(toolNames(player)):toEqual({})
+		end)
+
+		it("can buy again once the egg is placed", function()
+			local service = world.registry.EggService
+			expect(service:AddEgg(player, "Linear")):toBe(true)
 			expect(placeEgg("Linear", 5, 5)):toBe(true)
-			expect(service:HasRoom(player)):toBe(true)
+			expect(data.HeldEgg):toBe("")
+			expect(service:CanBuy(player)):toBe("Ok")
+			expect(service:AddEgg(player, "Tactile")):toBe(true)
+			expect(data.HeldEgg):toBe("Tactile")
+		end)
+
+		it("can buy again after a placed egg hatches and frees room", function()
+			local service = world.registry.EggService
+			for index = 1, Eggs.PlacedCap do
+				plant("Linear", 0, index * 8, 10)
+			end
+			expect(service:CanBuy(player)):toBe("Full")
+			expect(hatch(1) ~= ""):toBe(true)
+			expect(service:CanBuy(player)):toBe("Ok")
 		end)
 
 		it("rejects unknown eggs and players without data", function()
 			local service = world.registry.EggService
 			expect(service:AddEgg(player, "Mystery")):toBe(false)
-			expect(data.EggInventory):toEqual({})
+			expect(data.HeldEgg):toBe("")
 			local stranger = world:newPlayer()
 			expect(service:AddEgg(stranger, "Linear")):toBe(false)
-			expect(service:HasRoom(stranger)):toBe(false)
+			expect(service:CanBuy(stranger)):toBe("NoData")
 		end)
 
-		it("drops invalid bag entries when data loads", function()
-			local other, otherData = world:join(
+		it("clears an invalid held egg when data loads", function()
+			local other, otherData = world:join(nil, { HeldEgg = "Mystery" }, true)
+			expect(otherData.HeldEgg):toBe("")
+			expect(toolNames(other)):toEqual({})
+		end)
+	end)
+
+	describe("legacy egg inventory migration", function()
+		it("moves one legacy egg into the held slot and keeps the rest queued", function()
+			local other, otherData = world:join(nil, { EggInventory = { Linear = 2, Golden = 1 } }, true)
+			expect(otherData.HeldEgg):toBe("Linear")
+			expect(otherData.EggInventory):toEqual({ Linear = 1, Golden = 1 })
+			expect(toolNames(other)):toEqual({ "Linear Egg" })
+		end)
+
+		it("keeps an already held egg and leaves the queue untouched", function()
+			local _, otherData = world:join(nil, { HeldEgg = "Rainbow", EggInventory = { Linear = 2 } }, true)
+			expect(otherData.HeldEgg):toBe("Rainbow")
+			expect(otherData.EggInventory):toEqual({ Linear = 2 })
+		end)
+
+		it("does nothing when there is no legacy inventory", function()
+			local _, otherData = world:join(nil, nil, true)
+			expect(otherData.HeldEgg):toBe("")
+			expect(otherData.EggInventory):toEqual({})
+		end)
+
+		it("drops invalid legacy entries without creating eggs", function()
+			local _, otherData = world:join(
 				nil,
 				{ EggInventory = { Linear = 2, Mystery = 3, Golden = -1, Tactile = 1.5 } },
 				true
 			)
-			expect(otherData.EggInventory):toEqual({ Linear = 2 })
-			expect(toolNames(other)):toEqual({ "Linear Egg x2" })
+			expect(otherData.HeldEgg):toBe("Linear")
+			expect(otherData.EggInventory):toEqual({ Linear = 1 })
+		end)
+
+		it("promotes the next queued egg each time one is placed, losing and duplicating nothing", function()
+			local other, otherData = world:join(nil, { EggInventory = { Linear = 2, Golden = 1 } }, true)
+			local seen = {}
+			for index = 1, 3 do
+				table.insert(seen, otherData.HeldEgg)
+				expect(world:invoke("PlaceEgg", other, otherData.HeldEgg, (index - 2) * 8, 15)):toBe(true)
+			end
+			expect(seen):toEqual({ "Linear", "Linear", "Golden" })
+			expect(otherData.HeldEgg):toBe("")
+			expect(otherData.EggInventory):toEqual({})
+			expect(#otherData.PlacedEggs):toBe(3)
+		end)
+
+		it("hands over the promoted egg as the new tool", function()
+			local other, otherData = world:join(nil, { EggInventory = { Linear = 1, Golden = 1 } }, true)
+			expect(world:invoke("PlaceEgg", other, "Golden", 10, 15)):toBe(false)
+			expect(world:invoke("PlaceEgg", other, "Linear", 10, 15)):toBe(true)
+			expect(otherData.HeldEgg):toBe("Golden")
+			expect(toolNames(other)):toEqual({ "Golden Egg" })
+		end)
+
+		it("queues admin grants behind the held egg", function()
+			local service = world.registry.EggService
+			expect(service:GrantEgg(player, "Linear")):toBe(true)
+			expect(service:GrantEgg(player, "Linear")):toBe(true)
+			expect(service:GrantEgg(player, "Rainbow")):toBe(true)
+			expect(data.HeldEgg):toBe("Linear")
+			expect(data.EggInventory):toEqual({ Linear = 1, Rainbow = 1 })
+			expect(service:GrantEgg(player, "Mystery")):toBe(false)
 		end)
 	end)
 
-	describe("carrying tools", function()
-		it("creates one tool per egg type with the count in its name", function()
-			local service = world.registry.EggService
-			service:AddEgg(player, "Golden")
-			service:AddEgg(player, "Golden")
-			service:AddEgg(player, "Linear")
-			expect(toolNames(player)):toEqual({ "Golden Egg x2", "Linear Egg x1" })
-			for _, tool in toolsOf(player) do
-				expect(tool:FindFirstChild("Handle") ~= nil):toBe(true)
-				expect(tool.CanBeDropped):toBe(false)
-				expect(tool:FindFirstChild("EggSpot1") ~= nil):toBe(true)
-			end
-		end)
-
-		it("tags each tool with its egg id and count", function()
-			give("Tactile", 3)
-			world.registry.EggService:Sync(player)
-			local tool = toolsOf(player)[1]
-			expect(tool:GetAttribute("EggId")):toBe("Tactile")
-			expect(tool:GetAttribute("Count")):toBe(3)
-			expect(tool.Handle.Color):toBe(Eggs.ById.Tactile.Color)
-		end)
-
-		it("updates the count and removes the tool when the last egg is placed", function()
-			give("Linear", 2)
-			world.registry.EggService:Sync(player)
-			expect(toolNames(player)):toEqual({ "Linear Egg x2" })
-			expect(placeEgg("Linear", 5, 5)):toBe(true)
-			expect(toolNames(player)):toEqual({ "Linear Egg x1" })
-			expect(placeEgg("Linear", 12, 5)):toBe(true)
+	describe("carrying tool", function()
+		it("creates one tool for the held egg and equips it", function()
+			local character = world:spawnCharacter(player, 0, 3, 0)
+			world.registry.EggService:AddEgg(player, "Golden")
 			expect(toolNames(player)):toEqual({})
+			local tool = character:FindFirstChildOfClass("Tool")
+			expect(tool ~= nil):toBe(true)
+			expect(tool.Name):toBe("Golden Egg")
+			expect(tool:FindFirstChild("Handle") ~= nil):toBe(true)
+			expect(tool.CanBeDropped):toBe(false)
+			expect(tool:FindFirstChild("EggSpot1") ~= nil):toBe(true)
+			expect(tool:GetAttribute("EggId")):toBe("Golden")
 		end)
 
-		it("updates a tool that is held in the character instead of duplicating it", function()
+		it("keeps the tool in the backpack when the player has no character yet", function()
+			world.registry.EggService:AddEgg(player, "Linear")
+			expect(toolNames(player)):toEqual({ "Linear Egg" })
+			expect(toolsOf(player)[1].Handle.Color):toBe(Eggs.ById.Linear.Color)
+		end)
+
+		it("never duplicates the tool when synced again", function()
+			local service = world.registry.EggService
+			service:AddEgg(player, "Linear")
+			service:Sync(player)
+			service:Sync(player)
+			expect(toolNames(player)):toEqual({ "Linear Egg" })
+		end)
+
+		it("keeps the tool in the backpack after the player unequips it", function()
 			local character = world:spawnCharacter(player, 0, 3, 0)
 			world.registry.EggService:AddEgg(player, "Linear")
-			local tool = toolsOf(player)[1]
-			tool.Parent = character
-			world.registry.EggService:AddEgg(player, "Linear")
-			expect(toolNames(player)):toEqual({})
-			expect(tool.Name):toBe("Linear Egg x2")
-			expect(tool.Parent == character):toBe(true)
-			expect(placeEgg("Linear", 5, 5)):toBe(true)
-			expect(placeEgg("Linear", 12, 5)):toBe(true)
-			expect(tool.Parent):toBeNil()
+			local tool = character:FindFirstChildOfClass("Tool")
+			tool.Parent = player:FindFirstChild("Backpack")
+			world.registry.EggService:Sync(player)
+			expect(toolNames(player)):toEqual({ "Linear Egg" })
+			expect(toolsOf(player)[1] == tool):toBe(true)
 		end)
 
-		it("gives tools back after the character respawns", function()
-			give("Linear", 1)
-			give("Rainbow", 1)
-			world.registry.EggService:Sync(player)
+		it("removes the tool once the egg is placed", function()
+			local character = world:spawnCharacter(player, 0, 3, 0)
+			world.registry.EggService:AddEgg(player, "Linear")
+			local tool = character:FindFirstChildOfClass("Tool")
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(tool.Parent):toBeNil()
+			expect(toolNames(player)):toEqual({})
+			expect(character:FindFirstChildOfClass("Tool")):toBeNil()
+		end)
+
+		it("gives the tool back after the character respawns", function()
+			world.registry.EggService:AddEgg(player, "Rainbow")
 			world:spawnCharacter(player, 0, 3, 0)
 			for _, tool in toolsOf(player) do
 				tool:Destroy()
@@ -171,28 +252,29 @@ describe("EggService", function()
 			world:resetCharacter(player)
 			world:spawnCharacter(player, 0, 3, 0)
 			world:advance(0)
-			expect(toolNames(player)):toEqual({ "Linear Egg x1", "Rainbow Egg x1" })
+			expect(toolNames(player)):toEqual({ "Rainbow Egg" })
+			expect(data.HeldEgg):toBe("Rainbow")
 		end)
 
-		it("builds tools for eggs already owned when data loads", function()
-			local other = world:join(nil, { EggInventory = { Clicky = 2 } }, true)
-			expect(toolNames(other)):toEqual({ "Clicky Egg x2" })
+		it("builds the tool for a held egg already saved when data loads", function()
+			local other = world:join(nil, { HeldEgg = "Clicky" }, true)
+			expect(toolNames(other)):toEqual({ "Clicky Egg" })
 		end)
 
 		it("keeps tools per player", function()
 			local other = world:join(nil, nil, true)
-			give("Linear", 1)
-			world.registry.EggService:Sync(player)
-			expect(toolNames(player)):toEqual({ "Linear Egg x1" })
+			world.registry.EggService:AddEgg(player, "Linear")
+			expect(toolNames(player)):toEqual({ "Linear Egg" })
 			expect(toolNames(other)):toEqual({})
 		end)
 	end)
 
 	describe("placing eggs", function()
-		it("moves an owned egg from the bag onto the base with a hatch timer", function()
+		it("moves the held egg onto the base with a hatch timer", function()
 			give("Golden", 2)
 			expect(placeEgg("Golden", 6, 12)):toBe(true)
-			expect(data.EggInventory):toEqual({ Golden = 1 })
+			expect(data.HeldEgg):toBe("Golden")
+			expect(data.EggInventory):toEqual({})
 			expect(#data.PlacedEggs):toBe(1)
 			expect(data.PlacedEggs[1]):toEqual({
 				Id = "Golden",
@@ -203,12 +285,12 @@ describe("EggService", function()
 			expect((world.saves[player] or 0) > 0):toBe(true)
 		end)
 
-		it("rejects eggs the player does not own", function()
+		it("rejects eggs the player is not holding", function()
 			expect(placeEgg("Linear", 5, 5)):toBe(false)
 			give("Linear", 1)
 			expect(placeEgg("Golden", 5, 5)):toBe(false)
 			expect(placeEgg("Mystery", 5, 5)):toBe(false)
-			expect(data.EggInventory):toEqual({ Linear = 1 })
+			expect(data.HeldEgg):toBe("Linear")
 			expect(data.PlacedEggs):toEqual({})
 		end)
 
@@ -221,7 +303,8 @@ describe("EggService", function()
 			expect(placeEgg(nil, 5, 5)):toBe(false)
 			expect(placeEgg(5, 5, 5)):toBe(false)
 			expect(placeEgg("Linear", nil, nil)):toBe(false)
-			expect(data.EggInventory):toEqual({ Linear = 3 })
+			expect(data.HeldEgg):toBe("Linear")
+			expect(data.EggInventory):toEqual({ Linear = 2 })
 			expect(data.PlacedEggs):toEqual({})
 		end)
 
@@ -267,11 +350,31 @@ describe("EggService", function()
 			expect(placeEgg("Linear", 8, 10)):toBe(true)
 			expect(placeEgg("Linear", 16, 10)):toBe(true)
 			expect(placeEgg("Linear", -8, 10)):toBe(false)
-			expect(data.EggInventory):toEqual({ Linear = 3 })
+			expect(data.HeldEgg):toBe("Linear")
+			expect(data.EggInventory):toEqual({ Linear = 2 })
 			expect(#data.PlacedEggs):toBe(3)
 			data.PlacedEggs[1].ReadyAt = 0
 			expect(hatch(1) ~= ""):toBe(true)
 			expect(placeEgg("Linear", -8, 10)):toBe(true)
+		end)
+
+		it("clears the held egg and its tool when placed, saving once", function()
+			world:spawnCharacter(player, 0, 3, 0)
+			world.registry.EggService:AddEgg(player, "Linear")
+			local before = world.saves[player] or 0
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(data.HeldEgg):toBe("")
+			expect(toolNames(player)):toEqual({})
+			expect(world.saves[player] or 0):toBe(before + 1)
+			expect(placeEgg("Linear", 12, 5)):toBe(false)
+			expect(#data.PlacedEggs):toBe(1)
+		end)
+
+		it("keeps the held egg when the spot is rejected", function()
+			give("Linear", 1)
+			expect(placeEgg("Linear", 500, 5)):toBe(false)
+			expect(data.HeldEgg):toBe("Linear")
+			expect(#data.PlacedEggs):toBe(0)
 		end)
 
 		it("fails for players without data", function()
@@ -285,7 +388,7 @@ describe("EggService", function()
 				return nil
 			end
 			expect(placeEgg("Linear", 5, 5)):toBe(false)
-			expect(data.EggInventory):toEqual({ Linear = 1 })
+			expect(data.HeldEgg):toBe("Linear")
 		end)
 	end)
 
@@ -362,6 +465,25 @@ describe("EggService", function()
 			table.insert(data.PlacedEggs, { Id = "Mystery", ReadyAt = 0, X = 5, Z = 5 })
 			expect(hatch(1)):toBe("")
 			expect(#data.PlacedEggs):toBe(1)
+		end)
+
+		it("clears the held egg and its tool when placed, saving once", function()
+			world:spawnCharacter(player, 0, 3, 0)
+			world.registry.EggService:AddEgg(player, "Linear")
+			local before = world.saves[player] or 0
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(data.HeldEgg):toBe("")
+			expect(toolNames(player)):toEqual({})
+			expect(world.saves[player] or 0):toBe(before + 1)
+			expect(placeEgg("Linear", 12, 5)):toBe(false)
+			expect(#data.PlacedEggs):toBe(1)
+		end)
+
+		it("keeps the held egg when the spot is rejected", function()
+			give("Linear", 1)
+			expect(placeEgg("Linear", 500, 5)):toBe(false)
+			expect(data.HeldEgg):toBe("Linear")
+			expect(#data.PlacedEggs):toBe(0)
 		end)
 
 		it("fails for players without data", function()
@@ -680,6 +802,7 @@ describe("EggService", function()
 			expect(PlayerData.Validate(data)):toBe(true)
 			expect(PlayerData.Validate(PlayerData.Template)):toBe(true)
 			expect(PlayerData.Template.EggInventory):toEqual({})
+			expect(PlayerData.Template.HeldEgg):toBe("")
 			expect(PlayerData.Template.PlacedEggs):toEqual({})
 		end)
 
@@ -722,10 +845,11 @@ describe("Eggs and rebirth", function()
 		}, true)
 		expect(world:invoke("Rebirth", player)):toBe(true)
 		expect(data.Rebirths):toBe(1)
-		expect(data.EggInventory):toEqual({ Linear = 2 })
+		expect(data.HeldEgg):toBe("Linear")
+		expect(data.EggInventory):toEqual({ Linear = 1 })
 		expect(#data.PlacedEggs):toBe(1)
 		expect(data.PlacedEggs[1].Id):toBe("Golden")
-		expect(toolNames(player)):toEqual({ "Linear Egg x2" })
+		expect(toolNames(player)):toEqual({ "Linear Egg" })
 	end)
 end)
 

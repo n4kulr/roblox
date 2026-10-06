@@ -6,26 +6,31 @@ local Eggs = require(ReplicatedStorage.Config.Eggs)
 export type Bag = { [string]: number }
 export type Placed = { Id: string, ReadyAt: number, X: number, Z: number }
 
+local maxCount = 1000
+
 local Inventory = {}
 
+Inventory.MaxCount = maxCount
+
+function Inventory.Count(bag: Bag, eggId: string): number
+	return bag[eggId] or 0
+end
+
 local function isCount(value: any): boolean
-	return type(value) == "number" and value == value and value % 1 == 0 and value >= 1 and value <= 1000
+	return type(value) == "number" and value == value and value % 1 == 0 and value >= 1 and value <= maxCount
 end
 
 local function isCoordinate(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) ~= math.huge
 end
 
-function Inventory.Total(bag: Bag): number
-	local total = 0
-	for _, count in bag do
-		total += count
+function Inventory.Next(bag: Bag): string?
+	for _, egg in Eggs.Catalog do
+		if (bag[egg.Id] or 0) > 0 then
+			return egg.Id
+		end
 	end
-	return total
-end
-
-function Inventory.Count(bag: Bag, eggId: string): number
-	return bag[eggId] or 0
+	return nil
 end
 
 function Inventory.Added(bag: Bag, eggId: string): Bag

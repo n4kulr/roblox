@@ -343,7 +343,7 @@ withCount(
 withCount(
 	"giveegg",
 	"giveegg <eggId> [count] [player|all]",
-	"Give eggs (bypasses the bag cap)",
+	"Give eggs (the first is held, the rest queue up)",
 	function(context, _admin, target, args, count)
 		local egg = findEgg(args[1])
 		if not egg then
@@ -353,15 +353,15 @@ withCount(
 		if not data then
 			return false, "Data not loaded"
 		end
-		local bag = table.clone(data.EggInventory)
-		local have = bag[egg.Id] or 0
-		local added = math.min(clampCount(count), maxStack - have)
+		local added = 0
+		for _ = 1, clampCount(count) do
+			if context.Services.EggService:GrantEgg(target, egg.Id) then
+				added += 1
+			end
+		end
 		if added < 1 then
 			return false, `Already holding the maximum {egg.Name}`
 		end
-		bag[egg.Id] = have + added
-		context.Services.DataService:Set(target, { "EggInventory" }, bag)
-		context.Services.EggService:Sync(target)
 		context.Services.DataService:RequestSave(target)
 		reward(target, "Egg", egg.Id, added)
 		return true, `Gave {added}x {egg.Name}`
