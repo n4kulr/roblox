@@ -7,6 +7,7 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local Roll = require(script.Roll)
@@ -66,13 +67,19 @@ local function handleRoll(player: Player): (number, boolean)
 		os.time(),
 		if type(serverLuckUntil) == "number" then serverLuckUntil else 0
 	)
-	local stats = Stats.Compute(data.Board, data.Upgrades, modifiers)
+	local charmEffects = Charms.Effects(data.EquippedCharms)
+	local stats = Stats.Compute(data.Board, data.Upgrades, {
+		Luck = modifiers.Luck * charmEffects.Luck,
+		Income = modifiers.Income * charmEffects.Income,
+		Speed = charmEffects.Speed,
+	})
 	if not takeToken(player, stats.RollsPerSecond) then
 		return 0, false
 	end
 	local isGuaranteed = data.Rolls + 1 == GameConfig.GuaranteedRareRoll
 	local goldenProgress = (data.GoldenProgress or 0) + 1
-	local isGolden = not isGuaranteed and goldenProgress >= Stats.GoldenEvery(data.Upgrades)
+	local isGolden = not isGuaranteed
+		and goldenProgress >= Stats.GoldenEvery(data.Upgrades, charmEffects.GoldenReduction)
 	local key = if isGuaranteed
 		then Roll.PickInRarity(rng, "Rare")
 		else Roll.Pick(rng, if isGolden then stats.Luck * GameConfig.GoldenRollLuck else stats.Luck)

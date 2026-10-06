@@ -8,6 +8,7 @@ local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Season = require(ReplicatedStorage.Rules.Season)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
@@ -139,6 +140,7 @@ function Hud.new(context: Types.Context): Types.Screen
 		leftButton("Rebirth", "Rebirth", "REBIRTH", theme.Pink, 4, "Start over for a big bonus!", "Rebirth")
 	local dailyButton =
 		leftButton("DailyRewards", "Gift", "GIFTS", theme.Teal, 5, "Free gifts for playing!", "Daily")
+	leftButton("Charms", "Luck", "CHARMS", theme.Purple, 7, "Equip charms for big bonuses!", "Charms")
 	local giftButton = squareButton(
 		menu,
 		"StarterPack",
@@ -678,7 +680,10 @@ function Hud.new(context: Types.Context): Types.Screen
 	local function refreshGolden()
 		local progress = dataController:Get({ "GoldenProgress" })
 		local count = if type(progress) == "number" then progress else 0
-		local every = Stats.GoldenEvery(dataController:Get({ "Upgrades" }))
+		local every = Stats.GoldenEvery(
+			dataController:Get({ "Upgrades" }),
+			Charms.Effects(dataController:Get({ "EquippedCharms" })).GoldenReduction
+		)
 		count = math.min(count, every - 1)
 		local isNext = count >= every - 1
 		goldenLabel.Text = if isNext then "NEXT!" else `{count}/{every}`
@@ -687,6 +692,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	end
 	trove:Add(dataController:Observe({ "GoldenProgress" }, refreshGolden))
 	trove:Add(dataController:Observe({ "Upgrades", "Golden" }, refreshGolden))
+	trove:Add(dataController:Observe({ "EquippedCharms" }, refreshGolden))
 
 	local function setHinting(value: boolean)
 		if value == isHinting then

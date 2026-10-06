@@ -16,6 +16,7 @@ type State = {
 }
 
 local config = GameConfig.Market
+local Eggs = require(ReplicatedStorage.Config.Eggs)
 local boundaryGuardSeconds = 1
 local reachSlack = 6
 
@@ -31,7 +32,7 @@ local function isOfferIndex(value: any): boolean
 		and value == value
 		and value % 1 == 0
 		and value >= 1
-		and value <= config.OfferCount
+		and value <= #Eggs.Catalog
 end
 
 local function isNearCounter(player: Player): boolean
@@ -74,16 +75,19 @@ local function buy(player: Player, index: number): boolean
 	if bought >= offer.Stock then
 		return false
 	end
-	services.KeyboardService:Settle(player)
-	if data.Cash < offer.Price or not services.DataService:AdjustCash(player, -offer.Price) then
+	if not services.EggService:HasRoom(player) then
 		return false
 	end
-	if not services.KeyboardService:AddKey(player, offer.KeyId) then
-		services.DataService:AdjustCash(player, offer.Price)
+	services.KeyboardService:Settle(player)
+	local price = Market.Price(offer, Market.BaseRate(data.Board, data.Upgrades))
+	if data.Cash < price or not services.DataService:AdjustCash(player, -price) then
+		return false
+	end
+	if services.EggService:PlaceEgg(player, offer.EggId) == 0 then
+		services.DataService:AdjustCash(player, price)
 		return false
 	end
 	services.DataService:Set(player, { "Market", "Bought", tostring(index) }, bought + 1)
-	services.DataService:Set(player, { "Discovered", offer.KeyId }, (data.Discovered[offer.KeyId] or 0) + 1)
 	services.DataService:RequestSave(player)
 	return true
 end

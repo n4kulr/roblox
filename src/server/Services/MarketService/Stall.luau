@@ -2,7 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
-local Keys = require(ReplicatedStorage.Config.Keys)
+local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Market = require(ReplicatedStorage.Rules.Market)
 
 local config = GameConfig.Market
@@ -13,9 +13,8 @@ local woodColor = Color3.fromRGB(140, 96, 64)
 local counterColor = Color3.fromRGB(176, 124, 82)
 local rugColor = Color3.fromRGB(70, 74, 86)
 local signColor = Color3.fromRGB(255, 99, 72)
-local emptyCapColor = Color3.fromRGB(122, 127, 138)
-local capSize = Vector3.new(1.6, 1.2, 1.6)
-local capSpacing = 2
+local eggSize = Vector3.new(1.5, 1.95, 1.5)
+local eggSpacing = 2.2
 local counterHeight = 3.5
 local counterZ = 3.5
 local stripeCount = 8
@@ -62,7 +61,7 @@ local function buildSign(model: Model)
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
 	label.Font = Enum.Font.FredokaOne
-	label.Text = "KEY MARKET"
+	label.Text = "EGG MARKET"
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextScaled = true
 	label.Parent = gui
@@ -103,16 +102,20 @@ function Stall.Build(name: string): (Model, BasePart)
 		)
 	end
 	buildSign(model)
-	for index = 1, config.OfferCount do
-		local x = (index - (config.OfferCount + 1) / 2) * capSpacing
-		newPart(
+	local eggCount = #Eggs.Catalog
+	for index = 1, eggCount do
+		local x = (index - (eggCount + 1) / 2) * eggSpacing
+		local egg = newPart(
 			model,
-			`Cap{index}`,
-			capSize,
-			Vector3.new(x, counterHeight + capSize.Y / 2, counterZ),
-			emptyCapColor,
+			`Egg{index}`,
+			eggSize,
+			Vector3.new(x, counterHeight + eggSize.Y / 2 + 0.2, counterZ),
+			Eggs.Catalog[index].Color,
 			false
 		)
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = egg
 	end
 	model.PrimaryPart = counter
 	return model, counter
@@ -137,7 +140,7 @@ function Stall.EnsurePrompt(counter: BasePart): ProximityPrompt
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = Stall.PromptName
-	prompt.ActionText = "Open Key Market"
+	prompt.ActionText = "Open Egg Market"
 	prompt.ObjectText = "Shop"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = config.PromptRange
@@ -148,13 +151,14 @@ end
 
 function Stall.Paint(model: Model, slot: number)
 	local offers = Market.Offers(slot)
-	for index = 1, config.OfferCount do
-		local cap = model:FindFirstChild(`Cap{index}`, true)
+	for index = 1, #Eggs.Catalog do
+		local display = model:FindFirstChild(`Egg{index}`, true)
 		local offer = offers[index]
-		if cap and cap:IsA("BasePart") and offer then
-			local rarity = Keys.GetRarity(Keys.ById[offer.KeyId])
-			cap.Color = rarity.Color
-			Keys.ApplyFinish(cap, rarity)
+		if display and display:IsA("BasePart") then
+			display.Transparency = if offer then 0 else 1
+			if offer then
+				display.Color = Eggs.ById[offer.EggId].Color
+			end
 		end
 	end
 end

@@ -27,12 +27,12 @@ local Lock = {
 	Cooldown = statusCooldown,
 }
 
-function Lock.Duration(level: any): number
+function Lock.Duration(level: any, bonusSeconds: number?): number
 	local clamped = 0
 	if type(level) == "number" and level == level then
 		clamped = math.clamp(math.floor(level), 0, Upgrades.ById.LockTime.MaxLevel)
 	end
-	return defense.LockBaseSeconds + clamped * Upgrades.ById.LockTime.PerLevel
+	return defense.LockBaseSeconds + clamped * Upgrades.ById.LockTime.PerLevel + (bonusSeconds or 0)
 end
 
 function Lock.StatusAt(state: Types.Defense, now: number): string

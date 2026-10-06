@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Income = require(ReplicatedStorage.Rules.Income)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Stats = require(ReplicatedStorage.Rules.Stats)
@@ -19,6 +20,7 @@ export type Tracker = {
 	GetBoard: () -> { string },
 	GetLevel: (id: string) -> number,
 	GetRebirths: () -> number,
+	GetCharms: () -> Charms.Effects,
 }
 
 local Economy = {}
@@ -43,6 +45,7 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 	local board: { string } = {}
 	local levels: any = {}
 	local rebirths = 0
+	local charmEffects = Charms.Neutral()
 	local boostState = BoostState.Track(dataController, trove)
 
 	local function changed()
@@ -76,12 +79,20 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 		changed()
 	end))
 
+	trove:Add(dataController:Observe({ "EquippedCharms" }, function(value: any)
+		charmEffects = Charms.Effects(value)
+		changed()
+	end))
+
 	trove:Add(dataController:Observe({ "Rebirths" }, function(value: any)
 		rebirths = if type(value) == "number" then value else 0
 		changed()
 	end))
 
 	return {
+		GetCharms = function()
+			return charmEffects
+		end,
 		GetRebirths = function()
 			return rebirths
 		end,
@@ -94,15 +105,18 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 			if not current then
 				return nil
 			end
-			local income = Boosts.PassIncome(boostState.Passes()) * Rebirth.IncomeMultiplier(rebirths)
+			local income = Boosts.PassIncome(boostState.Passes())
+				* Rebirth.IncomeMultiplier(rebirths)
+				* charmEffects.Income
 			local rate = Stats.Compute(board, levels, { Income = income }).Rate
 			return Economy.Predict(current, incomeAt, rate, boostState.Stored().ClicksUntil or 0)
 		end,
 		GetStats = function()
 			local modifiers = boostState.Modifiers(workspace:GetServerTimeNow())
 			return Stats.Compute(board, levels, {
-				Luck = modifiers.Luck,
-				Income = modifiers.Income * Rebirth.IncomeMultiplier(rebirths),
+				Luck = modifiers.Luck * charmEffects.Luck,
+				Income = modifiers.Income * Rebirth.IncomeMultiplier(rebirths) * charmEffects.Income,
+				Speed = charmEffects.Speed,
 			})
 		end,
 		GetBoard = function()

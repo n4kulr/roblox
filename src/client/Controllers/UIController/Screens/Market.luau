@@ -3,25 +3,28 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local CharmConfig = require(ReplicatedStorage.Config.Charms)
+local Eggs = require(ReplicatedStorage.Config.Eggs)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
-local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Market = require(ReplicatedStorage.Rules.Market)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
-local Cells = require(script.Parent.Parent.Cells)
 local Economy = require(script.Parent.Parent.Economy)
+local EggArt = require(script.Parent.Parent.EggArt)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type Card = {
 	Offer: Market.Offer,
+	Price: number,
 	Panel: Frame,
+	PriceText: TextLabel,
+	Drops: Frame,
 	StockChip: Frame,
 	StockText: TextLabel,
-	PriceChip: Frame,
 	Action: Kit.Button,
 }
 type Stored = { Slot: number?, Bought: { [string]: number }? }
@@ -29,10 +32,11 @@ type Stored = { Slot: number?, Bought: { [string]: number }? }
 local theme = Kit.Theme
 local config = GameConfig.Market
 local accent = Color3.fromRGB(255, 96, 48)
-local cardSize = Vector2.new(210, 290)
+local cardSize = Vector2.new(205, 304)
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
+local fullMessage = "Your incubators are full!"
 
 local MarketScreen = {}
 
@@ -57,6 +61,13 @@ local function isNearCounter(): boolean
 	return (root.Position - position).Magnitude <= config.PromptRange + reachSlack
 end
 
+local function percentText(chance: number): string
+	local percent = chance * 100
+	return if percent >= 10 or percent % 1 == 0
+		then string.format("%d%%", math.floor(percent + 0.5))
+		else string.format("%.1f%%", percent)
+end
+
 function MarketScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local cardsTrove = Trove.new()
@@ -74,9 +85,9 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Market",
-		Title = "KEY MARKET",
+		Title = "EGG MARKET",
 		Glyph = "Shop",
-		MaxSize = Vector2.new(900, 660),
+		MaxSize = Vector2.new(900, 680),
 		HeaderColor = accent,
 		OnClose = function()
 			context.Close("Market")
@@ -96,8 +107,19 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Parent = modal.Body,
 		Name = "Offers",
 		Position = UDim2.fromOffset(6, 6),
-		Size = UDim2.new(1, -12, 1, -12),
+		Size = UDim2.new(1, -12, 1, -52),
 		CellSize = UDim2.fromOffset(cardSize.X, cardSize.Y),
+	})
+	local incubatorLabel = Kit.Label({
+		Parent = modal.Body,
+		Name = "Incubators",
+		Text = "Incubators free: 3/3",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.new(1, -24, 0, 30),
+		TextSize = 24,
+		Title = true,
+		Scaled = true,
 	})
 
 	local function boughtOf(index: number): number
@@ -112,20 +134,48 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		return math.max(0, offer.Stock - boughtOf(offer.Index))
 	end
 
+	local function freeIncubators(): number
+		local list = dataController:Get({ "Incubators" })
+		local free = 0
+		if type(list) == "table" then
+			for index = 1, Eggs.Slots do
+				if list[index] == "" then
+					free += 1
+				end
+			end
+		end
+		return free
+	end
+
+	local function currentRate(): number
+		local upgrades = dataController:Get({ "Upgrades" })
+		return Market.BaseRate(tracker.GetBoard(), if type(upgrades) == "table" then upgrades else {})
+	end
+
 	local function refreshCards()
 		local balance = tracker.Balance() or 0
+		local rate = currentRate()
+		local free = freeIncubators()
+		incubatorLabel.Text = `Incubators free: {free}/{Eggs.Slots}`
+		incubatorLabel.TextColor3 = if free > 0 then theme.Text else theme.Bad
 		for _, card in cards do
 			local offer = card.Offer
 			local left = leftOf(offer)
+			card.Price = Market.Price(offer, rate)
+			card.PriceText.Text = NumberFormat.Commas(card.Price)
 			card.StockText.Text = if left > 0 then `x{left} left` else "SOLD OUT"
 			Kit.Paint(card.StockChip, if left > 0 then theme.Blue else theme.Grey)
 			if left <= 0 then
 				card.Action.SetDisabled(true)
 				card.Action.SetText("SOLD OUT")
-			elseif balance < offer.Price then
+			elseif free <= 0 then
+				card.Action.SetDisabled(false)
+				card.Action.SetColor(theme.Grey)
+				card.Action.SetText("INCUBATORS FULL")
+			elseif balance < card.Price then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Red)
-				card.Action.SetText(`Need {NumberFormat.Compact(offer.Price - balance)} more!`)
+				card.Action.SetText(`Need {NumberFormat.Compact(card.Price - balance)} more!`)
 			else
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Green)
@@ -139,17 +189,23 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local offer = card.Offer
-		local key = Keys.ById[offer.KeyId]
+		local egg = Eggs.ById[offer.EggId]
 		local balance = tracker.Balance() or 0
 		if leftOf(offer) <= 0 then
 			playUi("Error")
 			context.Toast("Sold out! Check back for new stock!", "Bad")
 			return
 		end
-		if balance < offer.Price then
+		if freeIncubators() <= 0 then
 			playUi("Error")
 			Kit.Shake(card.Panel)
-			context.Toast(`Need {NumberFormat.Compact(offer.Price - balance)} more!`, "Bad")
+			context.Toast(fullMessage, "Bad")
+			return
+		end
+		if balance < card.Price then
+			playUi("Error")
+			Kit.Shake(card.Panel)
+			context.Toast(`Need {NumberFormat.Compact(card.Price - balance)} more!`, "Bad")
 			return
 		end
 		if not isNearCounter() then
@@ -163,15 +219,14 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if bought == true then
 				playUi("Confirm")
-				local sounds = context.Controllers.SoundController
-				if sounds then
-					sounds:PlaySwitch(key.Switch, "Press", 1, 1, nil, "Other")
-				end
-				context.Toast(`Bought {key.Name}!`, "Good")
+				context.Toast(`{egg.Name} is hatching on your base!`, "Good")
 			else
 				playUi("Error")
 				context.Toast(
-					if isNearCounter() then "Couldn't buy that one!" else "Get closer to the market!",
+					if freeIncubators() <= 0
+						then fullMessage
+						elseif isNearCounter() then "Couldn't buy that one!"
+						else "Get closer to the market!",
 					"Bad"
 				)
 			end
@@ -179,9 +234,55 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		end)
 	end
 
+	local function buildDrops(panel: Frame, egg: Eggs.Egg): Frame
+		local overlay = Kit.Panel({
+			Parent = panel,
+			Name = "Drops",
+			Size = UDim2.new(1, -12, 0, 170),
+			Position = UDim2.fromOffset(6, 6),
+			Color = theme.PanelDeep,
+			Radius = Kit.Radius.M,
+		})
+		overlay.ZIndex = 5
+		overlay.Visible = false
+		Kit.Label({
+			Parent = overlay,
+			Name = "Heading",
+			Text = "DROP CHANCES",
+			Position = UDim2.fromOffset(8, 6),
+			Size = UDim2.new(1, -16, 0, 26),
+			TextSize = 20,
+			Title = true,
+			Scaled = true,
+		}).ZIndex =
+			6
+		local total = 0
+		for _, weight in egg.Drops do
+			total += weight
+		end
+		local row = 0
+		for _, rarity in CharmConfig.Rarities do
+			local weight = egg.Drops[rarity.Name]
+			if weight then
+				local line = Kit.Chip({
+					Parent = overlay,
+					Name = rarity.Name,
+					Text = `{rarity.Name}  {percentText(weight / total)}`,
+					Size = UDim2.new(1, -20, 0, 28),
+					Position = UDim2.fromOffset(10, 34 + row * 32),
+					Color = rarity.Color,
+					TextSize = 20,
+				})
+				line.ZIndex = 7
+				(line.Parent :: Frame).ZIndex = 6
+				row += 1
+			end
+		end
+		return overlay
+	end
+
 	local function buildCard(offer: Market.Offer, animate: boolean)
-		local key = Keys.ById[offer.KeyId]
-		local rarity = Keys.GetRarity(key)
+		local egg = Eggs.ById[offer.EggId]
 		local panel = Kit.Panel({
 			Parent = grid,
 			Name = `Offer{offer.Index}`,
@@ -194,37 +295,59 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Shards = true,
 		})
 		cardsTrove:Add(panel)
-		local cell = Cells.New(cardsTrove, { Parent = panel, Key = key })
-		cell.Instance.AnchorPoint = Vector2.new(0.5, 0)
-		cell.Instance.Position = UDim2.new(0.5, 0, 0, 8)
-		cell.Info.Text = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
-		cell.Info.TextColor3 = theme.TextDim
+		local art = EggArt.Build(panel, egg, 118, "Art")
+		art.Root.AnchorPoint = Vector2.new(0.5, 0)
+		art.Root.Position = UDim2.new(0.5, 0, 0, 8)
 		Kit.Label({
 			Parent = panel,
-			Name = "Income",
-			Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`,
-			Position = UDim2.fromOffset(12, 170),
-			Size = UDim2.fromOffset(94, 24),
-			TextSize = 20,
-			Color = theme.Good,
+			Name = "EggName",
+			Text = egg.Name,
+			Position = UDim2.fromOffset(8, 128),
+			Size = UDim2.new(1, -16, 0, 28),
+			TextSize = 24,
+			Title = true,
+			Scaled = true,
+		})
+		Kit.Label({
+			Parent = panel,
+			Name = "HatchTime",
+			Text = `Hatches in {TimeFormat.Clock(egg.HatchSeconds)}`,
+			Position = UDim2.fromOffset(8, 156),
+			Size = UDim2.new(1, -16, 0, 20),
+			TextSize = 17,
+			Subtle = true,
 			Scaled = true,
 		})
 		local stockText = Kit.Chip({
 			Parent = panel,
 			Name = "Stock",
 			Text = "",
-			Size = UDim2.fromOffset(88, 24),
-			Position = UDim2.new(1, -12, 0, 170),
-			AnchorPoint = Vector2.new(1, 0),
+			Size = UDim2.fromOffset(92, 26),
+			Position = UDim2.fromOffset(12, 182),
 			Color = theme.Blue,
 			TextSize = 16,
+		})
+		local drops = buildDrops(panel, egg)
+		Kit.Button(cardsTrove, {
+			Parent = panel,
+			Name = "DropsButton",
+			Text = "DROPS",
+			Position = UDim2.new(1, -12, 0, 180),
+			AnchorPoint = Vector2.new(1, 0),
+			Size = UDim2.fromOffset(84, 30),
+			Color = theme.Purple,
+			TextSize = 16,
+			Callback = function()
+				drops.Visible = not drops.Visible
+			end,
+			Sound = playUi,
 		})
 		local priceText = Kit.Chip({
 			Parent = panel,
 			Name = "Price",
-			Text = NumberFormat.Commas(offer.Price),
-			Size = UDim2.fromOffset(180, 30),
-			Position = UDim2.fromOffset(15, 198),
+			Text = "",
+			Size = UDim2.fromOffset(cardSize.X - 30, 30),
+			Position = UDim2.fromOffset(15, 214),
 			Color = theme.Track,
 			TextSize = 22,
 		})
@@ -254,11 +377,11 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Parent = panel,
 			Name = "Buy",
 			Text = "BUY",
-			Position = UDim2.new(0.5, 0, 1, -10),
+			Position = UDim2.new(0.5, 0, 1, -8),
 			AnchorPoint = Vector2.new(0.5, 1),
-			Size = UDim2.new(0.88, 0, 0, 50),
+			Size = UDim2.new(0.88, 0, 0, 44),
 			Color = theme.Green,
-			TextSize = 24,
+			TextSize = 22,
 			Callback = function()
 				buy(card)
 			end,
@@ -266,10 +389,12 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		})
 		card = {
 			Offer = offer,
+			Price = 0,
 			Panel = panel,
+			PriceText = priceText,
+			Drops = drops,
 			StockChip = stockText.Parent :: Frame,
 			StockText = stockText,
-			PriceChip = priceText.Parent :: Frame,
 			Action = action,
 		}
 		table.insert(cards, card)
@@ -317,6 +442,11 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 
 	trove:Add(dataController:Observe({ "Market" }, function(value: any)
 		stored = if type(value) == "table" then value else {}
+		if isOpen then
+			refreshCards()
+		end
+	end))
+	trove:Add(dataController:Observe({ "Incubators" }, function()
 		if isOpen then
 			refreshCards()
 		end

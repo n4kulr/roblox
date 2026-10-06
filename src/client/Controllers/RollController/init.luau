@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
+local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -71,6 +72,7 @@ local isInBase = false
 local rollInterval = 1 / GameConfig.RollsPerSecond
 local board: any = {}
 local upgradeLevels: any = {}
+local charmSpeed = 1
 local squashTweens: { Tween } = {}
 
 local function escapeRichText(text: string): string
@@ -429,7 +431,7 @@ local function watchPlots(folder: Instance, trove: TroveInstance)
 end
 
 local function updateRollInterval()
-	local stats = Stats.Compute(board, upgradeLevels)
+	local stats = Stats.Compute(board, upgradeLevels, { Speed = charmSpeed })
 	rollInterval = 1 / math.max(stats.RollsPerSecond, 0.1)
 end
 
@@ -503,6 +505,10 @@ function RollController.Start(self: State)
 	end))
 	trove:Add(controllers.DataController:Observe({ "Upgrades" }, function(value: any)
 		upgradeLevels = if type(value) == "table" then value else {}
+		updateRollInterval()
+	end))
+	trove:Add(controllers.DataController:Observe({ "EquippedCharms" }, function(value: any)
+		charmSpeed = Charms.Effects(value).Speed
 		updateRollInterval()
 	end))
 	trove:Add(controllers.DataController:Observe({ "Settings", "LowGraphics" }, function(value: any)
