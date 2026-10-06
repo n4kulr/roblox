@@ -6,7 +6,8 @@ local describe, it, expect = H.describe, H.it, H.expect
 describe("Server registry order", function()
 	local dependencies = {
 		KeyboardService = { "DataService", "PassService" },
-		PlotService = { "DataService", "KeyboardService" },
+		PlotService = { "DataService", "KeyboardService", "MeshService" },
+		CosmeticService = { "MeshService" },
 		StealService = { "DataService", "KeyboardService", "PlotService" },
 		RollService = { "DataService", "KeyboardService", "PlotService", "SeasonService" },
 		EggService = { "DataService", "PlotService", "KeyboardService" },

@@ -8,17 +8,13 @@ local Gui = require(ReplicatedStorage.Utils.Gui)
 local KeyLegend = require(ReplicatedStorage.Utils.KeyLegend)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
-local Parts = require(ReplicatedStorage.Utils.Parts)
-local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
+local FloorKeys = require(script.Parent.Parent.Parent.Utils.FloorKeys)
+local Legend = require(script.Parent.Parent.Parent.Utils.Legend)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
-local Legend = require(script.Parent.Legend)
 local Types = require(script.Parent.Types)
 
 local Caps = {
-	FillerSink = 0.35,
 	SlotRaise = 0.6,
-	FillerPress = 0.75,
-	FillerLighten = 0.45,
 	EmptyLighten = 0.25,
 	EmptyTransparency = 0.4,
 	LockedColor = Color3.fromRGB(26, 26, 30),
@@ -38,32 +34,8 @@ local noState = "None"
 local emptyState = "Empty"
 local lockedState = "Locked"
 
-function Caps.FillerColor(base: Color3): Color3
-	return base:Lerp(white, Caps.FillerLighten)
-end
-
 function Caps.EmptyColor(base: Color3): Color3
 	return base:Lerp(white, Caps.EmptyLighten)
-end
-
-local function applyFiller(cap: BasePart, color: Color3)
-	cap.Color = color
-	cap.Material = Enum.Material.SmoothPlastic
-	cap.Reflectance = 0
-	cap.Transparency = 0
-end
-
-function Caps.Blank(cframe: CFrame, color: Color3): BasePart
-	local template = MeshTemplates.Get("Keycap")
-	local cap: BasePart = if template then template:Clone() else Instance.new("Part")
-	local capSize = FloorGrid.CapSize()
-	cap.Anchored = true
-	Parts.Passive(cap)
-	cap.CastShadow = false
-	cap.Size = Vector3.new(capSize, capHeight, capSize)
-	cap.CFrame = cframe
-	applyFiller(cap, color)
-	return cap
 end
 
 local function fenceColor(model: Instance, fallback: Color3): Color3
@@ -103,20 +75,16 @@ function Caps.ThemeColor(model: Instance, fallback: Color3): Color3
 	return if ok then result else fallback
 end
 
-function Caps.FloorTop(): number
-	return capHeight - Caps.FillerSink - Caps.FillerPress
-end
-
 function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	local slot = cell.Slot
-	local sink = if slot then Caps.FillerSink - Caps.SlotRaise else Caps.FillerSink
+	local sink = if slot then FloorKeys.Sink - Caps.SlotRaise else FloorKeys.Sink
 	local baseColor = Caps.ThemeColor(info.Model, info.Base.Color)
-	local cap = Caps.Blank(
+	local cap = FloorKeys.Blank(
 		info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z),
-		Caps.FillerColor(baseColor)
+		FloorKeys.Color(baseColor)
 	)
 	cap:SetAttribute("Cell", cell.Index)
-	cap:SetAttribute("PressDepth", capHeight - sink - Caps.FloorTop())
+	cap:SetAttribute("PressDepth", capHeight - sink - FloorKeys.Top())
 	if slot then
 		cap.Name = `Slot{slot}`
 		cap:SetAttribute("Slot", slot)

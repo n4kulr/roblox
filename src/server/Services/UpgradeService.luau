@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local UpgradeCost = require(ReplicatedStorage.Rules.UpgradeCost)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local ServerTypes = require(script.Parent.Parent.Types)
 
 type State = {

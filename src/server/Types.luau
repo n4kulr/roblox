@@ -69,6 +69,14 @@ export type EggService = {
 	HatchAll: (self: any, player: Player) -> { string },
 }
 
+export type MeshService = {
+	Name: string,
+	WaitSeconds: number,
+	Changed: Signal.Signal<string>,
+	Get: (self: any, name: "Keycap" | "RollKey") -> MeshPart?,
+	Wait: (self: any, timeout: number?) -> (),
+}
+
 export type SeasonService = {
 	Name: string,
 	AddRoll: (self: any, player: Player, isGolden: boolean) -> (),
@@ -97,6 +105,7 @@ export type AdminService = {
 
 export type Registry = {
 	DataService: DataService,
+	MeshService: MeshService,
 	PassService: PassService,
 	KeyboardService: KeyboardService,
 	PlotService: PlotService,

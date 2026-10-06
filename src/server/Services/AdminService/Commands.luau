@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
@@ -26,7 +27,7 @@ type Run = (
 	count: number?
 ) -> (boolean, string)
 
-local maxCash = 9007199254740991
+local maxCash = GameConfig.MaxCash
 local maxMoneyValue = 1e15
 local maxGive = 200
 local maxStack = 1000
@@ -59,7 +60,7 @@ end
 
 local function normalize(context: Context, player: Player)
 	context.Services.KeyboardService:Normalize(player)
-	context.Services.KeyboardService.BoardChanged:Fire(player)
+	context.Services.KeyboardService:NotifyBoardChanged(player)
 end
 
 local function addClicks(context: Context, player: Player, requested: number): number

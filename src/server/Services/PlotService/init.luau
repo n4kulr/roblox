@@ -11,7 +11,7 @@ local Parts = require(ReplicatedStorage.Utils.Parts)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
-local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
+local FloorKeys = require(script.Parent.Parent.Utils.FloorKeys)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Caps = require(script.Caps)
@@ -43,7 +43,6 @@ local playerTroves: { [Player]: TroveInstance } = {}
 local buildThread: thread? = nil
 local sweepThread: thread? = nil
 local activeLocks: { [PlotInfo]: boolean } = {}
-local meshTimeout = 6
 local sweepSeconds = 0.2
 local zapAlertPhase = 9
 local zapMessage = "🔴 The lasers zapped you!"
@@ -136,7 +135,7 @@ local function createCaps(info: PlotInfo, trove: TroveInstance)
 		CanTouch = false,
 		Transparency = 1,
 		Size = Vector3.new(baseSize.X, walkwayThickness, baseSize.Z),
-		CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + Caps.FloorTop() - walkwayThickness / 2, 0),
+		CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + FloorKeys.Top() - walkwayThickness / 2, 0),
 	})
 	info.Walkway = walkway
 	info.Model:SetAttribute("FloorCell", FloorGrid.CellSize)
@@ -156,7 +155,7 @@ local function swapPart(old: BasePart, new: BasePart)
 end
 
 local function skinRollKey(info: PlotInfo)
-	local template = MeshTemplates.Get("RollKey")
+	local template = services.MeshService:Get("RollKey")
 	local old = info.RollKey
 	if not template or old:IsA("MeshPart") then
 		return
@@ -534,14 +533,11 @@ function PlotService.Start(self: State)
 		end
 	end
 	buildThread = task.spawn(function()
-		MeshTemplates.Load()
-		MeshTemplates.Wait(meshTimeout)
-		MeshTemplates.Replicate()
+		services.MeshService:Wait()
 		buildPlots(trove)
-		trove:Connect(MeshTemplates.Changed, function(name: string)
-			MeshTemplates.Replicate()
+		trove:Add(services.MeshService.Changed:Connect(function(name: string)
 			warn(`[PlotService] {name} mesh arrived after plots were built; ignored`)
-		end)
+		end))
 		isReady = true
 		for _, player in waiting do
 			loadPlayer(player)
@@ -632,7 +628,6 @@ function PlotService.Destroy(self: State)
 		sweepThread = nil
 	end
 	table.clear(activeLocks)
-	MeshTemplates.Destroy()
 	for _, info in plots do
 		Walls.Clear(info)
 		if info.Defense then
