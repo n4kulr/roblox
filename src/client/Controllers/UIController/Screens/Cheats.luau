@@ -19,11 +19,18 @@ local confirmSeconds = 3
 local confirmText = "CONFIRM?"
 local displayOrder = 200
 local windowWidth = 300
+local minWindowWidth = 240
+local minWindowHeight = 180
+local screenMargin = 16
+local gripSize = 14
+local edgeThickness = 6
+local gripLineLength = 10
+local gripLineThickness = 1
 local titleHeight = 24
 local pad = 4
 local inputHeight = 22
 local tabHeight = 20
-local pageHeight = 236
+local defaultPageHeight = 236
 local statusHeight = 18
 local rowHeight = 22
 local sectionHeight = 14
@@ -158,6 +165,8 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 	local countBox: TextBox? = nil
 	local pages: { Page } = {}
 	local position: Vector2? = nil
+	local windowSize: Vector2? = nil
+	local resizeHandles: { GuiObject } = {}
 	local isBusy = false
 	local isMinimized = false
 
@@ -214,8 +223,9 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		end
 		local size = root.AbsoluteSize / viewScale()
 		local height = window.Size.Y.Offset
+		local width = window.Size.X.Offset
 		local clamped = Vector2.new(
-			math.clamp(target.X, minVisible - windowWidth, math.max(size.X - minVisible, 0)),
+			math.clamp(target.X, minVisible - width, math.max(size.X - minVisible, 0)),
 			math.clamp(target.Y, 0, math.max(size.Y - math.min(height, titleHeight + minVisible), 0))
 		)
 		position = clamped
@@ -231,15 +241,43 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	local function applyMinimized()
+	local function applyLayout()
 		local window = panel
 		local body = content
-		if not window or not body then
+		local current = windowSize
+		if not window or not body or not current then
 			return
 		end
 		body.Visible = not isMinimized
-		local height = if isMinimized then titleHeight else titleHeight + body.Size.Y.Offset
-		window.Size = UDim2.fromOffset(windowWidth, height)
+		for _, handle in resizeHandles do
+			handle.Visible = not isMinimized
+		end
+		local height = if isMinimized then titleHeight else current.Y
+		window.Size = UDim2.fromOffset(current.X, height)
+	end
+
+	local function sizeLimits(): (Vector2, Vector2)
+		local root = rootFrame
+		local screen = if root then root.AbsoluteSize / viewScale() else Vector2.zero
+		local minimum = Vector2.new(minWindowWidth, minWindowHeight)
+		local maximum = Vector2.new(
+			math.max(screen.X - 2 * screenMargin, minimum.X),
+			math.max(screen.Y - 2 * screenMargin, minimum.Y)
+		)
+		return minimum, maximum
+	end
+
+	local function resizeTo(target: Vector2)
+		local minimum, maximum = sizeLimits()
+		windowSize = Vector2.new(
+			math.clamp(target.X, minimum.X, maximum.X),
+			math.clamp(target.Y, minimum.Y, maximum.Y)
+		)
+		applyLayout()
+		local current = position
+		if current then
+			placeAt(current)
+		end
 	end
 
 	local function build()
@@ -250,22 +288,18 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		rootFrame = root
 		screenGui.Enabled = false
 
-		local contentHeight = pad
-			+ inputHeight
-			+ gap
-			+ tabHeight
-			+ gap
-			+ pageHeight
-			+ gap
-			+ statusHeight
-			+ pad
+		local pagesTop = pad + inputHeight + gap + tabHeight + gap
+		local pagesBottom = gap + statusHeight + pad
+		local contentHeight = pagesTop + defaultPageHeight + pagesBottom
+		windowSize = windowSize or Vector2.new(windowWidth, titleHeight + contentHeight)
+		local initial = windowSize :: Vector2
 		local window = Instance.new("Frame")
 		window.Name = "Window"
 		window.Active = true
 		window.BackgroundColor3 = palette.Background
 		window.BackgroundTransparency = backgroundTransparency
 		window.BorderSizePixel = 0
-		window.Size = UDim2.fromOffset(windowWidth, titleHeight + contentHeight)
+		window.Size = UDim2.fromOffset(initial.X, initial.Y)
 		window.Parent = root
 		round(window)
 		outline(window)
@@ -289,13 +323,14 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		own:Connect(closeButton.Activated, function()
 			context.Close("Cheats")
 		end)
+		table.clear(resizeHandles)
 		local minimizeButton = newButton(titleBar, "Minimize", "-", palette.Bar)
 		minimizeButton.Position = UDim2.new(1, -2 * titleHeight, 0, 0)
 		minimizeButton.Size = UDim2.fromOffset(titleHeight, titleHeight)
 		own:Connect(minimizeButton.Activated, function()
 			isMinimized = not isMinimized
 			minimizeButton.Text = if isMinimized then "+" else "-"
-			applyMinimized()
+			applyLayout()
 		end)
 
 		local body = Instance.new("Frame")
@@ -303,7 +338,7 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		body.BackgroundTransparency = 1
 		body.BorderSizePixel = 0
 		body.Position = UDim2.fromOffset(0, titleHeight)
-		body.Size = UDim2.new(1, 0, 0, contentHeight)
+		body.Size = UDim2.new(1, 0, 1, -titleHeight)
 		body.Parent = window
 		content = body
 
@@ -329,14 +364,14 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		area.Name = "Pages"
 		area.BackgroundTransparency = 1
 		area.BorderSizePixel = 0
-		area.Position = UDim2.fromOffset(pad, pad + inputHeight + gap + tabHeight + gap)
-		area.Size = UDim2.new(1, -2 * pad, 0, pageHeight)
+		area.Position = UDim2.fromOffset(pad, pagesTop)
+		area.Size = UDim2.new(1, -2 * pad, 1, -(pagesTop + pagesBottom))
 		area.Parent = body
 
 		local status = newLabel(body, "Status", defaultStatus, palette.Dim)
 		status.TextSize = smallTextSize
 		status.Position = UDim2.new(0, pad + 2, 1, -(pad + statusHeight))
-		status.Size = UDim2.new(1, -2 * pad - 4, 0, statusHeight)
+		status.Size = UDim2.new(1, -2 * pad - 4 - gripSize, 0, statusHeight)
 		statusLabel = status
 
 		local function addPage(name: string): Page
@@ -569,42 +604,102 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 
 		selectPage(tabNames[1])
 
+		local function isPress(input: InputObject): boolean
+			return input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+		end
+
+		local function isMove(input: InputObject): boolean
+			return input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch
+		end
+
 		local dragOrigin: Vector2? = nil
 		local dragStart = Vector2.zero
+		local resizeOrigin: Vector2? = nil
+		local resizeAxes = Vector2.zero
+
+		local function addHandle(name: string, at: UDim2, extent: UDim2, axes: Vector2): Frame
+			local handle = Instance.new("Frame")
+			handle.Name = name
+			handle.Active = true
+			handle.BackgroundTransparency = 1
+			handle.BorderSizePixel = 0
+			handle.Position = at
+			handle.Size = extent
+			handle.ZIndex = 5
+			handle.Parent = window
+			table.insert(resizeHandles, handle)
+			own:Connect(handle.InputBegan, function(input: InputObject)
+				if isPress(input) and not isMinimized then
+					resizeOrigin = windowSize
+					resizeAxes = axes
+					dragStart = Vector2.new(input.Position.X, input.Position.Y)
+				end
+			end)
+			return handle
+		end
+
+		addHandle(
+			"ResizeRight",
+			UDim2.new(1, -edgeThickness, 0, titleHeight),
+			UDim2.new(0, edgeThickness, 1, -(titleHeight + gripSize)),
+			Vector2.new(1, 0)
+		)
+		addHandle(
+			"ResizeBottom",
+			UDim2.new(0, 0, 1, -edgeThickness),
+			UDim2.new(1, -gripSize, 0, edgeThickness),
+			Vector2.new(0, 1)
+		)
+		local grip = addHandle(
+			"ResizeGrip",
+			UDim2.new(1, -gripSize, 1, -gripSize),
+			UDim2.fromOffset(gripSize, gripSize),
+			Vector2.new(1, 1)
+		)
+		for index = 0, 2 do
+			local line = Instance.new("Frame")
+			line.Name = `GripLine{index + 1}`
+			line.AnchorPoint = Vector2.new(0.5, 0.5)
+			line.BackgroundColor3 = palette.Dim
+			line.BorderSizePixel = 0
+			line.Rotation = -45
+			line.Size = UDim2.fromOffset(gripLineLength - 3 * index, gripLineThickness)
+			line.Position = UDim2.fromOffset(3 + 3 * index, 3 + 3 * index)
+			line.Parent = grip
+		end
+
 		own:Connect(titleBar.InputBegan, function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
+			if isPress(input) then
 				dragOrigin = position
 				dragStart = Vector2.new(input.Position.X, input.Position.Y)
 			end
 		end)
 		own:Connect(UserInputService.InputChanged, function(input: InputObject)
+			if not isMove(input) then
+				return
+			end
+			local delta = (Vector2.new(input.Position.X, input.Position.Y) - dragStart) / viewScale()
 			local origin = dragOrigin
-			if
-				origin
-				and (
-					input.UserInputType == Enum.UserInputType.MouseMovement
-					or input.UserInputType == Enum.UserInputType.Touch
-				)
-			then
-				local delta = (Vector2.new(input.Position.X, input.Position.Y) - dragStart) / viewScale()
+			if origin then
 				placeAt(origin + delta)
+			end
+			local base = resizeOrigin
+			if base then
+				resizeTo(base + delta * resizeAxes)
 			end
 		end)
 		own:Connect(UserInputService.InputEnded, function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
+			if isPress(input) then
 				dragOrigin = nil
+				resizeOrigin = nil
 			end
 		end)
 
 		local size = root.AbsoluteSize / viewScale()
-		placeAt(position or Vector2.new(math.min(startLeft, math.max(size.X - windowWidth, 0)), startTop))
-		applyMinimized()
+		placeAt(position or Vector2.new(math.min(startLeft, math.max(size.X - initial.X, 0)), startTop))
+		resizeTo(initial)
 	end
 
 	if localPlayer then

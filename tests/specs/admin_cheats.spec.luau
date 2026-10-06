@@ -159,7 +159,9 @@ describe("Dev panel", function()
 			UserInputType = Enum.UserInputType.MouseMovement,
 			Position = Vector3.new(130, 120, 0),
 		})
-		world.fakeServices.UserInputService.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+		world.fakeServices.UserInputService.InputEnded:Fire({
+			UserInputType = Enum.UserInputType.MouseButton1,
+		})
 		world.fakeServices.UserInputService.InputChanged:Fire({
 			UserInputType = Enum.UserInputType.MouseMovement,
 			Position = Vector3.new(400, 400, 0),
@@ -226,6 +228,155 @@ describe("Dev panel", function()
 		expect(button("Status").Text):toBe("Not allowed")
 	end)
 
+	describe("resizing", function()
+		local screen, uis
+
+		local function pointer(kind: any, x: number, y: number)
+			return { UserInputType = kind, Position = Vector3.new(x, y, 0) }
+		end
+
+		local function drag(handle: string, dx: number, dy: number, kind: any?)
+			local press = kind or Enum.UserInputType.MouseButton1
+			local move = if kind == Enum.UserInputType.Touch then kind else Enum.UserInputType.MouseMovement
+			local scale = button("ViewportScale").Scale
+			button(handle).InputBegan:Fire(pointer(press, 500, 400))
+			uis.InputChanged:Fire(pointer(move, 500 + dx * scale, 400 + dy * scale))
+			uis.InputEnded:Fire({ UserInputType = press })
+		end
+
+		beforeEach(function()
+			player:SetAttribute("IsDeveloper", true)
+			screen = build()
+			screen:Open()
+			world:flush()
+			uis = world.fakeServices.UserInputService
+		end)
+
+		it("has a grip and two edge strips", function()
+			expect(button("ResizeGrip").Size.X.Offset):toBe(14)
+			expect(button("ResizeGrip").Size.Y.Offset):toBe(14)
+			expect(button("ResizeRight").Size.X.Offset):toBe(6)
+			expect(button("ResizeBottom").Size.Y.Offset):toBe(6)
+		end)
+
+		it("resizes both axes by dragging the grip", function()
+			local window = button("Window")
+			local w, h = window.Size.X.Offset, window.Size.Y.Offset
+			drag("ResizeGrip", 40, 30)
+			expect(window.Size.X.Offset):toBeCloseTo(w + 40, 1)
+			expect(window.Size.Y.Offset):toBeCloseTo(h + 30, 1)
+		end)
+
+		it("resizes by touch", function()
+			local window = button("Window")
+			local w = window.Size.X.Offset
+			drag("ResizeGrip", 25, 0, Enum.UserInputType.Touch)
+			expect(window.Size.X.Offset):toBeCloseTo(w + 25, 1)
+		end)
+
+		it("stops resizing after the pointer is released", function()
+			local window = button("Window")
+			drag("ResizeGrip", 20, 20)
+			local w = window.Size.X.Offset
+			uis.InputChanged:Fire(pointer(Enum.UserInputType.MouseMovement, 900, 900))
+			expect(window.Size.X.Offset):toBe(w)
+		end)
+
+		it("clamps to the minimum size", function()
+			drag("ResizeGrip", -5000, -5000)
+			expect(button("Window").Size.X.Offset):toBe(240)
+			expect(button("Window").Size.Y.Offset):toBe(180)
+		end)
+
+		it("clamps to the screen minus a margin", function()
+			drag("ResizeGrip", 50000, 50000)
+			local window = button("Window")
+			local root = window.Parent
+			local scale = button("ViewportScale").Scale
+			expect(window.Size.X.Offset <= root.AbsoluteSize.X / scale - 16):toBe(true)
+			expect(window.Size.Y.Offset <= root.AbsoluteSize.Y / scale - 16):toBe(true)
+			expect(window.Size.X.Offset > 300):toBe(true)
+		end)
+
+		it("resizes only width from the right edge", function()
+			local window = button("Window")
+			local w, h = window.Size.X.Offset, window.Size.Y.Offset
+			drag("ResizeRight", 30, 50)
+			expect(window.Size.X.Offset):toBeCloseTo(w + 30, 1)
+			expect(window.Size.Y.Offset):toBe(h)
+		end)
+
+		it("resizes only height from the bottom edge", function()
+			local window = button("Window")
+			local w, h = window.Size.X.Offset, window.Size.Y.Offset
+			drag("ResizeBottom", 50, 30)
+			expect(window.Size.X.Offset):toBe(w)
+			expect(window.Size.Y.Offset):toBeCloseTo(h + 30, 1)
+		end)
+
+		it("keeps the status line pinned to the bottom and pages filling the rest", function()
+			drag("ResizeGrip", 60, -60)
+			expect(button("Status").Position.Y.Scale):toBe(1)
+			expect(button("Pages").Size.Y.Scale):toBe(1)
+			expect(button("Pages").Size.X.Scale):toBe(1)
+		end)
+
+		it("remembers size and position across close and reopen", function()
+			drag("ResizeGrip", 40, 30)
+			local window = button("Window")
+			local size = window.Size
+			button("TitleBar").InputBegan:Fire(pointer(Enum.UserInputType.MouseButton1, 100, 100))
+			uis.InputChanged:Fire(pointer(Enum.UserInputType.MouseMovement, 140, 130))
+			uis.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+			local at = window.Position
+			screen:Close()
+			screen:Open()
+			expect(window.Size):toEqual(size)
+			expect(window.Position):toEqual(at)
+			expect(#world.errors):toBe(0)
+		end)
+
+		it("keeps the size when minimized and restored", function()
+			drag("ResizeGrip", 40, 30)
+			local window = button("Window")
+			local size = window.Size
+			press(button("Minimize"))
+			expect(window.Size.Y.Offset):toBe(24)
+			expect(window.Size.X.Offset):toBe(size.X.Offset)
+			expect(button("ResizeGrip").Visible):toBe(false)
+			drag("ResizeRight", 80, 0)
+			expect(window.Size.X.Offset):toBe(size.X.Offset)
+			press(button("Minimize"))
+			expect(window.Size):toEqual(size)
+			expect(button("ResizeGrip").Visible):toBe(true)
+		end)
+
+		it("keeps the commands inside a scrolling frame", function()
+			local node = button("Money1K")
+			local found = false
+			while node and node ~= gui() do
+				if node.ClassName == "ScrollingFrame" then
+					found = true
+					expect(node.AutomaticCanvasSize):toBe(Enum.AutomaticSize.Y)
+					expect(node.ScrollBarThickness <= 4):toBe(true)
+				end
+				node = node.Parent
+			end
+			expect(found):toBe(true)
+		end)
+
+		it("disconnects the input listeners on destroy", function()
+			local window = button("Window")
+			local grip = button("ResizeGrip")
+			local size = window.Size
+			screen:Destroy()
+			grip.InputBegan:Fire(pointer(Enum.UserInputType.MouseButton1, 0, 0))
+			uis.InputChanged:Fire(pointer(Enum.UserInputType.MouseMovement, 100, 100))
+			expect(window.Size):toEqual(size)
+			expect(#world.errors):toBe(0)
+		end)
+	end)
+
 	describe("buttons", function()
 		local screen
 
@@ -257,7 +408,6 @@ describe("Dev panel", function()
 				{ "resetmoney", "" },
 			})
 		end)
-
 
 		it("sends the custom amount through Add and Set", function()
 			tap("AddAmount")
