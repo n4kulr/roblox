@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local Kit = require(script.Parent.Parent.UIController.Kit)
@@ -14,6 +15,7 @@ type TroveInstance = typeof(Trove.new())
 
 export type Payload = {
 	Key: Keys.Key,
+	KeyId: string?,
 	Rarity: Keys.Rarity,
 	IsGolden: boolean,
 }
@@ -628,9 +630,10 @@ local function startEntry(self: Cinematic, entry: Entry)
 	self._low = self._isLowGraphics()
 	hideAll(self)
 	local base = payload.Rarity.Color
-	if self._modelKey ~= payload.Key.Id or self._model.Model == nil then
-		Viewport.Set(self._model, KeyModels.Build(payload.Key.Id))
-		self._modelKey = payload.Key.Id
+	local fullId = payload.KeyId or payload.Key.Id
+	if self._modelKey ~= fullId or self._model.Model == nil then
+		Viewport.Set(self._model, KeyModels.Build(fullId))
+		self._modelKey = fullId
 	end
 	Viewport.Pose(self._model, staticYaw)
 	local text = titleText(payload, tier)
@@ -642,7 +645,10 @@ local function startEntry(self: Cinematic, entry: Entry)
 	title.MainGradient.Color = if tier.Rainbow
 		then rainbow
 		else ColorSequence.new(white, Kit.Shade(base, if tier.Name == "Mini" then 0 else 0.05))
-	self._name.Text = payload.Key.Name
+	local _, variantTier = KeyTiers.Parse(fullId)
+	self._name.Text = if variantTier > 0
+		then `{KeyTiers.Get(variantTier).Name} {payload.Key.Name}`
+		else payload.Key.Name
 	self._glow.BackgroundColor3 = Kit.Shade(base, 0.2)
 	armParticles(self, payload)
 	armStars(self)

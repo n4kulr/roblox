@@ -28,7 +28,6 @@ local starCap = 14
 local lineCount = HatchPlan.CrackLines
 local minTapTime = 0.25
 local queueLimit = 5
-local dropFall = 0.4
 local dropBounce = 0.15
 local gravity = 900
 local shardLife = 1.3

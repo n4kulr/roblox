@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
@@ -15,6 +16,7 @@ type TroveInstance = typeof(Trove.new())
 
 export type Payload = {
 	Key: Keys.Key,
+	KeyId: string?,
 	Rarity: Keys.Rarity,
 	IsGolden: boolean,
 }
@@ -665,24 +667,27 @@ function ResultCards.Show(self: ResultCards, slot: ResultSlots.Slot, payload: Pa
 	end
 
 	local key, rarity, isGolden = payload.Key, payload.Rarity, payload.IsGolden
+	local fullId = payload.KeyId or key.Id
+	local _, variantTier = KeyTiers.Parse(fullId)
+	local displayName = if variantTier > 0 then `{KeyTiers.Get(variantTier).Name} {key.Name}` else key.Name
 	local rank = rarityRank[rarity.Name] or 1
 	local isLow = self._isLowGraphics()
 	local rarityText = `{rarity.Name} · 1 in {NumberFormat.Commas(rarity.Chance)}`
-	local incomeText = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
+	local incomeText = `+{NumberFormat.Compact(Keys.GetIncome(fullId))}/s`
 	view.Rank = rank
 	view.Age = 0
 	view.IsFading = false
-	view.Name.Text = key.Name
-	if view.ModelKey ~= key.Id or view.Model.Model == nil then
-		Viewport.Set(view.Model, KeyModels.Build(key.Id))
-		view.ModelKey = key.Id
+	view.Name.Text = displayName
+	if view.ModelKey ~= fullId or view.Model.Model == nil then
+		Viewport.Set(view.Model, KeyModels.Build(fullId))
+		view.ModelKey = fullId
 	end
 	Viewport.Light(view.Model, if isGolden then goldColor else white, if rank >= epicRank then 0.25 else 0)
 	Viewport.Pose(view.Model, staticYaw)
 	view.RarityLabel.Text = rarityText
 	view.IncomeLabel.Text = incomeText
 	paintCard(view, rarity, isGolden)
-	sizeCard(self, view, key.Name, rarityText, incomeText)
+	sizeCard(self, view, displayName, rarityText, incomeText)
 	place(view, slot)
 	view.Holder.ZIndex = if isRare then 2 else 3
 
