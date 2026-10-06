@@ -107,7 +107,7 @@ Five Sonnet agents were started in parallel, each in its own git worktree under 
 
 Two Sonnet agents are running; their work is not merged yet.
 
-1. **Economy pacing and the rebirth bug.**
+1. **Economy pacing and the rebirth bug (DONE, merged; see docs/economy.md; rebirth uses GameConfig.Rebirth.CostSteps).**
    - **Rebirth:** fix "can instantly rebirth again". The owner's decision: rebirth also clears the board back into inventory.
    - **Simulator:** add `tools/economy_sim.luau` and tune the Config numbers until it hits these targets:
      - first upgrade at about 20-30s
