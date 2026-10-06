@@ -45,6 +45,8 @@ local Packets = {
 	LockBase = Packet("LockBase"):Response(Packet.Boolean8):RateLimit(2, 1),
 	MarketBuy = Packet("MarketBuy", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(4, 1),
 	ClaimDaily = Packet("ClaimDaily"):Response(Packet.NumberU8):RateLimit(2, 1),
+	ClaimPlaytime = Packet("ClaimPlaytime", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(5, 1),
+	ClaimGroupChest = Packet("ClaimGroupChest"):Response(Packet.NumberU8):RateLimit(2, 1),
 	Ping = Packet("Ping"):Response(Packet.NumberF64):RateLimit(5, 1),
 }
 

@@ -17,7 +17,8 @@ local SettingsService = {
 local services: { [string]: any } = {}
 
 local booleanSettings: { [string]: boolean } = { LowGraphics = true, AutoPlace = true }
-local volumeSettings: { [string]: boolean } = { RollVolume = true, BoardVolume = true, OtherVolume = true }
+local volumeSettings: { [string]: boolean } =
+	{ RollVolume = true, BoardVolume = true, OtherVolume = true, MusicVolume = true }
 
 local function setSetting(player: Player, name: string, value: number)
 	if
@@ -30,6 +31,8 @@ local function setSetting(player: Player, name: string, value: number)
 	end
 	if booleanSettings[name] then
 		services.DataService:Set(player, { "Settings", name }, value ~= 0)
+	elseif name == "EffectsMinRarity" then
+		services.DataService:Set(player, { "Settings", name }, math.clamp(math.floor(value), 1, 8))
 	elseif volumeSettings[name] then
 		local volume = math.floor(math.clamp(value, 0, 1) * 100 + 0.5) / 100
 		services.DataService:Set(player, { "Settings", name }, volume)
