@@ -2,19 +2,17 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:GetService("TextChatService")
-local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local Steal = require(ReplicatedStorage.Rules.Steal)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PromptFocus = require(script.PromptFocus)
+local ChatNotice = require(script.Parent.Parent.Util.ChatNotice)
 local Ragdoll = require(script.Ragdoll)
 local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Attributes = WorldNames.Attributes
 local Prompts = WorldNames.Prompts
-local Channels = WorldNames.Channels
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -34,13 +32,6 @@ local StealController = {
 local stealPromptName = Prompts.StealPrompt
 local controllers: { [string]: any } = {}
 local carryTrove: TroveInstance? = nil
-
-local function escapeRichText(text: string): string
-	local escaped = string.gsub(text, "&", "&amp;")
-	escaped = string.gsub(escaped, "<", "&lt;")
-	escaped = string.gsub(escaped, ">", "&gt;")
-	return escaped
-end
 
 local function toast(text: string, kind: string)
 	local ui = controllers.UIController
@@ -94,13 +85,7 @@ end
 
 local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 	local name = keyName(keyIndex)
-	local channels = TextChatService:FindFirstChild(Channels.TextChannels)
-	local general = if channels then channels:FindFirstChild(Channels.RBXGeneral) else nil
-	if general and general:IsA("TextChannel") then
-		general:DisplaySystemMessage(
-			`[{GameConfig.Name}] {escapeRichText(thiefName)} stole {name} from {escapeRichText(victimName)}!`
-		)
-	end
+	ChatNotice.Post(`{ChatNotice.Escape(thiefName)} stole {name} from {ChatNotice.Escape(victimName)}!`)
 	if thiefName == Players.LocalPlayer.DisplayName then
 		toast(`You stole {name}!`, "Good")
 	end

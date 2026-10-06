@@ -14,6 +14,7 @@ local autoSignalNames = {
 	DescendantRemoving = true,
 	Destroying = true,
 	AttributeChanged = true,
+	AncestryChanged = true,
 }
 
 local function defaultSignal()
@@ -252,6 +253,7 @@ nodeMeta.__newindex = function(self, key, value)
 			local siblings = if state[value] then state[value].Children else value._children
 			table.insert(siblings, self)
 		end
+		fire(self, "AncestryChanged", self, value)
 		if previous and state[previous] then
 			fire(previous, "ChildRemoved", self)
 			local ancestor = previous
