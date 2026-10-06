@@ -1,0 +1,32 @@
+--!strict
+
+return table.freeze({
+	DisplayOrder = 8,
+	CapSize = 230,
+	StaticYaw = 28,
+	SpinSpeed = 55,
+	ChargeSpin = 520,
+	BobHeight = 0.06,
+	CapY = -10,
+	TitleY = -262,
+	NameY = 196,
+	CollapseSeconds = 0.3,
+	RayDiameters = { 1500, 1050 },
+	ParticleCap = 56,
+	StarCap = 40,
+	CrackCount = 14,
+	RingCap = 3,
+	LowScale = 0.35,
+	Gravity = 900,
+	Drag = 2.5,
+	White = Color3.new(1, 1, 1),
+	Black = Color3.new(0, 0, 0),
+	Rainbow = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 92, 110)),
+		ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 190, 70)),
+		ColorSequenceKeypoint.new(0.4, Color3.fromRGB(110, 235, 110)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(70, 200, 255)),
+		ColorSequenceKeypoint.new(0.8, Color3.fromRGB(170, 110, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 92, 110)),
+	}),
+})
