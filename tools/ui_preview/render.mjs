@@ -173,7 +173,7 @@ function renderNode(node) {
     } else if (node.image.scaleType === "Crop") {
       size = "cover";
     }
-    const isAtlas = typeof node.image.id === "string" && node.image.id.includes("preview-atlas");
+    const isAtlas = typeof node.image.id === "string" && (node.image.id.includes("preview-atlas") || node.image.id.includes("103213574924512"));
     if (isAtlas) {
       const atlasUrl = `file://${path.join(repoRoot, "assets/ui/icons.png")}`;
       const rw = node.image.rectW || 1024;

@@ -41,6 +41,9 @@ local popInfo = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
+local priceGap = 4
+local priceIconSize = 34
+local priceTextSize = 28
 local fullMessage = "Your egg bag is full!"
 
 local MarketScreen = {}
@@ -71,6 +74,41 @@ local function percentText(chance: number): string
 	return if percent >= 10 or percent % 1 == 0
 		then string.format("%d%%", math.floor(percent + 0.5))
 		else string.format("%.1f%%", percent)
+end
+
+local function centerPrice(face: Frame)
+	local icon = face:FindFirstChild("Icon") :: GuiObject?
+	local text = face:FindFirstChild("Text") :: TextLabel?
+	if not (icon and text) then
+		return
+	end
+	local holder = Instance.new("Frame")
+	holder.Name = "Price"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.Position = UDim2.fromOffset(0, 2)
+	holder.Size = UDim2.new(1, 0, 1, -4)
+	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Horizontal
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, priceGap)
+	list.Parent = holder
+	icon.AnchorPoint = Vector2.zero
+	icon.Position = UDim2.new()
+	icon.Size = UDim2.fromOffset(priceIconSize, priceIconSize)
+	icon.LayoutOrder = 1
+	icon.Parent = holder
+	text.Position = UDim2.new()
+	text.Size = UDim2.fromScale(0, 1)
+	text.AutomaticSize = Enum.AutomaticSize.X
+	text.TextScaled = false
+	text.TextSize = priceTextSize
+	text.TextTruncate = Enum.TextTruncate.None
+	text.LayoutOrder = 2
+	text.Parent = holder
+	holder.Parent = face
 end
 
 function MarketScreen.new(context: Types.Context): Types.Screen
@@ -425,6 +463,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			end,
 			Sound = playUi,
 		})
+		centerPrice(action.Face)
 		card = {
 			Offer = offer,
 			Price = 0,
