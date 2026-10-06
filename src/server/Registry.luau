@@ -5,12 +5,12 @@ local Lifecycle = require(ReplicatedStorage.Lifecycle)
 
 local services: { Lifecycle.System } = {
 	require(script.Parent.Services.DataService),
+	require(script.Parent.Services.PassService),
 	require(script.Parent.Services.KeyboardService),
 	require(script.Parent.Services.PlotService),
 	require(script.Parent.Services.CosmeticService),
 	require(script.Parent.Services.StealService),
 	require(script.Parent.Services.KeyfallService),
-	require(script.Parent.Services.PassService),
 	require(script.Parent.Services.UpgradeService),
 	require(script.Parent.Services.SettingsService),
 	require(script.Parent.Services.RollService),
@@ -25,7 +25,6 @@ local services: { Lifecycle.System } = {
 	require(script.Parent.Services.CodeService),
 	require(script.Parent.Services.LeaderboardService),
 	require(script.Parent.Services.GameService),
-	require(script.Parent.Services.ComponentService),
 }
 
 return services

@@ -14,6 +14,7 @@ local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
 local OwnerSign = require(script.Parent.Parent.Utils.OwnerSign)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Caps = require(script.Caps)
+local Intruders = require(script.Intruders)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
@@ -38,6 +39,8 @@ local plots: { PlotInfo } = {}
 local plotByPlayer: { [Player]: PlotInfo } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
 local buildThread: thread? = nil
+local sweepThread: thread? = nil
+local activeLocks: { [PlotInfo]: boolean } = {}
 local meshTimeout = 6
 local sweepSeconds = 0.2
 local zapAlertPhase = 9
@@ -376,6 +379,56 @@ local function collectPlots(folder: Instance, trove: TroveInstance, isPlaceholde
 	end
 end
 
+local function zapIntruders(info: PlotInfo, owner: Player, index: Intruders.Index)
+	for _, entry in Intruders.Near(index, Lock.EntranceCFrame(info).Position, Lock.Reach(info)) do
+		local player, root = entry.Player, entry.Root
+		if player ~= owner and Lock.InEntrance(info, root.CFrame.Position) then
+			Lock.Knock(info, root)
+			local last = lastZap[player]
+			if not last or os.clock() - last >= zapToastSeconds then
+				lastZap[player] = os.clock()
+				Packets.StealAlert:FireClient(player, zapMessage, 0, zapAlertPhase)
+			end
+		end
+	end
+end
+
+local function sweep()
+	local now = os.time()
+	local index: Intruders.Index? = nil
+	for info in activeLocks do
+		local state = info.Defense
+		local owner = info.Owner
+		if not state or not owner or not state.IsActive then
+			activeLocks[info] = nil
+		elseif now >= state.LockedUntil then
+			activeLocks[info] = nil
+			Lock.Finish(state)
+			Lock.Present(info, state, now)
+			PlotService.LockChanged:Fire(owner)
+		else
+			local current = index or Intruders.Build(Players:GetPlayers())
+			index = current
+			zapIntruders(info, owner, current)
+			Lock.Present(info, state, now)
+		end
+	end
+end
+
+local function trackLock(info: PlotInfo)
+	activeLocks[info] = true
+	if sweepThread then
+		return
+	end
+	sweepThread = task.spawn(function()
+		while next(activeLocks) do
+			task.wait(sweepSeconds)
+			sweep()
+		end
+		sweepThread = nil
+	end)
+end
+
 local function activateLock(info: PlotInfo, player: Player): boolean
 	local state = info.Defense
 	if not state or info.Owner ~= player then
@@ -396,46 +449,9 @@ local function activateLock(info: PlotInfo, player: Player): boolean
 		)
 	)
 	Lock.Present(info, state, now)
+	trackLock(info)
 	PlotService.LockChanged:Fire(player)
 	return true
-end
-
-local function zapIntruders(info: PlotInfo, owner: Player)
-	for _, player in Players:GetPlayers() do
-		local character = player.Character
-		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		if
-			player ~= owner
-			and root
-			and root:IsA("BasePart")
-			and Lock.InEntrance(info, root.CFrame.Position)
-		then
-			Lock.Knock(info, root)
-			local last = lastZap[player]
-			if not last or os.clock() - last >= zapToastSeconds then
-				lastZap[player] = os.clock()
-				Packets.StealAlert:FireClient(player, zapMessage, 0, zapAlertPhase)
-			end
-		end
-	end
-end
-
-local function sweep()
-	local now = os.time()
-	for _, info in plots do
-		local state = info.Defense
-		local owner = info.Owner
-		if state and owner then
-			if state.IsActive and now >= state.LockedUntil then
-				Lock.Finish(state)
-				Lock.Present(info, state, now)
-				PlotService.LockChanged:Fire(owner)
-			elseif state.IsActive then
-				zapIntruders(info, owner)
-			end
-			Lock.Present(info, state, now)
-		end
-	end
 end
 
 function PlotService.Init(self: State, registry: { [string]: any })
@@ -463,7 +479,7 @@ local function loadPlayer(player: Player)
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
 	if data then
 		assign(player, data)
-		services.KeyboardService.BoardChanged:Fire(player)
+		services.KeyboardService:NotifyBoardChanged(player)
 	end
 end
 
@@ -530,12 +546,6 @@ function PlotService.Start(self: State)
 		end
 		table.clear(waiting)
 	end)
-	trove:Add(task.spawn(function()
-		while true do
-			task.wait(sweepSeconds)
-			sweep()
-		end
-	end))
 end
 
 function PlotService.GetPlot(_self: State, player: Player): Model?
@@ -615,6 +625,11 @@ function PlotService.Destroy(self: State)
 		task.cancel(buildThread)
 	end
 	buildThread = nil
+	if sweepThread then
+		task.cancel(sweepThread)
+		sweepThread = nil
+	end
+	table.clear(activeLocks)
 	MeshTemplates.Destroy()
 	for _, info in plots do
 		Walls.Clear(info)

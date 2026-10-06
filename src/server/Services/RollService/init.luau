@@ -7,8 +7,6 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
-local Charms = require(ReplicatedStorage.Rules.Charms)
-local Stats = require(ReplicatedStorage.Rules.Stats)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local Roll = require(script.Roll)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -26,6 +24,7 @@ local RollService = {
 local services: { [string]: any } = {}
 local rng = Random.new()
 local bucketCapacity = 3
+local noPasses: { [string]: boolean } = table.freeze({})
 local buckets: { [Player]: { Tokens: number, UpdatedAt: number } } = {}
 
 local function takeToken(player: Player, rate: number): boolean
@@ -56,45 +55,48 @@ end
 
 local function handleRoll(player: Player): (number, boolean)
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	if not data or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
+	local replica = services.DataService:GetReplica(player)
+	if not data or not replica or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
 		return 0, false
 	end
 	local passService = services.PassService
 	local serverLuckUntil = ReplicatedStorage:GetAttribute("ServerLuckUntil")
-	local modifiers = Boosts.Modifiers(
+	local luck = Boosts.LuckMultiplier(
 		data.Boosts,
-		if passService then passService:GetPasses(player) else {},
+		if passService then passService:GetPasses(player) else noPasses,
 		os.time(),
 		if type(serverLuckUntil) == "number" then serverLuckUntil else 0
 	)
-	local charmEffects = Charms.Effects(data.EquippedCharms)
-	local stats = Stats.Compute(data.Board, data.Upgrades, {
-		Luck = modifiers.Luck * charmEffects.Luck,
-		Income = modifiers.Income * charmEffects.Income,
-		Speed = charmEffects.Speed,
-	})
-	if not takeToken(player, stats.RollsPerSecond) then
+	local stats = services.KeyboardService:GetRollStats(player, luck)
+	if not stats or not takeToken(player, stats.RollsPerSecond) then
 		return 0, false
 	end
-	local isGuaranteed = data.Rolls + 1 == GameConfig.GuaranteedRareRoll
+	local rolls = data.Rolls + 1
+	local isGuaranteed = rolls == GameConfig.GuaranteedRareRoll
 	local goldenProgress = (data.GoldenProgress or 0) + 1
-	local isGolden = not isGuaranteed
-		and goldenProgress >= Stats.GoldenEvery(data.Upgrades, charmEffects.GoldenReduction)
+	local isGolden = not isGuaranteed and goldenProgress >= stats.GoldenEvery
 	local key = if isGuaranteed
 		then Roll.PickInRarity(rng, "Rare")
 		else Roll.Pick(rng, if isGolden then stats.Luck * GameConfig.GoldenRollLuck else stats.Luck)
-	services.DataService:Set(player, { "Rolls" }, data.Rolls + 1)
-	services.DataService:Set(player, { "GoldenProgress" }, if isGolden then 0 else goldenProgress)
 	if not services.KeyboardService:AddKey(player, key.Id) then
 		return 0, false
 	end
+	local tutorial = data.Tutorial
+	if tutorial == 0 then
+		tutorial = 1
+	end
+	if tutorial == 1 and rolls >= GameConfig.GuaranteedRareRoll then
+		tutorial = 2
+	end
+	local values: { [string]: number } = {
+		Rolls = rolls,
+		GoldenProgress = if isGolden then 0 else goldenProgress,
+	}
+	if tutorial ~= data.Tutorial then
+		values.Tutorial = tutorial
+	end
+	replica:SetValues({}, values)
 	services.DataService:Set(player, { "Discovered", key.Id }, (data.Discovered[key.Id] or 0) + 1)
-	if data.Tutorial == 0 then
-		services.DataService:Set(player, { "Tutorial" }, 1)
-	end
-	if data.Tutorial == 1 and data.Rolls >= GameConfig.GuaranteedRareRoll then
-		services.DataService:Set(player, { "Tutorial" }, 2)
-	end
 	if services.SeasonService then
 		services.SeasonService:AddRoll(player, isGolden)
 	end

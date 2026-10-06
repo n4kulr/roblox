@@ -13,6 +13,8 @@ export type Defense = {
 	Label: TextLabel?,
 	ShownSeconds: number,
 	Status: string,
+	PublishedLocked: number,
+	PublishedCooldown: number,
 }
 
 export type CapVisual = {

@@ -47,7 +47,7 @@ local function rebirth(player: Player, force: boolean): boolean
 	)
 	clearBoard(player, data)
 	services.KeyboardService:Normalize(player)
-	services.KeyboardService.BoardChanged:Fire(player)
+	services.KeyboardService:NotifyBoardChanged(player)
 	services.DataService:RequestSave(player)
 	return true
 end

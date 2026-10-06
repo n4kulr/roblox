@@ -841,8 +841,12 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 	player.GetAttribute = function(p: any, attribute: string)
 		return p._attributes[attribute]
 	end
+	player.AttributeChanged = Signal.new()
 	player.SetAttribute = function(p: any, attribute: string, value: any)
-		p._attributes[attribute] = value
+		if p._attributes[attribute] ~= value then
+			p._attributes[attribute] = value
+			p.AttributeChanged:Fire(attribute)
+		end
 	end
 	player.FindFirstChild = function(p: any, childName: string)
 		for _, child in p._children do

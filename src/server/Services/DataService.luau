@@ -6,6 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ProfileStore = require(ServerScriptService.ServerPackages.ProfileStore)
 local ReplicaServer = require(ServerScriptService.ReplicaServer)
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local DataSessions = require(script.Parent.Parent.Data.DataSessions)
@@ -152,7 +153,7 @@ function DataService.AdjustCash(_self: any, player: Player, amount: number): boo
 		return false
 	end
 	local nextBalance = data.Cash + amount
-	if nextBalance < 0 or nextBalance > 9007199254740991 then
+	if nextBalance < 0 or nextBalance > GameConfig.MaxCash then
 		return false
 	end
 	if not DataService:Set(player, { "Cash" }, nextBalance) then

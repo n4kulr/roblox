@@ -44,6 +44,9 @@ describe("Plot owner sign", function()
 			authoredPlot(Vector3.new(80, 0.5, 0), panelSize or Vector3.new(10, 5, 0.5))
 		end
 		local keyboard = { Name = "KeyboardService", BoardChanged = Signal.new() }
+		function keyboard.NotifyBoardChanged(self: any, player: any)
+			self.BoardChanged:Fire(player)
+		end
 		local plotService = world:require("ServerScriptService.Services.PlotService")
 		registry = world:boot({ "PlotService" }, { KeyboardService = keyboard, PlotService = plotService })
 		plots = world.workspace:FindFirstChild("Plots")
