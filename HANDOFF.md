@@ -165,3 +165,16 @@ Six Sonnet agents are running; their work is not merged yet:
 - **Dev cheats:** `AdminService/` has one dispatcher behind both chat commands and `Packets.AdminCommand`. Admin is checked on the server; admins are anyone in Studio, the place creator, or the allowlist. Type `/help` for the list, or `/cheats` to open the dev-only DEV CHEATS menu (it checks the `IsAdmin` attribute). `RebirthService:Force` lets an admin rebirth without paying.
 - **Egg market:** now a vertical list of expandable bars, Grow a Garden style.
 - **Upgrades:** rows no longer scale when they pulse, so buttons stay inside the list. `Kit.Pulse` takes a `peak` argument and always settles back.
+
+
+## Content and visuals batch (merged)
+
+- **Keys:** 26 new keys. `Utils/KeyModels.luau` builds 3D keycaps, and every Legendary-and-up key has its own decoration table. Decorations are mounted on base slots and used for the carried-key visual.
+- **Variants:** Gold (x3), Rainbow (x10) and Mythical (x40). Ids are `<id>@Gold` and so on; use `Keys.Resolve(id)` and see `Rules/Variants`, `Config/KeyTiers` and the `FuseKey` packet (5 of one tier make 1 of the next, taken from inventory only). The Keys screen has a right-side detail panel with FUSE.
+- **Egg hatching:** a Bubble Gum Sim-style sequence (`Screens/Hatch.luau` + `HatchPlan.luau`) with 3D eggs (`Utils/EggModel`) and pets (`Utils/PetModels`) shown in ViewportFrames (`UIController/Viewport.luau`).
+- **Roll reveals:** ResultCards and the Cinematic show the 3D key model.
+- **Upgrades:** rows are two lines. The StarterOffer popup is redesigned; its "Worth R$ 99" is a placeholder.
+- **Follow-ups:**
+  - The Keys detail panel's close X overlaps the modal's X.
+  - The Galaxy Enter planets don't spin.
+  - RollController still sends base ids only; variant reveals need a `KeyId` to be passed in.
