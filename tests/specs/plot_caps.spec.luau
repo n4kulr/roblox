@@ -96,6 +96,46 @@ describe("Base keycap rendering", function()
 		end
 	end)
 
+	it("gives every filler cap one deterministic keyboard legend and slots none", function()
+		local _, _, plot = join()
+		local seen: { [string]: boolean } = {}
+		local count = 0
+		for _, cap in capsOf(plot) do
+			local legend = cap:FindFirstChild("Legend")
+			if cap:GetAttribute("Filler") then
+				expect(legend ~= nil):toBe(true)
+				expect(legend.Face):toBe(roblox.Enum.NormalId.Top)
+				expect(legend.PixelsPerStud):toBe(40)
+				expect(legend.LightInfluence):toBe(1)
+				expect(legend.Glyph.Font):toBe(roblox.Enum.Font.FredokaOne)
+				expect(sameColor(legend.Glyph.TextColor3, Color3.fromRGB(210, 206, 198))):toBe(true)
+				expect(legend.Glyph.TextTransparency > 0):toBe(true)
+				expect(#legend.Glyph.Text >= 1):toBe(true)
+				seen[legend.Glyph.Text] = true
+				count += 1
+			else
+				expect(legend):toBeNil()
+			end
+		end
+		local variety = 0
+		for _ in seen do
+			variety += 1
+		end
+		expect(count > 20):toBe(true)
+		expect(variety > 10):toBe(true)
+	end)
+
+	it("shows the placed key's initial on filled slots only", function()
+		local player, data, plot = join()
+		local first = plot.Keys:FindFirstChild("Slot1"):FindFirstChild("Top").Letter
+		expect(first.Visible):toBe(true)
+		expect(first.Text):toBe(string.upper(string.sub(Keys.ById.GlassTink.Name, 1, 1)))
+		expect(plot.Keys:FindFirstChild("Slot3"):FindFirstChild("Top").Letter.Visible):toBe(false)
+		data.Board[1] = ""
+		registry.KeyboardService.BoardChanged:Fire(player)
+		expect(first.Visible):toBe(false)
+	end)
+
 	it("renders filled slots full height in rarity color with a rim and income billboard", function()
 		local _, _, plot = join()
 		local full = plot.Base.Size.Y / 2 + FloorGrid.CapHeight
