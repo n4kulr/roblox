@@ -7,6 +7,50 @@ local Tree = {}
 local state: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
 local methods: { [string]: (any, ...any) -> ...any } = {}
 local nodeMeta: { [string]: any } = { __rbxtype = "Instance" }
+local autoSignalNames = {
+	ChildAdded = true,
+	ChildRemoved = true,
+	DescendantAdded = true,
+	DescendantRemoving = true,
+	Destroying = true,
+	AttributeChanged = true,
+}
+
+local function defaultSignal()
+	local handlers: { { Fn: any, On: boolean } } = {}
+	local signal = {}
+	function signal.Connect(_self, fn: any)
+		local entry = { Fn = fn, On = true }
+		table.insert(handlers, entry)
+		return {
+			Disconnect = function()
+				entry.On = false
+			end,
+		}
+	end
+	function signal.Fire(_self, ...)
+		for _, entry in table.clone(handlers) do
+			if entry.On then
+				entry.Fn(...)
+			end
+		end
+	end
+	return signal
+end
+
+local function fire(node: any, name: string, ...)
+	local s = state[node]
+	if s and s.AutoSignals[name] then
+		s.Props[name]:Fire(...)
+	end
+end
+
+local function fireAttribute(node: any, name: string, ...)
+	local found = state[node].AttributeSignals[name]
+	if found then
+		found:Fire(...)
+	end
+end
 
 local function describe(node: any): string
 	local s = state[node]
@@ -107,7 +151,26 @@ function methods.GetAttribute(self, name: string)
 end
 
 function methods.SetAttribute(self, name: string, value: any)
-	state[self].Attributes[name] = value
+	local s = state[self]
+	local changed = s.Attributes[name] ~= value
+	s.Attributes[name] = value
+	if changed then
+		fireAttribute(self, name)
+		fire(self, "AttributeChanged", name)
+	end
+end
+
+function methods.GetAttributeChangedSignal(self, name: string)
+	local s = state[self]
+	if not s.NewSignal then
+		error(`GetAttributeChangedSignal: {describe(self)} was not created with signal support`, 2)
+	end
+	local found = s.AttributeSignals[name]
+	if not found then
+		found = s.NewSignal()
+		s.AttributeSignals[name] = found
+	end
+	return found
 end
 
 function methods.GetAttributes(self)
@@ -136,6 +199,7 @@ function methods.IsDescendantOf(self, other)
 end
 
 function methods.Destroy(self)
+	fire(self, "Destroying")
 	nodeMeta.__newindex(self, "Parent", nil)
 end
 
@@ -150,11 +214,20 @@ nodeMeta.__index = function(self, key)
 	end
 	local method = methods[key]
 	if method then
+		if key == "GetAttributeChangedSignal" and s.Props[key] ~= nil then
+			return s.Props[key]
+		end
 		return method
 	end
 	local prop = s.Props[key]
 	if prop ~= nil then
 		return prop
+	end
+	if autoSignalNames[key] and s.NewSignal then
+		local created = s.NewSignal()
+		s.Props[key] = created
+		s.AutoSignals[key] = true
+		return created
 	end
 	local child = methods.FindFirstChild(self, key)
 	if child then
@@ -166,8 +239,9 @@ end
 nodeMeta.__newindex = function(self, key, value)
 	local s = state[self]
 	if key == "Parent" then
-		if s.Parent then
-			local siblings = if state[s.Parent] then state[s.Parent].Children else s.Parent._children
+		local previous = s.Parent
+		if previous then
+			local siblings = if state[previous] then state[previous].Children else previous._children
 			local at = table.find(siblings, self)
 			if at then
 				table.remove(siblings, at)
@@ -177,6 +251,22 @@ nodeMeta.__newindex = function(self, key, value)
 		if value then
 			local siblings = if state[value] then state[value].Children else value._children
 			table.insert(siblings, self)
+		end
+		if previous and state[previous] then
+			fire(previous, "ChildRemoved", self)
+			local ancestor = previous
+			while ancestor and state[ancestor] do
+				fire(ancestor, "DescendantRemoving", self)
+				ancestor = state[ancestor].Parent
+			end
+		end
+		if value and state[value] then
+			fire(value, "ChildAdded", self)
+			local ancestor = value
+			while ancestor and state[ancestor] do
+				fire(ancestor, "DescendantAdded", self)
+				ancestor = state[ancestor].Parent
+			end
 		end
 	elseif key == "Name" then
 		s.Name = value
@@ -189,7 +279,7 @@ nodeMeta.__tostring = function(self)
 	return state[self].Name
 end
 
-function Tree.node(className: string, name: string, file: string?)
+function Tree.node(className: string, name: string, file: string?, newSignal: (() -> any)?)
 	local node = setmetatable({}, nodeMeta)
 	state[node] = {
 		ClassName = className,
@@ -198,6 +288,9 @@ function Tree.node(className: string, name: string, file: string?)
 		Children = {},
 		Props = {},
 		Attributes = {},
+		AutoSignals = {},
+		AttributeSignals = {},
+		NewSignal = newSignal or defaultSignal,
 		File = file,
 	}
 	return node

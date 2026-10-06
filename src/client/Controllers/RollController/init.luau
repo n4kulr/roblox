@@ -14,7 +14,6 @@ local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local AdminRewards = require(script.AdminRewards)
 local BaseZone = require(script.BaseZone)
@@ -24,8 +23,6 @@ local ResultCards = require(script.ResultCards)
 local Cinematic = require(script.Cinematic)
 local Tiers = require(script.Tiers)
 local WorldNames = require(ReplicatedStorage.Config.WorldNames)
-local Attributes = WorldNames.Attributes
-local Folders = WorldNames.Folders
 local Parts = WorldNames.Parts
 local Channels = WorldNames.Channels
 
@@ -403,37 +400,6 @@ local function setPlot(model: Model?)
 	pickKey(model)
 end
 
-local function refreshPlot(folder: Instance)
-	for _, child in folder:GetChildren() do
-		if child:IsA("Model") and child:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
-			setPlot(child)
-			return
-		end
-	end
-	setPlot(nil)
-end
-
-local function watchPlots(folder: Instance, trove: TroveInstance)
-	local function watch(child: Instance)
-		if child:IsA("Model") then
-			trove:Connect(child:GetAttributeChangedSignal(Attributes.Owner), function()
-				refreshPlot(folder)
-			end)
-		end
-	end
-	for _, child in folder:GetChildren() do
-		watch(child)
-	end
-	trove:Connect(folder.ChildAdded, function(child: Instance)
-		watch(child)
-		refreshPlot(folder)
-	end)
-	trove:Connect(folder.ChildRemoved, function()
-		refreshPlot(folder)
-	end)
-	refreshPlot(folder)
-end
-
 local function updateRollInterval()
 	local stats = Stats.Compute(board, upgradeLevels, { Speed = charmSpeed })
 	rollInterval = 1 / math.max(stats.RollsPerSecond, 0.1)
@@ -583,21 +549,7 @@ function RollController.Start(self: State)
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
 	trove:Add(Packets.AdminReward.OnClientEvent:Connect(onAdminReward))
-	local promise = WaitFor.Child(workspace, Folders.Plots, 30)
-		:andThen(function(folder: Instance)
-			if destroyed then
-				return
-			end
-			local newTrove = Trove.new()
-			trove:Add(newTrove)
-			watchPlots(folder, newTrove)
-		end)
-		:catch(function(problem: any)
-			warn(`[RollController] workspace.Plots not found: {tostring(problem)}`)
-		end)
-	trove:Add(function()
-		promise:cancel()
-	end)
+	trove:Add(controllers.PlotController:Observe(setPlot))
 end
 
 function RollController.Destroy(self: State)

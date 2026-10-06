@@ -498,7 +498,7 @@ function World.new(
 			return Random.new(seed)
 		end,
 	}
-	self.workspace = Tree.node("Workspace", "Workspace")
+	self.workspace = Tree.node("Workspace", "Workspace", nil, makeSignalFactory(self))
 	self.workspace.GetServerTimeNow = function()
 		return self.now
 	end
@@ -894,8 +894,8 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 end
 
 function World.newInstance(self, className: string)
-	local node = Tree.node(className, className)
 	local Signal = self:require("ReplicatedStorage.Packages.Signal")
+	local node = Tree.node(className, className, nil, makeSignalFactory(self))
 	if className == "Part" or className == "MeshPart" then
 		node.Transparency = 0
 	end

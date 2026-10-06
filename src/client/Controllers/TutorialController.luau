@@ -1,16 +1,11 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.UIController.Kit)
-local WorldNames = require(ReplicatedStorage.Config.WorldNames)
-local Attributes = WorldNames.Attributes
-local Folders = WorldNames.Folders
-local Parts = WorldNames.Parts
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -18,7 +13,6 @@ type State = {
 	_trove: TroveInstance?,
 }
 
-local scanSeconds = 0.5
 local baseHeight = 3
 local bounceHeight = 0.8
 local bounceSpeed = 5
@@ -30,11 +24,9 @@ local TutorialController = {
 local noHintStep = 99
 local step = noHintStep
 local controllers: { [string]: any } = {}
-local rollKey: BasePart? = nil
 local hint: BillboardGui? = nil
 local hintLabel: TextLabel? = nil
 local shownText = ""
-local sinceScan = scanSeconds
 local elapsed = 0
 
 local function hintText(): string?
@@ -49,30 +41,6 @@ local function hintText(): string?
 	return nil
 end
 
-local function findRollKey(): BasePart?
-	local plots = workspace:FindFirstChild(Folders.Plots)
-	if not plots then
-		return nil
-	end
-	for _, model in plots:GetChildren() do
-		if model:IsA("Model") and model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
-			local key = model:FindFirstChild(Parts.RollKey)
-			if key and key:IsA("BasePart") then
-				return key
-			end
-		end
-	end
-	return nil
-end
-
-local function isKeyValid(key: BasePart?): boolean
-	if not key or not key:IsDescendantOf(workspace) then
-		return false
-	end
-	local model = key.Parent
-	return model ~= nil and model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId
-end
-
 local function update(dt: number)
 	local gui = hint
 	local label = hintLabel
@@ -84,12 +52,7 @@ local function update(dt: number)
 		gui.Enabled = false
 		return
 	end
-	sinceScan += dt
-	if sinceScan >= scanSeconds or not isKeyValid(rollKey) then
-		sinceScan = 0
-		rollKey = findRollKey()
-	end
-	local key = rollKey
+	local key = controllers.PlotController:GetRollKey()
 	if not key then
 		gui.Enabled = false
 		return
@@ -146,7 +109,6 @@ end
 
 function TutorialController.Destroy(self: State)
 	step = noHintStep
-	rollKey = nil
 	hint = nil
 	hintLabel = nil
 	shownText = ""

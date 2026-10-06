@@ -256,7 +256,7 @@ describe("Egg guide", function()
 end)
 
 describe("EggController guide lifecycle", function()
-	local world, controller, player, playerGui, camera, observers, toasts, character
+	local world, controller, plotController, player, playerGui, camera, observers, toasts, character
 
 	local function folder(): any
 		return world.workspace:FindFirstChild("EggGuide")
@@ -302,8 +302,13 @@ describe("EggController guide lifecycle", function()
 		character.HumanoidRootPart.Position = Vector3.new(0, 3, 100)
 		observers = {}
 		toasts = {}
+		plotController = world:require(`{controllers}.PlotController`)
+		plotController:Init({})
+		plotController:Start()
+		world:flush()
 		controller = world:require(`{controllers}.EggController`)
 		controller:Init({
+			PlotController = plotController,
 			DataController = {
 				Get = function()
 					return nil
@@ -325,6 +330,7 @@ describe("EggController guide lifecycle", function()
 
 	afterEach(function()
 		controller:Destroy()
+		plotController:Destroy()
 		expect(world.errors):toEqual({})
 		world:destroy()
 	end)

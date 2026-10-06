@@ -13,8 +13,6 @@ local PromptFocus = require(script.PromptFocus)
 local Ragdoll = require(script.Ragdoll)
 local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Attributes = WorldNames.Attributes
-local Folders = WorldNames.Folders
-local Parts = WorldNames.Parts
 local Prompts = WorldNames.Prompts
 local Channels = WorldNames.Channels
 
@@ -108,20 +106,6 @@ local function onFeed(thiefName: string, victimName: string, keyIndex: number)
 	end
 end
 
-local function findOwnBase(): BasePart?
-	local folder = workspace:FindFirstChild(Folders.Plots)
-	if not folder then
-		return nil
-	end
-	for _, model in folder:GetChildren() do
-		if model:GetAttribute(Attributes.Owner) == Players.LocalPlayer.UserId then
-			local base = model:FindFirstChild(Parts.Base)
-			return if base and base:IsA("BasePart") then base else nil
-		end
-	end
-	return nil
-end
-
 local function stopCarrying()
 	local current = carryTrove
 	carryTrove = nil
@@ -133,7 +117,7 @@ end
 local function startCarrying(character: Model)
 	stopCarrying()
 	local root = character:FindFirstChild("HumanoidRootPart")
-	local base = findOwnBase()
+	local base = controllers.PlotController:GetBase()
 	toast("Run home to keep it!", "Info")
 	if not root or not root:IsA("BasePart") or not base then
 		return
