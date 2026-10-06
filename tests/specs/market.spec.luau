@@ -47,45 +47,61 @@ describe("MarketService", function()
 		return world:invoke("MarketBuy", player, index)
 	end
 
-	it("buys an egg: cash, incubator, hatch time and stock all update", function()
+	it("buys an egg: cash, bag and stock update, and nothing is placed", function()
 		local price = priceOf(1)
 		data.Cash = price + 100
 		expect(buy(1)):toBe(true)
 		expect(data.Cash):toBe(100)
-		expect(data.Incubators):toEqual({ "Linear", "", "" })
-		expect(data.IncubatorReadyAt[1]):toBe(world.now + Eggs.ById.Linear.HatchSeconds)
+		expect(data.EggInventory):toEqual({ Linear = 1 })
+		expect(data.PlacedEggs):toEqual({})
 		expect(data.Market.Slot):toBe(Market.Slot(world.now))
 		expect(data.Market.Bought["1"]):toBe(1)
 		expect((world.saves[player] or 0) > 0):toBe(true)
 	end)
 
-	it("puts each new egg into the first empty incubator", function()
-		expect(buy(1)):toBe(true)
+	it("hands the egg over as a tool in the backpack", function()
+		expect(buy(2)):toBe(true)
 		expect(buy(2)):toBe(true)
 		expect(buy(1)):toBe(true)
-		expect(data.Incubators):toEqual({ "Linear", "Tactile", "Linear" })
-		expect(data.IncubatorReadyAt[2]):toBe(world.now + Eggs.ById.Tactile.HatchSeconds)
-		data.Incubators[2] = ""
-		expect(buy(1)):toBe(true)
-		expect(data.Incubators[2]):toBe("Linear")
+		expect(data.EggInventory):toEqual({ Tactile = 2, Linear = 1 })
+		local names = {}
+		for _, tool in player:FindFirstChild("Backpack"):GetChildren() do
+			table.insert(names, tool.Name)
+		end
+		table.sort(names)
+		expect(names):toEqual({ "Linear Egg x1", "Tactile Egg x2" })
 	end)
 
-	it("rejects a purchase when all incubators are full and changes nothing", function()
-		data.Incubators = { "Linear", "Linear", "Golden" }
-		data.IncubatorReadyAt = { 5, 6, 7 }
+	it("buys even when three eggs are already placed", function()
+		for index = 1, 3 do
+			table.insert(data.PlacedEggs, { Id = "Linear", ReadyAt = 1, X = index * 8, Z = 10 })
+		end
+		expect(buy(1)):toBe(true)
+		expect(data.EggInventory):toEqual({ Linear = 1 })
+	end)
+
+	it("rejects a purchase when the egg bag is full and changes nothing", function()
+		data.EggInventory = { Linear = 6, Golden = 4 }
+		data.Market = { Slot = Market.Slot(world.now), Bought = {} }
 		local cash = data.Cash
 		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(cash)
-		expect(data.Incubators):toEqual({ "Linear", "Linear", "Golden" })
-		expect(data.IncubatorReadyAt):toEqual({ 5, 6, 7 })
+		expect(data.EggInventory):toEqual({ Linear = 6, Golden = 4 })
 		expect(data.Market.Bought["1"]):toBeNil()
+	end)
+
+	it("fills the bag to exactly ten and then refuses", function()
+		data.EggInventory = { Rainbow = 9 }
+		expect(buy(1)):toBe(true)
+		expect(data.EggInventory):toEqual({ Rainbow = 9, Linear = 1 })
+		expect(buy(2)):toBe(false)
 	end)
 
 	it("rejects a purchase without enough cash and changes nothing", function()
 		data.Cash = priceOf(1) - 1
 		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(priceOf(1) - 1)
-		expect(data.Incubators):toEqual({ "", "", "" })
+		expect(data.EggInventory):toEqual({})
 		expect(data.Market.Bought["1"]):toBeNil()
 	end)
 
@@ -111,13 +127,10 @@ describe("MarketService", function()
 	it("sells out after the stock is bought", function()
 		local offer = offers()[1]
 		for count = 1, offer.Stock do
-			if count > 3 then
-				data.Incubators = { "", "", "" }
-			end
 			expect(buy(1)):toBe(true)
 			expect(data.Market.Bought["1"]):toBe(count)
 		end
-		data.Incubators = { "", "", "" }
+		data.EggInventory = {}
 		local cash = data.Cash
 		expect(buy(1)):toBe(false)
 		expect(data.Cash):toBe(cash)
@@ -139,7 +152,7 @@ describe("MarketService", function()
 		end
 		expect(buy(nil)):toBe(false)
 		expect(data.Cash):toBe(cash)
-		expect(data.Incubators):toEqual({ "", "", "" })
+		expect(data.EggInventory):toEqual({})
 	end)
 
 	it("rejects an index beyond the offers of the current slot", function()
@@ -170,7 +183,7 @@ describe("MarketService", function()
 		expect(buy(1)):toBe(false)
 		world:setTime(slotEnd + 0.5)
 		expect(buy(1)):toBe(false)
-		expect(data.Incubators):toEqual({ "", "", "" })
+		expect(data.EggInventory):toEqual({})
 		world:setTime(slotEnd + 5)
 		expect(buy(1)):toBe(true)
 	end)
@@ -181,7 +194,7 @@ describe("MarketService", function()
 		local position = counter.CFrame.Position
 		world:moveCharacter(player, position.X, 3, position.Z + range + 5)
 		expect(buy(1)):toBe(false)
-		expect(data.Incubators):toEqual({ "", "", "" })
+		expect(data.EggInventory):toEqual({})
 		world:moveCharacter(player, position.X, position.Y, position.Z + range - 1)
 		expect(buy(1)):toBe(true)
 	end)
@@ -189,7 +202,7 @@ describe("MarketService", function()
 	it("rejects players without a character", function()
 		local stranger, strangerData = world:join(nil, { Cash = 100000000 })
 		expect(world:invoke("MarketBuy", stranger, 1)):toBe(false)
-		expect(strangerData.Incubators):toEqual({ "", "", "" })
+		expect(strangerData.EggInventory):toEqual({})
 	end)
 
 	it("settles earned income before checking the price", function()
@@ -359,7 +372,7 @@ describe("Market stall", function()
 		expect(world:invoke("MarketBuy", player, 1)):toBe(false)
 		world:moveCharacter(player, 52, 3, 50)
 		expect(world:invoke("MarketBuy", player, 1)):toBe(true)
-		expect(data.Incubators[1]):toBe("Linear")
+		expect(data.EggInventory):toEqual({ Linear = 1 })
 	end)
 
 	it("builds a differently named placeholder when workspace.Market is unusable", function()

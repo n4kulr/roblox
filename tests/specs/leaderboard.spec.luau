@@ -148,7 +148,13 @@ describe("LeaderboardService", function()
 			boot()
 			local player = world:join(nil, { Cash = 1 })
 			world.Data.Service.PlayerLoaded:Fire(player, world.Data.Service:GetData(player))
-			expect(#player._children):toBe(1)
+			local folders = 0
+			for _, child in player._children do
+				if child.Name == "leaderstats" then
+					folders += 1
+				end
+			end
+			expect(folders):toBe(1)
 		end)
 	end)
 

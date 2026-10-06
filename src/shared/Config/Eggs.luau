@@ -104,7 +104,11 @@ for _, egg in definitions do
 end
 
 return table.freeze({
-	Slots = 3,
+	BagCap = 10,
+	PlacedCap = 3,
+	PlaceSpacing = 4,
+	PlaceInset = 2,
+	RollKeyClear = 1.5,
 	PriceSpreadMin = 0.8,
 	PriceSpreadMax = 1.3,
 	DealBelow = 0.92,

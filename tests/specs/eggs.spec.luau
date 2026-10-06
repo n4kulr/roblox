@@ -1,8 +1,29 @@
+local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
 
+local Vector3, CFrame = roblox.Vector3, roblox.CFrame
 local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, H.beforeEach, H.afterEach
 
 local startTime = 1700000250
+
+local function toolsOf(player: any): { any }
+	local list = {}
+	for _, child in player:FindFirstChild("Backpack"):GetChildren() do
+		if child.ClassName == "Tool" then
+			table.insert(list, child)
+		end
+	end
+	return list
+end
+
+local function toolNames(player: any): { string }
+	local names = {}
+	for _, tool in toolsOf(player) do
+		table.insert(names, tool.Name)
+	end
+	table.sort(names)
+	return names
+end
 
 describe("EggService", function()
 	local world, Charms, Eggs, Rules, GameConfig, player, data
@@ -22,34 +43,271 @@ describe("EggService", function()
 		world:destroy()
 	end)
 
-	local function hatch(slot: any): any
-		return world:invoke("HatchEgg", player, slot)
+	local function hatch(index: any): any
+		return world:invoke("HatchEgg", player, index)
 	end
 
 	local function equip(id: any, on: any): any
 		return world:invoke("EquipCharm", player, id, on)
 	end
 
-	local function place(slot: number, eggId: string, readyAt: number)
-		data.Incubators[slot] = eggId
-		data.IncubatorReadyAt[slot] = readyAt
+	local function placeEgg(eggId: any, x: any, z: any): any
+		return world:invoke("PlaceEgg", player, eggId, x, z)
 	end
+
+	local function give(eggId: string, count: number)
+		data.EggInventory[eggId] = (data.EggInventory[eggId] or 0) + count
+	end
+
+	local function plant(eggId: string, readyAt: number, x: number?, z: number?)
+		table.insert(data.PlacedEggs, { Id = eggId, ReadyAt = readyAt, X = x or (#data.PlacedEggs * 8), Z = z or 10 })
+	end
+
+	describe("egg bag", function()
+		it("adds a bought egg to the inventory", function()
+			local service = world.registry.EggService
+			expect(service:AddEgg(player, "Golden")):toBe(true)
+			expect(service:AddEgg(player, "Golden")):toBe(true)
+			expect(service:AddEgg(player, "Linear")):toBe(true)
+			expect(data.EggInventory):toEqual({ Golden = 2, Linear = 1 })
+			expect(data.PlacedEggs):toEqual({})
+		end)
+
+		it("caps the bag at ten eggs in total", function()
+			local service = world.registry.EggService
+			expect(Eggs.BagCap):toBe(10)
+			for _ = 1, 6 do
+				expect(service:AddEgg(player, "Linear")):toBe(true)
+			end
+			for _ = 1, 4 do
+				expect(service:AddEgg(player, "Rainbow")):toBe(true)
+			end
+			expect(service:HasRoom(player)):toBe(false)
+			expect(service:AddEgg(player, "Linear")):toBe(false)
+			expect(service:AddEgg(player, "Tactile")):toBe(false)
+			expect(data.EggInventory):toEqual({ Linear = 6, Rainbow = 4 })
+		end)
+
+		it("makes room again after an egg is placed", function()
+			local service = world.registry.EggService
+			give("Linear", 10)
+			expect(service:HasRoom(player)):toBe(false)
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(service:HasRoom(player)):toBe(true)
+		end)
+
+		it("rejects unknown eggs and players without data", function()
+			local service = world.registry.EggService
+			expect(service:AddEgg(player, "Mystery")):toBe(false)
+			expect(data.EggInventory):toEqual({})
+			local stranger = world:newPlayer()
+			expect(service:AddEgg(stranger, "Linear")):toBe(false)
+			expect(service:HasRoom(stranger)):toBe(false)
+		end)
+
+		it("drops invalid bag entries when data loads", function()
+			local other, otherData = world:join(
+				nil,
+				{ EggInventory = { Linear = 2, Mystery = 3, Golden = -1, Tactile = 1.5 } },
+				true
+			)
+			expect(otherData.EggInventory):toEqual({ Linear = 2 })
+			expect(toolNames(other)):toEqual({ "Linear Egg x2" })
+		end)
+	end)
+
+	describe("carrying tools", function()
+		it("creates one tool per egg type with the count in its name", function()
+			local service = world.registry.EggService
+			service:AddEgg(player, "Golden")
+			service:AddEgg(player, "Golden")
+			service:AddEgg(player, "Linear")
+			expect(toolNames(player)):toEqual({ "Golden Egg x2", "Linear Egg x1" })
+			for _, tool in toolsOf(player) do
+				expect(tool:FindFirstChild("Handle") ~= nil):toBe(true)
+				expect(tool.CanBeDropped):toBe(false)
+				expect(tool:FindFirstChild("EggSpot1") ~= nil):toBe(true)
+			end
+		end)
+
+		it("tags each tool with its egg id and count", function()
+			give("Tactile", 3)
+			world.registry.EggService:Sync(player)
+			local tool = toolsOf(player)[1]
+			expect(tool:GetAttribute("EggId")):toBe("Tactile")
+			expect(tool:GetAttribute("Count")):toBe(3)
+			expect(tool.Handle.Color):toBe(Eggs.ById.Tactile.Color)
+		end)
+
+		it("updates the count and removes the tool when the last egg is placed", function()
+			give("Linear", 2)
+			world.registry.EggService:Sync(player)
+			expect(toolNames(player)):toEqual({ "Linear Egg x2" })
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(toolNames(player)):toEqual({ "Linear Egg x1" })
+			expect(placeEgg("Linear", 12, 5)):toBe(true)
+			expect(toolNames(player)):toEqual({})
+		end)
+
+		it("updates a tool that is held in the character instead of duplicating it", function()
+			local character = world:spawnCharacter(player, 0, 3, 0)
+			world.registry.EggService:AddEgg(player, "Linear")
+			local tool = toolsOf(player)[1]
+			tool.Parent = character
+			world.registry.EggService:AddEgg(player, "Linear")
+			expect(toolNames(player)):toEqual({})
+			expect(tool.Name):toBe("Linear Egg x2")
+			expect(tool.Parent == character):toBe(true)
+			expect(placeEgg("Linear", 5, 5)):toBe(true)
+			expect(placeEgg("Linear", 12, 5)):toBe(true)
+			expect(tool.Parent):toBeNil()
+		end)
+
+		it("gives tools back after the character respawns", function()
+			give("Linear", 1)
+			give("Rainbow", 1)
+			world.registry.EggService:Sync(player)
+			world:spawnCharacter(player, 0, 3, 0)
+			for _, tool in toolsOf(player) do
+				tool:Destroy()
+			end
+			expect(toolNames(player)):toEqual({})
+			world:resetCharacter(player)
+			world:spawnCharacter(player, 0, 3, 0)
+			world:advance(0)
+			expect(toolNames(player)):toEqual({ "Linear Egg x1", "Rainbow Egg x1" })
+		end)
+
+		it("builds tools for eggs already owned when data loads", function()
+			local other = world:join(nil, { EggInventory = { Clicky = 2 } }, true)
+			expect(toolNames(other)):toEqual({ "Clicky Egg x2" })
+		end)
+
+		it("keeps tools per player", function()
+			local other = world:join(nil, nil, true)
+			give("Linear", 1)
+			world.registry.EggService:Sync(player)
+			expect(toolNames(player)):toEqual({ "Linear Egg x1" })
+			expect(toolNames(other)):toEqual({})
+		end)
+	end)
+
+	describe("placing eggs", function()
+		it("moves an owned egg from the bag onto the base with a hatch timer", function()
+			give("Golden", 2)
+			expect(placeEgg("Golden", 6, 12)):toBe(true)
+			expect(data.EggInventory):toEqual({ Golden = 1 })
+			expect(#data.PlacedEggs):toBe(1)
+			expect(data.PlacedEggs[1]):toEqual({
+				Id = "Golden",
+				ReadyAt = world.now + Eggs.ById.Golden.HatchSeconds,
+				X = 6,
+				Z = 12,
+			})
+			expect((world.saves[player] or 0) > 0):toBe(true)
+		end)
+
+		it("rejects eggs the player does not own", function()
+			expect(placeEgg("Linear", 5, 5)):toBe(false)
+			give("Linear", 1)
+			expect(placeEgg("Golden", 5, 5)):toBe(false)
+			expect(placeEgg("Mystery", 5, 5)):toBe(false)
+			expect(data.EggInventory):toEqual({ Linear = 1 })
+			expect(data.PlacedEggs):toEqual({})
+		end)
+
+		it("rejects bad arguments", function()
+			give("Linear", 3)
+			for _, bad in { "5", true, 0 / 0, math.huge, -math.huge } do
+				expect(placeEgg("Linear", bad, 5)):toBe(false)
+				expect(placeEgg("Linear", 5, bad)):toBe(false)
+			end
+			expect(placeEgg(nil, 5, 5)):toBe(false)
+			expect(placeEgg(5, 5, 5)):toBe(false)
+			expect(placeEgg("Linear", nil, nil)):toBe(false)
+			expect(data.EggInventory):toEqual({ Linear = 3 })
+			expect(data.PlacedEggs):toEqual({})
+		end)
+
+		it("only accepts spots on the player's own base, inset from the edge", function()
+			give("Linear", 8)
+			expect(Eggs.PlaceInset):toBe(2)
+			expect(placeEgg("Linear", 100, 0)):toBe(false)
+			expect(placeEgg("Linear", 0, -100)):toBe(false)
+			expect(placeEgg("Linear", 21, 10)):toBe(false)
+			expect(placeEgg("Linear", 20.5, 10)):toBe(false)
+			expect(placeEgg("Linear", -20.5, 10)):toBe(false)
+			expect(placeEgg("Linear", 10, 20.5)):toBe(false)
+			expect(placeEgg("Linear", 10, -20.5)):toBe(false)
+			expect(#data.PlacedEggs):toBe(0)
+			expect(placeEgg("Linear", 20, 20)):toBe(true)
+			expect(placeEgg("Linear", -20, 20)):toBe(true)
+		end)
+
+		it("keeps eggs at least four studs apart", function()
+			give("Linear", 4)
+			expect(Eggs.PlaceSpacing):toBe(4)
+			expect(placeEgg("Linear", 10, 10)):toBe(true)
+			expect(placeEgg("Linear", 13.9, 10)):toBe(false)
+			expect(placeEgg("Linear", 10, 6.5)):toBe(false)
+			expect(placeEgg("Linear", 12, 12)):toBe(false)
+			expect(placeEgg("Linear", 14, 10)):toBe(true)
+			expect(#data.PlacedEggs):toBe(2)
+		end)
+
+		it("rejects spots on the roll key", function()
+			give("Linear", 4)
+			expect(placeEgg("Linear", 0, -10)):toBe(false)
+			expect(placeEgg("Linear", 4, -10)):toBe(false)
+			expect(placeEgg("Linear", 0, -15)):toBe(false)
+			expect(placeEgg("Linear", 0, -16)):toBe(true)
+			expect(placeEgg("Linear", 8, -10)):toBe(true)
+		end)
+
+		it("holds at most three placed eggs", function()
+			give("Linear", 6)
+			expect(Eggs.PlacedCap):toBe(3)
+			expect(placeEgg("Linear", 0, 10)):toBe(true)
+			expect(placeEgg("Linear", 8, 10)):toBe(true)
+			expect(placeEgg("Linear", 16, 10)):toBe(true)
+			expect(placeEgg("Linear", -8, 10)):toBe(false)
+			expect(data.EggInventory):toEqual({ Linear = 3 })
+			expect(#data.PlacedEggs):toBe(3)
+			data.PlacedEggs[1].ReadyAt = 0
+			expect(hatch(1) ~= ""):toBe(true)
+			expect(placeEgg("Linear", -8, 10)):toBe(true)
+		end)
+
+		it("fails for players without data", function()
+			local stranger = world:newPlayer()
+			expect(world:invoke("PlaceEgg", stranger, "Linear", 5, 5)):toBe(false)
+		end)
+
+		it("fails when the player has no base", function()
+			give("Linear", 1)
+			world.registry.PlotService.GetBase = function()
+				return nil
+			end
+			expect(placeEgg("Linear", 5, 5)):toBe(false)
+			expect(data.EggInventory):toEqual({ Linear = 1 })
+		end)
+	end)
 
 	describe("hatching", function()
 		it("rejects a hatch before the egg is ready and changes nothing", function()
-			place(1, "Linear", world.now + 60)
+			plant("Linear", world.now + 60)
 			expect(hatch(1)):toBe("")
-			expect(data.Incubators[1]):toBe("Linear")
-			expect(data.IncubatorReadyAt[1]):toBe(world.now + 60)
+			expect(#data.PlacedEggs):toBe(1)
+			expect(data.PlacedEggs[1].ReadyAt):toBe(world.now + 60)
 			expect(data.Charms):toEqual({})
 			world:advance(59)
 			expect(hatch(1)):toBe("")
 		end)
 
-		it("hatches at the ready time and grants a charm from the egg table", function()
-			place(2, "Golden", world.now + 30)
+		it("hatches at the ready time, grants a charm from the egg table and removes the egg", function()
+			plant("Golden", world.now + 30)
 			world:advance(30)
-			local charmId = hatch(2)
+			local charmId = hatch(1)
 			expect(charmId ~= ""):toBe(true)
 			local allowed = false
 			for _, drop in Rules.Drops("Golden") do
@@ -59,26 +317,25 @@ describe("EggService", function()
 			end
 			expect(allowed):toBe(true)
 			expect(data.Charms[charmId]):toBe(1)
-			expect(data.Incubators[2]):toBe("")
-			expect(data.IncubatorReadyAt[2]):toBe(0)
+			expect(data.PlacedEggs):toEqual({})
 			expect((world.saves[player] or 0) > 0):toBe(true)
+			expect(hatch(1)):toBe("")
 		end)
 
 		it("stacks duplicate charms", function()
-			local counts = 0
+			local count = 0
 			for _ = 1, 40 do
-				place(1, "Linear", 0)
+				plant("Linear", 0)
 				if hatch(1) ~= "" then
-					counts += 1
+					count += 1
 				end
 			end
-			expect(counts):toBe(40)
+			expect(count):toBe(40)
 			local total = 0
-			for _, count in data.Charms do
-				total += count
+			for _, amount in data.Charms do
+				total += amount
 			end
 			expect(total):toBe(40)
-			expect(next(data.Charms) ~= nil):toBe(true)
 		end)
 
 		it("only ever grants charms from each egg drop table", function()
@@ -88,27 +345,27 @@ describe("EggService", function()
 					allowed[drop.CharmId] = true
 				end
 				for _ = 1, 60 do
-					place(3, egg.Id, 0)
-					expect(allowed[hatch(3)]):toBe(true)
+					plant(egg.Id, 0)
+					expect(allowed[hatch(#data.PlacedEggs)]):toBe(true)
 				end
 			end
 		end)
 
-		it("rejects empty incubators and invalid slots", function()
+		it("rejects invalid indexes", function()
 			expect(hatch(1)):toBe("")
-			for _, slot in { 0, 4, -1, 1.5, "1", true, 0 / 0, math.huge } do
-				place(1, "Linear", 0)
-				expect(hatch(slot)):toBe("")
+			plant("Linear", 0)
+			for _, index in { 0, 2, -1, 1.5, "1", true, 0 / 0, math.huge } do
+				expect(hatch(index)):toBe("")
 			end
 			expect(hatch(nil)):toBe("")
-			expect(data.Incubators[1]):toBe("Linear")
+			expect(#data.PlacedEggs):toBe(1)
 			expect(data.Charms):toEqual({})
 		end)
 
-		it("rejects unknown egg ids in an incubator", function()
-			place(1, "Mystery", 0)
+		it("rejects unknown egg ids", function()
+			table.insert(data.PlacedEggs, { Id = "Mystery", ReadyAt = 0, X = 5, Z = 5 })
 			expect(hatch(1)):toBe("")
-			expect(data.Incubators[1]):toBe("Mystery")
+			expect(#data.PlacedEggs):toBe(1)
 		end)
 
 		it("fails for players without data", function()
@@ -116,26 +373,51 @@ describe("EggService", function()
 			expect(world:invoke("HatchEgg", stranger, 1)):toBe("")
 		end)
 
-		it("hatches each incubator independently", function()
-			place(1, "Linear", 0)
-			place(3, "Tactile", world.now + 500)
+		it("hatches each placed egg independently", function()
+			plant("Linear", 0)
+			plant("Golden", world.now + 500)
+			plant("Tactile", 0)
+			expect(hatch(2)):toBe("")
+			expect(hatch(3) ~= ""):toBe(true)
+			expect(#data.PlacedEggs):toBe(2)
+			expect(data.PlacedEggs[1].Id):toBe("Linear")
+			expect(data.PlacedEggs[2].Id):toBe("Golden")
 			expect(hatch(1) ~= ""):toBe(true)
-			expect(hatch(3)):toBe("")
-			expect(data.Incubators):toEqual({ "", "", "Tactile" })
+			expect(data.PlacedEggs[1].Id):toBe("Golden")
 		end)
 	end)
 
-	describe("placing eggs", function()
-		it("reports room and fills the first empty incubator", function()
-			local service = world.registry.EggService
-			expect(service:HasRoom(player)):toBe(true)
-			expect(service:PlaceEgg(player, "Rainbow")):toBe(1)
-			expect(data.IncubatorReadyAt[1]):toBe(world.now + Eggs.ById.Rainbow.HatchSeconds)
-			expect(service:PlaceEgg(player, "Linear")):toBe(2)
-			expect(service:PlaceEgg(player, "Linear")):toBe(3)
-			expect(service:HasRoom(player)):toBe(false)
-			expect(service:PlaceEgg(player, "Linear")):toBe(0)
-			expect(service:PlaceEgg(player, "Nope")):toBe(0)
+	describe("legacy incubators", function()
+		it("moves eggs from the old incubators onto the base when data loads", function()
+			local other, otherData = world:join(nil, {
+				Incubators = { "Linear", "", "Golden" },
+				IncubatorReadyAt = { world.now + 50, 0, world.now - 5 },
+			}, true)
+			expect(#otherData.PlacedEggs):toBe(2)
+			expect(otherData.PlacedEggs[1].Id):toBe("Linear")
+			expect(otherData.PlacedEggs[1].ReadyAt):toBe(world.now + 50)
+			expect(otherData.PlacedEggs[2].Id):toBe("Golden")
+			expect(otherData.PlacedEggs[2].ReadyAt):toBe(world.now - 5)
+			expect(otherData.Incubators):toEqual({ "", "", "" })
+			expect(otherData.IncubatorReadyAt):toEqual({ 0, 0, 0 })
+			local EggPlacement = world:require("ReplicatedStorage.Utils.EggPlacement")
+			local base = world.registry.PlotService:GetBase(other)
+			local rect = EggPlacement.RectOf(base.CFrame, world.registry.PlotService:GetRollKey(other))
+			local first = otherData.PlacedEggs[1]
+			expect(EggPlacement.Check(base.Size, rect, {}, first.X, first.Z)):toBe("Ok")
+			expect(
+				EggPlacement.Check(base.Size, rect, { { X = first.X, Z = first.Z } }, otherData.PlacedEggs[2].X, otherData.PlacedEggs[2].Z)
+			):toBe("Ok")
+		end)
+
+		it("keeps the hatch time of an egg that had none recorded", function()
+			local _, otherData = world:join(nil, { Incubators = { "", "Tactile", "" } }, true)
+			expect(otherData.PlacedEggs[1].ReadyAt):toBe(world.now + Eggs.ById.Tactile.HatchSeconds)
+		end)
+
+		it("does nothing when there are no legacy eggs", function()
+			local _, otherData = world:join(nil, nil, true)
+			expect(otherData.PlacedEggs):toEqual({})
 		end)
 	end)
 
@@ -225,30 +507,69 @@ describe("EggService", function()
 			local PlayerData = world:require("ServerScriptService.Data.PlayerData")
 			data.Charms = { ThockPad = 1 }
 			equip("ThockPad", true)
-			place(1, "Linear", world.now + 10)
+			give("Linear", 2)
+			plant("Linear", world.now + 10)
 			expect(PlayerData.Validate(data)):toBe(true)
 			expect(PlayerData.Validate(PlayerData.Template)):toBe(true)
-			expect(#PlayerData.Template.Incubators):toBe(Eggs.Slots)
-			expect(#PlayerData.Template.IncubatorReadyAt):toBe(Eggs.Slots)
+			expect(PlayerData.Template.EggInventory):toEqual({})
+			expect(PlayerData.Template.PlacedEggs):toEqual({})
 		end)
 
 		it("clears its packet handlers on Destroy", function()
-			local hatchPacket, equipPacket = world:packets().HatchEgg, world:packets().EquipCharm
+			local packets = world:packets()
+			local hatchPacket, equipPacket, placePacket = packets.HatchEgg, packets.EquipCharm, packets.PlaceEgg
 			expect(hatchPacket.OnServerInvoke ~= nil):toBe(true)
 			expect(equipPacket.OnServerInvoke ~= nil):toBe(true)
+			expect(placePacket.OnServerInvoke ~= nil):toBe(true)
 			world:destroy()
 			expect(hatchPacket.OnServerInvoke):toBeNil()
 			expect(equipPacket.OnServerInvoke):toBeNil()
+			expect(placePacket.OnServerInvoke):toBeNil()
+		end)
+
+		it("stops reacting to a player who left", function()
+			give("Linear", 1)
+			world.registry.EggService:Sync(player)
+			world:removePlayer(player)
+			expect(world:invoke("PlaceEgg", player, "Linear", 5, 5)):toBe(false)
 		end)
 	end)
 end)
 
-describe("Base incubators", function()
-	local world, plots, Eggs
+describe("Eggs and rebirth", function()
+	local world
+
+	afterEach(function()
+		expect(world.errors):toEqual({})
+		world:destroy()
+	end)
+
+	it("keeps carried and placed eggs through a rebirth", function()
+		world = H.newWorld({ Time = startTime })
+		world:boot({ "KeyboardService", "PassService", "RebirthService", "EggService" })
+		local Rebirth = world:require("ReplicatedStorage.Rules.Rebirth")
+		local player, data = world:join(nil, {
+			Cash = Rebirth.Cost(0),
+			IncomeAt = world.now,
+			EggInventory = { Linear = 2 },
+			PlacedEggs = { { Id = "Golden", ReadyAt = world.now + 99, X = 5, Z = 5 } },
+		}, true)
+		expect(world:invoke("Rebirth", player)):toBe(true)
+		expect(data.Rebirths):toBe(1)
+		expect(data.EggInventory):toEqual({ Linear = 2 })
+		expect(#data.PlacedEggs):toBe(1)
+		expect(data.PlacedEggs[1].Id):toBe("Golden")
+		expect(toolNames(player)):toEqual({ "Linear Egg x2" })
+	end)
+end)
+
+describe("Placed eggs on bases", function()
+	local world, plots, Eggs, FloorGrid
 
 	beforeEach(function()
 		world = H.newWorld({ Time = startTime })
 		Eggs = world:require("ReplicatedStorage.Config.Eggs")
+		FloorGrid = world:require("ReplicatedStorage.Rules.FloorGrid")
 		world.workspace = world:newInstance("Folder")
 		local plotService = world:require("ServerScriptService.Services.PlotService")
 		world:boot({ "KeyboardService", "PlotService", "EggService" }, { PlotService = plotService })
@@ -269,68 +590,211 @@ describe("Base incubators", function()
 		return nil
 	end
 
-	it("builds three incubators with domes and countdown labels on every plot", function()
+	local function eggsOf(plot: any): { any }
+		local folder = plot:FindFirstChild("PlacedEggs")
+		return if folder then folder:GetChildren() else {}
+	end
+
+	it("no longer builds incubators on any plot", function()
 		for _, plot in plots:GetChildren() do
-			local folder = plot:FindFirstChild("Incubators")
-			expect(folder ~= nil):toBe(true)
-			for index = 1, Eggs.Slots do
-				local model = folder:FindFirstChild(`Incubator{index}`)
-				expect(model ~= nil):toBe(true)
-				expect(model:FindFirstChild("Pedestal") ~= nil):toBe(true)
-				expect(model:FindFirstChild("Dome") ~= nil):toBe(true)
-				expect(model:FindFirstChild("EggBody") ~= nil):toBe(true)
-				expect(model:FindFirstChild("Countdown", true).Enabled):toBe(false)
+			expect(plot:FindFirstChild("Incubators")):toBeNil()
+			expect(#eggsOf(plot)):toBe(0)
+		end
+	end)
+
+	it("spawns the egg on the key floor where the player placed it, with a countdown", function()
+		local player, data = world:join({ Name = "Owner" }, { EggInventory = { Linear = 1 } }, true)
+		local plot = ownedPlot(player)
+		expect(world:invoke("PlaceEgg", player, "Linear", 6, 10)):toBe(true)
+		local list = eggsOf(plot)
+		expect(#list):toBe(1)
+		local model = list[1]
+		expect(model:GetAttribute("EggId")):toBe("Linear")
+		expect(model:GetAttribute("Index")):toBe(1)
+		expect(model:GetAttribute("ReadyAt")):toBe(data.PlacedEggs[1].ReadyAt)
+		local base = plot.Base
+		local body = model.EggBody
+		local localPosition = base.CFrame:PointToObjectSpace(body.CFrame.Position)
+		expect(math.abs(localPosition.X - 6) < 1e-3):toBe(true)
+		expect(math.abs(localPosition.Z - 10) < 1e-3):toBe(true)
+		local floorTop = base.Size.Y / 2 + FloorGrid.CapHeight
+		local bottom = math.huge
+		for _, part in model:GetChildren() do
+			if part.ClassName == "Part" and string.sub(part.Name, 1, 3) == "Egg" then
+				local offset = base.CFrame:PointToObjectSpace(part.CFrame.Position).Y - part.Size.Y / 2
+				bottom = math.min(bottom, offset)
+				expect(part.Anchored):toBe(true)
 			end
 		end
+		expect(math.abs(bottom - floorTop) < 0.3):toBe(true)
+		expect(model:FindFirstChild("EggSpot1") ~= nil):toBe(true)
+		expect(model:FindFirstChild("Text", true).Text):toBe("Linear Egg\n2:00")
+		expect(body.Color):toBe(Eggs.ById.Linear.Color)
 	end)
 
-	it("places the incubators behind the board edge, off the key grid", function()
-		local plot = plots:GetChildren()[1]
-		local base = plot.Base
-		local half = base.Size.Z / 2
-		for index = 1, Eggs.Slots do
-			local pedestal = plot.Incubators:FindFirstChild(`Incubator{index}`).Pedestal
-			local local_ = base.CFrame:PointToObjectSpace(pedestal.CFrame.Position)
-			expect(math.abs(local_.Z) > half):toBe(true)
-			expect(math.abs(local_.X) < base.Size.X / 2):toBe(true)
-			expect(pedestal.Anchored):toBe(true)
-		end
-	end)
-
-	it("shows an owner's egg with a countdown and READY when it hatches", function()
-		local player, data = world:join({ Name = "Owner" }, nil, true)
+	it("counts down and shows READY! Hold E", function()
+		local player = world:join({ Name = "Owner" }, { EggInventory = { Linear = 1 } }, true)
 		local plot = ownedPlot(player)
-		data.Incubators[2] = "Rainbow"
-		data.IncubatorReadyAt[2] = world.now + 252
-		world.registry.EggService:PlaceEgg(player, "Linear")
-		local model = plot.Incubators.Incubator2
-		expect(model:GetAttribute("EggId")):toBe("Rainbow")
-		local first = plot.Incubators.Incubator1
-		expect(first:GetAttribute("EggId")):toBe("Linear")
-		expect(first:FindFirstChild("Countdown", true).Enabled):toBe(true)
-		expect(first:FindFirstChild("Text", true).Text):toBe("Linear Egg\n2:00")
-		expect(first.EggBody.Color):toBe(Eggs.ById.Linear.Color)
-		expect(first.EggBody.Transparency):toBe(0)
-		world:advance(120)
-		expect(first:FindFirstChild("Text", true).Text):toBe("READY! Hold E")
-		expect(plot.Incubators.Incubator3.EggBody.Transparency):toBe(1)
+		world:invoke("PlaceEgg", player, "Linear", 6, 10)
+		world:advance(60)
+		expect(eggsOf(plot)[1]:FindFirstChild("Text", true).Text):toBe("Linear Egg\n1:00")
+		world:advance(60)
+		expect(eggsOf(plot)[1]:FindFirstChild("Text", true).Text):toBe("READY! Hold E")
 	end)
 
-	it("clears the visuals when the owner leaves", function()
-		local player = world:join({ Name = "Owner" }, nil, true)
+	it("rebuilds placed eggs on the owner's plot when they rejoin", function()
+		local player, data = world:join({ Name = "Owner" }, {
+			PlacedEggs = {
+				{ Id = "Tactile", ReadyAt = world.now + 100, X = -8, Z = 12 },
+				{ Id = "Golden", ReadyAt = world.now - 1, X = 8, Z = 12 },
+			},
+		}, true)
 		local plot = ownedPlot(player)
-		world.registry.EggService:PlaceEgg(player, "Tactile")
-		expect(plot.Incubators.Incubator1:GetAttribute("EggId")):toBe("Tactile")
+		local list = eggsOf(plot)
+		expect(#list):toBe(2)
+		expect(plot.PlacedEggs.PlacedEgg1:GetAttribute("EggId")):toBe("Tactile")
+		expect(plot.PlacedEggs.PlacedEgg2:GetAttribute("EggId")):toBe("Golden")
+		expect(plot.PlacedEggs.PlacedEgg2:FindFirstChild("Text", true).Text):toBe("READY! Hold E")
 		world:removePlayer(player)
-		expect(plot.Incubators.Incubator1:GetAttribute("EggId")):toBe("")
-		expect(plot.Incubators.Incubator1.EggBody.Transparency):toBe(1)
+		expect(#eggsOf(plot)):toBe(0)
+		expect(#data.PlacedEggs):toBe(2)
+		local again = world:join({ Name = "Owner" }, { PlacedEggs = data.PlacedEggs }, true)
+		expect(#eggsOf(ownedPlot(again))):toBe(2)
+	end)
+
+	it("moves legacy incubator eggs onto the base and shows them", function()
+		local player, data = world:join(
+			{ Name = "Owner" },
+			{ Incubators = { "Rainbow", "", "" }, IncubatorReadyAt = { world.now + 30, 0, 0 } },
+			true
+		)
+		expect(#data.PlacedEggs):toBe(1)
+		expect(#eggsOf(ownedPlot(player))):toBe(1)
+		expect(data.Incubators):toEqual({ "", "", "" })
+	end)
+
+	it("removes the egg model when it hatches and renumbers the rest", function()
+		local player, data = world:join({ Name = "Owner" }, {
+			PlacedEggs = {
+				{ Id = "Linear", ReadyAt = 0, X = -8, Z = 12 },
+				{ Id = "Golden", ReadyAt = world.now + 500, X = 8, Z = 12 },
+			},
+		}, true)
+		local plot = ownedPlot(player)
+		expect(world:invoke("HatchEgg", player, 1) ~= ""):toBe(true)
+		local list = eggsOf(plot)
+		expect(#list):toBe(1)
+		expect(list[1]:GetAttribute("EggId")):toBe("Golden")
+		expect(list[1]:GetAttribute("Index")):toBe(1)
+		expect(#data.PlacedEggs):toBe(1)
+	end)
+
+	it("clears the egg visuals when the owner leaves", function()
+		local player = world:join({ Name = "Owner" }, { PlacedEggs = { { Id = "Linear", ReadyAt = 0, X = 8, Z = 12 } } }, true)
+		local plot = ownedPlot(player)
+		expect(#eggsOf(plot)):toBe(1)
+		world:removePlayer(player)
+		expect(#eggsOf(plot)):toBe(0)
 	end)
 
 	it("keeps one owner's eggs off other bases", function()
-		local a = world:join({ Name = "A" }, nil, true)
+		local a = world:join({ Name = "A" }, { EggInventory = { Clicky = 1 } }, true)
 		local b = world:join({ Name = "B" }, nil, true)
-		world.registry.EggService:PlaceEgg(a, "Clicky")
-		expect(ownedPlot(a).Incubators.Incubator1:GetAttribute("EggId")):toBe("Clicky")
-		expect(ownedPlot(b).Incubators.Incubator1:GetAttribute("EggId")):toBe("")
+		expect(world:invoke("PlaceEgg", a, "Clicky", 5, 5)):toBe(true)
+		expect(#eggsOf(ownedPlot(a))):toBe(1)
+		expect(#eggsOf(ownedPlot(b))):toBe(0)
+	end)
+
+	it("validates spots in the player's own base space, never another base's", function()
+		local a, aData = world:join({ Name = "A" }, { EggInventory = { Linear = 3 } }, true)
+		local b = world:join({ Name = "B" }, nil, true)
+		local otherBase = ownedPlot(b).Base
+		local own = ownedPlot(a).Base
+		local world_ = otherBase.CFrame.Position
+		expect(world:invoke("PlaceEgg", a, "Linear", world_.X, world_.Z)):toBe(false)
+		local away = own.CFrame:PointToObjectSpace(world_)
+		expect(world:invoke("PlaceEgg", a, "Linear", away.X, away.Z)):toBe(false)
+		expect(#aData.PlacedEggs):toBe(0)
+		expect(world:invoke("PlaceEgg", a, "Linear", 0, 12)):toBe(true)
+	end)
+
+	it("refuses spots on the roll key of a real plot", function()
+		local a, aData = world:join({ Name = "A" }, { EggInventory = { Linear = 3 } }, true)
+		local plot = ownedPlot(a)
+		local rollKey = plot.RollKey
+		local spot = plot.Base.CFrame:PointToObjectSpace(rollKey.CFrame.Position)
+		expect(world:invoke("PlaceEgg", a, "Linear", spot.X, spot.Z)):toBe(false)
+		expect(#aData.PlacedEggs):toBe(0)
+	end)
+
+	it("removes every placed egg model on Destroy", function()
+		local player = world:join({ Name = "Owner" }, { PlacedEggs = { { Id = "Linear", ReadyAt = 0, X = 8, Z = 12 } } }, true)
+		local plot = ownedPlot(player)
+		expect(#eggsOf(plot)):toBe(1)
+		world:destroy()
+		expect(#eggsOf(plot)):toBe(0)
+	end)
+end)
+
+describe("Egg model and placement rules", function()
+	local world, EggPlacement, EggModel, Eggs
+
+	beforeEach(function()
+		world = H.newWorld({ Time = startTime })
+		EggPlacement = world:require("ReplicatedStorage.Utils.EggPlacement")
+		EggModel = world:require("ReplicatedStorage.Utils.EggModel")
+		Eggs = world:require("ReplicatedStorage.Config.Eggs")
+	end)
+
+	it("reports why a spot is refused", function()
+		local size = Vector3.new(40, 1, 40)
+		local rollKey = { X = 0, Z = -10, HalfX = 4, HalfZ = 4 }
+		local placed = { { X = 10, Z = 10 } }
+		expect(EggPlacement.Check(size, rollKey, placed, 0, 10)):toBe("Ok")
+		expect(EggPlacement.Check(size, rollKey, placed, 18, 0)):toBe("Ok")
+		expect(EggPlacement.Check(size, rollKey, placed, 18.5, 0)):toBe("Bounds")
+		expect(EggPlacement.Check(size, rollKey, placed, 0, -9)):toBe("RollKey")
+		expect(EggPlacement.Check(size, rollKey, placed, 11, 11)):toBe("Spacing")
+		expect(EggPlacement.Check(size, rollKey, placed, 0 / 0, 0)):toBe("Invalid")
+		expect(EggPlacement.Check(size, nil, {}, 0, -9)):toBe("Ok")
+	end)
+
+	it("finds free default spots away from the roll key and each other", function()
+		local size = Vector3.new(44, 1, 44)
+		local rollKey = { X = 0, Z = -10, HalfX = 4, HalfZ = 4 }
+		local placed = {}
+		for _ = 1, 3 do
+			local spot = EggPlacement.FindSpot(size, rollKey, placed)
+			expect(spot ~= nil):toBe(true)
+			expect(EggPlacement.Check(size, rollKey, placed, spot.X, spot.Z)):toBe("Ok")
+			table.insert(placed, spot)
+		end
+	end)
+
+	it("builds a spotted egg in the tier color with a handle for tools", function()
+		local parent = world:newInstance("Model")
+		local egg = Eggs.ById.Rainbow
+		local parts = EggModel.Build(parent, egg, { Scale = 1, BodyName = "Handle", Anchored = false })
+		expect(#parts >= 8):toBe(true)
+		expect(parts[1].Name):toBe("Handle")
+		expect(parts[1].Color):toBe(egg.Color)
+		expect(parent:FindFirstChild("EggSpot1").Color):toBe(egg.SpotColor)
+		expect(parts[1].Anchored):toBe(false)
+		expect(parent:FindFirstChild("EggWeld", true) ~= nil):toBe(true)
+	end)
+
+	it("tints a ghost egg translucent", function()
+		local parent = world:newInstance("Model")
+		local parts = EggModel.Build(parent, Eggs.ById.Linear, {
+			Scale = 1,
+			Anchored = true,
+			Ghost = roblox.Color3.new(0, 1, 0),
+		})
+		for _, part in parts do
+			expect(part.Transparency > 0.3):toBe(true)
+			expect(part.CanCollide):toBe(false)
+		end
+		EggModel.Tint(parts, roblox.Color3.new(1, 0, 0))
+		expect(parts[1].Color):toBe(roblox.Color3.new(1, 0, 0))
 	end)
 end)

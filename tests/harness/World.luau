@@ -538,6 +538,20 @@ function World.new(
 				end
 				return self.bases[player]
 			end,
+			GetRollKey = function(_self: any, player: any)
+				if not (self.Players._list and table.find(self.Players._list, player)) then
+					return nil
+				end
+				if not self.rollKeys then
+					self.rollKeys = {}
+				end
+				if not self.rollKeys[player] then
+					local part = self:newPart("RollKey", 0, 2, -10)
+					part.Size = roblox.Vector3.new(8, 3, 8)
+					self.rollKeys[player] = part
+				end
+				return self.rollKeys[player]
+			end,
 		},
 	}
 	return self
@@ -852,6 +866,9 @@ function World.newPlayer(self, info: { UserId: number?, Name: string?, DisplayNa
 	player.IsA = function(_p: any, className: string)
 		return className == "Player" or className == "Instance"
 	end
+	local backpack = self:newInstance("Backpack")
+	backpack.Name = "Backpack"
+	backpack.Parent = player
 	table.insert(self.Players._list, player)
 	self.Players.PlayerAdded:Fire(player)
 	return player
