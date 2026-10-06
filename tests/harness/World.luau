@@ -846,6 +846,20 @@ function World.newInstance(self, className: string)
 			sound.Plays += 1
 		end
 		node.Stop = function() end
+		node.Pauses = 0
+		node.Resumes = 0
+		node.Pause = function(sound: any)
+			sound.Pauses += 1
+		end
+		node.Resume = function(sound: any)
+			sound.Resumes += 1
+		end
+		node.TimeLength = 0
+		node.TimePosition = 0
+		node.IsLoaded = false
+		node.Volume = 1
+		node.SoundId = ""
+		node.Looped = false
 	end
 	if className == "ProximityPrompt" then
 		node.Triggered = Signal.new()
