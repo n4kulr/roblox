@@ -3,6 +3,7 @@ local roblox = require("@lune/roblox")
 local Enum = roblox.Enum
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
+local Vector3 = roblox.Vector3
 
 local screenPath = "StarterPlayer.StarterPlayerScripts.Controllers.UIController.Screens.Cheats"
 
@@ -10,8 +11,8 @@ local function press(button: any)
 	button.Activated:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
 end
 
-describe("Cheats screen", function()
-	local world, player, playerGui, context, sent, toasts, opened, closed, Signal
+describe("Dev panel", function()
+	local world, player, playerGui, context, sent, toasts, opened, closed
 
 	local function build()
 		local screen = world:require(screenPath).new(context)
@@ -30,7 +31,6 @@ describe("Cheats screen", function()
 
 	beforeEach(function()
 		world = H.newWorld({ PrintErrors = false })
-		Signal = world:require("ReplicatedStorage.Packages.Signal")
 		player = world:newPlayer({ Name = "Dev", DisplayName = "Dev" })
 		world.Players.LocalPlayer = player
 		playerGui = world:newInstance("Folder")
@@ -61,68 +61,169 @@ describe("Cheats screen", function()
 		}
 	end)
 
-	it("asks to open when an admin types /cheats", function()
-		player:SetAttribute("IsAdmin", true)
-		build()
-		player.Chatted:Fire("/cheats")
-		player.Chatted:Fire("  /CHEATS ")
-		expect(opened):toBe(2)
-	end)
-
-	it("toggles closed when already open", function()
-		player:SetAttribute("IsAdmin", true)
-		context.IsOpen = function()
-			return true
-		end
-		build()
-		player.Chatted:Fire("/cheats")
-		expect(closed):toBe(1)
-		expect(opened):toBe(0)
-	end)
-
-	it("ignores /cheats for non-admins and never builds the gui", function()
+	it("builds nothing for non-developers", function()
 		local screen = build()
-		player.Chatted:Fire("/cheats")
-		expect(opened):toBe(0)
 		screen:Open()
 		world:flush()
 		expect(gui()):toBe(nil)
 	end)
 
-	it("ignores other chat", function()
-		player:SetAttribute("IsAdmin", true)
-		build()
-		player.Chatted:Fire("/cheatsheet")
-		player.Chatted:Fire("hello")
-		expect(opened):toBe(0)
+	it("is not a modal screen", function()
+		local screen = build()
+		expect(screen.Modal):toBe(false)
+		expect(screen.StartsOpen):toBe(false)
 	end)
 
-	it("listens to TextChatService when it is the active chat", function()
-		player:SetAttribute("IsAdmin", true)
-		local chat = world.fakeServices.TextChatService
-		chat.ChatVersion = Enum.ChatVersion.TextChatService
-		chat.SendingMessage = Signal.new()
+	it("has no chat command trigger", function()
+		player:SetAttribute("IsDeveloper", true)
 		build()
 		player.Chatted:Fire("/cheats")
 		expect(opened):toBe(0)
-		chat.SendingMessage:Fire({ Text = "/cheats" })
-		expect(opened):toBe(1)
 	end)
 
-	it("opens and closes its modal for admins", function()
-		player:SetAttribute("IsAdmin", true)
+	it("opens a compact window titled THOCK DEV", function()
+		player:SetAttribute("IsDeveloper", true)
 		local screen = build()
 		screen:Open()
 		world:flush()
-		expect(gui() ~= nil):toBe(true)
 		expect(gui().Enabled):toBe(true)
+		expect(button("Window").Size.X.Offset):toBe(300)
+		expect(button("Title").Text):toBe("THOCK DEV")
+		expect(button("Title").Font):toBe(Enum.Font.Code)
+		expect(button("Window").BackgroundTransparency < 0.5):toBe(true)
+		expect(#world.errors):toBe(0)
+	end)
+
+	it("stays open when a command is clicked", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		press(button("Money1K"))
+		world:flush()
+		press(button("MaxMoney"))
+		world:flush()
+		expect(closed):toBe(0)
+		expect(gui().Enabled):toBe(true)
+	end)
+
+	it("closes only through the X button", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
 		press(button("Close"))
 		expect(closed):toBe(1)
 		screen:Close()
-		world:flush()
 		expect(gui().Enabled):toBe(false)
+		screen:Open()
+		expect(gui().Enabled):toBe(true)
 		screen:Destroy()
 		expect(#world.errors):toBe(0)
+	end)
+
+	it("closes itself when the developer attribute goes away", function()
+		player:SetAttribute("IsDeveloper", true)
+		build()
+		player:SetAttribute("IsDeveloper", false)
+		expect(closed):toBe(1)
+	end)
+
+	it("minimizes to the title bar and back", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		local fullHeight = button("Window").Size.Y.Offset
+		press(button("Minimize"))
+		expect(button("Window").Size.Y.Offset < fullHeight):toBe(true)
+		expect(button("Content").Visible):toBe(false)
+		press(button("Minimize"))
+		expect(button("Window").Size.Y.Offset):toBe(fullHeight)
+		expect(button("Content").Visible):toBe(true)
+	end)
+
+	it("drags by the title bar and remembers the position", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		local window = button("Window")
+		local startX, startY = window.Position.X.Offset, window.Position.Y.Offset
+		local scale = button("ViewportScale").Scale
+		button("TitleBar").InputBegan:Fire({
+			UserInputType = Enum.UserInputType.MouseButton1,
+			Position = Vector3.new(100, 100, 0),
+		})
+		world.fakeServices.UserInputService.InputChanged:Fire({
+			UserInputType = Enum.UserInputType.MouseMovement,
+			Position = Vector3.new(130, 120, 0),
+		})
+		world.fakeServices.UserInputService.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+		world.fakeServices.UserInputService.InputChanged:Fire({
+			UserInputType = Enum.UserInputType.MouseMovement,
+			Position = Vector3.new(400, 400, 0),
+		})
+		expect(window.Position.X.Offset):toBeCloseTo(startX + 30 / scale, 1)
+		expect(window.Position.Y.Offset):toBeCloseTo(startY + 20 / scale, 1)
+		local moved = window.Position.X.Offset
+		screen:Close()
+		screen:Open()
+		expect(window.Position.X.Offset):toBe(moved)
+	end)
+
+	it("keeps the title bar on screen while dragging", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		button("TitleBar").InputBegan:Fire({
+			UserInputType = Enum.UserInputType.MouseButton1,
+			Position = Vector3.new(0, 0, 0),
+		})
+		world.fakeServices.UserInputService.InputChanged:Fire({
+			UserInputType = Enum.UserInputType.MouseMovement,
+			Position = Vector3.new(-5000, -5000, 0),
+		})
+		local window = button("Window")
+		expect(window.Position.Y.Offset):toBe(0)
+		expect(window.Position.X.Offset > -300):toBe(true)
+	end)
+
+	it("switches tabs without closing", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		expect(button("PageMONEY").Visible):toBe(true)
+		expect(button("PageITEMS").Visible):toBe(false)
+		press(button("TabITEMS"))
+		expect(button("PageMONEY").Visible):toBe(false)
+		expect(button("PageITEMS").Visible):toBe(true)
+		expect(closed):toBe(0)
+	end)
+
+	it("shows the last result in the status line", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		press(button("Money1K"))
+		world:flush()
+		expect(button("Status").Text):toBe("ok money")
+	end)
+
+	it("shows server errors in the status line", function()
+		player:SetAttribute("IsDeveloper", true)
+		world:packets().AdminCommand.Fire = function()
+			return "Not allowed"
+		end
+		local screen = build()
+		screen:Open()
+		world:flush()
+		press(button("Money1K"))
+		world:flush()
+		expect(button("Status").Text):toBe("Not allowed")
 	end)
 
 	describe("buttons", function()
@@ -134,7 +235,7 @@ describe("Cheats screen", function()
 		end
 
 		beforeEach(function()
-			player:SetAttribute("IsAdmin", true)
+			player:SetAttribute("IsDeveloper", true)
 			screen = build()
 			screen:Open()
 			world:flush()
@@ -157,15 +258,11 @@ describe("Cheats screen", function()
 			})
 		end)
 
-		it("shows the server reply as a toast", function()
-			tap("Money1K")
-			expect(toasts):toEqual({ "ok money" })
-		end)
 
 		it("sends the custom amount through Add and Set", function()
 			tap("AddAmount")
 			expect(sent):toEqual({})
-			expect(toasts):toEqual({ "Enter an amount" })
+			expect(button("Status").Text):toBe("Enter an amount")
 			button("AmountInput").Text = "2.5m"
 			tap("AddAmount")
 			tap("SetAmount")

@@ -2,7 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
 local Charms = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Keys = require(ReplicatedStorage.Config.Keys)
@@ -12,27 +12,136 @@ local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
+type Page = { Name: string, Scroll: ScrollingFrame, Tab: TextButton, Order: number }
 
-local theme = Kit.Theme
-local openCommand = "/cheats"
+local developerAttribute = "IsDeveloper"
 local confirmSeconds = 3
-local rowHeight = 56
+local confirmText = "CONFIRM?"
+local displayOrder = 200
+local windowWidth = 300
+local titleHeight = 24
+local pad = 4
+local inputHeight = 22
+local tabHeight = 20
+local pageHeight = 236
+local statusHeight = 18
+local rowHeight = 22
+local sectionHeight = 14
+local gap = 4
+local textSize = 13
+local smallTextSize = 12
+local radius = 4
+local strokeThickness = 1
+local scrollBarThickness = 3
+local fieldInset = 6
+local backgroundTransparency = 0.06
+local startLeft = 220
+local startTop = 96
+local minVisible = 40
+local defaultCount = "1"
+local defaultStatus = "ready"
+local noResponseText = "No response"
+local amountPrompt = "Enter an amount"
+local errorPrefixes = { "Not allowed", "No response", "Bad", "Usage", "Unknown", "Enter" }
+local tabNames = { "MONEY", "PROGRESS", "ITEMS", "DANGER" }
+local font = Enum.Font.Code
+
+local palette = {
+	Background = Color3.fromRGB(14, 15, 18),
+	Bar = Color3.fromRGB(24, 25, 30),
+	Stroke = Color3.fromRGB(58, 60, 68),
+	Button = Color3.fromRGB(34, 36, 43),
+	Hover = Color3.fromRGB(48, 51, 60),
+	Selected = Color3.fromRGB(62, 66, 78),
+	Field = Color3.fromRGB(10, 11, 13),
+	Text = Color3.fromRGB(208, 212, 220),
+	Dim = Color3.fromRGB(128, 133, 144),
+	Good = Color3.fromRGB(122, 190, 140),
+	Bad = Color3.fromRGB(214, 112, 112),
+	Warn = Color3.fromRGB(196, 150, 86),
+}
 
 local CheatsScreen = {}
 
-local function usesTextChatService(): boolean
-	local chat: any = TextChatService
-	local ok, matches = pcall(function()
-		return chat.ChatVersion == Enum.ChatVersion.TextChatService and chat.SendingMessage ~= nil
-	end)
-	return ok and matches == true
+local function trim(text: string): string
+	return (string.gsub(text, "^%s*(.-)%s*$", "%1"))
 end
 
-local function isOpenCommand(text: any): boolean
-	if type(text) ~= "string" then
-		return false
+local function isError(text: string): boolean
+	for _, prefix in errorPrefixes do
+		if string.sub(text, 1, #prefix) == prefix then
+			return true
+		end
 	end
-	return string.lower((string.gsub(text, "^%s*(.-)%s*$", "%1"))) == openCommand
+	return false
+end
+
+local function round(target: Instance)
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius)
+	corner.Parent = target
+end
+
+local function outline(target: Instance)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = palette.Stroke
+	stroke.Thickness = strokeThickness
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = target
+end
+
+local function newLabel(parent: Instance, name: string, text: string, color: Color3): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.BorderSizePixel = 0
+	label.Font = font
+	label.TextSize = textSize
+	label.TextColor3 = color
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = text
+	label.Parent = parent
+	return label
+end
+
+local function newButton(parent: Instance, name: string, text: string, color: Color3): TextButton
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.AutoButtonColor = false
+	button.BackgroundColor3 = color
+	button.BorderSizePixel = 0
+	button.Font = font
+	button.TextSize = smallTextSize
+	button.TextColor3 = palette.Text
+	button.TextTruncate = Enum.TextTruncate.AtEnd
+	button.Text = text
+	button.Parent = parent
+	round(button)
+	return button
+end
+
+local function newBox(parent: Instance, name: string, placeholder: string, text: string): TextBox
+	local box = Instance.new("TextBox")
+	box.Name = name
+	box.BackgroundColor3 = palette.Field
+	box.BorderSizePixel = 0
+	box.Font = font
+	box.TextSize = smallTextSize
+	box.TextColor3 = palette.Text
+	box.PlaceholderText = placeholder
+	box.PlaceholderColor3 = palette.Dim
+	box.TextXAlignment = Enum.TextXAlignment.Left
+	box.ClearTextOnFocus = false
+	box.Text = text
+	box.Parent = parent
+	round(box)
+	outline(box)
+	local inset = Instance.new("UIPadding")
+	inset.PaddingLeft = UDim.new(0, fieldInset)
+	inset.PaddingRight = UDim.new(0, fieldInset)
+	inset.Parent = box
+	return box
 end
 
 function CheatsScreen.new(context: Types.Context): Types.Screen
@@ -40,22 +149,29 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 	local localPlayer = Players.LocalPlayer
 	local playUi = Kit.UiSound(context.Controllers)
 	local panelTrove: TroveInstance? = nil
-	local modal: Kit.Modal? = nil
+	local gui: ScreenGui? = nil
+	local panel: Frame? = nil
+	local content: Frame? = nil
+	local rootFrame: Frame? = nil
+	local statusLabel: TextLabel? = nil
 	local targetBox: TextBox? = nil
-	local amountBox: TextBox? = nil
 	local countBox: TextBox? = nil
+	local pages: { Page } = {}
+	local position: Vector2? = nil
 	local isBusy = false
+	local isMinimized = false
 
-	local function isAdmin(): boolean
-		return localPlayer ~= nil and localPlayer:GetAttribute("IsAdmin") == true
+	local function isDeveloper(): boolean
+		return localPlayer ~= nil and localPlayer:GetAttribute(developerAttribute) == true
 	end
 
-	local function targetSuffix(): string
-		local box = targetBox
-		if not box then
-			return ""
+	local function setStatus(text: string)
+		local label = statusLabel
+		if not label then
+			return
 		end
-		return (string.gsub(box.Text, "^%s*(.-)%s*$", "%1"))
+		label.Text = text
+		label.TextColor3 = if isError(text) then palette.Bad else palette.Good
 	end
 
 	local function send(command: string, args: string)
@@ -64,7 +180,7 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		end
 		isBusy = true
 		task.spawn(function()
-			local suffix = targetSuffix()
+			local suffix = if targetBox then trim(targetBox.Text) else ""
 			local argument = args
 			if suffix ~= "" then
 				argument = if args == "" then suffix else `{args} {suffix}`
@@ -73,118 +189,212 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 			isBusy = false
 			if type(result) ~= "string" or result == "" then
 				playUi("Error")
-				context.Toast("No response", "Bad")
+				setStatus(noResponseText)
 				return
 			end
-			playUi(if result == "Not allowed" then "Error" else "Confirm")
-			context.Toast(result, if result == "Not allowed" then "Bad" else "Info")
+			playUi(if isError(result) then "Error" else "Confirm")
+			setStatus(result)
 		end)
+	end
+
+	local function viewScale(): number
+		local root = rootFrame
+		local scale = if root then root:FindFirstChild("ViewportScale") else nil
+		if scale and scale:IsA("UIScale") and scale.Scale > 0 then
+			return scale.Scale
+		end
+		return 1
+	end
+
+	local function placeAt(target: Vector2)
+		local window = panel
+		local root = rootFrame
+		if not window or not root then
+			return
+		end
+		local size = root.AbsoluteSize / viewScale()
+		local height = window.Size.Y.Offset
+		local clamped = Vector2.new(
+			math.clamp(target.X, minVisible - windowWidth, math.max(size.X - minVisible, 0)),
+			math.clamp(target.Y, 0, math.max(size.Y - math.min(height, titleHeight + minVisible), 0))
+		)
+		position = clamped
+		window.Position = UDim2.fromOffset(clamped.X, clamped.Y)
+	end
+
+	local function selectPage(name: string)
+		for _, page in pages do
+			local isActive = page.Name == name
+			page.Scroll.Visible = isActive
+			page.Tab.BackgroundColor3 = if isActive then palette.Selected else palette.Button
+			page.Tab.TextColor3 = if isActive then palette.Text else palette.Dim
+		end
+	end
+
+	local function applyMinimized()
+		local window = panel
+		local body = content
+		if not window or not body then
+			return
+		end
+		body.Visible = not isMinimized
+		local height = if isMinimized then titleHeight else titleHeight + body.Size.Y.Offset
+		window.Size = UDim2.fromOffset(windowWidth, height)
 	end
 
 	local function build()
 		local own = Trove.new()
 		panelTrove = own
-		local window = Kit.Modal(own, {
-			Parent = context.PlayerGui,
-			Name = "Cheats",
-			Title = "DEV CHEATS",
-			Glyph = "Code",
-			MaxSize = Vector2.new(860, 680),
-			HeaderColor = theme.Red,
-			OnClose = function()
-				context.Close("Cheats")
-			end,
-			Sound = playUi,
-		})
-		modal = window
+		local screenGui, root = Kit.ScreenGui("ThockCheats", displayOrder, context.PlayerGui, own, true)
+		gui = screenGui
+		rootFrame = root
+		screenGui.Enabled = false
 
-		local targetRow = Kit.Panel({
-			Parent = window.Body,
-			Name = "TargetRow",
-			Position = UDim2.fromOffset(10, 8),
-			Size = UDim2.new(1, -20, 0, 52),
-			Color = theme.Track,
-			Radius = Kit.Radius.M,
-			Flat = true,
-		})
-		local function addBox(
-			parent: GuiObject,
-			name: string,
-			placeholder: string,
-			text: string,
-			position: UDim2,
-			size: UDim2
-		): TextBox
-			local field = Kit.Panel({
-				Parent = parent,
-				Name = `{name}Field`,
-				Position = position,
-				Size = size,
-				Color = theme.Track,
-				Radius = Kit.Radius.M,
-				Flat = true,
-			})
-			local box = Instance.new("TextBox")
-			box.Name = name
-			box.BackgroundTransparency = 1
-			box.BorderSizePixel = 0
-			box.Position = UDim2.fromOffset(10, 0)
-			box.Size = UDim2.new(1, -20, 1, 0)
-			box.Font = Kit.Font
-			box.TextSize = 22
-			box.TextColor3 = theme.Text
-			box.PlaceholderText = placeholder
-			box.PlaceholderColor3 = theme.Disabled
-			box.TextXAlignment = Enum.TextXAlignment.Left
-			box.ClearTextOnFocus = false
-			box.Text = text
-			box.Parent = field
-			return box
+		local contentHeight = pad
+			+ inputHeight
+			+ gap
+			+ tabHeight
+			+ gap
+			+ pageHeight
+			+ gap
+			+ statusHeight
+			+ pad
+		local window = Instance.new("Frame")
+		window.Name = "Window"
+		window.Active = true
+		window.BackgroundColor3 = palette.Background
+		window.BackgroundTransparency = backgroundTransparency
+		window.BorderSizePixel = 0
+		window.Size = UDim2.fromOffset(windowWidth, titleHeight + contentHeight)
+		window.Parent = root
+		round(window)
+		outline(window)
+		panel = window
+
+		local titleBar = Instance.new("Frame")
+		titleBar.Name = "TitleBar"
+		titleBar.BackgroundColor3 = palette.Bar
+		titleBar.BorderSizePixel = 0
+		titleBar.Size = UDim2.new(1, 0, 0, titleHeight)
+		titleBar.Parent = window
+		round(titleBar)
+		local title = newLabel(titleBar, "Title", "THOCK DEV", palette.Text)
+		title.Position = UDim2.fromOffset(8, 0)
+		title.Size = UDim2.new(1, -(2 * titleHeight + 8), 1, 0)
+
+		local closeButton = newButton(titleBar, "Close", "x", palette.Bar)
+		closeButton.Position = UDim2.new(1, -titleHeight, 0, 0)
+		closeButton.Size = UDim2.fromOffset(titleHeight, titleHeight)
+		closeButton.TextColor3 = palette.Bad
+		own:Connect(closeButton.Activated, function()
+			context.Close("Cheats")
+		end)
+		local minimizeButton = newButton(titleBar, "Minimize", "-", palette.Bar)
+		minimizeButton.Position = UDim2.new(1, -2 * titleHeight, 0, 0)
+		minimizeButton.Size = UDim2.fromOffset(titleHeight, titleHeight)
+		own:Connect(minimizeButton.Activated, function()
+			isMinimized = not isMinimized
+			minimizeButton.Text = if isMinimized then "+" else "-"
+			applyMinimized()
+		end)
+
+		local body = Instance.new("Frame")
+		body.Name = "Content"
+		body.BackgroundTransparency = 1
+		body.BorderSizePixel = 0
+		body.Position = UDim2.fromOffset(0, titleHeight)
+		body.Size = UDim2.new(1, 0, 0, contentHeight)
+		body.Parent = window
+		content = body
+
+		local target = newBox(body, "TargetInput", "target: blank = me | name | all", "")
+		target.Position = UDim2.fromOffset(pad, pad)
+		target.Size = UDim2.new(1, -2 * pad, 0, inputHeight)
+		targetBox = target
+
+		local tabStrip = Instance.new("Frame")
+		tabStrip.Name = "Tabs"
+		tabStrip.BackgroundTransparency = 1
+		tabStrip.BorderSizePixel = 0
+		tabStrip.Position = UDim2.fromOffset(pad, pad + inputHeight + gap)
+		tabStrip.Size = UDim2.new(1, -2 * pad, 0, tabHeight)
+		tabStrip.Parent = body
+		local tabLayout = Instance.new("UIListLayout")
+		tabLayout.FillDirection = Enum.FillDirection.Horizontal
+		tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		tabLayout.Padding = UDim.new(0, gap)
+		tabLayout.Parent = tabStrip
+
+		local area = Instance.new("Frame")
+		area.Name = "Pages"
+		area.BackgroundTransparency = 1
+		area.BorderSizePixel = 0
+		area.Position = UDim2.fromOffset(pad, pad + inputHeight + gap + tabHeight + gap)
+		area.Size = UDim2.new(1, -2 * pad, 0, pageHeight)
+		area.Parent = body
+
+		local status = newLabel(body, "Status", defaultStatus, palette.Dim)
+		status.TextSize = smallTextSize
+		status.Position = UDim2.new(0, pad + 2, 1, -(pad + statusHeight))
+		status.Size = UDim2.new(1, -2 * pad - 4, 0, statusHeight)
+		statusLabel = status
+
+		local function addPage(name: string): Page
+			local scroll = Instance.new("ScrollingFrame")
+			scroll.Name = `Page{name}`
+			scroll.BackgroundTransparency = 1
+			scroll.BorderSizePixel = 0
+			scroll.Size = UDim2.fromScale(1, 1)
+			scroll.CanvasSize = UDim2.new()
+			scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+			scroll.ScrollBarThickness = scrollBarThickness
+			scroll.ScrollBarImageColor3 = palette.Stroke
+			scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+			scroll.Visible = false
+			scroll.Parent = area
+			local layout = Instance.new("UIListLayout")
+			layout.SortOrder = Enum.SortOrder.LayoutOrder
+			layout.Padding = UDim.new(0, gap)
+			layout.Parent = scroll
+			local inset = Instance.new("UIPadding")
+			inset.PaddingRight = UDim.new(0, scrollBarThickness + 2)
+			inset.Parent = scroll
+			local tab = newButton(tabStrip, `Tab{name}`, name, palette.Button)
+			tab.TextColor3 = palette.Dim
+			tab.LayoutOrder = #pages + 1
+			tab.Size = UDim2.new(1 / #tabNames, -gap * (#tabNames - 1) / #tabNames, 1, 0)
+			own:Connect(tab.Activated, function()
+				selectPage(name)
+			end)
+			local page: Page = { Name = name, Scroll = scroll, Tab = tab, Order = 0 }
+			table.insert(pages, page)
+			return page
 		end
-		targetBox = addBox(
-			targetRow,
-			"TargetInput",
-			"Target: blank = me, a player name, or all",
-			"",
-			UDim2.new(),
-			UDim2.fromScale(1, 1)
-		)
 
-		local scroll = Kit.Scroll({
-			Parent = window.Body,
-			Name = "List",
-			Position = UDim2.fromOffset(6, 68),
-			Size = UDim2.new(1, -12, 1, -74),
-			Padding = 10,
-		})
-		local order = 0
-
-		local function addSection(text: string, color: Color3)
-			order += 1
-			Kit.Section({
-				Parent = scroll,
-				Name = `Section{string.gsub(text, "%s", "")}`,
-				Text = text,
-				Color = color,
-				LayoutOrder = order,
-			})
+		local function addSection(page: Page, text: string)
+			page.Order += 1
+			local label =
+				newLabel(page.Scroll, `Section{string.gsub(text, "%W", "")}`, `-- {text}`, palette.Dim)
+			label.TextSize = smallTextSize
+			label.Size = UDim2.new(1, 0, 0, sectionHeight)
+			label.LayoutOrder = page.Order
 		end
 
-		local function addGrid(columns: number): Frame
-			order += 1
+		local function addGrid(page: Page, columns: number): Frame
+			page.Order += 1
 			local grid = Instance.new("Frame")
-			grid.Name = `Grid{order}`
+			grid.Name = `Grid{page.Name}{page.Order}`
 			grid.BackgroundTransparency = 1
 			grid.BorderSizePixel = 0
 			grid.AutomaticSize = Enum.AutomaticSize.Y
 			grid.Size = UDim2.new(1, 0, 0, 0)
-			grid.LayoutOrder = order
+			grid.LayoutOrder = page.Order
 			local layout = Instance.new("UIGridLayout")
 			layout.SortOrder = Enum.SortOrder.LayoutOrder
-			layout.CellSize = UDim2.new(1 / columns, -8, 0, rowHeight)
-			layout.CellPadding = UDim2.fromOffset(8, 10)
+			layout.CellSize = UDim2.new(1 / columns, -gap * (columns - 1) / columns, 0, rowHeight)
+			layout.CellPadding = UDim2.fromOffset(gap, gap)
 			layout.Parent = grid
-			grid.Parent = scroll
+			grid.Parent = page.Scroll
 			return grid
 		end
 
@@ -192,48 +402,52 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 			grid: Frame,
 			name: string,
 			text: string,
-			color: Color3,
-			callback: () -> ()
-		): Kit.Button
-			return Kit.Button(own, {
-				Parent = grid,
-				Name = name,
-				Text = text,
-				Color = color,
-				TextSize = 20,
-				Callback = callback,
-				Sound = playUi,
-			})
+			callback: () -> (),
+			textColor: Color3?
+		): TextButton
+			local button = newButton(grid, name, text, palette.Button)
+			if textColor then
+				button.TextColor3 = textColor
+			end
+			own:Connect(button.MouseEnter, function()
+				button.BackgroundColor3 = palette.Hover
+			end)
+			own:Connect(button.MouseLeave, function()
+				button.BackgroundColor3 = palette.Button
+			end)
+			own:Connect(button.Activated, callback)
+			return button
 		end
 
-		local function command(
-			grid: Frame,
-			name: string,
-			text: string,
-			color: Color3,
-			cmd: string,
-			args: string
-		)
-			addAction(grid, name, text, color, function()
+		local function command(grid: Frame, name: string, text: string, cmd: string, args: string)
+			addAction(grid, name, text, function()
 				send(cmd, args)
-			end)
+			end, nil)
 		end
 
 		local function readCount(): string
 			local box = countBox
 			local text = if box then (string.gsub(box.Text, "%s", "")) else ""
-			return if text == "" then "1" else text
+			return if text == "" then defaultCount else text
 		end
 
-		addSection("MONEY", theme.Gold)
-		local money = addGrid(4)
-		command(money, "Money1K", "+1K", theme.Green, "money", "1k")
-		command(money, "Money1M", "+1M", theme.Green, "money", "1m")
-		command(money, "Money1B", "+1B", theme.Green, "money", "1b")
-		command(money, "Money1T", "+1T", theme.Green, "money", "1t")
-		command(money, "MaxMoney", "MAX", theme.Gold, "maxmoney", "")
-		command(money, "ResetMoney", "RESET", theme.Grey, "resetmoney", "")
-		local customRow = addGrid(1)
+		local money = addPage(tabNames[1])
+		local progress = addPage(tabNames[2])
+		local items = addPage(tabNames[3])
+		local danger = addPage(tabNames[4])
+
+		addSection(money, "ADD")
+		local moneyGrid = addGrid(money, 4)
+		command(moneyGrid, "Money1K", "+1K", "money", "1k")
+		command(moneyGrid, "Money1M", "+1M", "money", "1m")
+		command(moneyGrid, "Money1B", "+1B", "money", "1b")
+		command(moneyGrid, "Money1T", "+1T", "money", "1t")
+		addSection(money, "SET")
+		local setGrid = addGrid(money, 2)
+		command(setGrid, "MaxMoney", "MAX", "maxmoney", "")
+		command(setGrid, "ResetMoney", "RESET", "resetmoney", "")
+		addSection(money, "CUSTOM")
+		local customRow = addGrid(money, 1)
 		customRow.Name = "CustomAmount"
 		local customHolder = Instance.new("Frame")
 		customHolder.Name = "Holder"
@@ -241,199 +455,183 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		customHolder.BorderSizePixel = 0
 		customHolder.Size = UDim2.fromScale(1, 1)
 		customHolder.Parent = customRow
-		amountBox = addBox(
-			customHolder,
-			"AmountInput",
-			"Custom amount (2.5m)",
-			"",
-			UDim2.new(),
-			UDim2.new(0.5, -8, 1, 0)
-		)
+		local amount = newBox(customHolder, "AmountInput", "amount (2.5m)", "")
+		amount.Size = UDim2.new(0.5, -gap, 1, 0)
 		local function amountText(): string?
-			local box = amountBox
-			local text = if box then (string.gsub(box.Text, "%s", "")) else ""
+			local text = (string.gsub(amount.Text, "%s", ""))
 			if text == "" then
-				context.Toast("Enter an amount", "Info")
+				playUi("Error")
+				setStatus(amountPrompt)
 				return nil
 			end
 			return text
 		end
-		Kit.Button(own, {
-			Parent = customHolder,
-			Name = "AddAmount",
-			Text = "ADD",
-			Color = theme.Green,
-			Position = UDim2.fromScale(0.5, 0),
-			Size = UDim2.new(0.25, -8, 1, 0),
-			TextSize = 20,
-			Callback = function()
-				local text = amountText()
-				if text then
-					send("money", text)
-				end
-			end,
-			Sound = playUi,
-		})
-		Kit.Button(own, {
-			Parent = customHolder,
-			Name = "SetAmount",
-			Text = "SET",
-			Color = theme.Blue,
-			Position = UDim2.fromScale(0.75, 0),
-			Size = UDim2.new(0.25, 0, 1, 0),
-			TextSize = 20,
-			Callback = function()
-				local text = amountText()
-				if text then
-					send("setmoney", text)
-				end
-			end,
-			Sound = playUi,
-		})
+		local addAmount = newButton(customHolder, "AddAmount", "ADD", palette.Button)
+		addAmount.Position = UDim2.fromScale(0.5, 0)
+		addAmount.Size = UDim2.new(0.25, -gap, 1, 0)
+		own:Connect(addAmount.Activated, function()
+			local text = amountText()
+			if text then
+				send("money", text)
+			end
+		end)
+		local setAmount = newButton(customHolder, "SetAmount", "SET", palette.Button)
+		setAmount.Position = UDim2.fromScale(0.75, 0)
+		setAmount.Size = UDim2.new(0.25, 0, 1, 0)
+		own:Connect(setAmount.Activated, function()
+			local text = amountText()
+			if text then
+				send("setmoney", text)
+			end
+		end)
 
-		addSection("PROGRESS", theme.Blue)
-		local progress = addGrid(3)
-		command(progress, "Rolls100", "+100 ROLLS", theme.Blue, "rolls", "100")
-		command(progress, "NextGolden", "NEXT GOLDEN", theme.Gold, "golden", "")
-		command(progress, "Income1h", "+1H INCOME", theme.Green, "income", "3600")
-		command(progress, "MaxUpgrades", "MAX UPGRADES", theme.Purple, "maxupgrades", "")
-		command(progress, "ResetUpgrades", "RESET UPGRADES", theme.Grey, "resetupgrades", "")
-		command(progress, "ForceRebirth", "FORCE REBIRTH", theme.Orange, "rebirth", "")
+		addSection(progress, "PROGRESS")
+		local progressGrid = addGrid(progress, 2)
+		command(progressGrid, "Rolls100", "+100 rolls", "rolls", "100")
+		command(progressGrid, "NextGolden", "next golden", "golden", "")
+		command(progressGrid, "Income1h", "+1h income", "income", "3600")
+		command(progressGrid, "ForceRebirth", "force rebirth", "rebirth", "")
+		command(progressGrid, "MaxUpgrades", "max upgrades", "maxupgrades", "")
+		command(progressGrid, "ResetUpgrades", "reset upgrades", "resetupgrades", "")
+		addSection(progress, "BOOSTS")
+		local boostGrid = addGrid(progress, 2)
+		command(boostGrid, "LuckPotion", "luck 10m", "luckpotion", "10")
+		command(boostGrid, "ClicksPotion", "clicks 10m", "clickspotion", "10")
 
-		addSection("BOOSTS", theme.Green)
-		local boosts = addGrid(2)
-		command(boosts, "LuckPotion", "LUCK POTION 10M", theme.Green, "luckpotion", "10")
-		command(boosts, "ClicksPotion", "CLICKS POTION 10M", theme.Gold, "clickspotion", "10")
-
-		addSection("ITEMS", theme.Purple)
-		local countRow = addGrid(1)
+		addSection(items, "COUNT")
+		local countRow = addGrid(items, 1)
 		countRow.Name = "CountRow"
-		local countHolder = Instance.new("Frame")
-		countHolder.Name = "Holder"
-		countHolder.BackgroundTransparency = 1
-		countHolder.BorderSizePixel = 0
-		countHolder.Size = UDim2.fromScale(1, 1)
-		countHolder.Parent = countRow
-		countBox =
-			addBox(countHolder, "CountInput", "Count (default 1)", "1", UDim2.new(), UDim2.new(0.5, -8, 1, 0))
-		local eggReady = addGrid(2)
-		command(eggReady, "ReadyEggs", "READY EGGS", theme.Teal, "readyeggs", "")
-		command(eggReady, "HatchAll", "HATCH ALL", theme.Teal, "hatchall", "")
-
-		addSection("KEYS BY RARITY", theme.Pink)
-		local rarityGrid = addGrid(3)
+		local count = newBox(countRow, "CountInput", "count", defaultCount)
+		count.Size = UDim2.new(0.5, -gap, 1, 0)
+		countBox = count
+		addSection(items, "EGGS")
+		local eggReady = addGrid(items, 2)
+		command(eggReady, "ReadyEggs", "ready eggs", "readyeggs", "")
+		command(eggReady, "HatchAll", "hatch all", "hatchall", "")
+		addSection(items, "KEYS BY RARITY")
+		local rarityGrid = addGrid(items, 3)
 		for _, rarity in Keys.Rarities do
-			addAction(
-				rarityGrid,
-				`GiveRarity{rarity.Name}`,
-				string.upper(rarity.Name),
-				rarity.Color,
-				function()
-					send("givekey", `{rarity.Name} {readCount()}`)
-				end
-			)
+			addAction(rarityGrid, `GiveRarity{rarity.Name}`, string.lower(rarity.Name), function()
+				send("givekey", `{rarity.Name} {readCount()}`)
+			end, rarity.Color:Lerp(palette.Text, 0.35))
 		end
-
-		addSection("KEYS", theme.Pink)
-		local keyGrid = addGrid(3)
+		addSection(items, "KEYS")
+		local keyGrid = addGrid(items, 2)
 		for _, key in Keys.Catalog do
-			addAction(keyGrid, `GiveKey{key.Id}`, key.Name, Keys.GetRarity(key).Color, function()
+			addAction(keyGrid, `GiveKey{key.Id}`, key.Name, function()
 				send("givekey", `{key.Id} {readCount()}`)
-			end)
+			end, nil)
 		end
-
-		addSection("EGGS", theme.Orange)
-		local eggGrid = addGrid(3)
+		addSection(items, "EGG ITEMS")
+		local eggGrid = addGrid(items, 2)
 		for _, egg in Eggs.Catalog do
-			addAction(eggGrid, `GiveEgg{egg.Id}`, egg.Name, egg.Color, function()
+			addAction(eggGrid, `GiveEgg{egg.Id}`, egg.Name, function()
 				send("giveegg", `{egg.Id} {readCount()}`)
-			end)
+			end, nil)
 		end
-
-		addSection("PETS", theme.Teal)
-		local petGrid = addGrid(3)
+		addSection(items, "PETS")
+		local petGrid = addGrid(items, 2)
 		for _, charm in Charms.Catalog do
-			addAction(petGrid, `GivePet{charm.Id}`, charm.Name, charm.Color, function()
+			addAction(petGrid, `GivePet{charm.Id}`, charm.Name, function()
 				send("givepet", `{charm.Id} {readCount()}`)
-			end)
+			end, nil)
 		end
 
-		addSection("DANGER", theme.Red)
-		local danger = addGrid(2)
+		addSection(danger, "DANGER (press twice)")
+		local dangerGrid = addGrid(danger, 2)
 		local function addConfirmed(name: string, label: string, cmd: string, args: string)
 			local armed = false
 			local armToken = 0
-			local button: Kit.Button? = nil
-			button = addAction(danger, name, label, theme.Red, function()
-				local own = button :: Kit.Button
+			local button: TextButton? = nil
+			button = addAction(dangerGrid, name, label, function()
+				local face = button :: TextButton
 				if not armed then
 					armed = true
 					armToken += 1
 					local mine = armToken
-					own.SetText("TAP AGAIN TO CONFIRM")
+					face.Text = confirmText
 					task.delay(confirmSeconds, function()
 						if armed and armToken == mine then
 							armed = false
-							own.SetText(label)
+							face.Text = label
 						end
 					end)
 					return
 				end
 				armed = false
 				armToken += 1
-				own.SetText(label)
+				face.Text = label
 				send(cmd, args)
-			end)
+			end, palette.Warn)
 		end
-		addConfirmed("ResetData", "RESET DATA", "resetdata", "confirm")
-		addConfirmed("RemovePets", "REMOVE ALL PETS", "removepets", "")
-	end
+		addConfirmed("ResetData", "reset data", "resetdata", "confirm")
+		addConfirmed("RemovePets", "remove all pets", "removepets", "")
 
-	local function toggle()
-		if not isAdmin() then
-			return
-		end
-		if context.IsOpen("Cheats") then
-			context.Close("Cheats")
-		else
-			context.Open("Cheats")
-		end
-	end
+		selectPage(tabNames[1])
 
-	local function onChat(text: any)
-		if isOpenCommand(text) then
-			toggle()
-		end
-	end
-
-	if usesTextChatService() then
-		local chat: any = TextChatService
-		trove:Connect(chat.SendingMessage, function(message: any)
-			onChat(
-				if type(message) == "table" or typeof(message) == "Instance" then message.Text else message
-			)
+		local dragOrigin: Vector2? = nil
+		local dragStart = Vector2.zero
+		own:Connect(titleBar.InputBegan, function(input: InputObject)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragOrigin = position
+				dragStart = Vector2.new(input.Position.X, input.Position.Y)
+			end
 		end)
-	elseif localPlayer then
-		trove:Connect(localPlayer.Chatted, onChat)
+		own:Connect(UserInputService.InputChanged, function(input: InputObject)
+			local origin = dragOrigin
+			if
+				origin
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				local delta = (Vector2.new(input.Position.X, input.Position.Y) - dragStart) / viewScale()
+				placeAt(origin + delta)
+			end
+		end)
+		own:Connect(UserInputService.InputEnded, function(input: InputObject)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragOrigin = nil
+			end
+		end)
+
+		local size = root.AbsoluteSize / viewScale()
+		placeAt(position or Vector2.new(math.min(startLeft, math.max(size.X - windowWidth, 0)), startTop))
+		applyMinimized()
+	end
+
+	if localPlayer then
+		trove:Connect(localPlayer:GetAttributeChangedSignal(developerAttribute), function()
+			if not isDeveloper() then
+				context.Close("Cheats")
+			end
+		end)
 	end
 
 	return {
-		Modal = true,
+		Modal = false,
 		StartsOpen = false,
 		Open = function(_self: Types.Screen)
-			if not isAdmin() then
+			if not isDeveloper() then
 				return
 			end
-			if not modal then
+			if not gui then
 				build()
 			end
-			local window = modal :: Kit.Modal
-			window.Show()
+			local screenGui = gui :: ScreenGui
+			screenGui.Enabled = true
 		end,
 		Close = function(_self: Types.Screen)
-			local window = modal
-			if window then
-				window.Hide()
+			local screenGui = gui
+			if screenGui then
+				screenGui.Enabled = false
 			end
 		end,
 		Destroy = function(_self: Types.Screen)
@@ -443,7 +641,9 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 				own:Destroy()
 				panelTrove = nil
 			end
-			modal = nil
+			gui = nil
+			panel = nil
+			content = nil
 		end,
 	}
 end

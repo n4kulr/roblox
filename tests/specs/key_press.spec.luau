@@ -16,6 +16,7 @@ describe("KeyPressController", function()
 
 	local fillerCell = 6
 	local slotCell = 11
+	local blankCell = 10
 
 	local function newSignalNode(className: string): any
 		local node = world:newInstance(className)
@@ -155,7 +156,7 @@ describe("KeyPressController", function()
 					_self: any,
 					switchId: string,
 					kind: string,
-					_speed: number,
+					speed: number,
 					volume: number,
 					position: any,
 					category: string
@@ -163,6 +164,7 @@ describe("KeyPressController", function()
 					table.insert(played, {
 						Switch = switchId,
 						Kind = kind,
+						Speed = speed,
 						Volume = volume,
 						Category = category,
 						Position = position,
@@ -178,6 +180,7 @@ describe("KeyPressController", function()
 		}
 		controller = world:require("StarterPlayer.StarterPlayerScripts.Controllers.KeyPressController")
 		addCap(fillerCell, { Filler = true })
+		addCap(blankCell, {})
 		addCap(slotCell, { Slot = 1, KeyId = "GlassTink" }, 0.6)
 		controller:Init(registry)
 		controller:Start()
@@ -211,6 +214,7 @@ describe("KeyPressController", function()
 		expect(#played):toBe(1)
 		expect(played[1].Kind):toBe("Press")
 		expect(played[1].Switch):toBe(Keys.ById.GlassTink.Switch)
+		expect(played[1].Speed):toBe(1)
 		expect(played[1].Volume):toBe(1)
 		expect(played[1].Category):toBe("Board")
 	end)
@@ -221,8 +225,18 @@ describe("KeyPressController", function()
 		beat()
 		expect(depthOf(cap)):toBeCloseTo(0.75, 1e-6)
 		expect(#played):toBe(1)
-		expect(played[1].Switch):toBe("CreamTravel")
-		expect(played[1].Volume):toBe(0.55)
+		expect(played[1].Switch):toBe("NkCream")
+		expect(played[1].Speed):toBe(0.9)
+		expect(played[1].Volume):toBe(0.7)
+	end)
+
+	it("plays blank caps with the creamy switch, deeper pitch and their own volume", function()
+		standOn(localPlayer, blankCell)
+		beat()
+		expect(#played):toBe(1)
+		expect(played[1].Switch):toBe("NkCream")
+		expect(played[1].Speed):toBe(0.9)
+		expect(played[1].Volume):toBe(0.6)
 	end)
 
 	it("tags other players' presses with the Other volume category", function()
@@ -406,8 +420,9 @@ describe("KeyPressController", function()
 			beat()
 			expect(cosmeticDepth(cap)):toBeCloseTo(0.75, 1e-4)
 			expect(#played):toBe(1)
-			expect(played[1].Switch):toBe("CreamTravel")
-			expect(played[1].Volume):toBe(0.55)
+			expect(played[1].Switch):toBe("NkCream")
+			expect(played[1].Speed):toBe(0.9)
+			expect(played[1].Volume):toBe(0.7)
 			expect(played[1].Kind):toBe("Press")
 		end)
 

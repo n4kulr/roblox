@@ -45,10 +45,10 @@ local releaseDelaySeconds = 0.15
 local raiseSeconds = 0.25
 local minHeight = -1
 local maxHeight = 7
-local blankVolume = 0.35
-local blankSwitch = "MxBlack"
-local fillerVolume = 0.55
-local fillerSwitch = "CreamTravel"
+local cosmeticSwitch = "NkCream"
+local cosmeticPitch = 0.9
+local blankVolume = 0.6
+local fillerVolume = 0.7
 local capHeight = FloorGrid.CapHeight
 local cosmeticModelName = "CosmeticKeys"
 local gridOffset = 512
@@ -152,9 +152,10 @@ local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")
 	local category = if player == Players.LocalPlayer then "Board" else "Other"
 	local key = capKey(cap)
 	local isFiller = isFillerPart(cap.Part)
-	local switchId = if key then key.Switch elseif isFiller then fillerSwitch else blankSwitch
+	local switchId = if key then key.Switch else cosmeticSwitch
+	local pitch = if key then 1 else cosmeticPitch
 	local volume = if key then 1 elseif isFiller then fillerVolume else blankVolume
-	controllers.SoundController:PlaySwitch(switchId, kind, 1, volume, cap.Part.Position, category)
+	controllers.SoundController:PlaySwitch(switchId, kind, pitch, volume, cap.Part.Position, category)
 end
 
 local function triggerCap(cap: CapState, player: Player)

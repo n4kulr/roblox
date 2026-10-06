@@ -15,6 +15,8 @@ type TroveInstance = typeof(Trove.new())
 local allowlist: { [number]: boolean } = {}
 local maxArgumentLength = 200
 local deniedMessage = "Not allowed"
+local adminAttribute = "IsAdmin"
+local developerAttribute = "IsDeveloper"
 
 local AdminService = {
 	Name = "AdminService",
@@ -59,7 +61,9 @@ local function handleChat(player: Player, message: string)
 end
 
 local function bindPlayer(player: Player)
-	player:SetAttribute("IsAdmin", isAdmin(player))
+	local admin = isAdmin(player)
+	player:SetAttribute(adminAttribute, admin)
+	player:SetAttribute(developerAttribute, admin)
 	local serviceTrove = trove :: TroveInstance
 	serviceTrove:Connect(player.Chatted, function(message: string)
 		handleChat(player, message)
