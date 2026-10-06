@@ -90,7 +90,7 @@ The lead Claude session (in the cloud) runs Sonnet sub-agents in parallel. Each 
 | Economy | faster first-40-minute hook, tuned with the sim | A | Config numbers (`Keys`, `Upgrades`, the economy part of `GameConfig`), `tools/economy_sim.luau`, `docs/economy.md` |
 | UI batch (**DONE, merged**) | HUD swap, modal dim, Keys sort and income, Pass tile claim, simpler Store, roll only in base | C | `Screens/Hud.luau`, `Keys.luau`, `Season.luau`, `Shop.luau`, `Kit/Modal.luau`, `RollService`, `RollController/init.luau` |
 | Steal (**DONE, merged**) | best-key prompt, knocking thieves down, dropped key and take-back, jumpable walls | D | `StealService/**`, `StealController.luau`, `PlotService/Lock.luau` and `Walls.luau` |
-| Eggs | eggs in the Market, incubators, charms, Charms screen | E | `MarketService/**`, `Screens/Market.luau`, new `Config/Eggs.luau`, `Config/Charms.luau`, `Rules/Charms.luau`, `Screens/Charms.luau`, `PlotService/Incubators.luau`, `Rules/Stats` |
+| Eggs (**DONE, merged**) | eggs in the Market, incubators, charms, Charms screen | E | `MarketService/**`, `Screens/Market.luau`, new `Config/Eggs.luau`, `Config/Charms.luau`, `Rules/Charms.luau`, `Screens/Charms.luau`, `PlotService/Incubators.luau`, `Rules/Stats` |
 
 **Before starting any of A, C, D or E:**
 1. Run `git pull`, then `git log --oneline -30`.
@@ -142,7 +142,7 @@ Tune only the Config numbers, using `lune run tools/economy_sim`. Targets on the
    - The laser lock only knocks back players crossing the entrance laser plane. Right now `Lock.IsInside` and `Lock.Knock` eject anyone inside the whole locked base.
    - Level-1 walls must be jumpable from outside (default JumpHeight 7.2). Level 2 and up must not be.
 
-### E. Eggs and Charms (the Market sells eggs instead of keys)
+### E. Eggs and Charms (DONE, merged; kept for reference) (the Market sells eggs instead of keys)
 
 **Contracts already added:**
 - PlayerData: `Incubators {"","",""}`, `IncubatorReadyAt {0,0,0}`, `Charms {[id]=count}` and `EquippedCharms {id...}`.
@@ -182,3 +182,8 @@ Tune only the Config numbers, using `lune run tools/economy_sim`. Targets on the
 - The Market grid is narrow, which will be redone with eggs anyway.
 - ESC-to-close has no test.
 - The old `Packets.ClaimDaily` and `TagThief` definitions can be removed once nothing uses them.
+
+
+## 8. Plot layout (DONE)
+
+Each plot has 8 key slots (`GameConfig.BoardSlots = 8` and `GameConfig.SlotCells`): rows 2 and 4 from the back (+Z), columns 2, 5, 8 and 11 of the 12x12 grid. Old saves with more keys keep their best 8 on the board and the rest go back to inventory.
