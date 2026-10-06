@@ -360,7 +360,7 @@ local function zapIntruders(info: PlotInfo, owner: Player)
 			player ~= owner
 			and root
 			and root:IsA("BasePart")
-			and Lock.IsInside(info, root.CFrame.Position)
+			and Lock.InEntrance(info, root.CFrame.Position)
 		then
 			Lock.Knock(info, root)
 			local last = lastZap[player]
