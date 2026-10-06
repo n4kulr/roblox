@@ -217,14 +217,13 @@ local function visualOf(info: Types.PlotInfo, cap: BasePart): Types.CapVisual
 	return visual
 end
 
-local function showKey(cap: BasePart, visual: Types.CapVisual, key: Keys.Key)
+local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, key: Keys.Key)
 	local rarity = Keys.GetRarity(key)
-	cap.Color = rarity.Color
-	Keys.ApplyFinish(cap, rarity)
+	Keys.ApplyVariantFinish(cap, keyId)
 	cap.Transparency = 0
-	cap:SetAttribute("KeyId", key.Id)
+	cap:SetAttribute("KeyId", keyId)
 	cap:SetAttribute("Locked", nil)
-	visual.Amount.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
+	visual.Amount.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
 	visual.Amount.TextColor3 = rarity.Color:Lerp(white, textLighten)
 	visual.Billboard.Enabled = true
 	visual.Surface.Enabled = true
@@ -273,17 +272,18 @@ end
 
 function Caps.Render(info: Types.PlotInfo, data: PlayerData.Data?, unlocked: number)
 	for slot, cap in info.Caps do
-		local key = if data and slot <= unlocked then Keys.ById[data.Board[slot]] else nil
-		local state = if key
-			then key.Id
+		local boardId = if data and slot <= unlocked then data.Board[slot] else nil
+		local key = Keys.Resolve(boardId)
+		local state = if key and boardId
+			then boardId
 			elseif not data then noState
 			elseif slot > unlocked then lockedState
 			else emptyState
 		local visual = visualOf(info, cap)
 		if visual.State ~= state then
 			visual.State = state
-			if key then
-				showKey(cap, visual, key)
+			if key and boardId then
+				showKey(cap, visual, boardId, key)
 			elseif state == emptyState then
 				showEmpty(cap, visual, Caps.ThemeColor(info.Model, info.Base.Color))
 			else

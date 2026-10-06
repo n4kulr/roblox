@@ -53,7 +53,7 @@ local function onBoardChanged(value: any)
 	end
 	for slot = 1, GameConfig.BoardSlots do
 		local keyId = board[slot]
-		local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
+		local key = if type(keyId) == "string" then Keys.Resolve(keyId) else nil
 		if key and previous[slot] ~= keyId then
 			local cap = findCap(slot)
 			controllers.SoundController:PlaySwitch(

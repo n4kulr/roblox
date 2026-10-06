@@ -41,7 +41,7 @@ function Trade.ValidateOffer(
 	keyId: string,
 	count: number
 ): (boolean, string?)
-	if type(keyId) ~= "string" or Keys.ById[keyId] == nil then
+	if type(keyId) ~= "string" or Keys.Resolve(keyId) == nil then
 		return false, Trade.Reasons.UnknownKey
 	end
 	if not isCount(count) or count < 0 then
@@ -62,7 +62,12 @@ end
 
 local function isHeld(inventory: Inventory, offer: Offer): boolean
 	for keyId, count in offer do
-		if Keys.ById[keyId] == nil or not isCount(count) or count < 0 or count > (inventory[keyId] or 0) then
+		if
+			Keys.Resolve(keyId) == nil
+			or not isCount(count)
+			or count < 0
+			or count > (inventory[keyId] or 0)
+		then
 			return false
 		end
 	end
@@ -115,7 +120,7 @@ function Trade.Apply(
 end
 
 function Trade.IsAtLeast(keyId: string, rarityName: string): boolean
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	local minimum = rarityRank[rarityName]
 	return key ~= nil and minimum ~= nil and (rarityRank[key.Rarity] or 0) >= minimum
 end

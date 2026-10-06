@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trade = require(ReplicatedStorage.Rules.Trade)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
@@ -53,8 +54,9 @@ function Execution.Run(context: Types.Context, session: Types.Session): boolean
 	local function discovered(data: PlayerData.Data, received: Types.Offer): { [string]: number }
 		local out: { [string]: number } = {}
 		for keyId, count in received do
-			if count > 0 and Keys.ById[keyId] then
-				out[keyId] = (data.Discovered[keyId] or 0) + count
+			if count > 0 and Keys.Resolve(keyId) then
+				local baseId = KeyTiers.Parse(keyId)
+				out[baseId] = (out[baseId] or data.Discovered[baseId] or 0) + count
 			end
 		end
 		return out

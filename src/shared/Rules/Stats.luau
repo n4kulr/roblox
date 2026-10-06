@@ -49,9 +49,9 @@ function Stats.Compute(board: { string }, levels: any, modifiers: Modifiers?): S
 	local luckBonus, speedBonus, incomeBonus, baseRate = 0, 0, 0, 0
 	for index = 1, slots do
 		local keyId = board[index]
-		local key = if type(keyId) == "string" then Keys.ById[keyId] else nil
+		local key = if type(keyId) == "string" then Keys.Resolve(keyId) else nil
 		if key then
-			baseRate += Keys.GetIncome(key.Id)
+			baseRate += Keys.GetIncome(keyId :: string)
 			local perk = key.Perk
 			if perk then
 				if perk.Kind == "Luck" then

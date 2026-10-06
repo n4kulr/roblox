@@ -15,7 +15,7 @@ local Visual = {
 }
 
 local function paint(part: Part, keyId: string, isGolden: boolean)
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	local rarity = if key then Keys.GetRarity(key) else nil
 	if isGolden then
 		part.Color = goldenColor

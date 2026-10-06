@@ -42,7 +42,7 @@ local Steal = {
 }
 
 function Steal.RarityIndex(keyId: string): number
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	return if key then rarityIndexByName[key.Rarity] or 1 else 1
 end
 

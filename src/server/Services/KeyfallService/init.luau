@@ -63,7 +63,7 @@ local function rootOfCharacter(character: Model?): BasePart?
 end
 
 local function goldenIndex(): number
-	local key = Keys.ById[goldenId]
+	local key = Keys.Resolve(goldenId)
 	return if key then key.Index else 0
 end
 

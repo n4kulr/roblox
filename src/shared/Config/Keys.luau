@@ -1,5 +1,6 @@
 --!strict
 
+local KeyTiers = require(script.Parent.KeyTiers)
 local SwitchSounds = require(script.Parent.SwitchSounds)
 
 export type SoundLayer = {
@@ -278,9 +279,40 @@ function Keys.ApplyFinish(part: BasePart, rarity: Rarity)
 	part.Reflectance = if rarity.IsShiny then 0.22 else 0
 end
 
+function Keys.VariantStyle(keyId: string): (Color3, number, Enum.Material)
+	local baseId, tier = KeyTiers.Parse(keyId)
+	local key = byId[baseId]
+	local rarity = if key then rarityByName[key.Rarity] else rarities[1]
+	local base = rarity.Color
+	if tier == 1 then
+		return base:Lerp(KeyTiers.Get(1).Color, 0.7), 0.3, Enum.Material.Metal
+	elseif tier == 2 then
+		return base:Lerp(KeyTiers.Get(2).Color, 0.6), 0.4, Enum.Material.SmoothPlastic
+	elseif tier == 3 then
+		return base:Lerp(Color3.fromRGB(40, 16, 82), 0.75), 0.5, Enum.Material.Metal
+	end
+	return base, if rarity.IsShiny then 0.22 else 0, Enum.Material.SmoothPlastic
+end
+
+function Keys.ApplyVariantFinish(part: BasePart, keyId: string)
+	local color, reflectance, material = Keys.VariantStyle(keyId)
+	part.Color = color
+	part.Material = material
+	part.Reflectance = reflectance
+end
+
+function Keys.Resolve(id: any): Key?
+	if type(id) ~= "string" then
+		return nil
+	end
+	local baseId = KeyTiers.Parse(id)
+	return byId[baseId]
+end
+
 function Keys.GetIncome(keyId: string): number
-	local key = byId[keyId]
-	return if key then rarityByName[key.Rarity].Income else 0
+	local baseId, tier = KeyTiers.Parse(keyId)
+	local key = byId[baseId]
+	return if key then rarityByName[key.Rarity].Income * KeyTiers.Multiplier(tier) else 0
 end
 
 function Keys.GetSellValue(keyId: string): number

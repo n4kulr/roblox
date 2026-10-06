@@ -457,7 +457,7 @@ end
 
 local rewardHandlers: AdminRewards.Handlers = {
 	Key = function(keyId: string, order: number)
-		local key = Keys.ById[keyId]
+		local key = Keys.Resolve(keyId)
 		if not key then
 			return
 		end
