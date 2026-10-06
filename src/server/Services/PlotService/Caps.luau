@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local MeshTemplates = require(script.Parent.Parent.Parent.Utils.MeshTemplates)
@@ -113,8 +114,18 @@ local function newVisual(cap: BasePart): Types.CapVisual
 	rim.Parent = surface
 	local plus = newLabel(surface, "Plus", "+", UDim2.fromScale(0.5, 0.5))
 	plus.TextTransparency = 0.45
-	local lock = newLabel(surface, "Lock", "🔒", UDim2.fromScale(0.4, 0.4))
-	lock.TextTransparency = 0.2
+	local lock = Instance.new("ImageLabel")
+	lock.Name = "Lock"
+	lock.BackgroundTransparency = 1
+	lock.AnchorPoint = Vector2.new(0.5, 0.5)
+	lock.Position = UDim2.fromScale(0.5, 0.5)
+	lock.Size = UDim2.fromScale(0.5, 0.5)
+	lock.Image = UiAssets.IconAtlas
+	lock.ImageRectOffset = UiAssets.LockIcon
+	lock.ImageRectSize = Vector2.new(UiAssets.IconCell, UiAssets.IconCell)
+	lock.ImageTransparency = 0.15
+	lock.ScaleType = Enum.ScaleType.Fit
+	lock.Parent = surface
 	surface.Parent = cap
 
 	return {

@@ -23,7 +23,7 @@ export type CapVisual = {
 	Rim: GuiObject,
 	Stroke: UIStroke,
 	Plus: TextLabel,
-	Lock: TextLabel,
+	Lock: ImageLabel,
 }
 
 export type Frame = {

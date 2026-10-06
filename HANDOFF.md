@@ -139,7 +139,7 @@ Six Sonnet agents are running; their work is not merged yet:
    - Pass: tapping a tile claims it
    - simplify the Robux store
    - you can only roll while inside your own base
-6. **Base and music:**
+6. **Base and music (DONE, merged; lock icon uses UiAssets.IconAtlas/LockIcon; MusicController:SetDucked available):**
    - filler keys go dark and sunk, slot keys stand out
    - floating income labels over keys
    - empty slots show "+"
