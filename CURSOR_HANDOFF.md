@@ -210,3 +210,10 @@ Each plot has 8 key slots (`GameConfig.BoardSlots = 8` and `GameConfig.SlotCells
 
 - **Admin commands:** `AdminService` adds `/readyeggs [player|all]` and `/hatchall [player|all]` in chat, plus `_G.ThockAdmin` (ReadyEggs/HatchAll). Admins are anyone in Studio, the place creator, or user ids in the `allowlist` table.
 - **Market prices:** eggs now cost a fixed price (`egg.MinPrice`) instead of scaling with income. The market always lists every egg; eggs that didn't roll into stock show 0 stock.
+
+
+## Dev cheats and UI fixes (merged)
+
+- **Dev cheats:** `AdminService/` has one dispatcher behind both chat commands and `Packets.AdminCommand`. Admin is checked on the server; admins are anyone in Studio, the place creator, or the allowlist. Type `/help` for the list, or `/cheats` to open the dev-only DEV CHEATS menu (it checks the `IsAdmin` attribute). `RebirthService:Force` lets an admin rebirth without paying.
+- **Egg market:** now a vertical list of expandable bars, Grow a Garden style.
+- **Upgrades:** rows no longer scale when they pulse, so buttons stay inside the list. `Kit.Pulse` takes a `peak` argument and always settles back.
