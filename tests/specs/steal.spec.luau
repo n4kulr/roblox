@@ -292,8 +292,16 @@ describe("StealService", function()
 			expect(thief.Character:GetAttribute("StolenFromUserId")):toBe(victim.UserId)
 			expect(world:walkSpeed(thief)):toBe(steal.CarryWalkSpeed)
 			expect(thief.Character:FindFirstChild("StolenKey") ~= nil):toBe(true)
-			expect(thief.Character.StolenKey.CanCollide):toBe(false)
-			expect(thief.Character.StolenKey.Massless):toBe(true)
+			local parts = 0
+			for _, part in thief.Character.StolenKey:GetDescendants() do
+				if part:IsA("BasePart") then
+					parts += 1
+					expect(part.CanCollide):toBe(false)
+					expect(part.Massless):toBe(true)
+					expect(part.Anchored):toBe(false)
+				end
+			end
+			expect(parts > 0):toBe(true)
 		end)
 
 		it("tells the victim to chase", function()
