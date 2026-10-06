@@ -1,30 +1,37 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local DailyRewards = require(ReplicatedStorage.Config.DailyRewards)
+local TweenService = game:GetService("TweenService")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Daily = require(ReplicatedStorage.Rules.Daily)
+local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
+local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
+local Playtime = require(script.Parent.Parent.Playtime)
 local Types = require(script.Parent.Parent.Types)
 
 type Tile = {
-	Panel: Frame,
-	Action: Kit.Button,
-	Reward: DailyRewards.Reward,
+	Button: Kit.Button,
+	Icon: GuiObject,
+	Status: TextLabel,
+	Reward: TextLabel,
 	Check: GuiObject,
-	IsGlowing: boolean,
+	State: string,
+	Bounce: Tween?,
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.5
+local refreshSeconds = 0.25
 local claimedColor = Kit.Shade(theme.Green, 0.6)
-local lockedColor = Color3.fromHex("E3E9F5")
+local iconRest = UDim2.fromScale(0.2, 0.08)
+local iconUp = UDim2.fromScale(0.2, -0.02)
+local bounceInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, true)
 
 local rewardGlyph: { [string]: string } = {
-	Clicks = "Clicks",
+	Cash = "Clicks",
 	LuckPotion = "Potion",
 	ClicksPotion = "Potion",
 	Key = "Keys",
@@ -33,21 +40,27 @@ local rewardTint: { [string]: Color3? } = {
 	ClicksPotion = Color3.fromRGB(255, 190, 40),
 }
 
+local function minutesText(seconds: number): string
+	return `{math.max(1, math.floor(seconds / 60))}m`
+end
+
 local DailyScreen = {}
 
 function DailyScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
-	local dataController = context.Controllers.DataController
+	local tracker = Economy.Track(context.Controllers.DataController, trove)
+	local localPlayer = Players.LocalPlayer
 	local tiles: { Tile } = {}
+	local claimedHere: { [number]: boolean } = {}
 	local isOpen = false
 	local isBusy = false
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
 		Name = "Daily",
-		Title = "DAILY REWARDS",
-		Glyph = "Daily",
+		Title = "GIFTS",
+		Glyph = "Gift",
 		MaxSize = Vector2.new(900, 560),
 		HeaderColor = theme.Blue,
 		OnClose = function()
@@ -56,200 +69,227 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 
-	local small = Instance.new("Frame")
-	small.Name = "Days"
-	small.BackgroundTransparency = 1
-	small.Position = UDim2.fromOffset(10, 10)
-	small.Size = UDim2.new(0.68, -15, 1, -66)
-	local grid = Instance.new("UIGridLayout")
-	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.CellSize = UDim2.new(1 / 3, -8, 0.5, -6)
-	grid.CellPadding = UDim2.fromOffset(8, 8)
-	grid.Parent = small
-	small.Parent = modal.Body
-
-	local big = Instance.new("Frame")
-	big.Name = "Bonus"
-	big.BackgroundTransparency = 1
-	big.Position = UDim2.new(0.68, 5, 0, 10)
-	big.Size = UDim2.new(0.32, -15, 1, -66)
-	big.Parent = modal.Body
-
-	local status = Kit.Label({
+	Kit.Label({
 		Parent = modal.Body,
-		Name = "Status",
-		Text = "",
-		Position = UDim2.new(0, 10, 1, -8),
-		AnchorPoint = Vector2.new(0, 1),
+		Name = "Hint",
+		Text = "Play to unlock gifts!",
+		Position = UDim2.fromOffset(10, 8),
 		Size = UDim2.new(1, -20, 0, 40),
-		TextSize = 28,
+		TextSize = 30,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
+
+	local grid = Instance.new("Frame")
+	grid.Name = "Gifts"
+	grid.BackgroundTransparency = 1
+	grid.Position = UDim2.fromOffset(10, 56)
+	grid.Size = UDim2.new(1, -20, 1, -66)
+	local layout = Instance.new("UIGridLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.CellSize = UDim2.new(0.2, -8, 0.5, -6)
+	layout.CellPadding = UDim2.fromOffset(8, 10)
+	layout.Parent = grid
+	grid.Parent = modal.Body
 
 	local function now(): number
 		return workspace:GetServerTimeNow()
 	end
 
-	local function currentDaily(): Daily.Stored
-		local value = dataController:Get({ "Daily" })
-		return if type(value) == "table" then value else {}
+	local function rewardText(index: number): string
+		local tier = Playtime.Tiers[index]
+		if tier.Kind == "Cash" then
+			local amount = math.max(tier.Min, math.floor(tier.Amount * tracker.GetStats().Rate))
+			return `+{NumberFormat.Compact(amount)}`
+		elseif tier.Kind == "LuckPotion" then
+			return `Luck {minutesText(tier.Amount)}`
+		elseif tier.Kind == "ClicksPotion" then
+			return `Clicks {minutesText(tier.Amount)}`
+		end
+		return `{string.sub(tier.Rarity, 1, 6)} Key`
 	end
 
-	local function claimedDays(state: Daily.Status, stored: Daily.Stored): number
-		if state.CanClaim then
-			return state.Day - 1
+	local function stopBounce(tile: Tile)
+		local running = tile.Bounce
+		if running then
+			running:Cancel()
+			tile.Bounce = nil
 		end
-		return math.min(#DailyRewards.Rewards, stored.Streak or 0)
+		tile.Icon.Position = iconRest
+	end
+
+	local function startBounce(tile: Tile)
+		if tile.Bounce then
+			return
+		end
+		local tween = TweenService:Create(tile.Icon, bounceInfo, { Position = iconUp })
+		tile.Bounce = tween
+		tween:Play()
+	end
+
+	local function setState(tile: Tile, state: string)
+		if tile.State == state then
+			return
+		end
+		tile.State = state
+		local button = tile.Button
+		tile.Check.Visible = state == "Claimed"
+		button.SetLocked(state == "Locked")
+		button.SetGlow(state == "Ready")
+		if state == "Ready" then
+			button.SetColor(theme.Green)
+			button.SetText("READY!")
+			startBounce(tile)
+		else
+			stopBounce(tile)
+			if state == "Claimed" then
+				button.SetColor(claimedColor)
+				button.SetText("CLAIMED")
+			else
+				button.SetColor(theme.Grey)
+			end
+		end
 	end
 
 	local function refresh()
-		local stored = currentDaily()
-		local state = Daily.Status(stored, now())
-		local claimed = claimedDays(state, stored)
-		for _, tile in tiles do
-			local day = tile.Reward.Day
-			if day <= claimed then
-				Kit.Paint(tile.Panel, claimedColor)
-				tile.Action.SetLocked(false)
-				tile.Action.SetDisabled(true)
-				tile.Action.SetText("CLAIMED")
-				tile.Check.Visible = true
-			elseif state.CanClaim and day == state.Day then
-				Kit.Paint(tile.Panel, if day == #DailyRewards.Rewards then theme.Gold else theme.Green)
-				tile.Action.SetDisabled(false)
-				tile.Action.SetColor(theme.Green)
-				tile.Action.SetText("CLAIM")
-				tile.Check.Visible = false
-				tile.Action.SetLocked(false)
-				if not tile.IsGlowing then
-					tile.IsGlowing = true
-					tile.Action.SetGlow(true)
+		local progress = Playtime.Read(localPlayer, now())
+		for index, tile in tiles do
+			local state = progress.States[index]
+			if state == "Ready" and claimedHere[index] then
+				state = "Claimed"
+			end
+			setState(tile, state)
+			if state == "Locked" then
+				local text = TimeFormat.Clock(progress.Left[index])
+				if tile.Status.Text ~= text then
+					tile.Button.SetText(text)
 				end
-			else
-				Kit.Paint(
-					tile.Panel,
-					if day == #DailyRewards.Rewards then Kit.Shade(theme.Gold, -0.35) else lockedColor
-				)
-				tile.Action.SetDisabled(false)
-				tile.Action.SetColor(theme.Grey)
-				tile.Action.SetText("LOCKED")
-				tile.Action.SetLocked(true)
-				tile.Check.Visible = false
 			end
-			if tile.IsGlowing and not (state.CanClaim and day == state.Day) then
-				tile.IsGlowing = false
-				tile.Action.SetGlow(false)
+			local reward = rewardText(index)
+			if tile.Reward.Text ~= reward then
+				tile.Reward.Text = reward
 			end
-		end
-		if state.CanClaim then
-			if state.StreakBroken and (stored.LastClaim or 0) > 0 then
-				status.Text = "Streak reset! Back to Day 1!"
-			else
-				status.Text = "Your reward is ready!"
-			end
-		else
-			status.Text = `Next reward in {TimeFormat.Hours(state.SecondsLeft)}`
 		end
 	end
 
-	local function claim(reward: DailyRewards.Reward)
+	local function claim(index: number)
 		if isBusy then
 			return
 		end
-		local state = Daily.Status(currentDaily(), now())
-		if not state.CanClaim or state.Day ~= reward.Day then
+		local tile = tiles[index]
+		if tile.State == "Claimed" then
 			playUi("Error")
-			context.Toast("Come back later for this one!", "Bad")
+			context.Toast("You already got that gift!", "Info")
+			return
+		elseif tile.State ~= "Ready" then
+			playUi("Error")
+			context.Toast("Keep playing to unlock this gift!", "Info")
 			return
 		end
 		isBusy = true
 		task.spawn(function()
-			local day = Packets.ClaimDaily:Fire()
+			local reward = rewardText(index)
+			local isClaimed = Packets.ClaimPlaytime:Fire(index)
 			isBusy = false
-			if type(day) == "number" and day > 0 then
+			if isClaimed == true then
+				claimedHere[index] = true
 				playUi("Confirm")
-				context.Toast(`Day {day}: {reward.Label}!`, "Good")
+				Kit.Pulse(tile.Button.Instance, theme.Gold)
+				context.Toast(`Gift: {reward}!`, "Good")
 			else
 				playUi("Error")
-				context.Toast("Oops, couldn't claim that!", "Bad")
+				context.Toast("Oops, couldn't open that gift!", "Bad")
 			end
 			refresh()
 		end)
 	end
 
-	for _, reward in DailyRewards.Rewards do
-		local isBig = reward.Day == #DailyRewards.Rewards
-		local panel = Kit.Panel({
-			Parent = if isBig then big else small,
-			Name = `Day{reward.Day}`,
-			Size = UDim2.fromScale(1, 1),
-			Color = lockedColor,
-			LayoutOrder = reward.Day,
-			Shards = true,
-		})
-		Kit.Label({
-			Parent = panel,
-			Name = "Day",
-			Text = `DAY {reward.Day}`,
-			Position = UDim2.fromOffset(0, 6),
-			Size = UDim2.new(1, 0, 0, if isBig then 34 else 24),
-			TextSize = if isBig then 30 else 22,
-			Align = Enum.TextXAlignment.Center,
-			Scaled = true,
-		})
-		Kit.Icon({
-			Parent = panel,
-			Name = "Icon",
-			Glyph = if isBig then "Gift" else rewardGlyph[reward.Kind] or "Gift",
-			Color = rewardTint[reward.Kind],
-			Position = UDim2.fromScale(if isBig then 0.2 else 0.25, if isBig then 0.18 else 0.2),
-			Size = UDim2.fromScale(if isBig then 0.6 else 0.5, if isBig then 0.36 else 0.3),
-		})
-		Kit.Label({
-			Parent = panel,
-			Name = "Reward",
-			Text = reward.Label,
-			Position = UDim2.new(0, 4, 0.5, if isBig then 20 else 6),
-			Size = UDim2.new(1, -8, 0, if isBig then 30 else 22),
-			TextSize = if isBig then 26 else 18,
-			Align = Enum.TextXAlignment.Center,
-			Scaled = true,
-		})
-		local action = Kit.Button(trove, {
-			Parent = panel,
-			Name = "Action",
-			Text = "LOCKED",
-			Position = UDim2.new(0.5, 0, 1, -8),
-			AnchorPoint = Vector2.new(0.5, 1),
-			Size = UDim2.new(0.86, 0, 0, if isBig then 46 else 36),
-			Color = theme.Red,
-			TextSize = if isBig then 26 else 20,
+	for index, tier in Playtime.Tiers do
+		local button = Kit.Button(trove, {
+			Parent = grid,
+			Name = `Gift{index}`,
+			Glyph = "Gift",
+			Text = "",
+			Color = theme.Grey,
+			LayoutOrder = index,
+			TextSize = 24,
+			IconScale = 0.4,
 			Callback = function()
-				claim(reward)
+				claim(index)
 			end,
 			Sound = playUi,
 		})
+		local face = button.Face
+		local icon = face:FindFirstChild("Icon") :: GuiObject
+		icon.Position = iconRest
+		icon.Size = UDim2.fromScale(0.6, 0.4)
+		local status = face:FindFirstChild("Text") :: TextLabel
+		status.Position = UDim2.fromScale(0.04, 0.66)
+		status.Size = UDim2.fromScale(0.92, 0.3)
+		Kit.Label({
+			Parent = face,
+			Name = "Tier",
+			Text = Playtime.Name(tier.Seconds),
+			Position = UDim2.fromOffset(8, 4),
+			Size = UDim2.new(0.5, 0, 0, 20),
+			TextSize = 16,
+		})
+		local row = Instance.new("Frame")
+		row.Name = "Row"
+		row.BackgroundTransparency = 1
+		row.Position = UDim2.fromScale(0, 0.46)
+		row.Size = UDim2.fromScale(1, 0.2)
+		local rowList = Instance.new("UIListLayout")
+		rowList.FillDirection = Enum.FillDirection.Horizontal
+		rowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		rowList.VerticalAlignment = Enum.VerticalAlignment.Center
+		rowList.Padding = UDim.new(0, 4)
+		rowList.Parent = row
+		row.Parent = face
+		Kit.Icon({
+			Parent = row,
+			Name = "RewardIcon",
+			Glyph = rewardGlyph[tier.Kind],
+			Color = rewardTint[tier.Kind],
+			Size = UDim2.fromOffset(24, 24),
+			LayoutOrder = 1,
+		})
+		local reward = Kit.Label({
+			Parent = row,
+			Name = "Reward",
+			Text = "",
+			Size = UDim2.new(1, -34, 1, 0),
+			TextSize = 20,
+			Align = Enum.TextXAlignment.Left,
+			Scaled = true,
+			LayoutOrder = 2,
+		})
+		reward.TextWrapped = false
 		local check = Kit.Icon({
-			Parent = panel,
+			Parent = face,
 			Name = "Check",
 			Glyph = "Check",
-			Size = UDim2.fromOffset(if isBig then 36 else 28, if isBig then 36 else 28),
+			Size = UDim2.fromOffset(28, 28),
 			Position = UDim2.new(1, -6, 0, 4),
 			AnchorPoint = Vector2.new(1, 0),
 		})
 		check.Visible = false
-		table.insert(
-			tiles,
-			{ Panel = panel, Action = action, Reward = reward, Check = check, IsGlowing = false }
-		)
+		table.insert(tiles, {
+			Button = button,
+			Icon = icon,
+			Status = status,
+			Reward = reward,
+			Check = check,
+			State = "",
+			Bounce = nil,
+		})
 	end
 
-	trove:Add(dataController:Observe({ "Daily" }, function(_value: any)
-		if isOpen then
-			refresh()
+	trove:Add(function()
+		for _, tile in tiles do
+			stopBounce(tile)
 		end
-	end))
+	end)
 
 	local elapsed = 0
 	trove:Connect(RunService.Heartbeat, function(dt: number)

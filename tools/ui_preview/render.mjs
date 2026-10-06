@@ -147,7 +147,8 @@ function renderNode(node) {
   for (const stroke of arr(node.strokes)) shadows.push(strokeShadow(stroke));
   if (node.bg || node.gradient) {
     const bgAlpha = node.bgAlpha ?? 0;
-    if (node.gradient) {
+    if (node.gradient && node.text && !node.bg) {
+    } else if (node.gradient) {
       style.push(`background:${gradientCss(node.gradient, node.bg, bgAlpha)}`);
     } else {
       style.push(`background:${css(node.bg, bgAlpha)}`);
@@ -291,7 +292,7 @@ async function main() {
   const fontFaces = ensureFonts();
   fs.mkdirSync(pngDir, { recursive: true });
   const files = fs.readdirSync(jsonDir).filter((file) => file.endsWith(".json"));
-  const launch = { args: ["--no-sandbox", "--font-render-hinting=none"] };
+  const launch = { args: ["--no-sandbox", "--font-render-hinting=none", "--allow-file-access-from-files"] };
   const defaultPath = "/opt/pw-browsers/chromium";
   let browser;
   try {
