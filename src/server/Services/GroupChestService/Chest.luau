@@ -99,13 +99,13 @@ function Chest.AddSign(part: BasePart): BillboardGui
 	sign.Adornee = part
 	sign.Size = UDim2.fromOffset(300, 92)
 	sign.StudsOffset = Vector3.new(0, 5.5, 0)
-	sign.MaxDistance = 140
+	sign.MaxDistance = 35
 	sign.LightInfluence = 0
 	local title = newLabel(Chest.TitleName, "GROUP CHEST", gold, UDim2.new(), UDim2.fromScale(1, 0.58))
 	title.Parent = sign
 	local subtitle = newLabel(
 		Chest.SubtitleName,
-		"Join the group to claim!",
+		"Like the game + join the group!",
 		Color3.new(1, 1, 1),
 		UDim2.fromScale(0, 0.6),
 		UDim2.fromScale(1, 0.36)

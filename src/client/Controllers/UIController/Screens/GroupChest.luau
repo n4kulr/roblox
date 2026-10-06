@@ -21,7 +21,7 @@ local promptName = "ChestPrompt"
 local subtitleName = "Subtitle"
 local refreshSeconds = 0.5
 local memberCacheSeconds = 20
-local joinMessage = "Join our group to open the chest!"
+local joinMessage = "Like the game and join our group to open the chest!"
 local soonMessage = "Group coming soon!"
 local fallbackHint = "Search THOCK group on Roblox"
 local confettiColors =
@@ -257,7 +257,7 @@ function GroupChest.new(context: Types.Context): Types.Screen
 		if config.GroupId <= 0 then
 			label.Text = soonMessage
 		elseif not checkMember() then
-			label.Text = "Join the group to claim!"
+			label.Text = "Like the game + join the group!"
 		else
 			local left = secondsLeft()
 			label.Text = if left > 0 then `Ready in {countdownText(left)}` else "READY!"
