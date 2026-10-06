@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 
 export type Context = {
@@ -580,12 +581,13 @@ local function addBase(model: Model, key: Keys.Key?, color: Color3, shape: Shape
 end
 
 function KeyModels.HasDecoration(keyId: string): boolean
-	return decorations[keyId] ~= nil
+	return decorations[KeyTiers.Parse(keyId)] ~= nil
 end
 
-function KeyModels.BuildScaled(keyId: string, scale: number): Model
+function KeyModels.BuildScaled(variantId: string, scale: number): Model
+	local keyId, tier = KeyTiers.Parse(variantId)
 	local model = Instance.new("Model")
-	model.Name = keyId
+	model.Name = variantId
 	local key = Keys.ById[keyId]
 	local rarity = if key then Keys.GetRarity(key) else nil
 	local color = if rarity then rarity.Color else fallbackColor
@@ -603,6 +605,17 @@ function KeyModels.BuildScaled(keyId: string, scale: number): Model
 	if skirt and skirt:IsA("BasePart") then
 		model.PrimaryPart = skirt
 	end
+	if tier > 0 then
+		local color, reflectance, material = Keys.VariantStyle(variantId)
+		for _, name in { "Skirt", "Top" } do
+			local part = model:FindFirstChild(name)
+			if part and part:IsA("BasePart") then
+				part.Color = if name == "Skirt" then color:Lerp(outline, 0.35) else color
+				part.Reflectance = reflectance
+				part.Material = material
+			end
+		end
+	end
 	return model
 end
 
@@ -611,7 +624,7 @@ function KeyModels.Build(keyId: string): Model
 end
 
 function KeyModels.BuildDecoration(keyId: string, origin: CFrame, scale: number, anchored: boolean): Model?
-	local decoration = decorations[keyId]
+	local decoration = decorations[KeyTiers.Parse(keyId)]
 	if not decoration then
 		return nil
 	end

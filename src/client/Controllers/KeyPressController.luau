@@ -145,7 +145,7 @@ end
 
 local function capKey(cap: CapState): Keys.Key?
 	local keyId = cap.Part:GetAttribute("KeyId")
-	return if type(keyId) == "string" then Keys.ById[keyId] else nil
+	return if type(keyId) == "string" then Keys.Resolve(keyId) else nil
 end
 
 local function playCap(cap: CapState, player: Player, kind: "Press" | "Release")

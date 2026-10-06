@@ -27,7 +27,7 @@ function Pickups.Create(
 	keyId: string,
 	parent: Instance
 ): (BasePart?, ProximityPrompt?)
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	local cap = KeyVisual.NewCap(keyId, Pickups.Name, capSize)
 	if not cap or not key then
 		return nil, nil

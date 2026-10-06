@@ -12,6 +12,7 @@ local Packets = {
 	PlaceKey = Packet("PlaceKey", Packet.NumberU8, Packet.String):Response(Packet.Boolean8):RateLimit(10, 1),
 	ClearSlot = Packet("ClearSlot", Packet.NumberU8):Response(Packet.Boolean8):RateLimit(10, 1),
 	EquipBest = Packet("EquipBest"):Response(Packet.Boolean8):RateLimit(2, 1),
+	FuseKey = Packet("FuseKey", Packet.String):Response(Packet.String):RateLimit(4, 1),
 	SellKey = Packet("SellKey", Packet.String, Packet.NumberU16):Response(Packet.Boolean8):RateLimit(5, 1),
 	SetSetting = Packet("SetSetting", Packet.String, Packet.NumberF32):RateLimit(10, 1),
 	StealAlert = Packet("StealAlert", Packet.String, Packet.NumberU16, Packet.NumberU8),

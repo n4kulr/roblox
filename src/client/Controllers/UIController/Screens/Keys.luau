@@ -2,21 +2,37 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
+local Variants = require(ReplicatedStorage.Rules.Variants)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Cells = require(script.Parent.Parent.Cells)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
+type Entry = {
+	Id: string,
+	Key: Keys.Key,
+	Tier: number,
+	Cell: Cells.Cell,
+}
+
 local theme = Kit.Theme
 local sureRank = 4
 local confirmSeconds = 3
 local sellCooldown = 0.2
 local refreshSeconds = 0.2
+local gridShare = 0.6
+local fuseSeconds = 0.55
+local flyerCount = Variants.FuseCost
+local previewHeight = 140
+local contentHeight = 540
+local spinSpeed = 0.9
 
 local sortModes = { "BEST", "RARITY", "AMOUNT", "NAME" }
 local sortMode = 1
@@ -27,18 +43,22 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local dataController = context.Controllers.DataController
 	local playUi = Kit.UiSound(context.Controllers)
-	local cells: { [string]: Cells.Cell } = {}
+	local entries: { [string]: Entry } = {}
 	local inventory: { [string]: number } = {}
 	local boardTags: { [number]: string } = {}
 	local isOpen = false
 	local isDirty = true
 	local isEquipping = false
 	local isSelling = false
+	local isFusing = false
 	local lastSell = 0
 	local detailKey: string? = nil
+	local previewKey: string? = nil
 	local confirmStamp = 0
 	local isConfirming = false
 	local tracker: Economy.Tracker
+	local previewModel: Model? = nil
+	local previewTier = 0
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -100,11 +120,14 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end,
 		Sound = playUi,
 	})
+
+	local fullGridSize = UDim2.new(1, -12, 1, -12)
+	local splitGridSize = UDim2.new(gridShare, -9, 1, -12)
 	local grid = Kit.GridScroll({
 		Parent = body,
 		Name = "Grid",
 		Position = UDim2.fromOffset(6, 6),
-		Size = UDim2.new(1, -12, 1, -12),
+		Size = fullGridSize,
 		CellSize = Cells.Size,
 	})
 	local emptyLabel = Kit.Label({
@@ -118,86 +141,195 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Wrapped = true,
 	})
 
-	local overlay = Instance.new("TextButton")
-	overlay.Name = "DetailOverlay"
-	overlay.AutoButtonColor = false
-	overlay.Text = ""
-	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
-	overlay.BackgroundTransparency = 0.45
-	overlay.BorderSizePixel = 0
-	overlay.Size = UDim2.fromScale(1, 1)
-	overlay.Visible = false
-	overlay.Parent = modal.Panel
-	Kit.Corner(overlay, Kit.Radius.Panel)
 	local detail = Kit.Panel({
-		Parent = overlay,
+		Parent = body,
 		Name = "Detail",
-		Size = UDim2.fromOffset(340, 400),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.new(1 - gridShare, -9, 1, -12),
+		Position = UDim2.new(gridShare, 3, 0, 6),
 		Color = theme.PanelDeep,
 		Radius = Kit.Radius.Panel,
 		StrokeThickness = 4,
 	})
-	detail.Active = true
-	local detailPop = Instance.new("UIScale")
-	detailPop.Parent = detail
+	detail.Visible = false
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Name = "Scroller"
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.Size = UDim2.fromScale(1, 1)
+	scroller.CanvasSize = UDim2.fromOffset(0, contentHeight)
+	scroller.ScrollBarThickness = 6
+	scroller.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroller.Parent = detail
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.BackgroundTransparency = 1
+	content.Size = UDim2.new(1, -8, 0, contentHeight)
+	content.Parent = scroller
+
+	local previewArea = Instance.new("Frame")
+	previewArea.Name = "Preview"
+	previewArea.BackgroundTransparency = 1
+	previewArea.Size = UDim2.new(1, 0, 0, previewHeight)
+	previewArea.Parent = content
+	local previewPop = Instance.new("UIScale")
+	previewPop.Parent = previewArea
 	Kit.Burst({
-		Parent = detail,
-		Diameter = 170,
-		Position = UDim2.fromOffset(170, 84),
+		Parent = previewArea,
+		Diameter = 150,
+		Position = UDim2.new(0.5, -75, 0, 6),
 	})
 	local detailCap = Kit.Keycap({
-		Parent = detail,
+		Parent = previewArea,
 		Color = theme.Grey,
-		Size = UDim2.fromOffset(92, 92),
-		Position = UDim2.new(0.5, 0, 0, 36),
+		Size = UDim2.fromOffset(96, 96),
+		Position = UDim2.new(0.5, 0, 0, 24),
 		AnchorPoint = Vector2.new(0.5, 0),
 	})
+	local viewport = Instance.new("ViewportFrame")
+	viewport.Name = "Model"
+	viewport.BackgroundTransparency = 1
+	viewport.Size = UDim2.new(1, -20, 1, 0)
+	viewport.Position = UDim2.fromOffset(10, 0)
+	viewport.Visible = false
+	viewport.Parent = previewArea
+	local flash = Instance.new("Frame")
+	flash.Name = "Flash"
+	flash.BackgroundColor3 = Color3.new(1, 1, 1)
+	flash.BackgroundTransparency = 1
+	flash.BorderSizePixel = 0
+	flash.Size = UDim2.fromScale(1, 1)
+	flash.ZIndex = 8
+	flash.Parent = previewArea
+	Kit.Corner(flash, Kit.Radius.L)
+
 	local detailName = Kit.Label({
-		Parent = detail,
+		Parent = content,
 		Name = "Name",
 		Text = "",
-		Position = UDim2.fromOffset(14, 138),
-		Size = UDim2.new(1, -28, 0, 36),
-		TextSize = 32,
+		Position = UDim2.fromOffset(6, 144),
+		Size = UDim2.new(1, -12, 0, 34),
+		TextSize = 30,
 		Title = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	local detailInfo = Kit.Label({
-		Parent = detail,
-		Name = "Info",
+	local rarityChip = Kit.Chip({
+		Parent = content,
+		Name = "RarityChip",
 		Text = "",
-		Position = UDim2.fromOffset(14, 176),
-		Size = UDim2.new(1, -28, 0, 22),
-		TextSize = 19,
+		Size = UDim2.fromOffset(104, 24),
+		Position = UDim2.new(0.5, -4, 0, 182),
+		AnchorPoint = Vector2.new(1, 0),
+		Color = theme.Grey,
+		TextSize = 14,
+	})
+	local tierChip = Kit.Chip({
+		Parent = content,
+		Name = "TierChip",
+		Text = "",
+		Size = UDim2.fromOffset(104, 24),
+		Position = UDim2.new(0.5, 4, 0, 182),
+		Color = theme.Grey,
+		TextSize = 14,
+	})
+	local detailIncome = Kit.Label({
+		Parent = content,
+		Name = "Income",
+		Text = "",
+		Position = UDim2.fromOffset(6, 212),
+		Size = UDim2.new(1, -12, 0, 42),
+		TextSize = 36,
+		Color = theme.Good,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+		Title = true,
+		StrokeSize = 5,
+	})
+	local detailOwned = Kit.Label({
+		Parent = content,
+		Name = "Owned",
+		Text = "",
+		Position = UDim2.fromOffset(6, 256),
+		Size = UDim2.new(1, -12, 0, 22),
+		TextSize = 18,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local detailBoard = Kit.Label({
+		Parent = content,
+		Name = "OnKeyboard",
+		Text = "",
+		Position = UDim2.fromOffset(6, 278),
+		Size = UDim2.new(1, -12, 0, 22),
+		TextSize = 18,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
 	local detailPerk = Kit.Label({
-		Parent = detail,
+		Parent = content,
 		Name = "Perk",
 		Text = "",
-		Position = UDim2.fromOffset(14, 200),
-		Size = UDim2.new(1, -28, 0, 22),
-		TextSize = 19,
+		Position = UDim2.fromOffset(6, 300),
+		Size = UDim2.new(1, -12, 0, 22),
+		TextSize = 18,
 		Color = theme.Gold,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
-	local detailOwn = Kit.Label({
-		Parent = detail,
-		Name = "Own",
+
+	local fusePanel = Kit.Panel({
+		Parent = content,
+		Name = "Fuse",
+		Size = UDim2.new(1, -12, 0, 150),
+		Position = UDim2.fromOffset(6, 326),
+		Color = theme.Well,
+		Radius = Kit.Radius.L,
+		StrokeThickness = 3,
+	})
+	local fuseTitle = Kit.Label({
+		Parent = fusePanel,
+		Name = "FuseTitle",
 		Text = "",
-		Position = UDim2.fromOffset(14, 224),
-		Size = UDim2.new(1, -28, 0, 22),
+		Position = UDim2.fromOffset(8, 6),
+		Size = UDim2.new(1, -16, 0, 26),
 		TextSize = 17,
-		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
+	local fuseBar = Kit.Bar({
+		Parent = fusePanel,
+		Name = "FuseProgress",
+		Size = UDim2.new(1, -24, 0, 26),
+		Position = UDim2.fromOffset(12, 36),
+		Color = theme.Green,
+		Text = "0/5",
+		TextSize = 16,
+	})
+	local fuseBoost = Kit.Label({
+		Parent = fusePanel,
+		Name = "FuseBoost",
+		Text = "",
+		Position = UDim2.fromOffset(8, 66),
+		Size = UDim2.new(1, -16, 0, 22),
+		TextSize = 17,
+		Color = theme.Gold,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+	})
+	local fuseButton: Kit.Button
+
+	local sellRow = Instance.new("Frame")
+	sellRow.Name = "SellRow"
+	sellRow.BackgroundTransparency = 1
+	sellRow.Position = UDim2.fromOffset(6, 486)
+	sellRow.Size = UDim2.new(1, -12, 0, 46)
+	sellRow.Parent = content
+	local sellLayout = Instance.new("UIListLayout")
+	sellLayout.FillDirection = Enum.FillDirection.Horizontal
+	sellLayout.Padding = UDim.new(0, 8)
+	sellLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	sellLayout.Parent = sellRow
 
 	local function boardCounts(): { [string]: number }
 		local counts: { [string]: number } = {}
@@ -205,7 +337,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		local board = tracker.GetBoard()
 		for index = 1, slots do
 			local keyId = board[index]
-			if type(keyId) == "string" and Keys.ById[keyId] then
+			if type(keyId) == "string" and Keys.Resolve(keyId) then
 				counts[keyId] = (counts[keyId] or 0) + 1
 			end
 		end
@@ -225,10 +357,68 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		return tags
 	end
 
+	local function clearPreviewModel()
+		if previewModel then
+			previewModel:Destroy()
+			previewModel = nil
+		end
+		viewport.Visible = false
+		detailCap.Instance.Visible = true
+	end
+
+	local function buildPreview(keyId: string)
+		clearPreviewModel()
+		local _, tier = KeyTiers.Parse(keyId)
+		local ok = pcall(function()
+			local model = KeyModels.Build(keyId)
+			local camera = Instance.new("Camera")
+			camera.FieldOfView = 40
+			camera.CFrame = CFrame.lookAt(Vector3.new(0, 5.5, 9.5), Vector3.new(0, 1.2, 0))
+			camera.Parent = viewport
+			viewport.CurrentCamera = camera
+			model.Parent = viewport
+			previewModel = model
+			previewTier = tier
+		end)
+		if ok and previewModel then
+			viewport.Visible = true
+			detailCap.Instance.Visible = ReplicatedStorage:GetAttribute("IconAtlasPreview") ~= nil
+		else
+			previewModel = nil
+		end
+	end
+
+	local function spin(now: number)
+		local model = previewModel
+		if not model then
+			return
+		end
+		pcall(function()
+			model:PivotTo(CFrame.Angles(0, now * spinSpeed, 0))
+			if previewTier == 2 then
+				for _, name in { "Skirt", "Top" } do
+					local part = model:FindFirstChild(name)
+					if part and part:IsA("BasePart") then
+						part.Color = Color3.fromHSV((now * 0.25) % 1, 0.55, 1)
+					end
+				end
+			end
+		end)
+	end
+
+	local function setLayout(showDetail: boolean)
+		detail.Visible = showDetail
+		Kit.Tween(grid, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+			Size = if showDetail then splitGridSize else fullGridSize,
+		})
+	end
+
 	local function closeDetail()
 		detailKey = nil
+		previewKey = nil
 		isConfirming = false
-		overlay.Visible = false
+		clearPreviewModel()
+		setLayout(false)
 	end
 
 	local function sell(keyId: string, count: number)
@@ -257,26 +447,61 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local function spareOf(keyId: string): number
 		return inventory[keyId] or 0
 	end
+
 	local function refreshDetail()
 		local keyId = detailKey
-		local key = if keyId then Keys.ById[keyId] else nil
+		local key = Keys.Resolve(keyId)
 		if not keyId or not key then
 			return
 		end
 		local rarity = Keys.GetRarity(key)
+		local _, tier = KeyTiers.Parse(keyId)
+		local tierInfo = KeyTiers.Get(tier)
 		local spare = spareOf(keyId)
 		local onBoard = boardCounts()[keyId] or 0
-		if spare + onBoard < 1 then
+		if spare + onBoard < 1 and not isFusing then
 			closeDetail()
 			return
 		end
-		detailCap.SetColor(rarity.Color)
+		local style = Keys.VariantStyle(keyId)
+		if previewKey ~= keyId then
+			previewKey = keyId
+			buildPreview(keyId)
+		end
+		detailCap.SetColor(style)
 		detailCap.SetGlyph(Cells.Glyph(key))
-		detailName.Text = key.Name
-		detailName.TextColor3 = Kit.Shade(rarity.Color, 0.2)
-		detailInfo.Text = `{rarity.Name}  |  +{NumberFormat.Compact(rarity.Income)}/s`
+		detailName.Text = Variants.Name(keyId)
+		detailName.TextColor3 = Kit.Shade(style, 0.2)
+		rarityChip.Text = string.upper(rarity.Name)
+		local rarityPlate = rarityChip.Parent :: Frame
+		rarityPlate.BackgroundColor3 = rarity.Color
+		tierChip.Text = string.upper(tierInfo.Name)
+		local tierPlate = tierChip.Parent :: Frame
+		tierPlate.BackgroundColor3 = if tier == 0 then theme.Grey else tierInfo.Color
+		detailIncome.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
+		detailOwned.Text = `Owned: {spare + onBoard}`
+		detailBoard.Text = `On your keyboard: {onBoard}`
 		detailPerk.Text = Cells.PerkText(key) or ""
-		detailOwn.Text = `You have {spare + onBoard}: {onBoard} on keyboard, {spare} spare`
+
+		local nextId = Variants.Next(keyId)
+		if nextId then
+			local cost = Variants.FuseCost
+			local multiplier = Variants.Multiplier(tier + 1)
+			fuseTitle.Text = `{cost} x {Variants.Name(keyId)}  >  1 {Variants.Name(nextId)}`
+			fuseBar.SetValue(math.min(spare, cost) / cost)
+			fuseBar.SetText(`{spare}/{cost}`)
+			fuseBoost.Text = `Income x{multiplier}  (+{NumberFormat.Compact(Keys.GetIncome(nextId))}/s)`
+			fuseButton.Instance.Visible = true
+			fuseButton.SetText("FUSE")
+			fuseButton.SetColor(if spare >= cost then theme.Green else theme.Grey)
+		else
+			fuseTitle.Text = "MAX TIER! Can't fuse higher."
+			fuseBar.SetValue(1)
+			fuseBar.SetText("MAX")
+			fuseBoost.Text = `Income x{Variants.Multiplier(tier)}`
+			fuseButton.Instance.Visible = false
+		end
+
 		local value = Keys.GetSellValue(keyId)
 		if spare < 1 then
 			sellOne.SetDisabled(true)
@@ -297,16 +522,100 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
+	local function playMerge(color: Color3)
+		local center = UDim2.new(0.5, 0, 0, 70)
+		for index = 1, flyerCount do
+			local angle = (index - 1) / flyerCount * math.pi * 2 - math.pi / 2
+			local start = UDim2.new(0.5, math.cos(angle) * 120, 0, 70 + math.sin(angle) * 60)
+			local flyer = Kit.Keycap({
+				Parent = detail,
+				Name = "Flyer",
+				Color = color,
+				Glyph = "",
+				Size = UDim2.fromOffset(34, 34),
+				Position = start,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+			})
+			flyer.Instance.ZIndex = 10
+			Kit.Tween(
+				flyer.Instance,
+				TweenInfo.new(fuseSeconds * 0.65, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+				{ Position = center }
+			)
+			task.delay(fuseSeconds * 0.65, function()
+				flyer.Instance:Destroy()
+			end)
+		end
+		task.delay(fuseSeconds * 0.65, function()
+			flash.BackgroundTransparency = 0.1
+			Kit.Tween(flash, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { BackgroundTransparency = 1 })
+			previewPop.Scale = 0.6
+			Kit.Tween(previewPop, Kit.PopInfo(), { Scale = 1 })
+		end)
+	end
+
+	local function fuse()
+		local keyId = detailKey
+		if not keyId or isFusing then
+			return
+		end
+		local nextId = Variants.Next(keyId)
+		if not nextId then
+			return
+		end
+		local cost = Variants.FuseCost
+		local spare = spareOf(keyId)
+		if spare < cost then
+			playUi("Error")
+			context.Toast(`Need {cost - spare} more {Variants.Name(keyId)}!`, "Info")
+			return
+		end
+		isFusing = true
+		playMerge((Keys.VariantStyle(keyId)))
+		task.spawn(function()
+			local result = Packets.FuseKey:Fire(keyId)
+			task.wait(fuseSeconds)
+			isFusing = false
+			if type(result) == "string" and result ~= "" then
+				playUi("Confirm")
+				context.Toast(`Fused into {Variants.Name(result)}!`, "Good")
+				detailKey = result
+				isConfirming = false
+				isDirty = true
+				refreshAll()
+			else
+				playUi("Error")
+				context.Toast("Couldn't fuse that!", "Bad")
+				isDirty = true
+			end
+		end)
+	end
+
+	fuseButton = Kit.Button(trove, {
+		Parent = fusePanel,
+		Name = "FuseButton",
+		Text = "FUSE",
+		Glyph = "Sparkle",
+		IconLeft = true,
+		Position = UDim2.fromOffset(12, 94),
+		Size = UDim2.new(1, -24, 0, 50),
+		Color = theme.Grey,
+		TextSize = 28,
+		Title = true,
+		Callback = fuse,
+		Sound = playUi,
+	})
+
 	sellOne = Kit.Button(trove, {
-		Parent = detail,
+		Parent = sellRow,
 		Name = "SellOne",
 		Text = "SELL 1",
 		Glyph = "Sell",
 		IconLeft = true,
-		Position = UDim2.fromOffset(16, 264),
-		Size = UDim2.new(1, -32, 0, 56),
+		Size = UDim2.new(0.5, -4, 1, 0),
 		Color = theme.Green,
-		TextSize = 24,
+		TextSize = 17,
+		LayoutOrder = 1,
 		Callback = function()
 			local keyId = detailKey
 			if keyId then
@@ -317,18 +626,18 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 	sellAll = Kit.Button(trove, {
-		Parent = detail,
+		Parent = sellRow,
 		Name = "SellAll",
 		Text = "SELL SPARE",
 		Glyph = "Income",
 		IconLeft = true,
-		Position = UDim2.fromOffset(16, 332),
-		Size = UDim2.new(1, -32, 0, 56),
+		Size = UDim2.new(0.5, -4, 1, 0),
 		Color = theme.Orange,
-		TextSize = 24,
+		TextSize = 17,
+		LayoutOrder = 2,
 		Callback = function()
 			local keyId = detailKey
-			local key = if keyId then Keys.ById[keyId] else nil
+			local key = Keys.Resolve(keyId)
 			if not keyId or not key then
 				return
 			end
@@ -336,7 +645,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			if spare < 1 then
 				return
 			end
-			if (Cells.RarityRank[key.Rarity] or 1) >= sureRank and not isConfirming then
+			local _, tier = KeyTiers.Parse(keyId)
+			local isPrized = (Cells.RarityRank[key.Rarity] or 1) >= sureRank or tier > 0
+			if isPrized and not isConfirming then
 				isConfirming = true
 				confirmStamp += 1
 				local stamp = confirmStamp
@@ -356,50 +667,69 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Sound = playUi,
 	})
 	Kit.CloseButton(trove, detail, closeDetail, playUi)
-	trove:Connect(overlay.Activated, closeDetail)
 
 	local function openDetail(keyId: string)
 		detailKey = keyId
+		previewKey = nil
 		isConfirming = false
-		overlay.Visible = true
-		detailPop.Scale = 0.85
-		Kit.Tween(detailPop, Kit.PopInfo(), { Scale = 1 })
+		setLayout(true)
+		previewPop.Scale = 0.85
+		Kit.Tween(previewPop, Kit.PopInfo(), { Scale = 1 })
 		refreshDetail()
 	end
 
-	for rank, key in Cells.SortedCatalog(true) do
+	local function ensureEntry(keyId: string): Entry?
+		local existing = entries[keyId]
+		if existing then
+			return existing
+		end
+		local key = Keys.Resolve(keyId)
+		if not key then
+			return nil
+		end
+		local _, tier = KeyTiers.Parse(keyId)
 		local cell = Cells.New(trove, {
 			Parent = grid,
 			Key = key,
-			LayoutOrder = rank,
+			KeyId = keyId,
+			LayoutOrder = 0,
 			HasChips = true,
 			Callback = function()
-				openDetail(key.Id)
+				openDetail(keyId)
 			end,
 			Sound = playUi,
 		})
 		cell.Instance.Visible = false
-		cell.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(key.Id))}/s`
-		cells[key.Id] = cell
+		cell.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
+		local entry: Entry = { Id = keyId, Key = key, Tier = tier, Cell = cell }
+		entries[keyId] = entry
+		return entry
 	end
 
-	local rankedKeys = Cells.SortedCatalog(true)
-	local function ordered(totals: { [string]: number }): { Keys.Key }
+	local function ordered(totals: { [string]: number }): { Entry }
 		local mode = sortModes[sortMode]
-		local list = table.clone(rankedKeys)
-		table.sort(list, function(a: Keys.Key, b: Keys.Key): boolean
+		local list: { Entry } = {}
+		for _, entry in entries do
+			table.insert(list, entry)
+		end
+		table.sort(list, function(a: Entry, b: Entry): boolean
 			local incomeA = Keys.GetIncome(a.Id)
 			local incomeB = Keys.GetIncome(b.Id)
-			local rankA = Cells.RarityRank[a.Rarity] or 1
-			local rankB = Cells.RarityRank[b.Rarity] or 1
+			local rankA = Cells.RarityRank[a.Key.Rarity] or 1
+			local rankB = Cells.RarityRank[b.Key.Rarity] or 1
+			local nameA = Variants.Name(a.Id)
+			local nameB = Variants.Name(b.Id)
 			if mode == "NAME" then
-				return a.Name < b.Name
+				return nameA < nameB
 			end
 			if mode == "AMOUNT" and totals[a.Id] ~= totals[b.Id] then
 				return (totals[a.Id] or 0) > (totals[b.Id] or 0)
 			end
-			if mode == "RARITY" and rankA ~= rankB then
-				return rankA > rankB
+			if mode == "RARITY" and (rankA ~= rankB or a.Tier ~= b.Tier) then
+				if rankA ~= rankB then
+					return rankA > rankB
+				end
+				return a.Tier > b.Tier
 			end
 			if incomeA ~= incomeB then
 				return incomeA > incomeB
@@ -407,7 +737,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			if rankA ~= rankB then
 				return rankA > rankB
 			end
-			return a.Name < b.Name
+			return nameA < nameB
 		end)
 		return list
 	end
@@ -416,17 +746,24 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		isDirty = false
 		sortButton.SetText(`SORT: {sortModes[sortMode]}`)
 		local onBoard = boardCounts()
+		for keyId in inventory do
+			ensureEntry(keyId)
+		end
+		for keyId in onBoard do
+			ensureEntry(keyId)
+		end
 		local totals: { [string]: number } = {}
-		for keyId in cells do
+		for keyId in entries do
 			totals[keyId] = (inventory[keyId] or 0) + (onBoard[keyId] or 0)
 		end
-		for rank, key in ordered(totals) do
-			cells[key.Id].Instance.LayoutOrder = rank
+		for rank, entry in ordered(totals) do
+			entry.Cell.Instance.LayoutOrder = rank
 		end
 		local tags = stolenTags()
 		local ownedKinds = 0
-		for keyId, cell in cells do
-			local total = (inventory[keyId] or 0) + (onBoard[keyId] or 0)
+		for keyId, entry in entries do
+			local cell = entry.Cell
+			local total = totals[keyId]
 			cell.Instance.Visible = total > 0
 			if total > 0 then
 				ownedKinds += 1
@@ -481,6 +818,9 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local elapsed = 0
 	trove:Connect(RunService.Heartbeat, function(dt: number)
+		if isOpen and detailKey then
+			spin(os.clock())
+		end
 		if not isOpen or not isDirty then
 			return
 		end

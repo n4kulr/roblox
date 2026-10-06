@@ -19,7 +19,7 @@ local function clearBoard(player: Player, data: PlayerData.Data)
 	local tags: { string } = {}
 	for index = 1, GameConfig.BoardSlots do
 		local keyId = data.Board[index]
-		if type(keyId) == "string" and Keys.ById[keyId] then
+		if type(keyId) == "string" and Keys.Resolve(keyId) then
 			inventory[keyId] = (inventory[keyId] or 0) + 1
 		end
 		board[index] = ""

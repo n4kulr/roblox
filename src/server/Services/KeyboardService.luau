@@ -10,6 +10,7 @@ local Income = require(ReplicatedStorage.Rules.Income)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local Variants = require(ReplicatedStorage.Rules.Variants)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
@@ -48,7 +49,7 @@ local function isInteger(value: any): boolean
 end
 
 local function isEmptySlot(keyId: any): boolean
-	return type(keyId) ~= "string" or Keys.ById[keyId] == nil
+	return type(keyId) ~= "string" or Keys.Resolve(keyId) == nil
 end
 
 local function settledValues(player: Player, data: PlayerData.Data, now: number): (number, number)
@@ -132,7 +133,7 @@ local function normalize(player: Player, data: PlayerData.Data)
 		if not isSlotIndex(index) or index > GameConfig.BoardSlots then
 			changed = true
 		end
-		if isSlotIndex(index) and type(keyId) == "string" and Keys.ById[keyId] then
+		if isSlotIndex(index) and type(keyId) == "string" and Keys.Resolve(keyId) then
 			local tag = if type(oldTags) == "table" then oldTags[index] else nil
 			table.insert(
 				placed,
@@ -239,7 +240,7 @@ local function placeKey(player: Player, slot: number, keyId: string): boolean
 	if not data or slot < 1 or slot > Stats.Slots(data.Upgrades) then
 		return false
 	end
-	if Keys.ById[keyId] == nil or (data.Inventory[keyId] or 0) < 1 then
+	if Keys.Resolve(keyId) == nil or (data.Inventory[keyId] or 0) < 1 then
 		return false
 	end
 	settle(player)
@@ -277,7 +278,7 @@ local function sellKey(player: Player, keyId: string, count: number): boolean
 		return false
 	end
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	if not data or Keys.ById[keyId] == nil or (data.Inventory[keyId] or 0) < count then
+	if not data or Keys.Resolve(keyId) == nil or (data.Inventory[keyId] or 0) < count then
 		return false
 	end
 	settle(player)
@@ -285,6 +286,22 @@ local function sellKey(player: Player, keyId: string, count: number): boolean
 	local cash = math.min(maxCash, data.Cash + Keys.GetSellValue(keyId) * count)
 	services.DataService:Set(player, { "Cash" }, cash)
 	return true
+end
+
+local function fuseKey(player: Player, keyId: string): string
+	if type(keyId) ~= "string" then
+		return ""
+	end
+	local nextId = Variants.Next(keyId)
+	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	if not data or not nextId or (data.Inventory[keyId] or 0) < Variants.FuseCost then
+		return ""
+	end
+	settle(player)
+	removeFromInventory(player, data, keyId, Variants.FuseCost)
+	KeyboardService.AddKey(KeyboardService, player, nextId)
+	services.DataService:RequestSave(player)
+	return nextId
 end
 
 local function equipBest(player: Player): boolean
@@ -297,12 +314,12 @@ local function equipBest(player: Player): boolean
 	local counts: { [string]: number } = {}
 	for index = 1, unlocked do
 		local keyId = data.Board[index]
-		if type(keyId) == "string" and Keys.ById[keyId] then
+		if type(keyId) == "string" and Keys.Resolve(keyId) then
 			counts[keyId] = (counts[keyId] or 0) + 1
 		end
 	end
 	for keyId, count in data.Inventory do
-		if Keys.ById[keyId] and type(count) == "number" and count > 0 then
+		if Keys.Resolve(keyId) and type(count) == "number" and count > 0 then
 			counts[keyId] = (counts[keyId] or 0) + count
 		end
 	end
@@ -315,11 +332,15 @@ local function equipBest(player: Player): boolean
 		if incomeA ~= incomeB then
 			return incomeA > incomeB
 		end
-		local hasPerkA, hasPerkB = Keys.ById[a].Perk ~= nil, Keys.ById[b].Perk ~= nil
+		local keyA, keyB = Keys.Resolve(a) :: Keys.Key, Keys.Resolve(b) :: Keys.Key
+		local hasPerkA, hasPerkB = keyA.Perk ~= nil, keyB.Perk ~= nil
 		if hasPerkA ~= hasPerkB then
 			return hasPerkA
 		end
-		return Keys.ById[a].Index < Keys.ById[b].Index
+		if keyA.Index ~= keyB.Index then
+			return keyA.Index < keyB.Index
+		end
+		return a < b
 	end)
 	local board: { string } = {}
 	for index = 1, GameConfig.BoardSlots do
@@ -377,6 +398,7 @@ function KeyboardService.Start(self: State)
 	Packets.PlaceKey.OnServerInvoke = placeKey
 	Packets.ClearSlot.OnServerInvoke = clearSlot
 	Packets.SellKey.OnServerInvoke = sellKey
+	Packets.FuseKey.OnServerInvoke = fuseKey
 	Packets.EquipBest.OnServerInvoke = equipBest
 end
 
@@ -397,7 +419,7 @@ function KeyboardService.GetRate(_self: State, player: Player): number
 end
 
 function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag: string?): boolean
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	if not key then
 		return false
 	end
@@ -418,7 +440,7 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag
 				emptyIndex = index
 				break
 			end
-			local slotKey = Keys.ById[slotId]
+			local slotKey = Keys.Resolve(slotId)
 			if slotKey and slotKey.Perk == nil then
 				local slotIncome = Keys.GetIncome(slotId)
 				if slotIncome < lowestIncome then
@@ -455,7 +477,7 @@ function KeyboardService.TakeFromSlot(_self: State, player: Player, slot: number
 	if not data or not isInteger(slot) or slot < 1 or slot > Stats.Slots(data.Upgrades) then
 		return false
 	end
-	if data.Board[slot] ~= keyId or Keys.ById[keyId] == nil then
+	if data.Board[slot] ~= keyId or Keys.Resolve(keyId) == nil then
 		return false
 	end
 	settle(player)
@@ -466,7 +488,7 @@ end
 
 function KeyboardService.RestoreKey(_self: State, player: Player, slot: number, keyId: string): boolean
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	if not data or Keys.ById[keyId] == nil then
+	if not data or Keys.Resolve(keyId) == nil then
 		return false
 	end
 	if
@@ -487,6 +509,7 @@ function KeyboardService.Destroy(self: State)
 	Packets.PlaceKey.OnServerInvoke = nil
 	Packets.ClearSlot.OnServerInvoke = nil
 	Packets.SellKey.OnServerInvoke = nil
+	Packets.FuseKey.OnServerInvoke = nil
 	Packets.EquipBest.OnServerInvoke = nil
 	if self._trove then
 		self._trove:Destroy()
