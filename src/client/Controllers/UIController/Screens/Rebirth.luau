@@ -20,7 +20,7 @@ local RebirthScreen = {}
 function RebirthScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
-	local tracker = Economy.Track(context.Controllers.DataController, trove)
+	local tracker = Economy.For(context, trove)
 	local isOpen = false
 	local rebirthGuard = Kit.Request(trove)
 

@@ -7,7 +7,7 @@ local SeasonLevels = require(ReplicatedStorage.Config.Season)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Season = require(ReplicatedStorage.Rules.Season)
-local BoostState = require(script.Parent.Parent.BoostState)
+local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Purchases = require(script.Parent.Parent.Purchases)
 local Types = require(script.Parent.Parent.Types)
@@ -40,7 +40,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
-	local boostState = BoostState.Track(dataController, trove)
+	local boostState = Economy.BoostsFor(context, trove)
 	local premiumPass = Monetization.PassById[GameConfig.Season.PremiumPassId]
 	local tiles: { Tile } = {}
 	local isOpen = false

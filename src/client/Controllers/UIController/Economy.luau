@@ -20,7 +20,12 @@ export type Tracker = {
 	GetBoard: () -> { string },
 	GetLevel: (id: string) -> number,
 	GetRebirths: () -> number,
-	GetCharms: () -> Charms.Effects,
+	Subscribe: (listener: () -> ()) -> () -> (),
+}
+
+export type SharedContext = {
+	Economy: Tracker?,
+	Controllers: { [string]: any },
 }
 
 local Economy = {}
@@ -47,10 +52,15 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 	local rebirths = 0
 	local charmEffects = Charms.Neutral()
 	local boostState = BoostState.Track(dataController, trove)
+	local listeners: { [number]: () -> () } = {}
+	local nextId = 0
 
 	local function changed()
 		if onChanged then
 			onChanged()
+		end
+		for _, listener in listeners do
+			listener()
 		end
 	end
 
@@ -90,8 +100,13 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 	end))
 
 	return {
-		GetCharms = function()
-			return charmEffects
+		Subscribe = function(listener: () -> ()): () -> ()
+			nextId += 1
+			local id = nextId
+			listeners[id] = listener
+			return function()
+				listeners[id] = nil
+			end
 		end,
 		GetRebirths = function()
 			return rebirths
@@ -127,6 +142,25 @@ function Economy.Track(dataController: any, trove: TroveInstance, onChanged: (()
 			return if type(level) == "number" then level else 0
 		end,
 	}
+end
+
+function Economy.For(context: SharedContext, trove: TroveInstance, onChanged: (() -> ())?): Tracker
+	local shared = context.Economy
+	if shared then
+		if onChanged then
+			trove:Add(shared.Subscribe(onChanged))
+		end
+		return shared
+	end
+	return Economy.Track(context.Controllers.DataController, trove, onChanged)
+end
+
+function Economy.BoostsFor(context: SharedContext, trove: TroveInstance): BoostState.State
+	local shared = context.Economy
+	if shared then
+		return shared.Boosts
+	end
+	return BoostState.Track(context.Controllers.DataController, trove)
 end
 
 return Economy

@@ -10,7 +10,7 @@ type TroveInstance = typeof(Trove.new())
 export type PriceGate = {
 	CanAfford: (() -> boolean)?,
 	DeniedText: string?,
-	Toast: ((text: string, kind: string?) -> ())?,
+	Toast: ((text: string, kind: any?) -> ())?,
 }
 
 local PriceButton = {}

@@ -8,20 +8,30 @@ local Variants = require(ReplicatedStorage.Rules.Variants)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
-local Cells = require(script.Parent.Parent.Cells)
-local Economy = require(script.Parent.Parent.Economy)
-local Kit = require(script.Parent.Parent.Kit)
-local Types = require(script.Parent.Parent.Types)
-local Viewport = require(script.Parent.Parent.Viewport)
+local Cells = require(script.Parent.Parent.Parent.Cells)
+local Kit = require(script.Parent.Parent.Parent.Kit)
+local Types = require(script.Parent.Parent.Parent.Types)
+local Viewport = require(script.Parent.Parent.Parent.Viewport)
 
-type Entry = {
-	Id: string,
-	Key: Keys.Key,
-	Tier: number,
-	Income: number,
-	Rank: number,
-	Name: string,
-	Cell: Cells.Cell,
+export type Env = {
+	Trove: typeof(Trove.new()),
+	Context: Types.Context,
+	Parent: Frame,
+	PlayUi: (name: string) -> (),
+	Spare: (keyId: string) -> number,
+	OnBoard: (keyId: string) -> number,
+	SetLayout: (showDetail: boolean) -> (),
+	MarkDirty: () -> (),
+	RefreshAll: () -> (),
+}
+
+export type Panel = {
+	Open: (keyId: string) -> (),
+	Close: () -> (),
+	Refresh: () -> (),
+	Spin: (now: number) -> (),
+	Current: () -> string?,
+	Destroy: () -> (),
 }
 
 local theme = Kit.Theme
@@ -36,21 +46,14 @@ local previewHeight = 140
 local contentHeight = 540
 local spinSpeed = 0.9
 
-local sortModes = { "BEST", "RARITY", "AMOUNT", "NAME" }
-local sortMode = 1
+local Detail = {
+	GridShare = gridShare,
+}
 
-local KeysScreen = {}
-
-function KeysScreen.new(context: Types.Context): Types.Screen
-	local trove = Trove.new()
-	local dataController = context.Controllers.DataController
-	local playUi = Kit.UiSound(context.Controllers)
-	local entries: { [string]: Entry } = {}
-	local inventory: { [string]: number } = {}
-	local boardTags: { [number]: string } = {}
-	local isOpen = false
-	local isDirty = true
-	local equipGuard = Kit.Request(trove)
+function Detail.Build(env: Env): Panel
+	local trove = env.Trove
+	local context = env.Context
+	local playUi = env.PlayUi
 	local sellGuard = Kit.Request(trove)
 	local fuseGuard = Kit.Request(trove)
 	local lastSell = 0
@@ -60,89 +63,12 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local confirm = Kit.Confirm(trove, confirmSeconds, function()
 		refreshDetail()
 	end)
-	local tracker: Economy.Tracker
 	local previewModel: Model? = nil
 	local stopLegend: (() -> ())? = nil
 	local previewTier = 0
 
-	local modal = Kit.Modal(trove, {
-		Parent = context.PlayerGui,
-		Name = "Keys",
-		Title = "KEYS",
-		Glyph = "Keys",
-		MaxSize = Vector2.new(900, 640),
-		HeaderColor = theme.Purple,
-		OnClose = function()
-			context.Close("Keys")
-		end,
-	})
-	local body = modal.Body
-	local refreshAll: () -> ()
-	local sortButton = Kit.Button(trove, {
-		Parent = modal.HeaderRight,
-		Name = "Sort",
-		Text = `SORT: {sortModes[sortMode]}`,
-		Glyph = "Arrow",
-		IconLeft = true,
-		Size = UDim2.fromOffset(172, 46),
-		Color = theme.Blue,
-		TextSize = Kit.Text.Label,
-		LayoutOrder = -1,
-		Callback = function()
-			sortMode = sortMode % #sortModes + 1
-			refreshAll()
-		end,
-	})
-
-	Kit.Button(trove, {
-		Parent = modal.HeaderRight,
-		Name = "EquipBest",
-		Text = "EQUIP BEST",
-		Glyph = "Sparkle",
-		IconLeft = true,
-		Size = UDim2.fromOffset(176, 46),
-		Color = theme.Green,
-		TextSize = Kit.Text.Label,
-		Callback = function()
-			if equipGuard.IsBusy() then
-				return
-			end
-			equipGuard.Run(function()
-				return Packets.EquipBest:Fire()
-			end, function(isOk: boolean, success: any)
-				if isOk and success == true then
-					playUi("Confirm")
-					context.Toast("Equipped your best keys!", "Good")
-				else
-					playUi("Error")
-					context.Toast("Your keyboard is already the best!", "Info")
-				end
-			end)
-		end,
-	})
-
-	local fullGridSize = UDim2.new(1, -12, 1, -12)
-	local splitGridSize = UDim2.new(gridShare, -9, 1, -12)
-	local grid = Kit.GridScroll({
-		Parent = body,
-		Name = "Grid",
-		Position = UDim2.fromOffset(6, 6),
-		Size = fullGridSize,
-		CellSize = Cells.Size,
-	})
-	local emptyLabel = Kit.Label({
-		Parent = body,
-		Name = "Empty",
-		Text = "No keys yet! Hit ROLL to find some!",
-		Position = UDim2.new(0, 20, 0.5, -30),
-		Size = UDim2.new(1, -40, 0, 60),
-		TextSize = Kit.Text.Subhead,
-		Align = Enum.TextXAlignment.Center,
-		Wrapped = true,
-	})
-
 	local detail = Kit.Panel({
-		Parent = body,
+		Parent = env.Parent,
 		Name = "Detail",
 		Size = UDim2.new(1 - gridShare, -9, 1, -12),
 		Position = UDim2.new(gridShare, 3, 0, 6),
@@ -323,32 +249,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	sellLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sellLayout.Parent = sellRow
 
-	local function boardCounts(): { [string]: number }
-		local counts: { [string]: number } = {}
-		local slots = tracker.GetStats().Slots
-		local board = tracker.GetBoard()
-		for index = 1, slots do
-			local keyId = board[index]
-			if type(keyId) == "string" and Keys.Resolve(keyId) then
-				counts[keyId] = (counts[keyId] or 0) + 1
-			end
-		end
-		return counts
-	end
-
-	local function stolenTags(): { [string]: string }
-		local tags: { [string]: string } = {}
-		local board = tracker.GetBoard()
-		for index = 1, tracker.GetStats().Slots do
-			local keyId = board[index]
-			local tag = boardTags[index]
-			if type(keyId) == "string" and tag and tag ~= "" and not tags[keyId] then
-				tags[keyId] = tag
-			end
-		end
-		return tags
-	end
-
 	local function clearPreviewModel()
 		if stopLegend then
 			stopLegend()
@@ -407,19 +307,13 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end)
 	end
 
-	local function setLayout(showDetail: boolean)
-		detail.Visible = showDetail
-		Kit.Tween(grid, Kit.Motion.Base, {
-			Size = if showDetail then splitGridSize else fullGridSize,
-		})
-	end
-
 	local function closeDetail()
 		detailKey = nil
 		previewKey = nil
 		confirm.Reset()
 		clearPreviewModel()
-		setLayout(false)
+		detail.Visible = false
+		env.SetLayout(false)
 	end
 
 	local function sell(keyId: string, count: number)
@@ -444,9 +338,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 
 	local sellOne: Kit.Button
 	local sellAll: Kit.Button
-	local function spareOf(keyId: string): number
-		return inventory[keyId] or 0
-	end
 
 	function refreshDetail()
 		local keyId = detailKey
@@ -457,8 +348,8 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		local rarity = Keys.GetRarity(key)
 		local _, tier = KeyTiers.Parse(keyId)
 		local tierInfo = KeyTiers.Get(tier)
-		local spare = spareOf(keyId)
-		local onBoard = boardCounts()[keyId] or 0
+		local spare = env.Spare(keyId)
+		local onBoard = env.OnBoard(keyId) or 0
 		if spare + onBoard < 1 and not fuseGuard.IsBusy() then
 			closeDetail()
 			return
@@ -559,7 +450,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			return
 		end
 		local cost = Variants.FuseCost
-		local spare = spareOf(keyId)
+		local spare = env.Spare(keyId)
 		if spare < cost then
 			playUi("Error")
 			context.Toast(`Need {cost - spare} more {Variants.Name(keyId)}!`, "Info")
@@ -576,12 +467,12 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				context.Toast(`Fused into {Variants.Name(result)}!`, "Good")
 				detailKey = result
 				confirm.Reset()
-				isDirty = true
-				refreshAll()
+				env.MarkDirty()
+				env.RefreshAll()
 			else
 				playUi("Error")
 				context.Toast("Couldn't fuse that!", "Bad")
-				isDirty = true
+				env.MarkDirty()
 			end
 		end)
 	end
@@ -634,7 +525,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			if not keyId or not key then
 				return
 			end
-			local spare = spareOf(keyId)
+			local spare = env.Spare(keyId)
 			if spare < 1 then
 				return
 			end
@@ -645,192 +536,38 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			end)
 		end,
 	})
-	Kit.CloseButton(trove, detail, closeDetail)
+	Kit.CloseButton(trove, detail, closeDetail, nil, true)
 
 	local function openDetail(keyId: string)
 		detailKey = keyId
 		previewKey = nil
 		confirm.Reset()
-		setLayout(true)
+		detail.Visible = true
+		env.SetLayout(true)
 		previewPop.Scale = 0.85
 		Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
 		refreshDetail()
 	end
 
-	local function ensureEntry(keyId: string): Entry?
-		local existing = entries[keyId]
-		if existing then
-			return existing
-		end
-		local key = Keys.Resolve(keyId)
-		if not key then
-			return nil
-		end
-		local _, tier = KeyTiers.Parse(keyId)
-		local cell = Cells.New(trove, {
-			Parent = grid,
-			Key = key,
-			KeyId = keyId,
-			LayoutOrder = 0,
-			HasChips = true,
-			Callback = function()
-				openDetail(keyId)
-			end,
-		})
-		cell.Instance.Visible = false
-		cell.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
-		local entry: Entry = {
-			Id = keyId,
-			Key = key,
-			Tier = tier,
-			Income = Keys.GetIncome(keyId),
-			Rank = Cells.RarityRank[key.Rarity] or 1,
-			Name = Variants.Name(keyId),
-			Cell = cell,
-		}
-		entries[keyId] = entry
-		return entry
-	end
-
-	local function ordered(totals: { [string]: number }): { Entry }
-		local mode = sortModes[sortMode]
-		local list: { Entry } = {}
-		for _, entry in entries do
-			table.insert(list, entry)
-		end
-		table.sort(list, function(a: Entry, b: Entry): boolean
-			local incomeA, incomeB = a.Income, b.Income
-			local rankA, rankB = a.Rank, b.Rank
-			local nameA, nameB = a.Name, b.Name
-			if mode == "NAME" then
-				return nameA < nameB
-			end
-			if mode == "AMOUNT" and totals[a.Id] ~= totals[b.Id] then
-				return (totals[a.Id] or 0) > (totals[b.Id] or 0)
-			end
-			if mode == "RARITY" and (rankA ~= rankB or a.Tier ~= b.Tier) then
-				if rankA ~= rankB then
-					return rankA > rankB
-				end
-				return a.Tier > b.Tier
-			end
-			if incomeA ~= incomeB then
-				return incomeA > incomeB
-			end
-			if rankA ~= rankB then
-				return rankA > rankB
-			end
-			return nameA < nameB
-		end)
-		return list
-	end
-
-	function refreshAll()
-		isDirty = false
-		sortButton.SetText(`SORT: {sortModes[sortMode]}`)
-		local onBoard = boardCounts()
-		for keyId in inventory do
-			ensureEntry(keyId)
-		end
-		for keyId in onBoard do
-			ensureEntry(keyId)
-		end
-		local totals: { [string]: number } = {}
-		for keyId in entries do
-			totals[keyId] = (inventory[keyId] or 0) + (onBoard[keyId] or 0)
-		end
-		for rank, entry in ordered(totals) do
-			entry.Cell.Instance.LayoutOrder = rank
-		end
-		local tags = stolenTags()
-		local ownedKinds = 0
-		for keyId, entry in entries do
-			local cell = entry.Cell
-			local total = totals[keyId]
-			cell.Instance.Visible = total > 0
-			if total > 0 then
-				ownedKinds += 1
-				local count = cell.Count
-				if count then
-					count.Text = `x{total}`
-				end
-				local stolenChip = cell.StolenChip
-				local stolenLabel = cell.StolenLabel
-				if stolenChip and stolenLabel then
-					local stolenFrom = tags[keyId]
-					stolenChip.Visible = stolenFrom ~= nil
-					if stolenFrom then
-						stolenLabel.Text = `Stolen from {stolenFrom}`
-					end
-				end
-			end
-		end
-		emptyLabel.Visible = ownedKinds == 0
-		refreshDetail()
-	end
-
-	local function markDirty()
-		isDirty = true
-	end
-	tracker = Economy.Track(dataController, trove, markDirty)
-	trove:Add(dataController:Observe({ "Inventory" }, function(value: any)
-		local copy: { [string]: number } = {}
-		if type(value) == "table" then
-			for keyId, count in value do
-				if type(keyId) == "string" and type(count) == "number" then
-					copy[keyId] = count
-				end
-			end
-		end
-		inventory = copy
-		markDirty()
-	end))
-
-	trove:Add(dataController:Observe({ "BoardTags" }, function(value: any)
-		local copy: { [number]: string } = {}
-		if type(value) == "table" then
-			for index, tag in value do
-				if type(index) == "number" and type(tag) == "string" then
-					copy[index] = tag
-				end
-			end
-		end
-		boardTags = copy
-		markDirty()
-	end))
-
-	Kit.Poll(trove, 0, function()
-		return isOpen and detailKey ~= nil
-	end, function()
-		spin(os.clock())
-	end)
-	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
-		return isOpen and isDirty
-	end, refreshAll)
-	refreshAll()
-
 	return {
-		Modal = true,
-		StartsOpen = false,
-		Open = function(_self: Types.Screen)
-			isOpen = true
-			closeDetail()
-			refreshAll()
-			modal.Show()
+		Open = openDetail,
+		Close = closeDetail,
+		Refresh = function()
+			if detailKey then
+				refreshDetail()
+			end
 		end,
-		Close = function(_self: Types.Screen)
-			isOpen = false
-			closeDetail()
-			modal.Hide()
+		Spin = spin,
+		Current = function()
+			return detailKey
 		end,
-		Destroy = function(_self: Types.Screen)
+		Destroy = function()
 			if stopLegend then
 				stopLegend()
 				stopLegend = nil
 			end
-			trove:Destroy()
 		end,
 	}
 end
 
-return KeysScreen
+return Detail

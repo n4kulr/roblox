@@ -63,6 +63,7 @@ local Buttons = {
 	ButtonHeight = 52,
 	TouchSize = 48,
 	CloseSize = 52,
+	InsetCloseSize = 40,
 }
 
 function Buttons.Button(trove: TroveInstance, props: ButtonProps): Button
@@ -357,14 +358,16 @@ function Buttons.CloseButton(
 	trove: TroveInstance,
 	parent: Instance,
 	onClose: () -> (),
-	sound: SoundPlayer?
+	sound: SoundPlayer?,
+	isInset: boolean?
 ): Button
+	local size = if isInset == true then Buttons.InsetCloseSize else Buttons.CloseSize
 	return Buttons.Button(trove, {
 		Parent = parent,
 		Name = "Close",
 		Glyph = "Close",
-		Size = UDim2.fromOffset(Buttons.CloseSize, Buttons.CloseSize),
-		Position = UDim2.new(1, 14, 0, -14),
+		Size = UDim2.fromOffset(size, size),
+		Position = if isInset == true then UDim2.new(1, -8, 0, 8) else UDim2.new(1, 14, 0, -14),
 		AnchorPoint = Vector2.new(1, 0),
 		Color = colors.Red,
 		Pill = true,

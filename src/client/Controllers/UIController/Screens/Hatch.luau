@@ -597,7 +597,8 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 
 	local function petsTarget(): (number, number)
 		local ok, dx, dy = pcall(function()
-			local hud = context.PlayerGui:FindFirstChild("Pets", true)
+			local getAnchor = context.GetAnchor
+			local hud = if getAnchor then getAnchor("Pets") else nil
 			if not hud or not hud:IsA("GuiObject") then
 				return 0, 0
 			end
@@ -756,16 +757,8 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 				break
 			end
 		end
-		local owned: { [string]: number } = {}
-		local dataController = context.Controllers.DataController
-		local stored = if dataController then dataController:Get({ "Charms" }) else nil
-		if type(stored) == "table" then
-			for id, count in stored do
-				if type(id) == "string" and type(count) == "number" then
-					owned[id] = count
-				end
-			end
-		end
+		local pets = context.Pets
+		local owned = if pets then table.clone(pets.Owned()) else {}
 		owned[charm.Id] = math.max(owned[charm.Id] or 0, 1)
 		start(egg.Id, charm.Id, Charms.IsActive(owned, charm.Id))
 		return true

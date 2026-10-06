@@ -5,8 +5,9 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
-local BoostState = require(script.Parent.Parent.BoostState)
+local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
+local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
 
 type BoostPill = {
@@ -30,8 +31,7 @@ local Offers = {}
 
 function Offers.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local dataController = context.Controllers.DataController
-	local boostState = BoostState.Track(dataController, trove)
+	local boostState = Economy.BoostsFor(context, trove)
 	local gui, root = Kit.ScreenGui("ThockOffers", Kit.Layer.Hud, context.PlayerGui, trove)
 
 	local stack = Instance.new("Frame")
@@ -96,7 +96,7 @@ function Offers.new(context: Types.Context): Types.Screen
 	end
 
 	local lastServerUntil = boostState.ServerLuck()
-	trove:Connect(ReplicatedStorage:GetAttributeChangedSignal("ServerLuckUntil"), function()
+	trove:Connect(PlayerState.ServerLuckChanged(), function()
 		local serverUntil, by = boostState.ServerLuck()
 		local previous = lastServerUntil
 		lastServerUntil = serverUntil

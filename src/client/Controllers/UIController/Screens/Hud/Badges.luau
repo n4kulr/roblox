@@ -1,6 +1,7 @@
 --!strict
 
 local Kit = require(script.Parent.Parent.Parent.Kit)
+local PetState = require(script.Parent.Parent.Parent.PetState)
 local Types = require(script.Parent.Types)
 
 local Badges = {}
@@ -8,7 +9,6 @@ local Badges = {}
 function Badges.Build(env: Types.Env, buttons: Types.SideMenu): Types.Badges
 	local trove = env.Trove
 	local context = env.Context
-	local dataController = env.DataController
 	local theme = Kit.Theme
 	local upgradesButton = buttons.Upgrades
 	local rebirthButton = buttons.Rebirth
@@ -17,26 +17,20 @@ function Badges.Build(env: Types.Env, buttons: Types.SideMenu): Types.Badges
 	local passButton = buttons.Pass
 	local petsBadge = Kit.Badge(petsButton.Instance, "!")
 	petsBadge.Visible = false
-	local ownedPets = 0
+	local pets = PetState.For(context, trove)
+	local ownedPets = pets.Total()
 	local seenPets = 0
 	local hasPetBaseline = false
-	trove:Add(dataController:Observe({ "Charms" }, function(value: any)
-		if type(value) ~= "table" then
-			return
-		end
-		local total = 0
-		for _, count in value do
-			if type(count) == "number" then
-				total += count
-			end
-		end
-		ownedPets = total
-		if not hasPetBaseline then
+	local function refreshPets()
+		ownedPets = pets.Total()
+		if not hasPetBaseline and pets.IsLoaded() then
 			hasPetBaseline = true
-			seenPets = total
+			seenPets = ownedPets
 		end
 		petsBadge.Visible = ownedPets > seenPets and not context.IsOpen("Pets")
-	end))
+	end
+	trove:Add(pets.Subscribe(refreshPets))
+	refreshPets()
 	trove:Connect(petsButton.Instance.Activated, function()
 		seenPets = ownedPets
 		petsBadge.Visible = false

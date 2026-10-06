@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
 local Packets = require(ReplicatedStorage.Packets)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
@@ -12,6 +11,7 @@ local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local RateLimit = require(ReplicatedStorage.Utils.RateLimit)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
+local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
 
 type Row = {
@@ -203,7 +203,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	tracker = Economy.Track(context.Controllers.DataController, trove, refreshAll)
+	tracker = Economy.For(context, trove, refreshAll)
 
 	local function buy(row: Row)
 		if row.IsBusy then
@@ -351,20 +351,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 	local lockDescription: TextLabel
 	local isLockBusy = false
 
-	local function ownPlot(): Model?
-		local plots = workspace:FindFirstChild("Plots")
-		if not plots then
-			return nil
-		end
-		local userId = Players.LocalPlayer.UserId
-		for _, child in plots:GetChildren() do
-			if child:IsA("Model") and child:GetAttribute("Owner") == userId then
-				return child
-			end
-		end
-		return nil
-	end
-
 	local function clock(seconds: number): string
 		local whole = math.max(0, math.ceil(seconds))
 		return string.format("%d:%02d", whole // 60, whole % 60)
@@ -374,7 +360,7 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		local upgrade = Upgrades.ById.LockTime
 		local seconds = GameConfig.Defense.LockBaseSeconds + tracker.GetLevel("LockTime") * upgrade.PerLevel
 		lockDescription.Text = `Lasers zap thieves for {seconds}s`
-		local plot = ownPlot()
+		local plot = PlayerState.OwnPlot()
 		local now = workspace:GetServerTimeNow()
 		local lockedUntil = if plot then plot:GetAttribute("LockedUntil") else nil
 		local cooldownUntil = if plot then plot:GetAttribute("LockCooldownUntil") else nil

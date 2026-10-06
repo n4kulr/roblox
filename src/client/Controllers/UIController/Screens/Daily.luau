@@ -47,7 +47,7 @@ local DailyScreen = {}
 function DailyScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
-	local tracker = Economy.Track(context.Controllers.DataController, trove)
+	local tracker = Economy.For(context, trove)
 	local localPlayer = Players.LocalPlayer
 	local tiles: { Tile } = {}
 	local claimedHere: { [number]: boolean } = {}

@@ -5,6 +5,7 @@ local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local Kit = require(script.Parent.Parent.Kit)
+local PetState = require(script.Parent.Parent.PetState)
 local Types = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
@@ -62,7 +63,6 @@ local PetsScreen = {}
 function PetsScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local renderTrove = Trove.new()
-	local dataController = context.Controllers.DataController
 	local rollController = context.Controllers.RollController
 	local owned: { [string]: number } = {}
 	local cards: { [string]: CachedCard } = {}
@@ -423,23 +423,13 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		dropUnused()
 	end
 
-	trove:Add(dataController:Observe({ "Charms" }, function(value: any)
-		local copy: { [string]: number } = {}
-		if type(value) == "table" then
-			for id, count in value do
-				if
-					type(id) == "string"
-					and CharmConfig.ById[id]
-					and type(count) == "number"
-					and count > 0
-				then
-					copy[id] = math.floor(count)
-				end
-			end
-		end
-		owned = copy
+	local pets = PetState.For(context, trove)
+	local function refreshOwned()
+		owned = pets.Owned()
 		render()
-	end))
+	end
+	trove:Add(pets.Subscribe(refreshOwned))
+	refreshOwned()
 
 	return {
 		Modal = true,

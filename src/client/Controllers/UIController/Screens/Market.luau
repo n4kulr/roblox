@@ -13,6 +13,7 @@ local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local Economy = require(script.Parent.Parent.Economy)
 local EggArt = require(script.Parent.Parent.EggArt)
 local Kit = require(script.Parent.Parent.Kit)
+local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
@@ -117,7 +118,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	trove:Add(cardsTrove)
 	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
-	local tracker = Economy.Track(dataController, trove)
+	local tracker = Economy.For(context, trove)
 	local cards: { Card } = {}
 	local stored: Stored = {}
 	local currentSlot = Market.Slot(workspace:GetServerTimeNow())
@@ -513,9 +514,8 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		return isOpen
 	end, tick)
 
-	local player = Players.LocalPlayer
-	trove:Connect(player:GetAttributeChangedSignal("OpenMarket"), function()
-		if player:GetAttribute("OpenMarket") ~= nil then
+	trove:Connect(PlayerState.MarketRequested(), function()
+		if PlayerState.IsMarketRequested() then
 			context.Open("Market")
 		end
 	end)

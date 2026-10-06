@@ -42,7 +42,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local rollController = context.Controllers.RollController
 	local gui, root = Kit.ScreenGui("ThockHud", Kit.Layer.Hud, context.PlayerGui, trove)
 	local isDirty = true
-	local tracker = Economy.Track(dataController, trove, function()
+	local tracker = Economy.For(context, trove, function()
 		isDirty = true
 	end)
 	local tutorialStep = 0
@@ -66,6 +66,13 @@ function Hud.new(context: Types.Context): Types.Screen
 		Toggle = toggleScreen,
 	}
 	local buttons = SideMenu.Build(env)
+	local setAnchor = context.SetAnchor
+	if setAnchor then
+		setAnchor("Pets", buttons.Pets.Instance)
+		trove:Add(function()
+			setAnchor("Pets", nil)
+		end)
+	end
 	local badges = Badges.Build(env, buttons)
 	local setHinting = Hint.Build(env, buttons.Upgrades)
 	local myBaseButton = TopBar.Build(env)

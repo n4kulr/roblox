@@ -1,6 +1,5 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Charms = require(ReplicatedStorage.Config.Charms)
@@ -9,12 +8,12 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.Parent.Kit)
+local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type Page = { Name: string, Scroll: ScrollingFrame, Tab: TextButton, Order: number }
 
-local developerAttribute = "IsDeveloper"
 local confirmSeconds = 3
 local confirmText = "CONFIRM?"
 local displayOrder = Kit.Layer.Debug
@@ -153,7 +152,6 @@ end
 
 function CheatsScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local localPlayer = Players.LocalPlayer
 	local playUi = Kit.UiSound(context.Controllers)
 	local panelTrove: TroveInstance? = nil
 	local gui: ScreenGui? = nil
@@ -171,7 +169,7 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 	local isMinimized = false
 
 	local function isDeveloper(): boolean
-		return localPlayer ~= nil and localPlayer:GetAttribute(developerAttribute) == true
+		return PlayerState.IsDeveloper()
 	end
 
 	local function setStatus(text: string)
@@ -427,7 +425,7 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 			grid.LayoutOrder = page.Order
 			local layout = Instance.new("UIGridLayout")
 			layout.SortOrder = Enum.SortOrder.LayoutOrder
-			layout.CellSize = UDim2.new(1 / columns, -gap * (columns - 1) / columns, 0, rowHeight)
+			layout.CellSize = UDim2.new(1 / columns, -math.ceil(gap * (columns - 1) / columns), 0, rowHeight)
 			layout.CellPadding = UDim2.fromOffset(gap, gap)
 			layout.Parent = grid
 			grid.Parent = page.Scroll
@@ -691,8 +689,9 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 		resizeTo(initial)
 	end
 
-	if localPlayer then
-		trove:Connect(localPlayer:GetAttributeChangedSignal(developerAttribute), function()
+	local developerChanged = PlayerState.DeveloperChanged()
+	if developerChanged then
+		trove:Connect(developerChanged, function()
 			if not isDeveloper() then
 				context.Close("Cheats")
 			end
@@ -702,6 +701,9 @@ function CheatsScreen.new(context: Types.Context): Types.Screen
 	return {
 		Modal = false,
 		StartsOpen = false,
+		CanOpen = function(_self: Types.Screen): boolean
+			return isDeveloper()
+		end,
 		Open = function(_self: Types.Screen)
 			if not isDeveloper() then
 				return

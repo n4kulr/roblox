@@ -1,11 +1,9 @@
 --!strict
 
-local Players = game:GetService("Players")
 local Kit = require(script.Parent.Parent.Parent.Kit)
 local Layout = require(script.Parent.Parent.Parent.HudLayout)
+local PlayerState = require(script.Parent.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Types)
-
-local developerAttribute = "IsDeveloper"
 
 local SideMenu = {}
 
@@ -173,14 +171,13 @@ function SideMenu.Build(env: Types.Env): Types.SideMenu
 			toggleScreen("Cheats")
 		end,
 	})
-	local localPlayer = Players.LocalPlayer
 	local function refreshDevButton()
-		devButton.Instance.Visible = localPlayer ~= nil
-			and localPlayer:GetAttribute(developerAttribute) == true
+		devButton.Instance.Visible = PlayerState.IsDeveloper()
 	end
 	refreshDevButton()
-	if localPlayer then
-		trove:Connect(localPlayer:GetAttributeChangedSignal(developerAttribute), refreshDevButton)
+	local developerChanged = PlayerState.DeveloperChanged()
+	if developerChanged then
+		trove:Connect(developerChanged, refreshDevButton)
 	end
 	return {
 		Menu = menu,
