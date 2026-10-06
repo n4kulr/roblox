@@ -6,7 +6,7 @@ local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEac
 local maxCash = 9007199254740991
 
 describe("KeyboardService", function()
-	local world, services, Keyboard, GameConfig, Keys
+	local world, services, Keyboard, GameConfig, Keys, Upgrades
 
 	beforeEach(function()
 		world = H.newWorld({ Time = 1700000000 })
@@ -14,7 +14,13 @@ describe("KeyboardService", function()
 		Keyboard = services.KeyboardService
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 		Keys = world:require("ReplicatedStorage.Config.Keys")
+		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
 	end)
+
+	local function levelsFor(slots: number): { Slots: number }
+		local perLevel = Upgrades.ById.Slots.PerLevel
+		return { Slots = math.ceil((slots - GameConfig.BaseSlots) / perLevel) }
+	end
 
 	local function join(overrides: any?, fireLoaded: boolean?)
 		return world:join(nil, overrides, fireLoaded == true)
@@ -30,7 +36,8 @@ describe("KeyboardService", function()
 
 	describe("settle", function()
 		it("pays rate * elapsed seconds and moves the clock forward", function()
-			local player, data = join({ Board = S.fill("PlainClack", 3), IncomeAt = world.now - 100, Cash = 5 })
+			local player, data =
+				join({ Board = S.fill("PlainClack", 3), IncomeAt = world.now - 100, Cash = 5 })
 			Keyboard:Settle(player)
 			expect(data.Cash):toBe(5 + 3 * 100)
 			expect(data.IncomeAt):toBe(world.now)
@@ -54,7 +61,8 @@ describe("KeyboardService", function()
 		end)
 
 		it("never pays for a clock that went backwards", function()
-			local player, data = join({ Board = S.fill("PlainClack", 3), IncomeAt = world.now + 500, Cash = 7 })
+			local player, data =
+				join({ Board = S.fill("PlainClack", 3), IncomeAt = world.now + 500, Cash = 7 })
 			Keyboard:Settle(player)
 			expect(data.Cash):toBe(7)
 			expect(data.IncomeAt):toBe(world.now + 500)
@@ -64,11 +72,12 @@ describe("KeyboardService", function()
 			local board = S.board("GoldPlate", "PlainClack")
 			local player, data = join({ Board = board, IncomeAt = world.now - 10 })
 			Keyboard:Settle(player)
-			expect(data.Cash):toBe(math.floor(151 * 1.25) * 10)
+			expect(data.Cash):toBe(math.floor((Keys.GetIncome("GoldPlate") + 1) * 1.25) * 10)
 		end)
 
 		it("caps cash at the safe-integer maximum", function()
-			local player, data = join({ Board = S.fill("LavaKey", 10), IncomeAt = world.now - 1e6, Cash = maxCash - 5 })
+			local player, data =
+				join({ Board = S.fill("LavaKey", 10), IncomeAt = world.now - 1e6, Cash = maxCash - 5 })
 			Keyboard:Settle(player)
 			expect(data.Cash):toBe(maxCash)
 		end)
@@ -85,7 +94,7 @@ describe("KeyboardService", function()
 			expect(a ~= b):toBe(true)
 			world:advance(GameConfig.SettleIntervalSeconds + 1)
 			expect(dataA.Cash):toBe(2 * GameConfig.SettleIntervalSeconds)
-			expect(dataB.Cash):toBe(4 * GameConfig.SettleIntervalSeconds)
+			expect(dataB.Cash):toBe(Keys.GetIncome("CreamyThock") * GameConfig.SettleIntervalSeconds)
 		end)
 
 		it("settles a leaving player's pending earnings into their data", function()
@@ -99,7 +108,8 @@ describe("KeyboardService", function()
 
 	describe("offline earnings", function()
 		it("pays OfflineRate of the board rate for the time away", function()
-			local _, data = join({ Board = S.fill("PlainClack", 4), IncomeAt = world.now - 1000, Cash = 10 }, true)
+			local _, data =
+				join({ Board = S.fill("PlainClack", 4), IncomeAt = world.now - 1000, Cash = 10 }, true)
 			expect(data.Cash):toBe(10 + math.floor(4 * 1000 * GameConfig.OfflineRate))
 			expect(data.IncomeAt):toBe(world.now)
 		end)
@@ -299,9 +309,10 @@ describe("KeyboardService", function()
 		end)
 
 		it("uses the newly unlocked slots after a Slots upgrade", function()
-			local player, data = join({ Board = S.fill("PlainClack", 10), Upgrades = { Slots = 1 } })
+			local base = GameConfig.BaseSlots
+			local player, data = join({ Board = S.fill("PlainClack", base), Upgrades = { Slots = 1 } })
 			add(player, "PlainClack")
-			expect(data.Board[11]):toBe("PlainClack")
+			expect(data.Board[base + 1]):toBe("PlainClack")
 		end)
 
 		it("sends everything to the inventory when AutoPlace is off", function()
@@ -313,9 +324,10 @@ describe("KeyboardService", function()
 		end)
 
 		it("settles earnings before changing the board", function()
-			local player, data = join({ Board = S.fill("PlainClack", 10), IncomeAt = world.now - 10 })
+			local base = GameConfig.BaseSlots
+			local player, data = join({ Board = S.fill("PlainClack", base), IncomeAt = world.now - 10 })
 			add(player, "LavaKey")
-			expect(data.Cash):toBe(100)
+			expect(data.Cash):toBe(base * 10)
 		end)
 
 		it("requests a save only for announced rarities", function()
@@ -373,7 +385,11 @@ describe("KeyboardService", function()
 		end)
 
 		it("fires BoardChanged and settles first", function()
-			local player, data = join({ Inventory = { GlassTink = 1 }, Board = S.fill("PlainClack", 1), IncomeAt = world.now - 5 })
+			local player, data = join({
+				Inventory = { GlassTink = 1 },
+				Board = S.fill("PlainClack", 1),
+				IncomeAt = world.now - 5,
+			})
 			local changed = 0
 			Keyboard.BoardChanged:Connect(function()
 				changed += 1
@@ -384,9 +400,10 @@ describe("KeyboardService", function()
 		end)
 
 		it("accepts the newly unlocked slot range after an upgrade", function()
+			local slot = GameConfig.BaseSlots + 2 * Upgrades.ById.Slots.PerLevel
 			local player, data = join({ Inventory = { GlassTink = 1 }, Upgrades = { Slots = 2 } })
-			expect(place(player, 14, "GlassTink")):toBe(true)
-			expect(data.Board[14]):toBe("GlassTink")
+			expect(place(player, slot, "GlassTink")):toBe(true)
+			expect(data.Board[slot]):toBe("GlassTink")
 		end)
 
 		it("rejects invalid input without touching data", function()
@@ -429,7 +446,8 @@ describe("KeyboardService", function()
 		end
 
 		it("returns the slot's key to the inventory", function()
-			local player, data = join({ Board = S.board("PlainClack", "GlassTink"), Inventory = { GlassTink = 1 } })
+			local player, data =
+				join({ Board = S.board("PlainClack", "GlassTink"), Inventory = { GlassTink = 1 } })
 			expect(clear(player, 2)):toBe(true)
 			expect(data.Board[2]):toBe("")
 			expect(data.Inventory.GlassTink):toBe(2)
@@ -509,7 +527,11 @@ describe("KeyboardService", function()
 			local player, data = join({ Inventory = { LavaKey = 1 }, Cash = maxCash - 1 })
 			expect(sell(player, "LavaKey", 1)):toBe(true)
 			expect(data.Cash):toBe(maxCash)
-			local player2, data2 = join({ Inventory = { PlainClack = 1 }, Board = S.fill("PlainClack", 2), IncomeAt = world.now - 10 })
+			local player2, data2 = join({
+				Inventory = { PlainClack = 1 },
+				Board = S.fill("PlainClack", 2),
+				IncomeAt = world.now - 10,
+			})
 			sell(player2, "PlainClack", 1)
 			expect(data2.Cash):toBe(20 + Keys.GetSellValue("PlainClack"))
 		end)
@@ -524,6 +546,7 @@ describe("KeyboardService", function()
 			local player, data = join({
 				Board = S.board("LavaKey"),
 				Inventory = { PlainClack = 8, CreamyThock = 3, GlassTink = 2, CloverCap = 1 },
+				Upgrades = levelsFor(10),
 			})
 			local before = S.totals(data)
 			expect(equip(player)):toBe(true)
@@ -550,11 +573,19 @@ describe("KeyboardService", function()
 		it("ranks perk keys ahead of plain keys of equal income, then by catalog order", function()
 			local player, data = join({ Inventory = { CreamyThock = 1, MintLinear = 1, CloverCap = 1 } })
 			equip(player)
-			expect({ data.Board[1], data.Board[2], data.Board[3] }):toEqual({ "CloverCap", "CreamyThock", "MintLinear" })
+			expect({ data.Board[1], data.Board[2], data.Board[3] }):toEqual({
+				"CloverCap",
+				"CreamyThock",
+				"MintLinear",
+			})
 		end)
 
 		it("pulls board keys into the ranking so a weaker board is rebuilt", function()
-			local player, data = join({ Board = S.fill("PlainClack", 10), Inventory = { GlassTink = 4 } })
+			local player, data = join({
+				Board = S.fill("PlainClack", 10),
+				Inventory = { GlassTink = 4 },
+				Upgrades = levelsFor(10),
+			})
 			local before = S.totals(data)
 			equip(player)
 			for index = 1, 4 do
@@ -566,17 +597,19 @@ describe("KeyboardService", function()
 		end)
 
 		it("fills only the unlocked slots", function()
-			local player, data = join({ Inventory = { PlainClack = 15 } })
+			local base = GameConfig.BaseSlots
+			local player, data = join({ Inventory = { PlainClack = 30 } })
 			equip(player)
-			for index = 11, GameConfig.BoardSlots do
+			for index = base + 1, GameConfig.BoardSlots do
 				expect(data.Board[index]):toBe("")
 			end
-			expect(data.Inventory.PlainClack):toBe(5)
-			local player2, data2 = join({ Inventory = { PlainClack = 15 }, Upgrades = { Slots = 2 } })
+			expect(data.Inventory.PlainClack):toBe(30 - base)
+			local unlocked = base + 2 * Upgrades.ById.Slots.PerLevel
+			local player2, data2 = join({ Inventory = { PlainClack = 30 }, Upgrades = { Slots = 2 } })
 			equip(player2)
-			expect(data2.Board[14]):toBe("PlainClack")
-			expect(data2.Board[15]):toBe("")
-			expect(data2.Inventory.PlainClack):toBe(1)
+			expect(data2.Board[unlocked]):toBe("PlainClack")
+			expect(data2.Board[unlocked + 1]):toBe("")
+			expect(data2.Inventory.PlainClack):toBe(30 - unlocked)
 		end)
 
 		it("is a harmless no-op with nothing to equip and idempotent afterwards", function()
@@ -620,7 +653,7 @@ describe("KeyboardService", function()
 	describe("GetRate", function()
 		it("returns the board rate, or 0 without data", function()
 			local player = join({ Board = S.board("PlainClack", "GlassTink") })
-			expect(Keyboard:GetRate(player)):toBe(21)
+			expect(Keyboard:GetRate(player)):toBe(Keys.GetIncome("PlainClack") + Keys.GetIncome("GlassTink"))
 			expect(Keyboard:GetRate(world:newPlayer())):toBe(0)
 		end)
 	end)

@@ -177,11 +177,12 @@ describe("MarketService", function()
 	it("settles earned income before checking the price", function()
 		local offer = offers()[1]
 		data.Cash = 0
-		data.Board = S.fill("PlainClack", 10)
-		local seconds = math.ceil(offer.Price / 10) + 10
+		local slots = GameConfig.BaseSlots
+		data.Board = S.fill("PlainClack", slots)
+		local seconds = math.ceil(offer.Price / slots) + 10
 		data.IncomeAt = world.now - seconds
 		expect(buy(1)):toBe(true)
-		expect(data.Cash):toBe(seconds * 10 - offer.Price)
+		expect(data.Cash):toBe(seconds * slots - offer.Price)
 		expect(data.IncomeAt):toBe(world.now)
 	end)
 

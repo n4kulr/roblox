@@ -170,13 +170,15 @@ describe("PassService", function()
 	end)
 
 	it("settles income at the old rate before a pass changes it", function()
-		local player, data = world:join(nil, { Board = S.fill("PlainClack", 10), IncomeAt = world.now - 10 }, false)
+		local slots = world:require("ReplicatedStorage.Config.GameConfig").BaseSlots
+		local board = S.fill("PlainClack", slots)
+		local player, data = world:join(nil, { Board = board, IncomeAt = world.now - 10 }, false)
 		world.fakeServices.MarketplaceService.PromptGamePassPurchaseFinished:Fire(player, 102, true)
-		expect(data.Cash):toBe(100)
+		expect(data.Cash):toBe(slots * 10)
 		expect(data.IncomeAt):toBe(world.now)
 		world:advance(10)
 		services.KeyboardService:Settle(player)
-		expect(data.Cash):toBe(100 + 200)
+		expect(data.Cash):toBe(slots * 10 + slots * 20)
 	end)
 
 	it("feeds owned passes into the modifiers", function()

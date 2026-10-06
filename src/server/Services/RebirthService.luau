@@ -1,12 +1,34 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 local RebirthService = { Name = "RebirthService" }
 local services: { [string]: any } = {}
+
+local function clearBoard(player: Player, data: PlayerData.Data)
+	local inventory: { [string]: number } = {}
+	for keyId, count in data.Inventory do
+		inventory[keyId] = count
+	end
+	local board: { string } = {}
+	local tags: { string } = {}
+	for index = 1, GameConfig.BoardSlots do
+		local keyId = data.Board[index]
+		if type(keyId) == "string" and Keys.ById[keyId] then
+			inventory[keyId] = (inventory[keyId] or 0) + 1
+		end
+		board[index] = ""
+		tags[index] = ""
+	end
+	services.DataService:Set(player, { "Inventory" }, inventory)
+	services.DataService:Set(player, { "Board" }, board)
+	services.DataService:Set(player, { "BoardTags" }, tags)
+end
 
 local function rebirth(player: Player): boolean
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
@@ -23,6 +45,7 @@ local function rebirth(player: Player): boolean
 		{ "Upgrades" },
 		{ Luck = 0, Speed = 0, Slots = 0, Income = 0, Walls = 0, LockTime = 0, Golden = 0 }
 	)
+	clearBoard(player, data)
 	services.KeyboardService:Normalize(player)
 	services.KeyboardService.BoardChanged:Fire(player)
 	services.DataService:RequestSave(player)

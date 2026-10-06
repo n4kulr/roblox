@@ -9,7 +9,13 @@ local function count(rebirths: any): number
 end
 
 function Rebirth.Cost(rebirths: number): number
-	return math.floor(GameConfig.Rebirth.BaseCost * GameConfig.Rebirth.CostGrowth ^ count(rebirths))
+	local total = count(rebirths)
+	local steps = GameConfig.Rebirth.CostSteps
+	local cost = GameConfig.Rebirth.BaseCost
+	for index = 1, total do
+		cost *= steps[index] or GameConfig.Rebirth.CostGrowth
+	end
+	return math.floor(cost)
 end
 
 function Rebirth.IncomeMultiplier(rebirths: number): number

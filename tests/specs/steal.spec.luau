@@ -369,7 +369,7 @@ describe("StealService", function()
 
 		it("locks the victim base afterwards for the lock duration", function()
 			local victim, victimData, thief = setup()
-			local second = join("Cat", 400)
+			local second = join("Cat", 400, { Board = S.board("OfficeTap") })
 			world:spawnCharacter(second, 2, 3, 10)
 			attempt(thief, victim, 1)
 			deliver(thief)
