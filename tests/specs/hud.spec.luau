@@ -49,7 +49,7 @@ end
 
 describe("HUD", function()
 	local world, playerGui, hudGui, offersGui, Glyphs
-	local calls, toasts, refusal, inBase, rollRequests, rollController
+	local opened, calls, toasts, refusal, inBase, rollRequests, rollController
 
 	beforeEach(function()
 		world = H.newWorld()
@@ -69,6 +69,7 @@ describe("HUD", function()
 				return nil
 			end,
 		}
+		opened = {}
 		calls = { Base = 0, Market = 0 }
 		toasts = {}
 		refusal = nil
@@ -100,7 +101,9 @@ describe("HUD", function()
 		local context = {
 			Controllers = { DataController = dataController, RollController = rollController },
 			PlayerGui = playerGui,
-			Open = function() end,
+			Open = function(name: string)
+				table.insert(opened, name)
+			end,
 			Close = function() end,
 			IsOpen = function()
 				return false
@@ -189,7 +192,7 @@ describe("HUD", function()
 		expect(find(hudGui, "Store").Face.Text.Text):toBe("STORE")
 	end)
 
-	it("has no CHARMS or PETS button in the menu", function()
+	it("has no CHARMS button in the menu", function()
 		expect(find(hudGui, "Charms")):toBeNil()
 		for _, text in texts() do
 			expect(string.find(string.upper(text), "CHARM", 1, true)):toBeNil()
@@ -255,7 +258,35 @@ describe("HUD", function()
 			expect(isOnRight(find(hudGui, name))):toBe(false)
 		end
 		expect(isOnRight(find(hudGui, "DailyRewards"))):toBe(false)
-		expect(isOnRight(find(hudGui, "StarterPack"))):toBe(false)
+		expect(isOnRight(find(hudGui, "Pets"))):toBe(false)
+	end)
+
+	it("puts PETS in the left grid slot STARTER used to hold and STARTER on the right", function()
+		local pets = find(hudGui, "Pets")
+		local starter = find(hudGui, "StarterPack")
+		expect(pets.Face.Text.Text):toBe("PETS")
+		expect(pets.Parent == find(hudGui, "Keys").Parent):toBe(true)
+		expect(pets.LayoutOrder):toBe(6)
+		expect(pets.Face:FindFirstChild("Icon") ~= nil):toBe(true)
+		expect(starter.Face.Text.Text):toBe("STARTER")
+		expect(isOnRight(starter)):toBe(true)
+		expect(starter.Parent == find(hudGui, "Store").Parent):toBe(true)
+		expect(starter.LayoutOrder < find(hudGui, "Store").LayoutOrder):toBe(true)
+	end)
+
+	it("opens the starter offer from the right column and the pets screen from PETS", function()
+		press(find(hudGui, "StarterPack"))
+		press(find(hudGui, "Pets"))
+		expect(opened):toEqual({ "StarterOffer", "Pets" })
+	end)
+
+	it("keeps the right column clear of the bottom-right stat chips", function()
+		local side = find(hudGui, "Side")
+		local stats = find(hudGui, "Multipliers")
+		expect(side.AnchorPoint.Y):toBe(1)
+		local sideBottom = side.Position.Y.Offset
+		local statsTop = stats.Position.Y.Offset - stats.Size.Y.Offset
+		expect(sideBottom <= statsTop):toBe(true)
 	end)
 
 	it("matches the right stack sizes", function()

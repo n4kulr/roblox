@@ -36,6 +36,8 @@ local topGap = 10
 local statWidth = 150
 local statHeight = 46
 local statGap = 16
+local statsHeight = 3 * statHeight + 2 * statGap
+local statClearance = 14
 local rollWidth = 240
 local rollHeight = 104
 local barGap = 14
@@ -140,23 +142,34 @@ function Hud.new(context: Types.Context): Types.Screen
 		leftButton("Rebirth", "Rebirth", "REBIRTH", theme.Pink, 4, "Start over for a big bonus!", "Rebirth")
 	local dailyButton =
 		leftButton("DailyRewards", "Gift", "GIFTS", theme.Teal, 5, "Free gifts for playing!", "Daily")
-	local giftButton = squareButton(
-		menu,
-		"StarterPack",
-		"Gift",
-		"STARTER",
-		theme.Orange,
-		6,
-		"A special one-time deal!",
-		"Right",
-		function()
-			context.Open("StarterOffer")
+	local petsButton =
+		leftButton("Pets", "Heart", "PETS", theme.Yellow, 6, "See your pets and what they do!", "Pets")
+	local petsBadge = Kit.Badge(petsButton.Instance, "!")
+	petsBadge.Visible = false
+	local ownedPets = 0
+	local seenPets = 0
+	local hasPetBaseline = false
+	trove:Add(dataController:Observe({ "Charms" }, function(value: any)
+		if type(value) ~= "table" then
+			return
 		end
-	)
-	giftButton.SetGlow(true)
-	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
-		giftButton.Instance.Visible = value ~= true
+		local total = 0
+		for _, count in value do
+			if type(count) == "number" then
+				total += count
+			end
+		end
+		ownedPets = total
+		if not hasPetBaseline then
+			hasPetBaseline = true
+			seenPets = total
+		end
+		petsBadge.Visible = ownedPets > seenPets and not context.IsOpen("Pets")
 	end))
+	trove:Connect(petsButton.Instance.Activated, function()
+		seenPets = ownedPets
+		petsBadge.Visible = false
+	end)
 	local upgradesBadge = Kit.Badge(upgradesButton.Instance, "!")
 	upgradesBadge.Visible = false
 	local rebirthBadge = Kit.Badge(rebirthButton.Instance, "!")
@@ -190,10 +203,11 @@ function Hud.new(context: Types.Context): Types.Screen
 	local side = Instance.new("Frame")
 	side.Name = "Side"
 	side.BackgroundTransparency = 1
-	side.AnchorPoint = Vector2.new(1, 0.5)
-	side.Position = UDim2.new(1, -margin, 0.5, 0)
-	side.Size = UDim2.fromOffset(cell, menuHeight)
+	side.AnchorPoint = Vector2.new(1, 1)
+	side.Position = UDim2.new(1, -margin, 1, -(margin + statsHeight + statClearance))
+	side.Size = UDim2.fromOffset(cell, cell * 4 + cellGap * 3)
 	local sideList = Instance.new("UIListLayout")
+	sideList.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	sideList.SortOrder = Enum.SortOrder.LayoutOrder
 	sideList.Padding = UDim.new(0, cellGap)
 	sideList.Parent = side
@@ -211,6 +225,23 @@ function Hud.new(context: Types.Context): Types.Screen
 			toggleScreen(target)
 		end)
 	end
+	local giftButton = squareButton(
+		side,
+		"StarterPack",
+		"Gift",
+		"STARTER",
+		theme.Orange,
+		0,
+		"A special one-time deal!",
+		"Left",
+		function()
+			context.Open("StarterOffer")
+		end
+	)
+	giftButton.SetGlow(true)
+	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
+		giftButton.Instance.Visible = value ~= true
+	end))
 	sideButton("Store", "Store", "STORE", theme.Red, 1, "Get boosts and goodies!", "Shop")
 	sideButton(
 		"Leaderboard",
@@ -381,7 +412,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	stats.BackgroundTransparency = 1
 	stats.AnchorPoint = Vector2.new(1, 1)
 	stats.Position = UDim2.new(1, -margin, 1, -margin)
-	stats.Size = UDim2.fromOffset(statWidth, 3 * statHeight + 2 * statGap)
+	stats.Size = UDim2.fromOffset(statWidth, statsHeight)
 	local statList = Instance.new("UIListLayout")
 	statList.SortOrder = Enum.SortOrder.LayoutOrder
 	statList.HorizontalAlignment = Enum.HorizontalAlignment.Right
