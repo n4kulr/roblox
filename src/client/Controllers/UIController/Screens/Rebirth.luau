@@ -162,7 +162,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 	Kit.Label({
 		Parent = modal.Body,
 		Name = "Note",
-		Text = "Resets your Clicks and upgrades. Keeps your keys!",
+		Text = "Resets your Clicks, upgrades and keyboard. Keeps your keys!",
 		Position = UDim2.new(0, 10, 1, -8),
 		AnchorPoint = Vector2.new(0, 1),
 		Size = UDim2.new(1, -20, 0, 32),

@@ -4,12 +4,18 @@ local S = require("../support")
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
 describe("Stats", function()
-	local Stats, GameConfig
+	local Stats, GameConfig, Keys, Upgrades
 	beforeEach(function()
 		local world = H.newWorld()
 		Stats = world:require("ReplicatedStorage.Rules.Stats")
 		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
+		Keys = world:require("ReplicatedStorage.Config.Keys")
+		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
 	end)
+
+	local function income(keyId: string): number
+		return Keys.GetIncome(keyId)
+	end
 
 	local noUpgrades = { Luck = 0, Speed = 0, Slots = 0 }
 
@@ -18,20 +24,27 @@ describe("Stats", function()
 			expect(Stats.Slots(noUpgrades)):toBe(GameConfig.BaseSlots)
 		end)
 
-		it("adds two slots per Slots level", function()
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 3 })):toBe(GameConfig.BaseSlots + 6)
+		it("adds the configured slots per Slots level", function()
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 3 })):toBe(
+				GameConfig.BaseSlots + 3 * Upgrades.ById.Slots.PerLevel
+			)
 		end)
 
 		it("clamps to the board size", function()
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 25 })):toBe(GameConfig.BoardSlots)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = Upgrades.ById.Slots.MaxLevel })):toBe(
+				GameConfig.BoardSlots
+			)
 			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = 999 })):toBe(GameConfig.BoardSlots)
 		end)
 
 		it("reaches BoardSlots exactly at the Slots max level", function()
-			local Upgrades = H.newWorld():require("ReplicatedStorage.Config.Upgrades")
-			expect(GameConfig.BoardSlots):toBe(60)
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = Upgrades.ById.Slots.MaxLevel })):toBe(60)
-			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = Upgrades.ById.Slots.MaxLevel - 1 })):toBe(58)
+			local perLevel = Upgrades.ById.Slots.PerLevel
+			local maxLevel = Upgrades.ById.Slots.MaxLevel
+			expect(GameConfig.BaseSlots + maxLevel * perLevel):toBe(GameConfig.BoardSlots)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = maxLevel })):toBe(GameConfig.BoardSlots)
+			expect(Stats.Slots({ Luck = 0, Speed = 0, Slots = maxLevel - 1 })):toBe(
+				GameConfig.BoardSlots - perLevel
+			)
 		end)
 
 		it("never goes below the base slot count", function()
@@ -65,7 +78,9 @@ describe("Stats", function()
 
 		it("sums key income into Rate", function()
 			local board = S.board("PlainClack", "PlainClack", "CreamyThock", "GlassTink")
-			expect(Stats.Compute(board, noUpgrades).Rate):toBe(1 + 1 + 4 + 20)
+			expect(Stats.Compute(board, noUpgrades).Rate):toBe(
+				income("PlainClack") * 2 + income("CreamyThock") + income("GlassTink")
+			)
 		end)
 
 		it("scales luck by level and by Luck perks", function()
@@ -78,38 +93,50 @@ describe("Stats", function()
 		end)
 
 		it("scales speed by level and Speed perks", function()
-			expect(Stats.Compute({}, { Luck = 0, Speed = 4, Slots = 0 }).RollsPerSecond):toBeCloseTo(7, 1e-9)
-			expect(Stats.Compute(S.board("TurboSwitch"), noUpgrades).RollsPerSecond):toBeCloseTo(5 * 1.15, 1e-9)
+			local perLevel = Upgrades.ById.Speed.PerLevel
+			expect(Stats.Compute({}, { Luck = 0, Speed = 4, Slots = 0 }).RollsPerSecond):toBeCloseTo(
+				GameConfig.RollsPerSecond + 4 * perLevel,
+				1e-9
+			)
+			expect(Stats.Compute(S.board("TurboSwitch"), noUpgrades).RollsPerSecond):toBeCloseTo(
+				GameConfig.RollsPerSecond * 1.15,
+				1e-9
+			)
 		end)
 
 		it("caps speed at MaxRollsPerSecond", function()
-			local levels = { Luck = 0, Speed = 10, Slots = 0 }
-			expect(Stats.Compute({}, levels).RollsPerSecond):toBe(10)
-			local board = S.board("TurboSwitch", "TurboSwitch")
+			local levels = { Luck = 0, Speed = 6, Slots = 0 }
+			local uncapped = GameConfig.RollsPerSecond + 6 * Upgrades.ById.Speed.PerLevel
+			expect(uncapped < GameConfig.MaxRollsPerSecond):toBe(true)
+			expect(Stats.Compute({}, levels).RollsPerSecond):toBe(uncapped)
+			local board = S.board("TurboSwitch", "TurboSwitch", "TurboSwitch", "TurboSwitch")
 			expect(Stats.Compute(board, levels).RollsPerSecond):toBe(GameConfig.MaxRollsPerSecond)
-			expect(Stats.Compute(S.fill("TurboSwitch", 30), { Luck = 0, Speed = 10, Slots = 10 }).RollsPerSecond)
-				:toBe(GameConfig.MaxRollsPerSecond)
+			local maxed = { Luck = 0, Speed = Upgrades.ById.Speed.MaxLevel, Slots = 10 }
+			expect(Stats.Compute(S.fill("TurboSwitch", 30), maxed).RollsPerSecond):toBe(
+				GameConfig.MaxRollsPerSecond
+			)
 		end)
 
 		it("applies the income perk to the whole board rate and floors it", function()
 			local board = S.board("GoldPlate", "PlainClack", "CreamyThock")
 			local stats = Stats.Compute(board, noUpgrades)
 			expect(stats.IncomeMultiplier):toBeCloseTo(1.25, 1e-9)
-			expect(stats.Rate):toBe(math.floor((150 + 1 + 4) * 1.25))
+			local sum = income("GoldPlate") + income("PlainClack") + income("CreamyThock")
+			expect(stats.Rate):toBe(math.floor(sum * 1.25))
 			local odd = Stats.Compute(S.board("GoldPlate", "PlainClack"), noUpgrades)
-			expect(odd.Rate):toBe(math.floor(151 * 1.25))
+			expect(odd.Rate):toBe(math.floor((income("GoldPlate") + income("PlainClack")) * 1.25))
 		end)
 
 		it("stacks multiple income perks additively", function()
 			local stats = Stats.Compute(S.board("GoldPlate", "GoldPlate"), noUpgrades)
 			expect(stats.IncomeMultiplier):toBeCloseTo(1.5, 1e-9)
-			expect(stats.Rate):toBe(math.floor(300 * 1.5))
+			expect(stats.Rate):toBe(math.floor(income("GoldPlate") * 2 * 1.5))
 		end)
 
 		it("ignores keys on locked slots, including their perks and income", function()
 			local board = S.fill("", 30)
-			board[11] = "CloverCap"
-			board[12] = "GoldPlate"
+			board[GameConfig.BaseSlots + 1] = "CloverCap"
+			board[GameConfig.BaseSlots + 2] = "GoldPlate"
 			local locked = Stats.Compute(board, noUpgrades)
 			expect(locked.Luck):toBe(1)
 			expect(locked.IncomeMultiplier):toBe(1)
@@ -117,14 +144,14 @@ describe("Stats", function()
 			local unlocked = Stats.Compute(board, { Luck = 0, Speed = 0, Slots = 1 })
 			expect(unlocked.Luck):toBeCloseTo(1.1, 1e-9)
 			expect(unlocked.IncomeMultiplier):toBeCloseTo(1.25, 1e-9)
-			expect(unlocked.Rate):toBe(math.floor((4 + 150) * 1.25))
+			expect(unlocked.Rate):toBe(math.floor((income("CloverCap") + income("GoldPlate")) * 1.25))
 		end)
 
 		it("counts the last unlocked slot but not the one after it", function()
 			local board = S.fill("", 30)
-			board[10] = "PlainClack"
-			board[11] = "PlainClack"
-			expect(Stats.Compute(board, noUpgrades).Rate):toBe(1)
+			board[GameConfig.BaseSlots] = "PlainClack"
+			board[GameConfig.BaseSlots + 1] = "PlainClack"
+			expect(Stats.Compute(board, noUpgrades).Rate):toBe(income("PlainClack"))
 		end)
 
 		it("ignores empty, unknown and non-string board entries", function()
@@ -151,7 +178,9 @@ describe("Upgrades.Cost", function()
 		for level = 0, luck.MaxLevel - 1 do
 			expect(Upgrades.Cost(luck, level)):toBe(math.floor(luck.BaseCost * luck.Growth ^ level))
 		end
-		expect(Upgrades.Cost(Upgrades.ById.Slots, 3)):toBe(math.floor(Upgrades.ById.Slots.BaseCost * Upgrades.ById.Slots.Growth ^ 3))
+		expect(Upgrades.Cost(Upgrades.ById.Slots, 3)):toBe(
+			math.floor(Upgrades.ById.Slots.BaseCost * Upgrades.ById.Slots.Growth ^ 3)
+		)
 	end)
 
 	it("is strictly increasing up to the max level", function()

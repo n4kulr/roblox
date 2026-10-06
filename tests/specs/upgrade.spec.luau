@@ -4,13 +4,14 @@ local S = require("../support")
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
 describe("UpgradeService", function()
-	local world, Upgrades, Stats
+	local world, Upgrades, Stats, GameConfig
 
 	beforeEach(function()
 		world = H.newWorld()
 		world:boot({ "KeyboardService", "UpgradeService" })
 		Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
 		Stats = world:require("ReplicatedStorage.Rules.Stats")
+		GameConfig = world:require("ReplicatedStorage.Config.GameConfig")
 	end)
 
 	local function buy(player: any, id: any, amount: any)
@@ -21,27 +22,38 @@ describe("UpgradeService", function()
 	end
 
 	it("charges the level cost and raises the level", function()
-		local player, data = world:join(nil, { Cash = 1000 })
+		local luck = Upgrades.ById.Luck
+		local first, second = Upgrades.Cost(luck, 0), Upgrades.Cost(luck, 1)
+		local player, data = world:join(nil, { Cash = first + second + 7 })
 		expect(buy(player, "Luck")):toBe(true)
-		expect(data.Cash):toBe(1000 - Upgrades.Cost(Upgrades.ById.Luck, 0))
+		expect(data.Cash):toBe(second + 7)
 		expect(data.Upgrades.Luck):toBe(1)
 		expect(buy(player, "Luck")):toBe(true)
-		expect(data.Cash):toBe(1000 - 100 - Upgrades.Cost(Upgrades.ById.Luck, 1))
+		expect(data.Cash):toBe(7)
 		expect(data.Upgrades.Luck):toBe(2)
 	end)
 
 	it("only touches the purchased upgrade", function()
-		local player, data = world:join(nil, { Cash = 10000, Upgrades = { Speed = 2 } })
+		local player, data = world:join(nil, { Cash = 1e9, Upgrades = { Speed = 2 } })
 		buy(player, "Slots")
-		expect(data.Upgrades):toEqual({ Luck = 0, Speed = 2, Slots = 1, Income = 0, Walls = 0, LockTime = 0, Golden = 0 })
+		expect(data.Upgrades):toEqual({
+			Luck = 0,
+			Speed = 2,
+			Slots = 1,
+			Income = 0,
+			Walls = 0,
+			LockTime = 0,
+			Golden = 0,
+		})
 	end)
 
 	it("accepts an exact-cost purchase and rejects one coin short", function()
-		local player, data = world:join(nil, { Cash = 99 })
+		local cost = Upgrades.Cost(Upgrades.ById.Luck, 0)
+		local player, data = world:join(nil, { Cash = cost - 1 })
 		expect(buy(player, "Luck")):toBe(false)
-		expect(data.Cash):toBe(99)
+		expect(data.Cash):toBe(cost - 1)
 		expect(data.Upgrades.Luck):toBe(0)
-		local player2, data2 = world:join(nil, { Cash = 100 })
+		local player2, data2 = world:join(nil, { Cash = cost })
 		expect(buy(player2, "Luck")):toBe(true)
 		expect(data2.Cash):toBe(0)
 	end)
@@ -55,7 +67,7 @@ describe("UpgradeService", function()
 	end)
 
 	it("buys up to the max level then stops", function()
-		local player, data = world:join(nil, { Cash = 1e12 })
+		local player, data = world:join(nil, { Cash = 1e15 })
 		local bought = 0
 		for _ = 1, Upgrades.ById.Luck.MaxLevel + 10 do
 			if buy(player, "Luck") then
@@ -81,16 +93,17 @@ describe("UpgradeService", function()
 	end)
 
 	it("settles earned income before checking the price", function()
+		local cost = Upgrades.Cost(Upgrades.ById.Luck, 0)
 		local player, data = world:join(nil, {
-			Cash = 0,
+			Cash = cost - 51,
 			Board = S.fill("PlainClack", 5),
 			IncomeAt = world.now - 10,
 		}, false)
 		expect(buy(player, "Luck")):toBe(false)
-		expect(data.Cash):toBe(50)
+		expect(data.Cash):toBe(cost - 1)
 		world:setTime(world.now + 10)
 		expect(buy(player, "Luck")):toBe(true)
-		expect(data.Cash):toBe(0)
+		expect(data.Cash):toBe(49)
 	end)
 
 	it("unlocks slots and announces a board change when buying Slots", function()
@@ -99,9 +112,9 @@ describe("UpgradeService", function()
 		world.registry.KeyboardService.BoardChanged:Connect(function()
 			changed += 1
 		end)
-		expect(Stats.Slots(data.Upgrades)):toBe(10)
+		expect(Stats.Slots(data.Upgrades)):toBe(GameConfig.BaseSlots)
 		buy(player, "Slots")
-		expect(Stats.Slots(data.Upgrades)):toBe(12)
+		expect(Stats.Slots(data.Upgrades)):toBe(GameConfig.BaseSlots + Upgrades.ById.Slots.PerLevel)
 		expect(changed):toBe(1)
 		buy(player, "Luck")
 		expect(changed):toBe(1)

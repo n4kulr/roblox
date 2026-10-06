@@ -212,14 +212,14 @@ describe("RollService handler", function()
 					world:advance(1)
 					local index = roll(player)
 					local chance = Keys.RarityByName[rarityOf(index)].Chance
-					if chance >= 50 then
+					if chance >= Keys.RarityByName.Rare.Chance then
 						hits += 1
 					end
 				end
 				return hits
 			end
-			local normal = rareOrBetter(10, 1500)
-			local golden = rareOrBetter(GameConfig.GoldenRollEvery - 1, 1500)
+			local normal = rareOrBetter(10, 6000)
+			local golden = rareOrBetter(GameConfig.GoldenRollEvery - 1, 6000)
 			expect(normal):toBeLessThan(120)
 			expect(golden):toBeGreaterThan(normal * 4)
 			expect(golden):toBeGreaterThan(150)
@@ -246,7 +246,9 @@ describe("RollService handler", function()
 			local player, data = world:join({ DisplayName = "Alice" }, { Board = board })
 			local announced = 0
 			local announcedKeys = {}
-			for _ = 1, 600 do
+			local attempts = 0
+			while announced < 2 and attempts < 100000 do
+				attempts += 1
 				data.Rolls = 99
 				data.GoldenProgress = GameConfig.GoldenRollEvery - 1
 				world:advance(1)
