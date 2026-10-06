@@ -144,3 +144,11 @@ Six Sonnet agents are running; their work is not merged yet:
    - floating income labels over keys
    - empty slots show "+"
    - a classical MusicController with placeholder ids in `Config/Music.luau`
+
+
+## Update 2026-10-06 (latest)
+
+- **Group chest:** removed completely. `PlayerData.GroupChestAt` and `Packets.ClaimGroupChest` are now unused and can be deleted.
+- **Charms are now PETS:** keyboard-themed animals, stored in `PlayerData.Charms`. The best 6 are active automatically (`Rules/Charms.Best`). There is no Charms screen or button, and the `EquipCharm` packet is unused.
+- **Pet visuals:** active pets wander the owner's base as part-built placeholder animals (`EggService/Pets.luau`, `CharmController/Walkers.luau`, `Utils/PetWander.luau`). Swap in real animal models later.
+- **Base keys:** legends are A-Z only, the 8 slot keys are raised 0.6 studs, and each plot's filler keys are a pastel tint of its Base colour. The cosmetic circle uses the tint of its own colour.

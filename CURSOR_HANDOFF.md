@@ -196,3 +196,11 @@ Each plot has 8 key slots (`GameConfig.BoardSlots = 8` and `GameConfig.SlotCells
 - **Top bar:** the base button reads "BASE", and the cash pill is just the coin icon and the amount.
 - **Group chest:** the sign shows only within 35 studs and asks players to like the game and join the group.
 - **Economy:** retuned for 8 slots: `BaseSlots` 3, and Slots goes up by 1 per level to a max of 5.
+
+
+## Update 2026-10-06 (latest)
+
+- **Group chest:** removed completely. `PlayerData.GroupChestAt` and `Packets.ClaimGroupChest` are now unused and can be deleted.
+- **Charms are now PETS:** keyboard-themed animals, stored in `PlayerData.Charms`. The best 6 are active automatically (`Rules/Charms.Best`). There is no Charms screen or button, and the `EquipCharm` packet is unused.
+- **Pet visuals:** active pets wander the owner's base as part-built placeholder animals (`EggService/Pets.luau`, `CharmController/Walkers.luau`, `Utils/PetWander.luau`). Swap in real animal models later.
+- **Base keys:** legends are A-Z only, the 8 slot keys are raised 0.6 studs, and each plot's filler keys are a pastel tint of its Base colour. The cosmetic circle uses the tint of its own colour.
