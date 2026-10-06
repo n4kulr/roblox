@@ -2,8 +2,8 @@
 
 return table.freeze({
 	Name = "THOCK",
-	BoardSlots = 60,
-	BaseSlots = 6,
+	BoardSlots = 8,
+	BaseSlots = 3,
 	BoardColumns = 10,
 	PlotCount = 8,
 	RollsPerSecond = 5,
@@ -60,9 +60,9 @@ return table.freeze({
 		GoldenSpacebarKeyId = "GoldenSpacebar",
 	}),
 	Rebirth = table.freeze({
-		BaseCost = 40000000,
-		CostGrowth = 3,
-		CostSteps = table.freeze({ 42, 19, 5.5, 3.6 }),
+		BaseCost = 125000000,
+		CostGrowth = 2.6,
+		CostSteps = table.freeze({ 7, 9, 3.3, 2.8, 3 }),
 		IncomePerRebirth = 1,
 	}),
 	Season = table.freeze({

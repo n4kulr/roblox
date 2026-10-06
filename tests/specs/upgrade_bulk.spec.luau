@@ -49,8 +49,8 @@ describe("UpgradeCost", function()
 	it("treats want 0 as unlimited but capped at the max level", function()
 		local luck = Upgrades.ById.Luck
 		expect(UpgradeCost.Affordable(luck, 0, 1e15, 0)):toBe(luck.MaxLevel)
-		expect(UpgradeCost.Affordable(luck, 70, 1e15, 0)):toBe(luck.MaxLevel - 70)
-		expect(UpgradeCost.Affordable(luck, 70, 1e15, 10)):toBe(luck.MaxLevel - 70)
+		expect(UpgradeCost.Affordable(luck, luck.MaxLevel - 5, 1e15, 0)):toBe(5)
+		expect(UpgradeCost.Affordable(luck, luck.MaxLevel - 5, 1e15, 10)):toBe(5)
 		expect(UpgradeCost.Affordable(luck, luck.MaxLevel, 1e15, 0)):toBe(0)
 	end)
 
@@ -143,19 +143,19 @@ describe("UpgradeService bulk buy", function()
 		expect(buy(player, "Slots", 10)):toBe(true)
 		expect(changed):toBe(1)
 		expect(data.Tutorial):toBe(3)
-		expect(data.Upgrades.Slots):toBe(10)
+		expect(data.Upgrades.Slots):toBe(Upgrades.ById.Slots.MaxLevel)
 	end)
 
 	it("settles income before pricing a bulk buy", function()
 		local luck = Upgrades.ById.Luck
 		local player, data = world:join(nil, {
 			Cash = 0,
-			Board = { "PlainClack", "PlainClack", "PlainClack", "PlainClack", "PlainClack" },
+			Board = { "PlainClack", "PlainClack", "PlainClack" },
 			IncomeAt = world.now - 10,
 		}, false)
-		expect(UpgradeCost.Total(luck, 0, 1) > 50):toBe(true)
+		expect(UpgradeCost.Total(luck, 0, 1) > 30):toBe(true)
 		expect(buy(player, "Luck", 10)):toBe(false)
-		expect(data.Cash):toBe(50)
+		expect(data.Cash):toBe(30)
 	end)
 
 	it("declares the amount and the raised rate limit on the packet", function()
@@ -293,7 +293,10 @@ describe("Upgrades screen", function()
 		expect(buyText("Luck")):toBe(`x3  {compact(UpgradeCost.Total(luck, 0, 3))}`)
 		expect(isLocked("Luck")):toBe(false)
 		expect(isLocked("Slots")):toBe(true)
-		expect(buyText("Slots")):toBe(`x10  {compact(UpgradeCost.Total(Upgrades.ById.Slots, 0, 10))}`)
+		local slotCount = math.min(10, Upgrades.ById.Slots.MaxLevel)
+		expect(buyText("Slots")):toBe(
+			`x{slotCount}  {compact(UpgradeCost.Total(Upgrades.ById.Slots, 0, slotCount))}`
+		)
 		press(gui:FindFirstChild("MAX", true))
 		expect(buyText("Slots")):toBe(`x1  {compact(UpgradeCost.Total(Upgrades.ById.Slots, 0, 1))}`)
 	end)
@@ -444,7 +447,12 @@ describe("Upgrades screen", function()
 	end)
 
 	it("ignores clicks on unaffordable and maxed rows without sending", function()
-		openScreen({ Cash = 0, Upgrades = { Speed = Upgrades.ById.Speed.MaxLevel }, Board = {}, IncomeAt = world.now })
+		openScreen({
+			Cash = 0,
+			Upgrades = { Speed = Upgrades.ById.Speed.MaxLevel },
+			Board = {},
+			IncomeAt = world.now,
+		})
 		click("Luck")
 		click("Speed")
 		world:flush()

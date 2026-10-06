@@ -18,6 +18,7 @@ describe("Stats", function()
 	end
 
 	local noUpgrades = { Luck = 0, Speed = 0, Slots = 0 }
+	local allSlots = { Luck = 0, Speed = 0, Slots = 999 }
 
 	describe("Slots", function()
 		it("starts at the base slot count", function()
@@ -78,7 +79,7 @@ describe("Stats", function()
 
 		it("sums key income into Rate", function()
 			local board = S.board("PlainClack", "PlainClack", "CreamyThock", "GlassTink")
-			expect(Stats.Compute(board, noUpgrades).Rate):toBe(
+			expect(Stats.Compute(board, allSlots).Rate):toBe(
 				income("PlainClack") * 2 + income("CreamyThock") + income("GlassTink")
 			)
 		end)
@@ -105,13 +106,14 @@ describe("Stats", function()
 		end)
 
 		it("caps speed at MaxRollsPerSecond", function()
-			local levels = { Luck = 0, Speed = 6, Slots = 0 }
+			local levels = { Luck = 0, Speed = 6, Slots = Upgrades.ById.Slots.MaxLevel }
 			local uncapped = GameConfig.RollsPerSecond + 6 * Upgrades.ById.Speed.PerLevel
 			expect(uncapped < GameConfig.MaxRollsPerSecond):toBe(true)
 			expect(Stats.Compute({}, levels).RollsPerSecond):toBe(uncapped)
 			local board = S.board("TurboSwitch", "TurboSwitch", "TurboSwitch", "TurboSwitch")
 			expect(Stats.Compute(board, levels).RollsPerSecond):toBe(GameConfig.MaxRollsPerSecond)
-			local maxed = { Luck = 0, Speed = Upgrades.ById.Speed.MaxLevel, Slots = 10 }
+			local maxed =
+				{ Luck = 0, Speed = Upgrades.ById.Speed.MaxLevel, Slots = Upgrades.ById.Slots.MaxLevel }
 			expect(Stats.Compute(S.fill("TurboSwitch", 30), maxed).RollsPerSecond):toBe(
 				GameConfig.MaxRollsPerSecond
 			)
@@ -141,7 +143,7 @@ describe("Stats", function()
 			expect(locked.Luck):toBe(1)
 			expect(locked.IncomeMultiplier):toBe(1)
 			expect(locked.Rate):toBe(0)
-			local unlocked = Stats.Compute(board, { Luck = 0, Speed = 0, Slots = 1 })
+			local unlocked = Stats.Compute(board, { Luck = 0, Speed = 0, Slots = 2 })
 			expect(unlocked.Luck):toBeCloseTo(1.1, 1e-9)
 			expect(unlocked.IncomeMultiplier):toBeCloseTo(1.25, 1e-9)
 			expect(unlocked.Rate):toBe(math.floor((income("CloverCap") + income("GoldPlate")) * 1.25))
@@ -156,7 +158,7 @@ describe("Stats", function()
 
 		it("ignores empty, unknown and non-string board entries", function()
 			local board: any = { "", "Bogus", 7, "PlainClack" }
-			expect(Stats.Compute(board, noUpgrades).Rate):toBe(1)
+			expect(Stats.Compute(board, allSlots).Rate):toBe(1)
 		end)
 	end)
 end)

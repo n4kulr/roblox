@@ -23,6 +23,7 @@ local detailedSeconds = 7200
 local milestoneRarities = { "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
 local tracked = { "Luck", "Speed", "Slots", "Income", "Golden" }
 local rebirthLimit = 8
+local paybackSlack = 8
 local valueWeights: { [string]: number } = { Luck = 0.7, Speed = 0.6, Slots = 1, Income = 1, Golden = 0.5 }
 
 type Purchase = { Time: number, Id: string, Level: number, Rebirths: number }
@@ -30,6 +31,7 @@ type Purchase = { Time: number, Id: string, Level: number, Rebirths: number }
 type Result = {
 	Seed: number,
 	First: { [string]: number },
+	Second: { [string]: number },
 	FirstUpgrade: number?,
 	Rebirths: { number },
 	Purchases: { Purchase },
@@ -47,10 +49,18 @@ local rng = {
 	end,
 }
 
-local sampleTimes: { number } = { 0, 30, 60, 120, 300, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200 }
+local hookSeconds = 2400
+local sampleTimes: { number } = { 0, 30, 5400, 7200 }
+for minute = 1, 45 do
+	table.insert(sampleTimes, minute * 60)
+end
+for minute = 50, 60, 10 do
+	table.insert(sampleTimes, minute * 60)
+end
 for hours = 3, horizonHours do
 	table.insert(sampleTimes, hours * 3600)
 end
+table.sort(sampleTimes)
 
 local function simulate(seed: number): Result
 	math.randomseed(seed)
@@ -70,6 +80,7 @@ local function simulate(seed: number): Result
 	local result: Result = {
 		Seed = seed,
 		First = {},
+		Second = {},
 		FirstUpgrade = nil,
 		Rebirths = {},
 		Purchases = {},
@@ -256,7 +267,7 @@ local function simulate(seed: number): Result
 					local gain = valueOf(id) * valueWeights[id]
 					local ratio = gain / cost
 					local payback = cost / math.max(1e-9, gain * stats.Rate)
-					if ratio > bestRatio and payback <= remaining then
+					if ratio > bestRatio and payback <= remaining * paybackSlack then
 						bestRatio, bestId, bestCost = ratio, id, cost
 					end
 				end
@@ -301,6 +312,8 @@ local function simulate(seed: number): Result
 		end
 		if result.First[key.Rarity] == nil then
 			result.First[key.Rarity] = clock
+		elseif result.Second[key.Rarity] == nil then
+			result.Second[key.Rarity] = clock
 		end
 		inventory[key.Id] = (inventory[key.Id] or 0) + 1
 		local perk = key.Perk
@@ -397,18 +410,43 @@ for seed = 1, seedCount do
 	table.insert(results, simulate(seed))
 end
 
-local function legendaryTime(result: Result): number
-	return result.First.Legendary or math.huge
+local typicalMarks: { (Result) -> number? } = {
+	function(result: Result)
+		return result.First.Epic
+	end,
+	function(result: Result)
+		return result.First.Legendary
+	end,
+	function(result: Result)
+		return result.Second.Legendary
+	end,
+	function(result: Result)
+		return result.Rebirths[1]
+	end,
+}
+local markMedians: { number } = {}
+for index, mark in typicalMarks do
+	local values: { number } = {}
+	for _, result in results do
+		table.insert(values, mark(result) or math.huge)
+	end
+	markMedians[index] = percentile(values, 0.5) or horizon
 end
 
-local ranked = table.clone(results)
-table.sort(ranked, function(a: Result, b: Result): boolean
-	if legendaryTime(a) ~= legendaryTime(b) then
-		return legendaryTime(a) < legendaryTime(b)
+local function distanceToTypical(result: Result): number
+	local total = 0
+	for index, mark in typicalMarks do
+		total += math.abs(math.log((mark(result) or horizon) / markMedians[index]))
 	end
-	return a.Seed < b.Seed
-end)
-local median = ranked[math.ceil(#ranked / 2)]
+	return total
+end
+
+local median = results[1]
+for _, result in results do
+	if distanceToTypical(result) < distanceToTypical(median) then
+		median = result
+	end
+end
 
 emit("## Configuration")
 emit("")
@@ -463,6 +501,9 @@ for _, name in milestoneRarities do
 		return result.First[name]
 	end)
 end
+milestoneRow("Second Legendary", function(result: Result)
+	return result.Second.Legendary
+end)
 for index = 1, 5 do
 	milestoneRow(`Rebirth {index}`, function(result: Result)
 		return result.Rebirths[index]
@@ -486,7 +527,9 @@ for index = 1, 6 do
 end
 emit("")
 
-emit(`## Median seed timeline (seed {median.Seed}, ranked by first Legendary)`)
+emit(
+	`## Median seed timeline (seed {median.Seed}, closest to the median Epic, Legendary, second Legendary and rebirth 1)`
+)
 emit("")
 emit("Purchases per 5 minutes for the first 2 hours, then per hour. R marks a rebirth.")
 emit("")
@@ -537,19 +580,84 @@ while from < endTime do
 end
 emit("")
 
-emit("## Median seed first purchases")
+emit("## Purchase cadence (median over seeds)")
 emit("")
-emit("| Time | Upgrade | Level | Gap |")
-emit("| --- | --- | ---: | ---: |")
-local previousAt = 0
-for _, purchase in median.Purchases do
-	if purchase.Time > 300 then
-		break
+emit("| Window | Purchases | Average gap | Longest gap |")
+emit("| --- | ---: | ---: | ---: |")
+local cadenceWindows = { { 0, 600 }, { 600, 2400 }, { 2400, 3600 }, { 3600, 7200 } }
+for _, window in cadenceWindows do
+	local counts: { number } = {}
+	local averages: { number } = {}
+	local longests: { number } = {}
+	for _, result in results do
+		local count, previousTime, longest = 0, window[1], 0
+		for _, purchase in result.Purchases do
+			if purchase.Time > window[1] and purchase.Time <= window[2] and purchase.Rebirths == 0 then
+				count += 1
+				longest = math.max(longest, purchase.Time - previousTime)
+				previousTime = purchase.Time
+			end
+		end
+		table.insert(counts, count)
+		table.insert(averages, (window[2] - window[1]) / math.max(1, count))
+		table.insert(longests, longest)
 	end
+	local averageGap = percentile(averages, 0.5) or 0
 	emit(
-		`| {formatTime(purchase.Time)} | {purchase.Id} | {purchase.Level} | {purchase.Time - previousAt} s |`
+		`| {formatTime(window[1])}-{formatTime(window[2])} | {percentile(counts, 0.5)} | {string.format(
+			"%.1f",
+			averageGap
+		)} s | {percentile(longests, 0.5)} s |`
 	)
-	previousAt = purchase.Time
+end
+emit("")
+
+emit("## First 40 minutes (median seed)")
+emit("")
+emit(
+	"Per minute: purchases (Luck, Speed, Slots, Income, Golden), Clicks per second at the end of the minute and what was found."
+)
+emit("")
+emit("| Minute | Buys | Luck | Speed | Slots | Income | Golden | Cash/s | Events |")
+emit("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+for minute = 1, hookSeconds // 60 do
+	local from = (minute - 1) * 60
+	local to = minute * 60
+	local counts: { [string]: number } = {}
+	local total = 0
+	for _, purchase in median.Purchases do
+		if purchase.Time > from and purchase.Time <= to then
+			counts[purchase.Id] = (counts[purchase.Id] or 0) + 1
+			total += 1
+		end
+	end
+	local events: { string } = {}
+	for _, name in milestoneRarities do
+		local at = median.First[name]
+		if at and at > from and at <= to then
+			table.insert(events, `first {name}`)
+		end
+	end
+	local secondLegendary = median.Second.Legendary
+	if secondLegendary and secondLegendary > from and secondLegendary <= to then
+		table.insert(events, "second Legendary")
+	end
+	for index, at in median.Rebirths do
+		if at > from and at <= to then
+			table.insert(events, `rebirth {index}`)
+		end
+	end
+	local rate = 0
+	for _, sample in median.Rates do
+		if sample.Time <= to then
+			rate = sample.Rate
+		end
+	end
+	local cells: { string } = {}
+	for _, id in tracked do
+		table.insert(cells, tostring(counts[id] or 0))
+	end
+	emit(`| {minute} | {total} | {table.concat(cells, " | ")} | {rate} | {table.concat(events, ", ")} |`)
 end
 emit("")
 
@@ -558,7 +666,7 @@ emit("")
 emit("| Time | Cash/s | Rebirths |")
 emit("| --- | ---: | ---: |")
 for _, sample in median.Rates do
-	if sample.Time <= 12 * 3600 then
+	if sample.Time <= 12 * 3600 and (sample.Time % 300 == 0 or sample.Time == 30) then
 		emit(`| {formatTime(sample.Time)} | {sample.Rate} | {sample.Rebirths} |`)
 	end
 end

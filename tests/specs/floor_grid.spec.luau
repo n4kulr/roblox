@@ -57,7 +57,6 @@ describe("FloorGrid", function()
 
 	it("places exactly BoardSlots slot cells in row-major order clear of the roll key", function()
 		local layout = FloorGrid.Build(44, 44, rollKey, 0, 12)
-		expect(GameConfig.BoardSlots):toBe(60)
 		expect(#layout.Slots):toBe(GameConfig.BoardSlots)
 		local previous = nil
 		for slot = 1, GameConfig.BoardSlots do
@@ -135,8 +134,7 @@ describe("FloorGrid", function()
 		local layout = FloorGrid.Build(20, 20, nil, 0, 0)
 		local count = math.floor((20 - FloorGrid.EdgeMargin * 2) / FloorGrid.CellSize)
 		expect(#layout.Cells):toBe(count * count)
-		expect(#layout.Slots):toBe(count * count)
-		expect(#layout.Slots < GameConfig.BoardSlots):toBe(true)
+		expect(#layout.Slots):toBe(math.min(count * count, GameConfig.BoardSlots))
 	end)
 
 	it("locates the cell under a point", function()
