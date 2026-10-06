@@ -175,8 +175,9 @@ function Chest.Build(origin: Vector3): Model
 		Vector3.new(width - 1.2, 0.3, depth - 1.2),
 		at(0, bodyTop - 0.05, 0),
 		glowColor,
-		Enum.Material.Neon
+		Enum.Material.SmoothPlastic
 	)
+	glow.Reflectance = 0.22
 	glow.Parent = model
 	local light = Instance.new("PointLight")
 	light.Name = "GlowLight"

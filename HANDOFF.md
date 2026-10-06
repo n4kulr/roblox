@@ -129,7 +129,7 @@ The contracts are already pushed in 72dd429:
 
 Six Sonnet agents are running; their work is not merged yet:
 1. **Early game:** retune for a fast-paced first 40 minutes (Epic at about 2-3 min, Legendary at 12-20 min, first rebirth at 45-60 min).
-2. **Group chest** at the map centre: join the group to claim. `GroupId` is 0 until the owner sets it.
+2. **Group chest (DONE, merged; set GameConfig.GroupChest.GroupId)** at the map centre: join the group to claim. `GroupId` is 0 until the owner sets it.
 3. **Playtime gifts** replace Daily: 10 tiers from 10s to 60 min, tracked per session. The HUD button becomes "GIFTS".
 4. **Big reveal effects:** Bubble Gum Sim-style reveals for Legendary, Mythic and Secret. Settings gets a "Big reveal effects" selector and a Music slider.
 5. **UI batch:**
