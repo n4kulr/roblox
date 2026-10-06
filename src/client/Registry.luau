@@ -7,6 +7,7 @@ local controllers: { Lifecycle.System } = {
 	require(script.Parent.Controllers.DataController),
 	require(script.Parent.Controllers.AppController),
 	require(script.Parent.Controllers.SoundController),
+	require(script.Parent.Controllers.MusicController),
 	require(script.Parent.Controllers.RollController),
 	require(script.Parent.Controllers.KeyboardController),
 	require(script.Parent.Controllers.KeyPressController),
