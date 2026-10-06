@@ -37,6 +37,11 @@ describe("Base defense", function()
 		return world:join({ Name = name }, data, fireLoaded ~= false)
 	end
 
+	local function glassAt(level: number, rise: number?): number
+		local Walls = world:require("ServerScriptService.Services.PlotService.Walls")
+		return Walls.GlassFor(level, rise or 0)
+	end
+
 	local function countKeys(table_: { [any]: any }): number
 		local count = 0
 		for _ in table_ do
@@ -100,19 +105,33 @@ describe("Base defense", function()
 			for level = 1, Upgrades.ById.Walls.MaxLevel do
 				local player = join(`Owner{level}`, { Upgrades = { Walls = level } })
 				local plot = registry.PlotService:GetPlot(player)
-				local height = level * step
-				expect(registry.PlotService:GetWallHeight(player)):toBe(height)
-				expect(plot:GetAttribute("WallHeight")):toBe(height)
+				local height = glassAt(level)
+				expect(registry.PlotService:GetWallHeight(player)):toBeCloseTo(height, 1e-3)
+				expect(plot:GetAttribute("WallHeight")):toBeCloseTo(height, 1e-3)
 				local glass = glassOnly(plot)
 				expect(countKeys(glass)):toBe(5)
 				for _, part in glass do
-					expect(part.Size.Y):toBe(height)
+					expect(part.Size.Y):toBeCloseTo(height, 1e-3)
 					expect(localPosition(plot, part).Y - height / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
 				end
 				world:removePlayer(player)
 				expect(plot:FindFirstChild("GlassWalls")):toBeNil()
 				expect(plot:GetAttribute("WallHeight")):toBe(0)
 			end
+		end)
+
+		it("keeps level one jumpable and level two and up above a jump", function()
+			local jump = 7.2
+			for _, rise in { 0, 2, 3, 4 } do
+				local rail = 0.3
+				expect(rise + glassAt(1, rise) + rail <= 6 + 1e-6):toBe(true)
+				expect(rise + glassAt(1, rise) + rail < jump):toBe(true)
+				for level = 2, Upgrades.ById.Walls.MaxLevel do
+					expect(rise + glassAt(level, rise) + rail > jump + 1):toBe(true)
+				end
+			end
+			expect(glassAt(1, 0)):toBe(3)
+			expect(glassAt(0, 3)):toBe(0)
 		end)
 
 		it("styles glass panels as see-through blockers", function()
@@ -153,7 +172,7 @@ describe("Base defense", function()
 				expect(position.Z):toBeCloseTo(spot[2], 1e-3)
 				expect(pillar.Size.X):toBeCloseTo(1.4, 1e-4)
 				expect(pillar.Size.Z):toBeCloseTo(1.4, 1e-4)
-				expect(pillar.Size.Y):toBeCloseTo(6.4, 1e-3)
+				expect(pillar.Size.Y):toBeCloseTo(glassAt(2) + 0.4, 1e-3)
 				expect(position.Y - pillar.Size.Y / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
 				expect(pillar.Material == roblox.Enum.Material.Metal):toBe(true)
 				expect(pillar.CastShadow):toBe(true)
@@ -205,7 +224,7 @@ describe("Base defense", function()
 			expect(data.Upgrades.Walls):toBe(1)
 			expect(wallParts(plot).Back.Size.Y):toBe(3)
 			expect(world:invoke("BuyUpgrade", player, "Walls", 1)):toBe(true)
-			expect(wallParts(plot).Back.Size.Y):toBe(6)
+			expect(wallParts(plot).Back.Size.Y):toBeCloseTo(glassAt(2), 1e-3)
 			world:removePlayer(player)
 			expect(plot:FindFirstChild("GlassWalls")):toBeNil()
 		end)
@@ -325,9 +344,9 @@ describe("Base defense", function()
 			for name, part in before do
 				expect(after[name] == part):toBe(true)
 			end
-			expect(before.Back.Size.Y):toBe(6)
-			expect(localPosition(plot, before.Back).Y - 3):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
-			expect(before.PillarBackLeft.Size.Y):toBeCloseTo(6.4, 1e-3)
+			expect(before.Back.Size.Y):toBeCloseTo(glassAt(2), 1e-3)
+			expect(localPosition(plot, before.Back).Y - glassAt(2) / 2):toBeCloseTo(plot.Base.Size.Y / 2, 1e-3)
+			expect(before.PillarBackLeft.Size.Y):toBeCloseTo(glassAt(2) + 0.4, 1e-3)
 		end)
 
 		it("reuses the cached instances when a new owner arrives", function()
@@ -738,8 +757,9 @@ describe("Base defense", function()
 			return owner, thief, plot, inside
 		end
 
-		it("knocks a non-owner inside the footprint out through the entrance", function()
+		it("knocks a non-owner crossing the entrance plane out through the entrance", function()
 			local owner, thief, plot, inside = intruderSetup()
+			thief.Character.HumanoidRootPart.CFrame = plot.Base.CFrame * roblox.CFrame.new(1, 3, -21)
 			triggerLock(plot, owner)
 			world:advance(0.25)
 			local relative = localRelative(plot, thief)
@@ -760,6 +780,25 @@ describe("Base defense", function()
 			expect(toasts):toEqual({ "🔴 The lasers zapped you!" })
 		end)
 
+		it("never teleports a wall jumper standing inside the base", function()
+			local owner, thief, plot, inside = intruderSetup()
+			local spot = plot.Base.CFrame * roblox.CFrame.new(0, 12, 5)
+			thief.Character.HumanoidRootPart.CFrame = spot
+			triggerLock(plot, owner)
+			world:advance(2)
+			expect(thief.Character.HumanoidRootPart.CFrame == spot):toBe(true)
+			local corner = plot.Base.CFrame * roblox.CFrame.new(-18, 3, -20)
+			thief.Character.HumanoidRootPart.CFrame = corner
+			world:advance(2)
+			expect(thief.Character.HumanoidRootPart.CFrame == corner):toBe(true)
+			local overWall = plot.Base.CFrame * roblox.CFrame.new(15, 9, -21)
+			thief.Character.HumanoidRootPart.CFrame = overWall
+			world:advance(2)
+			expect(thief.Character.HumanoidRootPart.CFrame == overWall):toBe(true)
+			expect(owner.Character.HumanoidRootPart.CFrame == inside):toBe(true)
+			expect(#world:firedOf("StealAlert")):toBe(0)
+		end)
+
 		it("leaves the owner and outsiders alone", function()
 			local owner, thief, plot, inside = intruderSetup()
 			local outside = plot.Base.CFrame * roblox.CFrame.new(0, 3, -40)
@@ -773,7 +812,8 @@ describe("Base defense", function()
 
 		it("does not knock anyone while the base is unlocked or after the lock ends", function()
 			local owner, thief, plot = intruderSetup()
-			local spot = thief.Character.HumanoidRootPart.CFrame
+			local spot = plot.Base.CFrame * roblox.CFrame.new(0, 3, -21)
+			thief.Character.HumanoidRootPart.CFrame = spot
 			world:advance(1)
 			expect(thief.Character.HumanoidRootPart.CFrame == spot):toBe(true)
 			triggerLock(plot, owner)
@@ -785,9 +825,10 @@ describe("Base defense", function()
 
 		it("keeps knocking a thief who walks back in", function()
 			local owner, thief, plot, inside = intruderSetup()
+			thief.Character.HumanoidRootPart.CFrame = plot.Base.CFrame * roblox.CFrame.new(0, 3, -21)
 			triggerLock(plot, owner)
 			world:advance(0.25)
-			thief.Character.HumanoidRootPart.CFrame = inside
+			thief.Character.HumanoidRootPart.CFrame = plot.Base.CFrame * roblox.CFrame.new(-2, 3, -22)
 			world:advance(0.25)
 			expect(localRelative(plot, thief).Z < -22):toBe(true)
 		end)

@@ -10,7 +10,9 @@ local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local KeyVisual = require(script.Parent.Parent.Utils.KeyVisual)
+local Ragdoll = require(script.Parent.Parent.Utils.Ragdoll)
 local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
+local Drops = require(script.Drops)
 local Prompts = require(script.Prompts)
 local Types = require(script.Types)
 
@@ -25,6 +27,11 @@ local stepSeconds = 0.2
 local playtimeSaveSeconds = 30
 local rejectedPhase = 9
 local victimLeftReason = "They left — the key went home!"
+local ragdollSeconds = 2.5
+local knockCooldownSeconds = 3
+local dropSeconds = 25
+local goodPhase = 11
+local knockedMessage = "You got knocked down!"
 
 local StealService = {
 	Name = "StealService",
@@ -35,7 +42,9 @@ local prompts: { [Player]: { [number]: Types.PromptRecord } } = {}
 local carriers: { [Player]: Types.Carrier } = {}
 local locks: { [number]: Types.Lock } = {}
 local lockedUntil: { [number]: number } = {}
-local lastTag: { [Player]: number } = {}
+local knockReadyAt: { [Player]: number } = {}
+local ragdolls: { [Player]: any } = {}
+local drops: { [BasePart]: Types.Drop } = {}
 local playClock: { [Player]: number } = {}
 
 local function getData(player: Player): PlayerData.Data?
@@ -246,6 +255,7 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 		VictimName = owner.DisplayName,
 		Slot = slot,
 		StartedAt = os.clock(),
+		KnockPrompt = nil,
 		Trove = carryTrove,
 	}
 	carriers[thief] = carrier
@@ -260,6 +270,17 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 		character:SetAttribute("CarryingKey", nil)
 		character:SetAttribute(WalkSpeed.StolenAttribute, nil)
 		WalkSpeed.Refresh(character)
+	end)
+	local victimData = getData(owner)
+	local knockPrompt = Prompts.CreateKnock(
+		root,
+		owner.UserId,
+		Prompts.KnockRange(victimData ~= nil and victimData.TheftLessonDone == false)
+	)
+	carryTrove:Add(knockPrompt)
+	carrier.KnockPrompt = knockPrompt
+	carryTrove:Connect(knockPrompt.Triggered, function(victim: Player)
+		StealService:_knock(victim, thief)
 	end)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -368,44 +389,168 @@ function syncPrompts(owner: Player)
 			end
 			local active = record or createRecord(owner, slot, cap)
 			records[slot] = active
-			Prompts.Update(active.Prompt, keyId, lessonPending)
-			active.Prompt.Enabled = not isBaseLocked and (lock == nil or lock.Slot == slot)
+			Prompts.Update(
+				active.Prompt,
+				keyId,
+				lessonPending,
+				not isBaseLocked and (lock == nil or lock.Slot == slot)
+			)
 		elseif record then
 			destroyRecord(owner, slot)
 		end
 	end
 end
 
-local function tagThief(player: Player, targetUserId: number): boolean
-	if type(targetUserId) ~= "number" then
-		return false
+local function endRagdoll(thief: Player)
+	local handle = ragdolls[thief]
+	if handle then
+		ragdolls[thief] = nil
+		handle.Trove:Destroy()
 	end
-	local thief = Players:GetPlayerByUserId(targetUserId)
-	local carrier = if thief then carriers[thief] else nil
-	if not thief or not carrier or carrier.VictimUserId ~= player.UserId then
-		return false
+end
+
+local function startRagdoll(thief: Player)
+	local character = thief.Character
+	endRagdoll(thief)
+	if not character then
+		return
 	end
-	local now = os.clock()
-	local last = lastTag[player]
-	if last and now - last < config.TagCooldown then
-		return false
+	local restore = Ragdoll.Apply(character)
+	if not restore then
+		return
 	end
-	lastTag[player] = now
-	local data = getData(player)
-	local range = if data and data.TheftLessonDone == false then config.LessonTagRange else config.TagRange
-	local ownRoot = rootOf(player)
+	local trove = Trove.new()
+	ragdolls[thief] = { Trove = trove }
+	trove:Add(restore)
+	local connection = thief.CharacterRemoving:Connect(function()
+		endRagdoll(thief)
+	end)
+	trove:Add(connection)
+	local thread = task.delay(ragdollSeconds, function()
+		ragdolls[thief] = nil
+		restore()
+		connection:Disconnect()
+		knockReadyAt[thief] = os.clock() + knockCooldownSeconds
+	end)
+	trove:Add(function()
+		task.cancel(thread)
+	end)
+end
+
+local function destroyDrop(drop: Types.Drop)
+	if drops[drop.Part] == drop then
+		drops[drop.Part] = nil
+		drop.Trove:Destroy()
+	end
+end
+
+local function returnDrop(drop: Types.Drop, thiefName: string)
+	destroyDrop(drop)
+	local owner = Players:GetPlayerByUserId(drop.OwnerUserId)
+	if not owner or not getData(owner) then
+		return
+	end
+	services.KeyboardService:RestoreKey(owner, drop.Slot, drop.KeyId)
+	local key = Keys.ById[drop.KeyId]
+	alert(owner, thiefName, if key then key.Index else 0, 3)
+end
+
+local function spawnDrop(carrier: Types.Carrier, thief: Player, root: BasePart)
+	local part, prompt =
+		Drops.Build(carrier.KeyId, carrier.VictimUserId, carrier.VictimName, root, thief.Character)
+	if not part or not prompt then
+		return
+	end
+	local dropTrove = Trove.new()
+	local drop: Types.Drop = {
+		KeyId = carrier.KeyId,
+		OwnerUserId = carrier.VictimUserId,
+		Slot = carrier.Slot,
+		ThiefName = thief.DisplayName,
+		Part = part,
+		Prompt = prompt,
+		Trove = dropTrove,
+	}
+	drops[part] = drop
+	dropTrove:Add(function()
+		Drops.Release(part)
+	end)
+	dropTrove:Connect(prompt.Triggered, function(player: Player)
+		if player.UserId ~= drop.OwnerUserId or drops[part] ~= drop then
+			return
+		end
+		local ownerRoot = rootOf(player)
+		if
+			not ownerRoot
+			or distanceBetween(ownerRoot, part) > Prompts.TakeBackRange + Prompts.TakeBackSlack
+		then
+			return
+		end
+		returnDrop(drop, drop.ThiefName)
+	end)
+	dropTrove:Add(task.delay(dropSeconds, function()
+		returnDrop(drop, drop.ThiefName)
+	end))
+	part.Parent = workspace
+end
+
+local function knock(victim: Player, thief: Player)
+	local carrier = carriers[thief]
+	if not carrier or carrier.VictimUserId ~= victim.UserId then
+		return
+	end
+	local readyAt = knockReadyAt[thief]
+	if readyAt and os.clock() < readyAt then
+		return
+	end
+	local data = getData(victim)
+	local range = Prompts.KnockRange(data ~= nil and data.TheftLessonDone == false)
+	local victimRoot = rootOf(victim)
 	local thiefRoot = rootOf(thief)
-	if not ownRoot or not thiefRoot or distanceBetween(ownRoot, thiefRoot) > range then
-		return false
+	if
+		not victimRoot
+		or not thiefRoot
+		or distanceBetween(victimRoot, thiefRoot) > range + Prompts.KnockSlack
+	then
+		return
 	end
-	failCarry(thief)
-	return true
+	endCarry(thief)
+	spawnDrop(carrier, thief, thiefRoot)
+	startRagdoll(thief)
+	knockReadyAt[thief] = os.clock() + ragdollSeconds + knockCooldownSeconds
+	alert(victim, `You knocked down {thief.DisplayName}! Grab your key back!`, 0, goodPhase)
+	alert(thief, knockedMessage, 0, rejectedPhase)
+end
+
+local function releaseDropsOf(owner: Player, data: PlayerData.Data)
+	for _, drop in table.clone(drops) do
+		if drop.OwnerUserId == owner.UserId then
+			destroyDrop(drop)
+			returnToDeparting({
+				KeyId = drop.KeyId,
+				VictimUserId = drop.OwnerUserId,
+				VictimName = "",
+				Slot = drop.Slot,
+				StartedAt = 0,
+				KnockPrompt = nil,
+				Trove = nil,
+			}, data)
+		end
+	end
 end
 
 local function step()
 	for thief, carrier in table.clone(carriers) do
 		if carriers[thief] == carrier then
 			local root = rootOf(thief)
+			local knockPrompt = carrier.KnockPrompt
+			if knockPrompt then
+				local readyAt = knockReadyAt[thief]
+				local isOpen = readyAt == nil or os.clock() >= readyAt
+				if knockPrompt:GetAttribute(Prompts.OpenAttribute) ~= isOpen then
+					knockPrompt:SetAttribute(Prompts.OpenAttribute, isOpen)
+				end
+			end
 			if not root then
 				failCarry(thief)
 			else
@@ -433,10 +578,11 @@ function StealService.Start(self: State)
 	end)
 	services.DataService.PlayerReleasing:Connect(function(player: Player, data: PlayerData.Data)
 		releaseCarriesOf(player, data)
+		releaseDropsOf(player, data)
 		locks[player.UserId] = nil
 		data.PlaySeconds += takePlaySeconds(player)
 		playClock[player] = nil
-		lastTag[player] = nil
+		knockReadyAt[player] = nil
 		lockedUntil[player.UserId] = nil
 		clearPrompts(player)
 	end)
@@ -450,6 +596,8 @@ function StealService.Start(self: State)
 	end))
 	trove:Add(Players.PlayerRemoving:Connect(function(player: Player)
 		failCarry(player)
+		endRagdoll(player)
+		knockReadyAt[player] = nil
 		for victimUserId, lock in table.clone(locks) do
 			if lock.Thief == player then
 				releaseLock(victimUserId, player)
@@ -462,7 +610,6 @@ function StealService.Start(self: State)
 			syncPrompts(player)
 		end
 	end
-	Packets.TagThief.OnServerInvoke = tagThief
 	trove:Add(task.spawn(function()
 		local sinceSave = 0
 		while true do
@@ -479,12 +626,21 @@ function StealService.Start(self: State)
 	end))
 end
 
+function StealService._knock(_self: State, victim: Player, thief: Player)
+	knock(victim, thief)
+end
+
 function StealService.IsCarrying(_self: State, player: Player): boolean
 	return carriers[player] ~= nil
 end
 
 function StealService.Destroy(self: State)
-	Packets.TagThief.OnServerInvoke = nil
+	for _, drop in table.clone(drops) do
+		destroyDrop(drop)
+	end
+	for thief in table.clone(ragdolls) do
+		endRagdoll(thief)
+	end
 	for thief in table.clone(carriers) do
 		failCarry(thief)
 	end
@@ -493,7 +649,7 @@ function StealService.Destroy(self: State)
 	end
 	table.clear(locks)
 	table.clear(lockedUntil)
-	table.clear(lastTag)
+	table.clear(knockReadyAt)
 	table.clear(playClock)
 	if self._trove then
 		self._trove:Destroy()
