@@ -42,32 +42,38 @@ local kinds: { [string]: KindInfo } = {
 }
 
 local definitions: { { Id: string, Name: string, Rarity: string, Kind: Kind, Amount: number } } = {
-	{ Id = "KeycapPin", Name = "Keycap Pin", Rarity = "Common", Kind = "Income", Amount = 1.25 },
-	{ Id = "CloverFob", Name = "Clover Fob", Rarity = "Common", Kind = "Luck", Amount = 1.2 },
-	{ Id = "TinySwitch", Name = "Tiny Switch", Rarity = "Common", Kind = "Speed", Amount = 0.1 },
-	{ Id = "BrassStab", Name = "Brass Stabilizer", Rarity = "Uncommon", Kind = "Income", Amount = 1.5 },
-	{ Id = "LuckyLube", Name = "Lucky Lube", Rarity = "Uncommon", Kind = "Luck", Amount = 1.4 },
-	{ Id = "QuickSpring", Name = "Quick Spring", Rarity = "Uncommon", Kind = "Speed", Amount = 0.2 },
-	{ Id = "GoldenTick", Name = "Golden Tick", Rarity = "Uncommon", Kind = "Golden", Amount = 5 },
-	{ Id = "ThockPad", Name = "Thock Pad", Rarity = "Rare", Kind = "Income", Amount = 2 },
-	{ Id = "LuckyCable", Name = "Lucky Cable", Rarity = "Rare", Kind = "Luck", Amount = 1.8 },
-	{ Id = "TurboSpring", Name = "Turbo Spring", Rarity = "Rare", Kind = "Speed", Amount = 0.3 },
-	{ Id = "GoldTab", Name = "Gold Tab", Rarity = "Rare", Kind = "Golden", Amount = 10 },
-	{ Id = "StickyFingers", Name = "Sticky Fingers", Rarity = "Rare", Kind = "Steal", Amount = 0.25 },
-	{ Id = "LaserLens", Name = "Laser Lens", Rarity = "Rare", Kind = "Laser", Amount = 10 },
-	{ Id = "RainbowCoil", Name = "Rainbow Coil", Rarity = "Epic", Kind = "Income", Amount = 3 },
-	{ Id = "FourLeafCap", Name = "Four-Leaf Cap", Rarity = "Epic", Kind = "Luck", Amount = 2.2 },
-	{ Id = "HyperSwitch", Name = "Hyper Switch", Rarity = "Epic", Kind = "Speed", Amount = 0.4 },
-	{ Id = "GoldenGear", Name = "Golden Gear", Rarity = "Epic", Kind = "Golden", Amount = 15 },
-	{ Id = "GhostHand", Name = "Ghost Hand", Rarity = "Epic", Kind = "Steal", Amount = 0.5 },
-	{ Id = "LaserCore", Name = "Laser Core", Rarity = "Epic", Kind = "Laser", Amount = 20 },
-	{ Id = "GoldSpacebar", Name = "Gold Spacebar", Rarity = "Legendary", Kind = "Income", Amount = 5 },
-	{ Id = "CloverCrown", Name = "Clover Crown", Rarity = "Legendary", Kind = "Luck", Amount = 3 },
-	{ Id = "LightningSwitch", Name = "Lightning Switch", Rarity = "Legendary", Kind = "Speed", Amount = 0.5 },
-	{ Id = "MidasKey", Name = "Midas Key", Rarity = "Legendary", Kind = "Golden", Amount = 25 },
-	{ Id = "PhantomPaw", Name = "Phantom Paw", Rarity = "Legendary", Kind = "Steal", Amount = 1 },
-	{ Id = "MegaLaser", Name = "Mega Laser", Rarity = "Legendary", Kind = "Laser", Amount = 30 },
-	{ Id = "DiamondSpacebar", Name = "Diamond Spacebar", Rarity = "Mythic", Kind = "Income", Amount = 10 },
+	{ Id = "KeycapPin", Name = "Keycap Kitty", Rarity = "Common", Kind = "Income", Amount = 1.25 },
+	{ Id = "CloverFob", Name = "Clicky Chick", Rarity = "Common", Kind = "Luck", Amount = 1.2 },
+	{ Id = "TinySwitch", Name = "Thock Pup", Rarity = "Common", Kind = "Speed", Amount = 0.1 },
+	{ Id = "BrassStab", Name = "Brass Bear", Rarity = "Uncommon", Kind = "Income", Amount = 1.5 },
+	{ Id = "LuckyLube", Name = "Lucky Frog", Rarity = "Uncommon", Kind = "Luck", Amount = 1.4 },
+	{ Id = "QuickSpring", Name = "Spring Squirrel", Rarity = "Uncommon", Kind = "Speed", Amount = 0.2 },
+	{ Id = "GoldenTick", Name = "Golden Hamster", Rarity = "Uncommon", Kind = "Golden", Amount = 5 },
+	{ Id = "ThockPad", Name = "Thock Panda", Rarity = "Rare", Kind = "Income", Amount = 2 },
+	{ Id = "LuckyCable", Name = "Lucky Lizard", Rarity = "Rare", Kind = "Luck", Amount = 1.8 },
+	{ Id = "TurboSpring", Name = "Turbo Hare", Rarity = "Rare", Kind = "Speed", Amount = 0.3 },
+	{ Id = "GoldTab", Name = "Gold Gecko", Rarity = "Rare", Kind = "Golden", Amount = 10 },
+	{ Id = "StickyFingers", Name = "Sticky Raccoon", Rarity = "Rare", Kind = "Steal", Amount = 0.25 },
+	{ Id = "LaserLens", Name = "Laser Owl", Rarity = "Rare", Kind = "Laser", Amount = 10 },
+	{ Id = "RainbowCoil", Name = "Rainbow Parrot", Rarity = "Epic", Kind = "Income", Amount = 3 },
+	{ Id = "FourLeafCap", Name = "Four-Leaf Fawn", Rarity = "Epic", Kind = "Luck", Amount = 2.2 },
+	{ Id = "HyperSwitch", Name = "Switch Fox", Rarity = "Epic", Kind = "Speed", Amount = 0.4 },
+	{ Id = "GoldenGear", Name = "Golden Gorilla", Rarity = "Epic", Kind = "Golden", Amount = 15 },
+	{ Id = "GhostHand", Name = "Ghost Ferret", Rarity = "Epic", Kind = "Steal", Amount = 0.5 },
+	{ Id = "LaserCore", Name = "Laser Lynx", Rarity = "Epic", Kind = "Laser", Amount = 20 },
+	{ Id = "GoldSpacebar", Name = "Spacebar Bunny", Rarity = "Legendary", Kind = "Income", Amount = 5 },
+	{ Id = "CloverCrown", Name = "Crown Koala", Rarity = "Legendary", Kind = "Luck", Amount = 3 },
+	{
+		Id = "LightningSwitch",
+		Name = "Lightning Leopard",
+		Rarity = "Legendary",
+		Kind = "Speed",
+		Amount = 0.5,
+	},
+	{ Id = "MidasKey", Name = "Golden Goose", Rarity = "Legendary", Kind = "Golden", Amount = 25 },
+	{ Id = "PhantomPaw", Name = "Phantom Wolf", Rarity = "Legendary", Kind = "Steal", Amount = 1 },
+	{ Id = "MegaLaser", Name = "Mega Laser Shark", Rarity = "Legendary", Kind = "Laser", Amount = 30 },
+	{ Id = "DiamondSpacebar", Name = "Diamond Dragon", Rarity = "Mythic", Kind = "Income", Amount = 10 },
 }
 
 local rarityByName: { [string]: Rarity } = {}
@@ -83,8 +89,8 @@ for _, rarity in rarities do
 	byRarity[rarity.Name] = {}
 end
 for _, definition in definitions do
-	assert(rarityByName[definition.Rarity] ~= nil, `Unknown charm rarity {definition.Rarity}`)
-	assert(kinds[definition.Kind] ~= nil, `Unknown charm kind {definition.Kind}`)
+	assert(rarityByName[definition.Rarity] ~= nil, `Unknown pet rarity {definition.Rarity}`)
+	assert(kinds[definition.Kind] ~= nil, `Unknown pet kind {definition.Kind}`)
 	local charm: Charm = {
 		Id = definition.Id,
 		Name = definition.Name,
@@ -106,7 +112,7 @@ for _, kind in kinds do
 end
 
 local Charms = {
-	EquipLimit = 3,
+	ActiveLimit = 6,
 	Rarities = table.freeze(rarities),
 	RarityByName = table.freeze(rarityByName),
 	Kinds = table.freeze(kinds),

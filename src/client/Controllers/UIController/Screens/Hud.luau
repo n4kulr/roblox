@@ -140,7 +140,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		leftButton("Rebirth", "Rebirth", "REBIRTH", theme.Pink, 4, "Start over for a big bonus!", "Rebirth")
 	local dailyButton =
 		leftButton("DailyRewards", "Gift", "GIFTS", theme.Teal, 5, "Free gifts for playing!", "Daily")
-	leftButton("Charms", "Luck", "CHARMS", theme.Purple, 7, "Equip charms for big bonuses!", "Charms")
 	local giftButton = squareButton(
 		menu,
 		"StarterPack",

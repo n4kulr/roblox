@@ -10,6 +10,7 @@ local Charms = require(ReplicatedStorage.Rules.Charms)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Inventory = require(script.Inventory)
+local Pets = require(script.Pets)
 local Placed = require(script.Placed)
 local Tools = require(script.Tools)
 
@@ -31,14 +32,11 @@ local EggService = {
 local services: { [string]: any } = {}
 local random: Random? = nil
 local shown: { [Player]: Placed.Shown } = {}
+local petsShown: { [Player]: Pets.Shown } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
 
 local function dataOf(player: Player): PlayerData.Data?
 	return services.DataService:GetData(player) :: PlayerData.Data?
-end
-
-local function publishEquipped(player: Player, data: PlayerData.Data)
-	player:SetAttribute("EquippedCharms", table.concat(data.EquippedCharms, ","))
 end
 
 local function plotOf(player: Player): (Model?, BasePart?, BasePart?)
@@ -79,6 +77,31 @@ local function showPlaced(player: Player, now: number)
 		shown[player] = state
 	end
 	Placed.Refresh(state, plot, base, data.PlacedEggs, now)
+end
+
+local function showPets(player: Player, data: PlayerData.Data)
+	local plot, base, rollKey = plotOf(player)
+	local state = petsShown[player]
+	if not plot or not base or not Placed.IsPlot(plot) then
+		if state then
+			Pets.Clear(state)
+		end
+		return
+	end
+	if not state then
+		state = Pets.NewShown()
+		petsShown[player] = state
+	end
+	Pets.Refresh(state, plot, base, rollKey, player.UserId, data.EquippedCharms)
+end
+
+local function syncActive(player: Player, data: PlayerData.Data)
+	local best = Charms.Best(data.Charms)
+	if table.concat(best, ",") ~= table.concat(data.EquippedCharms, ",") then
+		services.DataService:Set(player, { "EquippedCharms" }, best)
+	end
+	player:SetAttribute("EquippedCharms", table.concat(best, ","))
+	showPets(player, data)
 end
 
 local function syncTools(player: Player)
@@ -135,6 +158,10 @@ end
 function EggService.Sync(_self: State, player: Player)
 	syncTools(player)
 	showPlaced(player, os.time())
+	local data = dataOf(player)
+	if data then
+		syncActive(player, data)
+	end
 end
 
 function EggService.HasRoom(_self: State, player: Player): boolean
@@ -210,6 +237,7 @@ function EggService.Hatch(_self: State, player: Player, index: any): string
 	table.remove(list, index)
 	services.DataService:Set(player, { "PlacedEggs" }, list)
 	services.DataService:Set(player, { "Charms", charmId }, (data.Charms[charmId] or 0) + 1)
+	syncActive(player, data)
 	services.DataService:RequestSave(player)
 	local state = shown[player]
 	if state then
@@ -217,30 +245,6 @@ function EggService.Hatch(_self: State, player: Player, index: any): string
 	end
 	showPlaced(player, now)
 	return charmId
-end
-
-function EggService.Equip(_self: State, player: Player, charmId: string, equip: boolean): boolean
-	local data = dataOf(player)
-	if not data or type(charmId) ~= "string" or type(equip) ~= "boolean" then
-		return false
-	end
-	local list = table.clone(data.EquippedCharms)
-	if equip then
-		if not Charms.CanEquip(data.Charms, list, charmId) then
-			return false
-		end
-		table.insert(list, charmId)
-	else
-		local found = table.find(list, charmId)
-		if not found then
-			return false
-		end
-		table.remove(list, found)
-	end
-	services.DataService:Set(player, { "EquippedCharms" }, list)
-	services.DataService:RequestSave(player)
-	publishEquipped(player, data)
-	return true
 end
 
 local function releasePlayer(player: Player)
@@ -254,15 +258,15 @@ local function releasePlayer(player: Player)
 	if state then
 		Placed.Clear(state)
 	end
+	local petState = petsShown[player]
+	petsShown[player] = nil
+	if petState then
+		Pets.Clear(petState)
+	end
 end
 
 local function loadPlayer(player: Player, data: PlayerData.Data)
 	releasePlayer(player)
-	local clean = Charms.Sanitize(data.Charms, data.EquippedCharms)
-	if #clean ~= #data.EquippedCharms then
-		services.DataService:Set(player, { "EquippedCharms" }, clean)
-	end
-	publishEquipped(player, data)
 	local bag = Inventory.CleanBag(data.EggInventory)
 	if not Inventory.Same(bag, data.EggInventory) then
 		services.DataService:Set(player, { "EggInventory" }, bag)
@@ -284,6 +288,7 @@ local function loadPlayer(player: Player, data: PlayerData.Data)
 	end)
 	syncTools(player)
 	showPlaced(player, os.time())
+	syncActive(player, data)
 end
 
 function EggService.Init(self: State, registry: { [string]: any })
@@ -304,6 +309,7 @@ function EggService.Start(self: State)
 			if data then
 				migrate(player, data)
 				showPlaced(player, os.time())
+				showPets(player, data)
 			end
 		end))
 	end
@@ -319,15 +325,16 @@ function EggService.Start(self: State)
 	Packets.PlaceEgg.OnServerInvoke = function(player: Player, eggId: string, x: number, z: number)
 		return EggService:PlaceEgg(player, eggId, x, z)
 	end
-	Packets.EquipCharm.OnServerInvoke = function(player: Player, charmId: string, equip: boolean)
-		return EggService:Equip(player, charmId, equip)
-	end
 	trove:Add(task.spawn(function()
 		while true do
 			task.wait(refreshSeconds)
 			local now = os.time()
 			for _, player in Players:GetPlayers() do
 				showPlaced(player, now)
+				local data = dataOf(player)
+				if data then
+					showPets(player, data)
+				end
 			end
 		end
 	end))
@@ -336,13 +343,16 @@ end
 function EggService.Destroy(self: State)
 	Packets.HatchEgg.OnServerInvoke = nil
 	Packets.PlaceEgg.OnServerInvoke = nil
-	Packets.EquipCharm.OnServerInvoke = nil
 	for player in playerTroves do
 		releasePlayer(player)
 	end
 	for player, state in shown do
 		Placed.Clear(state)
 		shown[player] = nil
+	end
+	for player, state in petsShown do
+		Pets.Clear(state)
+		petsShown[player] = nil
 	end
 	random = nil
 	if self._trove then

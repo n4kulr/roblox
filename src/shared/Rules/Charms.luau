@@ -49,7 +49,7 @@ function Charms.Effects(equipped: any): Effects
 	local counted = 0
 	for index = 1, #equipped do
 		local charm = if type(equipped[index]) == "string" then CharmConfig.ById[equipped[index]] else nil
-		if charm and counted < CharmConfig.EquipLimit then
+		if charm and counted < CharmConfig.ActiveLimit then
 			counted += 1
 			local kind = charm.Kind
 			if kind == "Income" then
@@ -102,30 +102,12 @@ function Charms.Score(charmId: string): number
 	return amount * scoreScales[charm.Kind] * scoreWeights[charm.Kind]
 end
 
-function Charms.CountOf(equipped: { string }, charmId: string): number
-	local total = 0
-	for _, id in equipped do
-		if id == charmId then
-			total += 1
-		end
-	end
-	return total
-end
-
-function Charms.CanEquip(owned: { [string]: number }, equipped: { string }, charmId: string): boolean
-	if CharmConfig.ById[charmId] == nil or #equipped >= CharmConfig.EquipLimit then
-		return false
-	end
-	local count = owned[charmId]
-	return type(count) == "number" and count > Charms.CountOf(equipped, charmId)
-end
-
 function Charms.Best(owned: { [string]: number }): { string }
 	local pool: { string } = {}
 	for _, charm in CharmConfig.Catalog do
 		local count = owned[charm.Id]
 		if type(count) == "number" then
-			for _ = 1, math.min(count, CharmConfig.EquipLimit) do
+			for _ = 1, math.min(count, CharmConfig.ActiveLimit) do
 				table.insert(pool, charm.Id)
 			end
 		end
@@ -138,7 +120,7 @@ function Charms.Best(owned: { [string]: number }): { string }
 		return a < b
 	end)
 	local best: { string } = {}
-	for index = 1, math.min(CharmConfig.EquipLimit, #pool) do
+	for index = 1, math.min(CharmConfig.ActiveLimit, #pool) do
 		best[index] = pool[index]
 	end
 	return best
@@ -181,17 +163,8 @@ function Charms.Roll(random: Random, eggId: string): string
 	return if last then last.CharmId else ""
 end
 
-function Charms.Sanitize(owned: any, equipped: any): { string }
-	local clean: { string } = {}
-	if type(equipped) ~= "table" or type(owned) ~= "table" then
-		return clean
-	end
-	for _, id in equipped do
-		if type(id) == "string" and Charms.CanEquip(owned, clean, id) then
-			table.insert(clean, id)
-		end
-	end
-	return clean
+function Charms.IsActive(owned: { [string]: number }, charmId: string): boolean
+	return table.find(Charms.Best(owned), charmId) ~= nil
 end
 
 return table.freeze(Charms)
