@@ -73,12 +73,12 @@ describe("GroupChestService", function()
 	end)
 
 	it("settles income before paying out", function()
-		data.Board = S.fill("PlainClack", 5)
+		data.Board = S.fill("PlainClack", 3)
 		data.IncomeAt = world.now - 10
 		local cash = data.Cash
 		expect(claim()):toBe(0)
 		expect(data.IncomeAt):toBe(world.now)
-		expect(data.Cash):toBe(cash + 50 + math.floor(600 * services.KeyboardService:GetRate(player)))
+		expect(data.Cash):toBe(cash + 30 + math.floor(600 * services.KeyboardService:GetRate(player)))
 	end)
 
 	it("stacks onto an active luck potion", function()
@@ -419,7 +419,9 @@ describe("GroupChest screen", function()
 		trigger()
 		screen:Destroy()
 		claims = { 0 }
-		childNamed(childNamed(childNamed(world.workspace, "GroupChest"), "Body"), "ChestPrompt").Triggered:Fire(player)
+		childNamed(childNamed(childNamed(world.workspace, "GroupChest"), "Body"), "ChestPrompt").Triggered:Fire(
+			player
+		)
 		expect(#claims):toBe(1)
 	end)
 end)

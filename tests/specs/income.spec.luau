@@ -119,40 +119,40 @@ describe("KeyboardService income with potions", function()
 
 	it("pays offline time at the offline rate and only counts potion time while it was active", function()
 		local _, data = join({
-			Board = S.fill("PlainClack", 4),
+			Board = S.fill("PlainClack", 3),
 			IncomeAt = world.now - 1000,
 			Boosts = { ClicksUntil = world.now - 500 },
 		}, true)
-		expect(data.Cash):toBe(math.floor(4 * (500 * 2 + 500) * GameConfig.OfflineRate))
+		expect(data.Cash):toBe(math.floor(3 * (500 * 2 + 500) * GameConfig.OfflineRate))
 	end)
 
 	it("does not count a potion that expired before the player left", function()
 		local _, data = join({
-			Board = S.fill("PlainClack", 4),
+			Board = S.fill("PlainClack", 3),
 			IncomeAt = world.now - 1000,
 			Boosts = { ClicksUntil = world.now - 2000 },
 		}, true)
-		expect(data.Cash):toBe(math.floor(4 * 1000 * GameConfig.OfflineRate))
+		expect(data.Cash):toBe(math.floor(3 * 1000 * GameConfig.OfflineRate))
 	end)
 
 	it("caps offline time and counts potion seconds inside the capped window only", function()
 		local incomeAt = world.now - 10000
 		local _, data = join({
-			Board = S.fill("PlainClack", 4),
+			Board = S.fill("PlainClack", 3),
 			IncomeAt = incomeAt,
 			Boosts = { ClicksUntil = incomeAt + 1000 },
 		}, true)
-		local expected = math.floor(4 * (6200 + 1000 * 2) * GameConfig.OfflineRate)
+		local expected = math.floor(3 * (6200 + 1000 * 2) * GameConfig.OfflineRate)
 		expect(data.Cash):toBe(expected)
 	end)
 
 	it("a potion running through the whole offline window doubles it", function()
 		local _, data = join({
-			Board = S.fill("PlainClack", 4),
+			Board = S.fill("PlainClack", 3),
 			IncomeAt = world.now - 1000,
 			Boosts = { ClicksUntil = world.now + 600 },
 		}, true)
-		expect(data.Cash):toBe(math.floor(4 * 1000 * 2 * GameConfig.OfflineRate))
+		expect(data.Cash):toBe(math.floor(3 * 1000 * 2 * GameConfig.OfflineRate))
 	end)
 
 	it("settles with the potion split when the player is released", function()
@@ -170,7 +170,8 @@ describe("KeyboardService income with potions", function()
 		world:destroy()
 		world = H.newWorld({ Time = 1700000000, AssetIds = { DoubleClicks = 102, Vip = 103 } })
 		local services = world:boot({ "KeyboardService", "PassService" })
-		local player, data = join({ Board = S.fill("PlainClack", GameConfig.BaseSlots), IncomeAt = world.now - 10 })
+		local player, data =
+			join({ Board = S.fill("PlainClack", GameConfig.BaseSlots), IncomeAt = world.now - 10 })
 		world:own(player, 102)
 		world.Data.Service.PlayerLoaded:Fire(player, data)
 		world:flush()

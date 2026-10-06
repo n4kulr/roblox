@@ -13,14 +13,16 @@ describe("TotalEarned", function()
 	end)
 
 	it("grows by the income paid when settling", function()
-		local player, data = world:join(nil, { Board = S.fill("PlainClack", 3), IncomeAt = world.now - 100, Cash = 50 }, false)
+		local player, data =
+			world:join(nil, { Board = S.fill("PlainClack", 3), IncomeAt = world.now - 100, Cash = 50 }, false)
 		services.KeyboardService:Settle(player)
 		expect(data.Cash):toBe(350)
 		expect(data.TotalEarned):toBe(300)
 	end)
 
 	it("is not affected by spending", function()
-		local player, data = world:join(nil, { Board = S.fill("PlainClack", 3), IncomeAt = world.now - 10, Cash = 500 }, false)
+		local player, data =
+			world:join(nil, { Board = S.fill("PlainClack", 3), IncomeAt = world.now - 10, Cash = 500 }, false)
 		services.KeyboardService:Settle(player)
 		world.Data.Service:Set(player, { "Cash" }, 0)
 		services.KeyboardService:Settle(player)
@@ -28,7 +30,8 @@ describe("TotalEarned", function()
 	end)
 
 	it("accumulates across settles", function()
-		local player, data = world:join(nil, { Board = S.fill("PlainClack", 2), IncomeAt = world.now - 10 }, false)
+		local player, data =
+			world:join(nil, { Board = S.fill("PlainClack", 2), IncomeAt = world.now - 10 }, false)
 		services.KeyboardService:Settle(player)
 		world:advance(5)
 		services.KeyboardService:Settle(player)
@@ -38,10 +41,10 @@ describe("TotalEarned", function()
 	it("counts offline earnings", function()
 		local _, data = world:join(
 			nil,
-			{ Board = S.fill("PlainClack", 4), IncomeAt = world.now - 1000, TotalEarned = 10 },
+			{ Board = S.fill("PlainClack", 3), IncomeAt = world.now - 1000, TotalEarned = 10 },
 			true
 		)
-		local offline = math.floor(4 * 1000 * GameConfig.OfflineRate)
+		local offline = math.floor(3 * 1000 * GameConfig.OfflineRate)
 		expect(data.Cash):toBe(offline)
 		expect(data.TotalEarned):toBe(10 + offline)
 	end)

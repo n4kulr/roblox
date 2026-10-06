@@ -95,15 +95,15 @@ describe("UpgradeService", function()
 	it("settles earned income before checking the price", function()
 		local cost = Upgrades.Cost(Upgrades.ById.Luck, 0)
 		local player, data = world:join(nil, {
-			Cash = cost - 51,
-			Board = S.fill("PlainClack", 5),
+			Cash = cost - 31,
+			Board = S.fill("PlainClack", 3),
 			IncomeAt = world.now - 10,
 		}, false)
 		expect(buy(player, "Luck")):toBe(false)
 		expect(data.Cash):toBe(cost - 1)
 		world:setTime(world.now + 10)
 		expect(buy(player, "Luck")):toBe(true)
-		expect(data.Cash):toBe(49)
+		expect(data.Cash):toBe(29)
 	end)
 
 	it("unlocks slots and announces a board change when buying Slots", function()

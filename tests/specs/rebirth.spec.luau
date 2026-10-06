@@ -307,9 +307,9 @@ describe("RebirthService", function()
 		end)
 
 		it("pays the multiplied rate when settling", function()
-			join({ Board = S.fill("PlainClack", 4), Rebirths = 1, IncomeAt = world.now - 100 })
+			join({ Board = S.fill("PlainClack", 3), Rebirths = 1, IncomeAt = world.now - 100 })
 			services.KeyboardService:Settle(player)
-			expect(data.Cash):toBe(math.floor(4 * Rebirth.IncomeMultiplier(1)) * 100)
+			expect(data.Cash):toBe(math.floor(3 * Rebirth.IncomeMultiplier(1)) * 100)
 		end)
 
 		it("stacks with pass multipliers", function()
