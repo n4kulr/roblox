@@ -37,11 +37,18 @@ local KeyModels = {
 	BaseWidth = 4,
 	ViewScale = 2,
 	LegendPixelsPerStud = 40,
+	LegendAnchorName = "LegendAnchor",
 	TopHeight = 1.95,
 	Decorations = decorations,
 }
 
 local outline = Color3.fromRGB(26, 21, 48)
+local legendFont = Enum.Font.FredokaOne
+local legendTextColor = Color3.new(1, 1, 1)
+local legendStrokeTransparency = 0.2
+local legendMeshStroke = Color3.fromRGB(20, 18, 28)
+local legendMeshFill = 0.62
+local legendBaseFill = 1
 local fallbackColor = Color3.fromRGB(200, 200, 205)
 local skirtHeight = 1.4
 local plateHeight = 0.5
@@ -528,6 +535,23 @@ local function rects(shape: Shape): { Rect }
 	return { { X = 0, Z = 0, Width = KeyModels.BaseWidth, Depth = KeyModels.BaseWidth } }
 end
 
+local function legendLetter(key: Keys.Key): string
+	return string.upper(string.sub(key.Name, 1, 1))
+end
+
+local function markLegend(model: Model, cap: BasePart, key: Keys.Key, strokeColor: Color3, fill: number)
+	local anchor = Instance.new("Attachment")
+	anchor.Name = KeyModels.LegendAnchorName
+	anchor.Position = Vector3.new(0, cap.Size.Y / 2, 0)
+	anchor.Parent = cap
+	model:SetAttribute("LegendText", legendLetter(key))
+	model:SetAttribute("LegendColor", legendTextColor)
+	model:SetAttribute("LegendStrokeColor", strokeColor)
+	model:SetAttribute("LegendStrokeTransparency", legendStrokeTransparency)
+	model:SetAttribute("LegendFont", legendFont.Name)
+	model:SetAttribute("LegendFill", fill)
+end
+
 local function addBase(model: Model, key: Keys.Key?, color: Color3, shape: Shape, scale: number)
 	local rarity = if key then Keys.GetRarity(key) else nil
 	local list = rects(shape)
@@ -573,14 +597,15 @@ local function addBase(model: Model, key: Keys.Key?, color: Color3, shape: Shape
 		letter.Name = "Letter"
 		letter.BackgroundTransparency = 1
 		letter.Size = UDim2.fromScale(1, 1)
-		letter.Font = Enum.Font.FredokaOne
-		letter.Text = string.upper(string.sub(key.Name, 1, 1))
-		letter.TextColor3 = Color3.new(1, 1, 1)
+		letter.Font = legendFont
+		letter.Text = legendLetter(key)
+		letter.TextColor3 = legendTextColor
 		letter.TextStrokeColor3 = outline
-		letter.TextStrokeTransparency = 0.2
+		letter.TextStrokeTransparency = legendStrokeTransparency
 		letter.TextScaled = true
 		letter.Parent = gui
 		gui.Parent = firstDish
+		markLegend(model, firstDish, key, outline, legendBaseFill)
 	end
 end
 
@@ -610,11 +635,11 @@ function KeyModels.BuildScaled(variantId: string, scale: number): Model
 		model.PrimaryPart = skirt
 	end
 	if tier > 0 then
-		local color, reflectance, material = Keys.VariantStyle(variantId)
+		local tint, reflectance, material = Keys.VariantStyle(variantId)
 		for _, name in { "Skirt", "Top" } do
 			local part = model:FindFirstChild(name)
 			if part and part:IsA("BasePart") then
-				part.Color = if name == "Skirt" then color:Lerp(outline, 0.35) else color
+				part.Color = if name == "Skirt" then tint:Lerp(outline, 0.35) else tint
 				part.Reflectance = reflectance
 				part.Material = material
 			end
@@ -657,12 +682,12 @@ function KeyModels.Legend(cap: BasePart, key: Keys.Key, pixelsPerStud: number?):
 	letter.BackgroundTransparency = 1
 	letter.AnchorPoint = Vector2.new(0.5, 0.5)
 	letter.Position = UDim2.fromScale(0.5, 0.5)
-	letter.Size = UDim2.fromScale(0.62, 0.62)
-	letter.Font = Enum.Font.FredokaOne
-	letter.Text = string.upper(string.sub(key.Name, 1, 1))
-	letter.TextColor3 = Color3.new(1, 1, 1)
-	letter.TextStrokeColor3 = Color3.fromRGB(20, 18, 28)
-	letter.TextStrokeTransparency = 0.2
+	letter.Size = UDim2.fromScale(legendMeshFill, legendMeshFill)
+	letter.Font = legendFont
+	letter.Text = legendLetter(key)
+	letter.TextColor3 = legendTextColor
+	letter.TextStrokeColor3 = legendMeshStroke
+	letter.TextStrokeTransparency = legendStrokeTransparency
 	letter.TextScaled = true
 	letter.Parent = surface
 	surface.Parent = cap
@@ -692,6 +717,7 @@ function KeyModels.BuildMesh(variantId: string, template: MeshPart, scale: numbe
 	cap.Parent = model
 	model.PrimaryPart = cap
 	KeyModels.Legend(cap, key, KeyModels.LegendPixelsPerStud / scale)
+	markLegend(model, cap, key, legendMeshStroke, legendMeshFill)
 	KeyModels.Mount(cap, variantId)
 	return model
 end

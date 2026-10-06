@@ -909,6 +909,21 @@ function World.newInstance(self, className: string)
 			node.Scale = 1
 		end
 	end
+	if className == "Camera" then
+		node.FieldOfView = 70
+		node.CFrame = roblox.CFrame.new()
+		node.ViewportSize = self.guiSize
+		node.WorldToViewportPoint = function(camera: any, point: any)
+			local relative = camera.CFrame:PointToObjectSpace(point)
+			local depth = -relative.Z
+			local size = camera.ViewportSize
+			local halfHeight = math.tan(math.rad(camera.FieldOfView) / 2) * math.max(depth, 1e-6)
+			local x = relative.X / (halfHeight * size.X / size.Y)
+			local y = relative.Y / halfHeight
+			local onScreen = depth > 0 and math.abs(x) <= 1 and math.abs(y) <= 1
+			return roblox.Vector3.new((x + 1) / 2 * size.X, (1 - y) / 2 * size.Y, depth), onScreen
+		end
+	end
 	if className == "Sound" then
 		node.Plays = 0
 		node.Play = function(sound: any)

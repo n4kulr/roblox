@@ -14,6 +14,7 @@ local Cells = require(script.Parent.Parent.Cells)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
+local Viewport = require(script.Parent.Parent.Viewport)
 
 type Entry = {
 	Id: string,
@@ -58,6 +59,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local isConfirming = false
 	local tracker: Economy.Tracker
 	local previewModel: Model? = nil
+	local stopLegend: (() -> ())? = nil
 	local previewTier = 0
 
 	local modal = Kit.Modal(trove, {
@@ -358,6 +360,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function clearPreviewModel()
+		if stopLegend then
+			stopLegend()
+			stopLegend = nil
+		end
 		if previewModel then
 			previewModel:Destroy()
 			previewModel = nil
@@ -381,6 +387,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			camera.Parent = viewport
 			viewport.CurrentCamera = camera
 			model.Parent = viewport
+			stopLegend = Viewport.TrackLegend(viewport, model, camera)
 			previewModel = model
 			previewTier = tier
 		end)
@@ -851,6 +858,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			modal.Hide()
 		end,
 		Destroy = function(_self: Types.Screen)
+			if stopLegend then
+				stopLegend()
+				stopLegend = nil
+			end
 			trove:Destroy()
 		end,
 	}
