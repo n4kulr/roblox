@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
-local Glyphs = require(script.Parent.Parent.Glyphs)
 local IconAtlas = require(script.Parent.Parent.IconAtlas)
 local Theme = require(script.Parent.Theme)
 
@@ -54,8 +53,6 @@ export type IconProps = {
 	Parent: Instance,
 	Name: string?,
 	Glyph: string?,
-	Color: Color3?,
-	Asset: string?,
 	Size: UDim2?,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
@@ -147,7 +144,6 @@ export type PillProps = {
 	DiscColor: Color3?,
 	TextColor: Color3?,
 	TextSize: number?,
-	IconColor: Color3?,
 }
 
 export type Pill = {
@@ -166,15 +162,6 @@ export type SectionProps = {
 	Color: Color3?,
 	LayoutOrder: number?,
 	Size: UDim2?,
-}
-
-local atlasNames: { [string]: string } = {
-	Market = "Shop",
-	Trophy = "Leaderboard",
-	Coin = "Clicks",
-	Flask = "Potion",
-	Dice = "Roll",
-	Burst = "Fire",
 }
 
 local Core = {}
@@ -358,37 +345,20 @@ function Core.Label(props: LabelProps): TextLabel
 end
 
 function Core.Icon(props: IconProps): GuiObject
-	local asset = props.Asset
-	local size = props.Size or UDim2.fromOffset(48, 48)
 	local image = Instance.new("ImageLabel")
 	image.Name = props.Name or "Icon"
 	image.BackgroundTransparency = 1
 	image.BorderSizePixel = 0
 	image.ScaleType = Enum.ScaleType.Fit
-	image.Size = size
+	image.Size = props.Size or UDim2.fromOffset(48, 48)
 	image.Position = props.Position or UDim2.new()
 	image.AnchorPoint = props.AnchorPoint or Vector2.zero
 	image.LayoutOrder = props.LayoutOrder or 0
-	if asset and asset ~= "" then
-		image.Image = asset
-		image.Parent = props.Parent
-		return image
+	if not IconAtlas.Apply(image, props.Glyph or IconAtlas.Fallback) then
+		IconAtlas.Apply(image, IconAtlas.Fallback)
 	end
-	local name = props.Glyph or "Star"
-	if IconAtlas.Apply(image, atlasNames[name] or name) then
-		image.Parent = props.Parent
-		return image
-	end
-	image:Destroy()
-	return Glyphs.Build(if Glyphs.Has(name) then name else "Star", {
-		Parent = props.Parent,
-		Name = props.Name or "Icon",
-		Size = size,
-		Position = props.Position,
-		AnchorPoint = props.AnchorPoint,
-		LayoutOrder = props.LayoutOrder,
-		Color = props.Color,
-	})
+	image.Parent = props.Parent
+	return image
 end
 
 function Core.Chip(props: ChipProps): TextLabel
@@ -632,7 +602,6 @@ function Core.Pill(props: PillProps): Pill
 		Parent = coin,
 		Name = "Icon",
 		Glyph = props.Glyph,
-		Color = props.IconColor,
 		Size = UDim2.fromScale(0.74, 0.74),
 		Position = UDim2.fromScale(0.13, 0.13),
 	})

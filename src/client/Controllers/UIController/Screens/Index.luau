@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
-local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Cells = require(script.Parent.Parent.Cells)
@@ -35,7 +34,6 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Name = "Index",
 		Title = "INDEX",
 		Glyph = "Index",
-		IconAsset = UiAssets.Icons.Index,
 		MaxSize = Vector2.new(900, 640),
 		HeaderColor = theme.Blue,
 		OnClose = function()

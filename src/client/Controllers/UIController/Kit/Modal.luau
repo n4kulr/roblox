@@ -15,7 +15,6 @@ export type ModalProps = {
 	Name: string,
 	Title: string,
 	Glyph: string,
-	IconAsset: string?,
 	MaxSize: Vector2,
 	HeaderColor: Color3?,
 	OnClose: () -> (),
@@ -200,7 +199,6 @@ function Modal.new(trove: TroveInstance, props: ModalProps): Modal
 		Parent = badge,
 		Name = "Icon",
 		Glyph = props.Glyph,
-		Asset = props.IconAsset,
 		Size = UDim2.fromScale(0.72, 0.72),
 		Position = UDim2.fromScale(0.14, 0.14),
 	})

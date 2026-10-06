@@ -55,7 +55,7 @@ local function press(button: any)
 end
 
 describe("UI screens", function()
-	local world, playerGui, context, built, Glyphs, data
+	local world, playerGui, context, built, IconAtlas, data
 
 	local function boot(name: string)
 		local screen = world:require(`{screens}.Screens.{name}`).new(context)
@@ -171,7 +171,7 @@ describe("UI screens", function()
 			end,
 			Toast = function() end,
 		}
-		Glyphs = world:require(`{screens}.Glyphs`)
+		IconAtlas = world:require(`{screens}.IconAtlas`)
 	end)
 
 	local function allTexts(): { string }
@@ -515,7 +515,7 @@ describe("UI screens", function()
 		expect(#Upgrades.List):toBeGreaterThan(6)
 		for _, upgrade in Upgrades.List do
 			expect(type(upgrade.Glyph)):toBe("string")
-			expect(Glyphs.Has(upgrade.Glyph)):toBe(true)
+			expect(IconAtlas.Has(upgrade.Glyph)):toBe(true)
 		end
 	end)
 
@@ -734,11 +734,35 @@ describe("UI screens", function()
 		end)
 	end)
 
-	it("builds every glyph used by the icon helpers", function()
-		for _, name in Glyphs.Names do
+	it("builds an atlas icon for every glyph name", function()
+		local Kit = world:require(`{screens}.Kit`)
+		for name in IconAtlas.Rects do
 			local holder = world:newInstance("Frame")
-			Glyphs.Build(name, { Parent = holder })
-			expect(#holder:GetChildren()):toBe(1)
+			local icon = Kit.Icon({ Parent = holder, Glyph = name })
+			expect(icon.ClassName):toBe("ImageLabel")
+			expect(icon.Image):toBe(IconAtlas.Image)
+			expect(icon.ImageRectOffset):toBe(IconAtlas.Rects[name])
 		end
+	end)
+
+	it("resolves every glyph named by config and the screens", function()
+		local Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+		local CharmConfig = world:require("ReplicatedStorage.Config.Charms")
+		for _, upgrade in Upgrades.List do
+			expect(IconAtlas.Has(upgrade.Glyph)):toBe(true)
+		end
+		for _, kind in CharmConfig.Kinds do
+			expect(IconAtlas.Has(kind.Glyph)):toBe(true)
+		end
+		for _, name in { "Check", "Warning", "Info", "Star", "Burst", "Close", "Lock", "Thief", "Gift", "Store" } do
+			expect(IconAtlas.Has(name)):toBe(true)
+		end
+	end)
+
+	it("falls back to the Star icon for unknown names", function()
+		local Kit = world:require(`{screens}.Kit`)
+		local icon = Kit.Icon({ Parent = world:newInstance("Frame"), Glyph = "NotAnIcon" })
+		expect(icon.ClassName):toBe("ImageLabel")
+		expect(icon.ImageRectOffset):toBe(IconAtlas.Rects.Star)
 	end)
 end)

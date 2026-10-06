@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
-local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Variants = require(ReplicatedStorage.Rules.Variants)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
@@ -71,7 +70,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Name = "Keys",
 		Title = "KEYS",
 		Glyph = "Keys",
-		IconAsset = UiAssets.Icons.Keys,
 		MaxSize = Vector2.new(900, 640),
 		HeaderColor = theme.Purple,
 		OnClose = function()
@@ -385,7 +383,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		end)
 		if ok and previewModel then
 			viewport.Visible = true
-			detailCap.Instance.Visible = ReplicatedStorage:GetAttribute("IconAtlasPreview") ~= nil
+			detailCap.Instance.Visible = false
 		else
 			previewModel = nil
 		end

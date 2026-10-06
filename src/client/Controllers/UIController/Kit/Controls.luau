@@ -16,9 +16,7 @@ export type ButtonProps = {
 	Name: string?,
 	Text: string?,
 	Glyph: string?,
-	IconAsset: string?,
 	IconLeft: boolean?,
-	IconColor: Color3?,
 	IconScale: number?,
 	Size: UDim2?,
 	Position: UDim2?,
@@ -268,7 +266,7 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 
 	local iconInstance: GuiObject? = nil
 	local lockBadge: Frame? = nil
-	local hasIcon = props.Glyph ~= nil or props.IconAsset ~= nil
+	local hasIcon = props.Glyph ~= nil
 	local isLeft = props.IconLeft == true
 	local isIconOnly = hasIcon and (props.Text == nil or props.Text == "")
 	local stackedIcon = props.IconScale or 0.58
@@ -280,8 +278,6 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 			Parent = face,
 			Name = "Icon",
 			Glyph = props.Glyph,
-			Asset = props.IconAsset,
-			Color = props.IconColor,
 			Size = if isIconOnly
 				then UDim2.fromScale(0.66, 0.66)
 				elseif isLeft then (if leftIcon > 0

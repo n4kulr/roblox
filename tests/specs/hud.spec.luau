@@ -48,7 +48,7 @@ local function isOnRight(node: any): boolean
 end
 
 describe("HUD", function()
-	local world, playerGui, hudGui, offersGui, Glyphs
+	local world, playerGui, hudGui, offersGui
 	local opened, calls, toasts, refusal, inBase, rollRequests, rollController
 
 	beforeEach(function()
@@ -116,7 +116,6 @@ describe("HUD", function()
 		world:require(`{screens}.Screens.Offers`).new(context)
 		hudGui = playerGui:FindFirstChild("ThockHud")
 		offersGui = playerGui:FindFirstChild("ThockOffers")
-		Glyphs = world:require(`{screens}.Glyphs`)
 	end)
 
 	local function texts(): { string }
@@ -362,35 +361,15 @@ describe("HUD", function()
 		end)
 	end)
 
-	it("uses the uploaded icon atlas and falls back to Glyphs for names it lacks", function()
-		local Core = world:require(`{screens}.Kit.Core`)
+	it("uses the uploaded icon atlas and falls back to Star for names it lacks", function()
+		local Kit = world:require(`{screens}.Kit`)
 		local IconAtlas = world:require(`{screens}.IconAtlas`)
 		local holder = world:newInstance("Frame")
-		local atlasIcon = Core.Icon({ Parent = holder, Glyph = "Keys" })
-		if IconAtlas.Image ~= "" then
-			expect(atlasIcon.ClassName):toBe("ImageLabel")
-			expect(atlasIcon.Image):toBe(IconAtlas.Image)
-		end
-		local fallback = Core.Icon({ Parent = holder, Glyph = "NotAnAtlasIcon" })
-		expect(fallback.ClassName):toBe("Frame")
-		expect(fallback:FindFirstChild("Art") ~= nil):toBe(true)
-	end)
-
-	it("builds every glyph with children", function()
-		expect(#Glyphs.Names):toBeGreaterThan(14)
-		for _, name in Glyphs.Names do
-			local holder = world:newInstance("Frame")
-			local built = Glyphs.Build(name, { Parent = holder, Size = UDim2.fromOffset(48, 48) })
-			expect(#built:GetChildren()):toBeGreaterThan(0)
-			expect(#built.Art:GetChildren()):toBeGreaterThan(1)
-			expect(#holder:GetChildren()):toBe(1)
-		end
-	end)
-
-	it("rejects unknown glyphs", function()
-		expect(Glyphs.Has("Nope")):toBe(false)
-		expect(function()
-			Glyphs.Build("Nope", { Parent = world:newInstance("Frame") })
-		end):toThrow("unknown glyph")
+		local atlasIcon = Kit.Icon({ Parent = holder, Glyph = "Keys" })
+		expect(atlasIcon.ClassName):toBe("ImageLabel")
+		expect(atlasIcon.Image):toBe(IconAtlas.Image)
+		local fallback = Kit.Icon({ Parent = holder, Glyph = "NotAnAtlasIcon" })
+		expect(fallback.ClassName):toBe("ImageLabel")
+		expect(fallback.ImageRectOffset):toBe(IconAtlas.Rects.Star)
 	end)
 end)

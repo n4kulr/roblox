@@ -152,40 +152,57 @@ function writeLuau() {
   const source = `--!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 
 export type Atlas = {
 	Image: string,
 	CellSize: number,
+	Fallback: string,
 	Rects: { [string]: Vector2 },
+	Aliases: { [string]: string },
+	Has: (name: string) -> boolean,
 	Apply: (label: ImageLabel | ImageButton, name: string) -> boolean,
 }
 
-local IconAtlas: Atlas = nil :: any
+local rects = table.freeze({
+${rects.replace(/^\t\t/gm, "\t")}
+})
 
-IconAtlas = table.freeze({
-	Image = "${image}",
-	CellSize = ${cell},
-	Rects = table.freeze({
-${rects}
-	}),
-	Apply = function(label: ImageLabel | ImageButton, name: string): boolean
-		local rect: Vector2? = IconAtlas.Rects[name]
-		local image = IconAtlas.Image
-		if image == "" then
-			local preview = ReplicatedStorage:GetAttribute("IconAtlasPreview")
-			if type(preview) == "string" then
-				image = preview
-			end
-		end
-		if image == "" or rect == nil then
-			return false
-		end
-		local target: any = label
-		target.Image = image
-		target.ImageRectOffset = rect
-		target.ImageRectSize = Vector2.new(IconAtlas.CellSize, IconAtlas.CellSize)
-		return true
+local aliases = table.freeze({
+	Market = "Shop",
+	Trophy = "Leaderboard",
+	Coin = "Clicks",
+	Flask = "Potion",
+	Dice = "Roll",
+	Burst = "Fire",
+})
+
+local function rectOf(name: string): Vector2?
+	return rects[aliases[name] or name]
+end
+
+local function apply(label: ImageLabel | ImageButton, name: string): boolean
+	local rect = rectOf(name)
+	if UiAssets.IconAtlas == "" or rect == nil then
+		return false
+	end
+	local target: any = label
+	target.Image = UiAssets.IconAtlas
+	target.ImageRectOffset = rect
+	target.ImageRectSize = Vector2.new(UiAssets.IconCell, UiAssets.IconCell)
+	return true
+end
+
+local IconAtlas: Atlas = table.freeze({
+	Image = UiAssets.IconAtlas,
+	CellSize = UiAssets.IconCell,
+	Fallback = "Star",
+	Rects = rects,
+	Aliases = aliases,
+	Has = function(name: string): boolean
+		return rectOf(name) ~= nil
 	end,
+	Apply = apply,
 })
 
 return IconAtlas

@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Packets = require(ReplicatedStorage.Packets)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
-local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local UpgradeCost = require(ReplicatedStorage.Rules.UpgradeCost)
@@ -105,7 +104,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		Name = "Upgrades",
 		Title = "UPGRADES",
 		Glyph = "Upgrades",
-		IconAsset = UiAssets.Icons.Upgrades,
 		MaxSize = Vector2.new(860, 620),
 		HeaderColor = theme.Green,
 		OnClose = function()

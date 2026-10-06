@@ -17,7 +17,6 @@ export type PlateProps = {
 	LayoutOrder: number?,
 	Color: Color3,
 	Glyph: string?,
-	IconAsset: string?,
 	Radius: number?,
 	Burst: boolean?,
 }
@@ -40,7 +39,6 @@ export type RowProps = {
 	LayoutOrder: number?,
 	Color: Color3,
 	Glyph: string?,
-	IconAsset: string?,
 	Title: string,
 	TitleSize: number?,
 	Subtitle: string?,
@@ -82,7 +80,6 @@ function Cards.Plate(props: PlateProps): Frame
 		Parent = plate,
 		Name = "Icon",
 		Glyph = props.Glyph,
-		Asset = props.IconAsset,
 		Size = UDim2.fromScale(0.72, 0.72),
 		Position = UDim2.fromScale(0.14, 0.14),
 	})
@@ -120,7 +117,6 @@ function Cards.Row(props: RowProps): Row
 		Size = UDim2.fromOffset(plateSize, plateSize),
 		Color = props.Color,
 		Glyph = props.Glyph,
-		IconAsset = props.IconAsset,
 		Burst = true,
 	})
 	local left = plateSize + Theme.Space.M * 2

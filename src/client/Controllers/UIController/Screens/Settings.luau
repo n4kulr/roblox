@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
-local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
@@ -62,7 +61,6 @@ function Settings.new(context: Types.Context): Types.Screen
 		Name = "Settings",
 		Title = "SETTINGS",
 		Glyph = "Settings",
-		IconAsset = UiAssets.Icons.Settings,
 		MaxSize = Vector2.new(780, 620),
 		HeaderColor = theme.Grey,
 		OnClose = function()
