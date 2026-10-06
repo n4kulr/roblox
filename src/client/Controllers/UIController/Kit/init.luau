@@ -1,10 +1,15 @@
 --!strict
 
+local Async = require(script.Async)
 local Cards = require(script.Cards)
 local Controls = require(script.Controls)
 local Core = require(script.Core)
 local Effects = require(script.Effects)
+local Feedback = require(script.Feedback)
 local Modal = require(script.Modal)
+local Poll = require(script.Poll)
+local PriceButton = require(script.PriceButton)
+local Sound = require(script.Sound)
 local Theme = require(script.Theme)
 
 export type PanelProps = Core.PanelProps
@@ -34,6 +39,11 @@ export type Toggle = Controls.Toggle
 export type Tab = Controls.Tab
 export type TabBarProps = Controls.TabBarProps
 export type TabBar = Controls.TabBar
+export type PriceGate = PriceButton.PriceGate
+export type Guard = Async.Guard
+export type Confirm = Async.Confirm
+export type Flash = Feedback.Flash
+export type CountUp = Feedback.CountUp
 export type ModalProps = Modal.ModalProps
 export type Modal = Modal.Modal
 
@@ -104,6 +114,17 @@ local Kit = {
 	Tooltip = Controls.Tooltip,
 	Shake = Controls.Shake,
 	ScreenGui = Modal.ScreenGui,
+	Poll = Poll.Start,
+	PollSeconds = Poll.Seconds,
+	Request = Async.Request,
+	Later = Async.Later,
+	Confirm = Async.Confirm,
+	Flash = Feedback.Flash,
+	CountUp = Feedback.CountUp,
+	PriceButton = PriceButton.new,
+	SetSound = Sound.Set,
+	Play = Sound.Play,
+	SoundName = table.freeze({ Click = Sound.Click, Confirm = Sound.Confirm, Error = Sound.Error }),
 	Modal = Modal.new,
 }
 

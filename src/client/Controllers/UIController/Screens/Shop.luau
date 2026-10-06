@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local BoostState = require(script.Parent.Parent.BoostState)
@@ -16,7 +15,6 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local bannerHeight = 120
 local passHeight = 172
 local productHeight = 142
@@ -63,7 +61,6 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Shop")
 		end,
-		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
@@ -91,7 +88,6 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Green,
 			TextSize = textSize,
 			Callback = callback,
-			Sound = playUi,
 		})
 	end
 
@@ -236,7 +232,6 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Color = theme.Green,
 		TextSize = Kit.Text.Banner,
 		Callback = if starter then productCallback(starter) else comingSoon,
-		Sound = playUi,
 	})
 	if starter then
 		table.insert(rows, { Button = bannerButton, Product = starter })
@@ -308,17 +303,9 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refreshAll)
 
 	return {
 		Modal = true,

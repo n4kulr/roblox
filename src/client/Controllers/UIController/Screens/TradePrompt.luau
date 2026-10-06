@@ -88,7 +88,6 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 				controller:Request(target)
 			end
 		end,
-		Sound = playUi,
 	})
 	Kit.Button(trove, {
 		Parent = sendFrame,
@@ -100,7 +99,6 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 		Color = theme.Red,
 		TextSize = Kit.Text.Banner,
 		Callback = hideSend,
-		Sound = playUi,
 	})
 	Kit.Button(trove, {
 		Parent = inviteFrame,
@@ -117,7 +115,6 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			hideInvite()
 			controller:Respond(pendingUserId, true)
 		end,
-		Sound = playUi,
 	})
 	Kit.Button(trove, {
 		Parent = inviteFrame,
@@ -134,7 +131,6 @@ function TradePrompt.new(context: Types.Context): Types.Screen
 			hideInvite()
 			controller:Respond(pendingUserId, false)
 		end,
-		Sound = playUi,
 	})
 
 	trove:Add(

@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
@@ -28,7 +27,6 @@ type Row = {
 
 local theme = Kit.Theme
 local cardHeight = 96
-local refreshSeconds = 0.2
 local buyWidth = 190
 local safetySeconds = 2
 local clientBuysPerSecond = 8
@@ -58,7 +56,6 @@ local sections: { { Category: Upgrades.Category, Caption: string, Glyph: string 
 	{ Category = "Defense", Caption = "BASE DEFENSE", Glyph = "Walls" },
 }
 local sectionStride = 1000
-local lockRefreshSeconds = 0.25
 local lockCardHeight = 92
 local lockButtonWidth = 200
 local lockCardOrder = 900
@@ -114,7 +111,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Upgrades")
 		end,
-		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
@@ -275,7 +271,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			mode = id
 			refreshAll()
 		end,
-		Sound = playUi,
 	})
 
 	local function addCaption(section: { Caption: string, Glyph: string }, order: number)
@@ -348,7 +343,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				buy(row)
 			end,
-			Sound = playUi,
 		})
 		table.insert(rows, row)
 	end
@@ -448,7 +442,6 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Red,
 			TextSize = Kit.Text.Subhead,
 			Callback = pressLock,
-			Sound = playUi,
 		})
 	end
 
@@ -466,23 +459,11 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 
 	refreshLock()
 
-	local elapsed = 0
-	local lockElapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		lockElapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
-		if lockElapsed >= lockRefreshSeconds then
-			lockElapsed = 0
-			refreshLock()
-		end
-	end)
+	local function isActive(): boolean
+		return isOpen
+	end
+	Kit.Poll(trove, Kit.PollSeconds.Fast, isActive, refreshAll)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, isActive, refreshLock)
 
 	return {
 		Modal = true,

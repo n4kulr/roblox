@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
@@ -37,7 +36,6 @@ local barHeight = 84
 local expandedExtra = 84
 local expandInfo = Kit.Motion.Base
 local popInfo = Kit.Motion.Pop
-local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
 local priceGap = 4
@@ -138,7 +136,6 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Market")
 		end,
-		Sound = playUi,
 	})
 	local timerPill = Kit.Pill({
 		Parent = modal.HeaderRight,
@@ -448,7 +445,6 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				buy(card)
 			end,
-			Sound = playUi,
 		})
 		centerPrice(action.Face)
 		card = {
@@ -514,17 +510,9 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		end))
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			tick()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, tick)
 
 	local player = Players.LocalPlayer
 	trove:Connect(player:GetAttributeChangedSignal("OpenMarket"), function()

@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
@@ -78,7 +77,6 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("StarterOffer")
 		end,
-		Sound = playUi,
 	})
 	local panel = modal.Panel
 	local header = panel:FindFirstChild("Header")
@@ -116,15 +114,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		spin:Cancel()
 	end)
 
-	local flash = Instance.new("Frame")
-	flash.Name = "Flash"
-	flash.BackgroundColor3 = theme.White
-	flash.BackgroundTransparency = 1
-	flash.BorderSizePixel = 0
-	flash.Size = UDim2.fromScale(1, 1)
-	flash.ZIndex = Kit.ZIndex.Tooltip
-	Kit.Corner(flash, Kit.Radius.Panel)
-	flash.Parent = stage
+	local flash = Kit.Flash({ Parent = stage, Radius = Kit.Radius.Panel, ZIndex = Kit.ZIndex.Tooltip })
 
 	local ribbonHolder = Instance.new("Frame")
 	ribbonHolder.Name = "RibbonHolder"
@@ -302,7 +292,6 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 				context.Toast("Coming soon!", "Info")
 			end
 		end,
-		Sound = playUi,
 	})
 	buy.SetGlow(true)
 	Kit.Breathe(trove, buyPulse, 0.06, 0.6)
@@ -334,11 +323,9 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		timerChip.Text = TimeFormat.Clock(math.max(0, target - os.clock()))
 	end
 
-	trove:Connect(RunService.Heartbeat, function()
-		if isOpen then
-			refreshTimer()
-		end
-	end)
+	Kit.Poll(trove, 0, function()
+		return isOpen
+	end, refreshTimer)
 
 	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
 		isBought = value == true
@@ -359,8 +346,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 			local info = Kit.Retime(Kit.Motion.Pop, 0.3, delay)
 			Kit.Tween(pop, info, { Scale = 1 })
 		end
-		flash.BackgroundTransparency = 0.35
-		Kit.Tween(flash, flashInfo, { BackgroundTransparency = 1 })
+		flash.Fire(0.35, flashInfo)
 	end
 
 	return {

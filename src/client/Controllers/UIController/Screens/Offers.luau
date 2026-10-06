@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
@@ -22,7 +21,6 @@ local statHeight = 46
 local statGap = 16
 local chipWidth = 140
 local chipGap = 14
-local refreshSeconds = 0.25
 
 local function multiplierLabel(value: number): string
 	return string.format("%g", value)
@@ -112,14 +110,7 @@ function Offers.new(context: Types.Context): Types.Screen
 		end
 	end)
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, nil, refresh)
 	refresh()
 
 	return {

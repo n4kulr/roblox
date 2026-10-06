@@ -68,7 +68,6 @@ function Settings.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Settings")
 		end,
-		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
@@ -138,7 +137,6 @@ function Settings.new(context: Types.Context): Types.Screen
 			OnChanged = function(value: boolean)
 				send(setting, if value then 1 else 0)
 			end,
-			Sound = playUi,
 		})
 	end
 
@@ -220,7 +218,6 @@ function Settings.new(context: Types.Context): Types.Screen
 			OnSelect = function(id: string)
 				send("EffectsMinRarity", tonumber(id) or effectsDefault)
 			end,
-			Sound = playUi,
 		})
 	end
 
@@ -304,7 +301,6 @@ function Settings.new(context: Types.Context): Types.Screen
 				end
 			end)
 		end,
-		Sound = playUi,
 	})
 
 	trove:Add(dataController:Observe({ "Settings" }, function(value: any)

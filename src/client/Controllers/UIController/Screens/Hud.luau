@@ -45,7 +45,6 @@ local rollHeight = 104
 local barGap = 14
 local barHalfWidth = rollWidth / 2 + barGap + cell
 local sideReserve = 260
-local countRate = 9
 
 local function multiplierText(value: number): string
 	local text = string.format("%.2f", value)
@@ -64,12 +63,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	local gui, root = Kit.ScreenGui("ThockHud", Kit.Layer.Hud, context.PlayerGui, trove)
 	local tracker = Economy.Track(dataController, trove)
 	local tutorialStep = 0
-	local lastCash = ""
 	local lastIncome = ""
 	local lastStats = ""
 	local isHinting = false
-	local shownCash: number? = nil
-	local targetCash = 0
 
 	local function toggleScreen(target: string)
 		if context.IsOpen(target) then
@@ -117,7 +113,6 @@ function Hud.new(context: Types.Context): Types.Screen
 			Tooltip = tip,
 			TooltipSide = side,
 			Callback = callback,
-			Sound = playUi,
 		})
 	end
 	local function leftButton(
@@ -266,7 +261,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		Callback = function()
 			toggleScreen("Settings")
 		end,
-		Sound = playUi,
 	})
 
 	local devButton = Kit.Button(trove, {
@@ -282,7 +276,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		Callback = function()
 			toggleScreen("Cheats")
 		end,
-		Sound = playUi,
 	})
 	local localPlayer = Players.LocalPlayer
 	local function refreshDevButton()
@@ -356,7 +349,6 @@ function Hud.new(context: Types.Context): Types.Screen
 					context.Toast(reason or "You can't go there right now!", "Bad")
 				end
 			end,
-			Sound = playUi,
 		})
 	end
 	jumpButton("Shop", "Shop", "SHOP", theme.Orange, 0, function()
@@ -412,6 +404,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	})
 	cashLabel.AutomaticSize = Enum.AutomaticSize.X
 	cashLabel.TextTruncate = Enum.TextTruncate.None
+	local cashCount = Kit.CountUp({ Label = cashLabel, Format = NumberFormat.Compact })
 	local incomeLabel = Kit.Label({
 		Parent = moneyRow,
 		Name = "Income",
@@ -598,7 +591,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		Callback = function()
 			rollController:SetAuto(not rollController:IsAuto())
 		end,
-		Sound = playUi,
 	})
 	local autoChip = Kit.Panel({
 		Parent = autoButton.Instance,
@@ -772,14 +764,7 @@ function Hud.new(context: Types.Context): Types.Screen
 	local function refresh()
 		local balance = tracker.Balance()
 		local current = tracker.GetStats()
-		if balance then
-			targetCash = balance
-			if shownCash == nil then
-				shownCash = balance
-			end
-		else
-			shownCash = nil
-		end
+		cashCount.SetTarget(balance)
 		local incomeText = if balance then `+{NumberFormat.Compact(current.Rate)}/s` else ""
 		if incomeText ~= lastIncome then
 			lastIncome = incomeText
@@ -816,29 +801,6 @@ function Hud.new(context: Types.Context): Types.Screen
 		setHinting(tutorialStep == hintStep and canAfford)
 	end
 
-	local function showCash(dt: number)
-		local shown = shownCash
-		if not shown then
-			if lastCash ~= "..." then
-				lastCash = "..."
-				cashLabel.Text = "..."
-			end
-			return
-		end
-		local gap = targetCash - shown
-		if math.abs(gap) < 1 then
-			shown = targetCash
-		else
-			shown += gap * math.min(1, dt * countRate)
-		end
-		shownCash = shown
-		local text = NumberFormat.Compact(shown)
-		if text ~= lastCash then
-			lastCash = text
-			cashLabel.Text = text
-		end
-	end
-
 	trove:Add(dataController:Observe({ "Tutorial" }, function(value: any)
 		tutorialStep = if type(value) == "number" then value else 0
 	end))
@@ -850,10 +812,10 @@ function Hud.new(context: Types.Context): Types.Screen
 			elapsedSinceRefresh = 0
 			refresh()
 		end
-		showCash(dt)
+		cashCount.Step(dt)
 	end)
 	refresh()
-	showCash(1)
+	cashCount.Step(1)
 
 	return {
 		Modal = false,

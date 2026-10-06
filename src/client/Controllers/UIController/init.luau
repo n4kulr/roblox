@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
+local Kit = require(script.Kit)
 local Toast = require(script.Toast)
 local Types = require(script.Types)
 
@@ -96,6 +97,7 @@ local function createScreens(playerGui: PlayerGui)
 	if legacy and legacy:IsA("ScreenGui") then
 		legacy.Enabled = false
 	end
+	Kit.SetSound(Kit.UiSound(registry))
 	local toast = Toast.new(playerGui, trove :: TroveInstance)
 	showToast = toast
 	local context: Types.Context = {
@@ -151,6 +153,7 @@ end
 function UIController.Destroy(_self: any)
 	destroyed = true
 	showToast = nil
+	Kit.SetSound(nil)
 	for _, promise in pending do
 		promise:cancel()
 	end

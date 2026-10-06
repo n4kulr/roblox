@@ -54,7 +54,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Trade")
 		end,
-		Sound = playUi,
 	})
 	local body = modal.Body
 
@@ -132,7 +131,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 				controller:SetReady(not state.MyReady)
 			end
 		end,
-		Sound = playUi,
 	})
 	local theirReady = Kit.Panel({
 		Parent = readyRow,
@@ -209,7 +207,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Key = key,
 			KeyId = keyId,
 			HasChips = true,
-			Sound = playUi,
 		})
 		Kit.Button(trove, {
 			Parent = wrapper,
@@ -222,7 +219,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				adjust(keyId, -1)
 			end,
-			Sound = playUi,
 		})
 		Kit.Button(trove, {
 			Parent = wrapper,
@@ -235,7 +231,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				adjust(keyId, 1)
 			end,
-			Sound = playUi,
 		})
 		local picker: Picker = { Wrapper = wrapper, Cell = cell }
 		pickers[keyId] = picker

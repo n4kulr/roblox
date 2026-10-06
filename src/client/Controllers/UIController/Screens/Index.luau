@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -16,7 +15,6 @@ type Filter = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.2
 local filterWidth = 150
 local filterHeight = 48
 
@@ -43,7 +41,6 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Index")
 		end,
-		Sound = playUi,
 	})
 	local foundPill = Kit.Pill({
 		Parent = modal.HeaderRight,
@@ -100,7 +97,6 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 				selected = if selected == rarity.Name then nil else rarity.Name
 				applyFilter()
 			end,
-			Sound = playUi,
 		})
 		table.insert(filters, { Rarity = rarity, Button = button })
 	end
@@ -142,17 +138,9 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		isDirty = true
 	end))
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen or not isDirty then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
+		return isOpen and isDirty
+	end, refreshAll)
 	refreshAll()
 
 	return {

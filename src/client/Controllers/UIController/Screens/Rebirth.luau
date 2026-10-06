@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
@@ -11,7 +10,6 @@ local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
-local refreshSeconds = 0.2
 
 local function multiplierText(value: number): string
 	return `x{string.format("%.1f", value)} Clicks`
@@ -36,7 +34,6 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Rebirth")
 		end,
-		Sound = playUi,
 	})
 
 	local heading = Kit.Label({
@@ -120,7 +117,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		TextSize = Kit.Text.Subhead,
 	})
 
-	local action = Kit.Button(trove, {
+	local action = Kit.PriceButton(trove, {
 		Parent = modal.Body,
 		Name = "Rebirth",
 		Text = "REBIRTH",
@@ -134,12 +131,6 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		TextSize = Kit.Text.Jumbo,
 		Callback = function()
 			if isBusy then
-				return
-			end
-			local balance = tracker.Balance()
-			if not balance or balance < Rebirth.Cost(tracker.GetRebirths()) then
-				playUi("Error")
-				context.Toast("Not enough Clicks yet!", "Bad")
 				return
 			end
 			isBusy = true
@@ -156,7 +147,13 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 				end
 			end)
 		end,
-		Sound = playUi,
+	}, {
+		CanAfford = function()
+			local balance = tracker.Balance()
+			return balance ~= nil and balance >= Rebirth.Cost(tracker.GetRebirths())
+		end,
+		DeniedText = "Not enough Clicks yet!",
+		Toast = context.Toast,
 	})
 
 	Kit.Label({
@@ -187,17 +184,9 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		action.SetGlow(canRebirth)
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -24,7 +23,6 @@ type Tile = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local claimedColor = Kit.Shade(theme.Green, 0.6)
 local iconRest = UDim2.fromScale(0.2, 0.08)
 local iconUp = UDim2.fromScale(0.2, -0.02)
@@ -66,7 +64,6 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Daily")
 		end,
-		Sound = playUi,
 	})
 
 	Kit.Label({
@@ -217,7 +214,6 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				claim(index)
 			end,
-			Sound = playUi,
 		})
 		local face = button.Face
 		local icon = face:FindFirstChild("Icon") :: GuiObject
@@ -291,17 +287,9 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		end
 	end)
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

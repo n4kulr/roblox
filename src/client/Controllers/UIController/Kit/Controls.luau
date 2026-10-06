@@ -5,6 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Core = require(script.Parent.Core)
+local Sound = require(script.Parent.Sound)
 local Theme = require(script.Parent.Theme)
 
 type TroveInstance = typeof(Trove.new())
@@ -35,6 +36,7 @@ export type ButtonProps = {
 	TooltipSide: string?,
 	Callback: (() -> ())?,
 	Sound: SoundPlayer?,
+	Silent: boolean?,
 }
 
 export type Button = {
@@ -94,6 +96,7 @@ export type ToggleProps = {
 	Value: boolean,
 	OnChanged: ((value: boolean) -> ())?,
 	Sound: SoundPlayer?,
+	Silent: boolean?,
 }
 
 export type Toggle = {
@@ -119,6 +122,7 @@ export type TabBarProps = {
 	TextSize: number?,
 	OnSelect: (id: string) -> (),
 	Sound: SoundPlayer?,
+	Silent: boolean?,
 }
 
 export type TabBar = {
@@ -374,9 +378,9 @@ function Controls.Button(trove: TroveInstance, props: ButtonProps): Button
 		if isDisabled then
 			return
 		end
-		local sound = props.Sound
+		local sound = Sound.Resolve(props.Sound, props.Silent)
 		if sound then
-			sound("Click")
+			sound(Sound.Click)
 		end
 		local callback = props.Callback
 		if callback then
@@ -743,9 +747,9 @@ function Controls.Toggle(trove: TroveInstance, props: ToggleProps): Toggle
 		isOn = not isOn
 		show(true)
 		Controls.Tween(pressScale, springInfo, { Scale = 1 })
-		local sound = props.Sound
+		local sound = Sound.Resolve(props.Sound, props.Silent)
 		if sound then
-			sound("Click")
+			sound(Sound.Click)
 		end
 		local callback = props.OnChanged
 		if callback then
@@ -806,6 +810,7 @@ function Controls.TabBar(trove: TroveInstance, props: TabBarProps): TabBar
 				props.OnSelect(tab.Id)
 			end,
 			Sound = props.Sound,
+			Silent = props.Silent,
 		})
 	end
 	if props.Selected then

@@ -49,7 +49,6 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Leaderboards")
 		end,
-		Sound = playUi,
 	})
 
 	local tabEntries: { Kit.Tab } = {}
@@ -70,7 +69,6 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		OnSelect = function(id: string)
 			load(tonumber(id) or 1)
 		end,
-		Sound = playUi,
 	})
 
 	local list = Kit.Scroll({

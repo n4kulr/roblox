@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local SeasonLevels = require(ReplicatedStorage.Config.Season)
@@ -22,7 +21,6 @@ type Tile = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local columnWidth = 112
 local claimDelay = 0.3
 
@@ -95,7 +93,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Season")
 		end,
-		Sound = playUi,
 	})
 
 	local passButton = Kit.Button(trove, {
@@ -116,7 +113,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				context.Toast("Coming soon!", "Info")
 			end
 		end,
-		Sound = playUi,
 	})
 
 	local trackLabels = Instance.new("Frame")
@@ -362,7 +358,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			end
 			claimAll(claims)
 		end,
-		Sound = playUi,
 	})
 
 	trove:Add(dataController:Observe({ "Season" }, function(_value: any)
@@ -371,17 +366,9 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		end
 	end))
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

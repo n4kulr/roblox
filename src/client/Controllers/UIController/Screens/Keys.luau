@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
@@ -27,7 +26,6 @@ local theme = Kit.Theme
 local sureRank = 4
 local confirmSeconds = 3
 local sellCooldown = 0.2
-local refreshSeconds = 0.2
 local gridShare = 0.6
 local fuseSeconds = 0.55
 local flyerCount = Variants.FuseCost
@@ -55,8 +53,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local lastSell = 0
 	local detailKey: string? = nil
 	local previewKey: string? = nil
-	local confirmStamp = 0
-	local isConfirming = false
+	local refreshDetail: () -> ()
+	local confirm = Kit.Confirm(trove, confirmSeconds, function()
+		refreshDetail()
+	end)
 	local tracker: Economy.Tracker
 	local previewModel: Model? = nil
 	local stopLegend: (() -> ())? = nil
@@ -73,7 +73,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Keys")
 		end,
-		Sound = playUi,
 	})
 	local body = modal.Body
 	local refreshAll: () -> ()
@@ -91,7 +90,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			sortMode = sortMode % #sortModes + 1
 			refreshAll()
 		end,
-		Sound = playUi,
 	})
 
 	Kit.Button(trove, {
@@ -120,7 +118,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				end
 			end)
 		end,
-		Sound = playUi,
 	})
 
 	local fullGridSize = UDim2.new(1, -12, 1, -12)
@@ -194,15 +191,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	viewport.Position = UDim2.fromOffset(10, 0)
 	viewport.Visible = false
 	viewport.Parent = previewArea
-	local flash = Instance.new("Frame")
-	flash.Name = "Flash"
-	flash.BackgroundColor3 = theme.White
-	flash.BackgroundTransparency = 1
-	flash.BorderSizePixel = 0
-	flash.Size = UDim2.fromScale(1, 1)
-	flash.ZIndex = Kit.ZIndex.Hover
-	flash.Parent = previewArea
-	Kit.Corner(flash, Kit.Radius.L)
+	local flash = Kit.Flash({ Parent = previewArea, Radius = Kit.Radius.L, ZIndex = Kit.ZIndex.Hover })
 
 	local detailName = Kit.Label({
 		Parent = content,
@@ -427,7 +416,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 	local function closeDetail()
 		detailKey = nil
 		previewKey = nil
-		isConfirming = false
+		confirm.Reset()
 		clearPreviewModel()
 		setLayout(false)
 	end
@@ -459,7 +448,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		return inventory[keyId] or 0
 	end
 
-	local function refreshDetail()
+	function refreshDetail()
 		local keyId = detailKey
 		local key = Keys.Resolve(keyId)
 		if not keyId or not key then
@@ -524,7 +513,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		sellOne.SetDisabled(false)
 		sellOne.SetText(`SELL 1  +{NumberFormat.Compact(value)}`)
 		sellAll.SetDisabled(false)
-		if isConfirming then
+		if confirm.IsArmed() then
 			sellAll.SetText("Sure? Tap again!")
 			sellAll.SetColor(theme.Red)
 		else
@@ -554,8 +543,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			end)
 		end
 		task.delay(fuseSeconds * 0.65, function()
-			flash.BackgroundTransparency = 0.1
-			Kit.Tween(flash, Kit.Motion.Slow, { BackgroundTransparency = 1 })
+			flash.Fire(0.1)
 			previewPop.Scale = 0.6
 			Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
 		end)
@@ -587,7 +575,7 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 				playUi("Confirm")
 				context.Toast(`Fused into {Variants.Name(result)}!`, "Good")
 				detailKey = result
-				isConfirming = false
+				confirm.Reset()
 				isDirty = true
 				refreshAll()
 			else
@@ -610,7 +598,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		TextSize = Kit.Text.Heading,
 		Title = true,
 		Callback = fuse,
-		Sound = playUi,
 	})
 
 	sellOne = Kit.Button(trove, {
@@ -626,11 +613,10 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		Callback = function()
 			local keyId = detailKey
 			if keyId then
-				isConfirming = false
+				confirm.Reset()
 				sell(keyId, 1)
 			end
 		end,
-		Sound = playUi,
 	})
 	sellAll = Kit.Button(trove, {
 		Parent = sellRow,
@@ -654,31 +640,17 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			end
 			local _, tier = KeyTiers.Parse(keyId)
 			local isPrized = (Cells.RarityRank[key.Rarity] or 1) >= sureRank or tier > 0
-			if isPrized and not isConfirming then
-				isConfirming = true
-				confirmStamp += 1
-				local stamp = confirmStamp
-				refreshDetail()
-				task.delay(confirmSeconds, function()
-					if isConfirming and confirmStamp == stamp then
-						isConfirming = false
-						refreshDetail()
-					end
-				end)
-				return
-			end
-			isConfirming = false
-			confirmStamp += 1
-			sell(keyId, spare)
+			confirm.Press(isPrized, function()
+				sell(keyId, spare)
+			end)
 		end,
-		Sound = playUi,
 	})
-	Kit.CloseButton(trove, detail, closeDetail, playUi)
+	Kit.CloseButton(trove, detail, closeDetail)
 
 	local function openDetail(keyId: string)
 		detailKey = keyId
 		previewKey = nil
-		isConfirming = false
+		confirm.Reset()
 		setLayout(true)
 		previewPop.Scale = 0.85
 		Kit.Tween(previewPop, Kit.Motion.Spring, { Scale = 1 })
@@ -704,7 +676,6 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 			Callback = function()
 				openDetail(keyId)
 			end,
-			Sound = playUi,
 		})
 		cell.Instance.Visible = false
 		cell.Info.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
@@ -823,20 +794,14 @@ function KeysScreen.new(context: Types.Context): Types.Screen
 		markDirty()
 	end))
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if isOpen and detailKey then
-			spin(os.clock())
-		end
-		if not isOpen or not isDirty then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
+	Kit.Poll(trove, 0, function()
+		return isOpen and detailKey ~= nil
+	end, function()
+		spin(os.clock())
 	end)
+	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
+		return isOpen and isDirty
+	end, refreshAll)
 	refreshAll()
 
 	return {

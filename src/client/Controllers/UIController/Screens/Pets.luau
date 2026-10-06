@@ -79,7 +79,6 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Pets")
 		end,
-		Sound = playUi,
 	})
 	local ownedPill = Kit.Pill({
 		Parent = modal.HeaderRight,
@@ -249,7 +248,6 @@ function PetsScreen.new(context: Types.Context): Types.Screen
 					context.Toast(reason or "You can't go there right now!", "Bad")
 				end
 			end,
-			Sound = playUi,
 		})
 	end
 
