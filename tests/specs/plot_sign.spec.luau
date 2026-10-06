@@ -123,6 +123,37 @@ describe("Plot owner sign", function()
 		expectEmpty(gui)
 	end)
 
+	it("frees a plot when its owner leaves even if data release never fires", function()
+		setup()
+		local first = world:join({ UserId = 77, Name = "leaver", DisplayName = "Leaver" })
+		local plot = registry.PlotService:GetPlot(first)
+		expect(plot:GetAttribute("Owner")):toBe(77)
+		first.Parent = nil
+		local again = world:join({ UserId = 77, Name = "leaver", DisplayName = "Leaver" })
+		expect(registry.PlotService:GetPlot(again) == plot):toBe(true)
+		local owned = 0
+		for _, model in plots:GetChildren() do
+			if model:GetAttribute("Owner") == 77 then
+				owned += 1
+			end
+		end
+		expect(owned):toBe(1)
+	end)
+
+	it("gives a returning player their previous plot back", function()
+		setup()
+		local other = world:join({ UserId = 5, Name = "friend", DisplayName = "Friend" })
+		local me = world:join({ UserId = 6, Name = "me", DisplayName = "Me" })
+		local mine = registry.PlotService:GetPlot(me)
+		expect(mine ~= registry.PlotService:GetPlot(other)):toBe(true)
+		world:removePlayer(me)
+		expect(mine:GetAttribute("Owner")):toBeNil()
+		local back = world:join({ UserId = 6, Name = "me", DisplayName = "Me" })
+		expect(registry.PlotService:GetPlot(back) == mine):toBe(true)
+		expect(registry.PlotService:GetPlot(other) ~= nil):toBe(true)
+		expect(registry.PlotService:GetPlot(other):GetAttribute("Owner")):toBe(5)
+	end)
+
 	it("reuses the same gui when another player takes the plot", function()
 		setup()
 		local first = world:join({ UserId = 11, Name = "one", DisplayName = "One" })

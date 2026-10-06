@@ -238,6 +238,7 @@ local function release(player: Player)
 	respawnPoints[player] = nil
 	if info then
 		applyOwner(info, nil)
+		info.Model:SetAttribute("LastOwner", player.UserId)
 		info.Model:SetAttribute("Owner", nil)
 		refreshWalls(info, nil)
 		render(info, nil)
@@ -247,15 +248,49 @@ local function release(player: Player)
 	end
 end
 
+local function releaseStale()
+	for stalePlayer, info in plotByPlayer do
+		if stalePlayer.Parent ~= Players or info.Owner ~= stalePlayer then
+			release(stalePlayer)
+		end
+	end
+	for _, info in plots do
+		local owner = info.Owner
+		if owner and owner.Parent ~= Players and plotByPlayer[owner] then
+			release(owner)
+		end
+		owner = info.Owner
+		if owner and plotByPlayer[owner] ~= info then
+			applyOwner(info, nil)
+			info.Model:SetAttribute("LastOwner", owner.UserId)
+			info.Model:SetAttribute("Owner", nil)
+			refreshWalls(info, nil)
+			render(info, nil)
+			if info.Sign then
+				info.Sign:Set(nil)
+			end
+		end
+	end
+end
+
 local function assign(player: Player, data: PlayerData.Data)
 	if plotByPlayer[player] then
 		return
 	end
+	releaseStale()
 	local free: PlotInfo? = nil
 	for _, info in plots do
-		if not info.Owner then
+		if not info.Owner and info.Model:GetAttribute("LastOwner") == player.UserId then
 			free = info
 			break
+		end
+	end
+	if not free then
+		for _, info in plots do
+			if not info.Owner then
+				free = info
+				break
+			end
 		end
 	end
 	if not free then
@@ -454,6 +489,19 @@ function PlotService.Start(self: State)
 		end
 		release(player)
 	end)
+	trove:Connect(Players.PlayerRemoving, function(player: Player)
+		task.defer(function()
+			if plotByPlayer[player] then
+				release(player)
+			end
+		end)
+	end)
+	trove:Add(task.spawn(function()
+		while true do
+			task.wait(10)
+			releaseStale()
+		end
+	end))
 	services.KeyboardService.BoardChanged:Connect(function(player: Player)
 		local info = plotByPlayer[player]
 		local data = services.DataService:GetData(player) :: PlayerData.Data?
