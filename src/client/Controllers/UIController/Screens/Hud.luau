@@ -315,16 +315,9 @@ function Hud.new(context: Types.Context): Types.Screen
 	jumpButton("Shop", "Shop", "SHOP", theme.Orange, 0, function()
 		return rollController:TeleportToMarket()
 	end)
-	local myBaseButton = jumpButton(
-		"MyBase",
-		"Home",
-		"MY BASE",
-		theme.Blue,
-		topButtonWidth + topGap,
-		function()
-			return rollController:TeleportToBase()
-		end
-	)
+	local myBaseButton = jumpButton("MyBase", "Home", "BASE", theme.Blue, topButtonWidth + topGap, function()
+		return rollController:TeleportToBase()
+	end)
 
 	local money = Kit.Panel({
 		Parent = root,
@@ -352,20 +345,16 @@ function Hud.new(context: Types.Context): Types.Screen
 	moneyList.Padding = UDim.new(0, Kit.Space.S)
 	moneyList.Parent = moneyRow
 	local moneyPadding = Instance.new("UIPadding")
-	moneyPadding.PaddingLeft = UDim.new(0, 64)
+	moneyPadding.PaddingLeft = UDim.new(0, 10)
 	moneyPadding.PaddingRight = UDim.new(0, 20)
 	moneyPadding.Parent = moneyRow
-	local coin = Kit.IconPlate({
-		Parent = money,
+	Kit.Icon({
+		Parent = moneyRow,
 		Name = "Coin",
-		Position = UDim2.new(0, 0, 0.5, 0),
-		AnchorPoint = Vector2.new(0, 0.5),
-		Size = UDim2.fromOffset(Kit.TabBarHeight, Kit.TabBarHeight),
-		Color = theme.Gold,
+		Size = UDim2.fromOffset(Kit.ClicksHeight - 10, Kit.ClicksHeight - 10),
 		Glyph = "Clicks",
-		Radius = 20,
+		LayoutOrder = 1,
 	})
-	coin.ZIndex = 3
 	local cashLabel = Kit.Label({
 		Parent = moneyRow,
 		Name = "Cash",
