@@ -5,14 +5,10 @@ local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, 
 local controllers = "StarterPlayer.StarterPlayerScripts.Controllers"
 
 describe("TutorialController", function()
-	local world, controller, plotController, observers, rollKey
+	local world, controller, plotController, data, rollKey
 
 	local function setStep(value: any)
-		for _, observer in observers do
-			if observer.Path[1] == "Tutorial" then
-				observer.Callback(value)
-			end
-		end
+		data:Set({ "Tutorial" }, value)
 	end
 
 	local function beat()
@@ -44,17 +40,11 @@ describe("TutorialController", function()
 		plotController:Init({})
 		plotController:Start()
 		world:flush()
-		observers = {}
+		data = H.fakeDataController()
 		controller = world:require(`{controllers}.TutorialController`)
 		controller:Init({
 			PlotController = plotController,
-			DataController = {
-				Observe = function(_self: any, path: any, callback: any)
-					table.insert(observers, { Path = path, Callback = callback })
-					callback(nil)
-					return { Disconnect = function() end }
-				end,
-			},
+			DataController = data,
 		})
 		controller:Start()
 		world.workspace.ThockRollHint.Adornee = world:newPart("Dummy", 0, 0, 0)

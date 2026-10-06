@@ -69,12 +69,7 @@ describe("EggController placed eggs", function()
 			PlotController = plotController,
 			CharmController = charmController,
 			UIController = { Toast = function() end },
-			DataController = {
-				Observe = function(_self: any, _path: any, callback: any)
-					callback(nil)
-					return { Disconnect = function() end }
-				end,
-			},
+			DataController = H.fakeDataController(),
 		})
 		controller:Start()
 	end)

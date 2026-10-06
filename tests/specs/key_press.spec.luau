@@ -108,29 +108,7 @@ describe("KeyPressController", function()
 		world.Players.LocalPlayer = localPlayer
 		heartbeat = world.fakeServices.RunService.Heartbeat
 
-		tweens = {}
-		world.fakeServices.TweenService = {
-			Create = function(_self: any, target: any, info: any, goal: any)
-				local tween: any = { Completed = Signal.new(), Cancelled = false, Target = target, Goal = goal }
-				tween.Seconds = info[1]
-				tween.Style = info[2]
-				tween.Direction = info[3]
-				table.insert(tweens, tween)
-				function tween.Play()
-					for key, value in goal do
-						target[key] = value
-					end
-					world.task.defer(function()
-						tween.Completed:Fire()
-					end)
-				end
-				function tween.Cancel()
-					tween.Cancelled = true
-				end
-				function tween.Destroy() end
-				return tween
-			end,
-		}
+		tweens = H.installTweens(world)
 
 		world.workspace.CurrentCamera = { CFrame = CFrame.new(0, 20, 0) }
 		world.workspace.ChildAdded = Signal.new()
@@ -149,34 +127,11 @@ describe("KeyPressController", function()
 		keysFolder.Parent = plot
 		plot.Parent = plots
 
-		played = {}
+		local sound = H.fakeSound()
+		played = sound.Switches
 		local registry = {
-			SoundController = {
-				PlaySwitch = function(
-					_self: any,
-					switchId: string,
-					kind: string,
-					speed: number,
-					volume: number,
-					position: any,
-					category: string
-				)
-					table.insert(played, {
-						Switch = switchId,
-						Kind = kind,
-						Speed = speed,
-						Volume = volume,
-						Category = category,
-						Position = position,
-					})
-				end,
-			},
-			DataController = {
-				Observe = function(_self: any, _path: any, callback: any)
-					callback(false)
-					return function() end
-				end,
-			},
+			SoundController = sound,
+			DataController = H.fakeDataController({ Settings = { LowGraphics = false } }),
 		}
 		registryUnderTest = registry
 		controller = world:require("StarterPlayer.StarterPlayerScripts.Controllers.KeyPressController")

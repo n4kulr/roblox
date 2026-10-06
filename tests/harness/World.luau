@@ -940,10 +940,14 @@ function World.newInstance(self, className: string)
 	end
 	if className == "Sound" then
 		node.Plays = 0
+		node.IsPlaying = false
 		node.Play = function(sound: any)
 			sound.Plays += 1
+			sound.IsPlaying = true
 		end
-		node.Stop = function() end
+		node.Stop = function(sound: any)
+			sound.IsPlaying = false
+		end
 		node.Pauses = 0
 		node.Resumes = 0
 		node.Pause = function(sound: any)

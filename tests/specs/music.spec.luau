@@ -18,24 +18,7 @@ describe("MusicController", function()
 		world.overrides[world:node("ReplicatedStorage.Config.Music")] = Music
 		soundService = world:newInstance("Folder")
 		world.fakeServices.SoundService = soundService
-		tweens = {}
-		world.fakeServices.TweenService = {
-			Create = function(_self: any, target: any, info: any, goal: any)
-				local tween: any = { Completed = Signal.new() }
-				local record = { Target = target, Seconds = info[1], Goal = goal }
-				table.insert(tweens, record)
-				function tween.Play()
-					for key, value in goal do
-						target[key] = value
-					end
-					world.task.defer(function()
-						tween.Completed:Fire()
-					end)
-				end
-				function tween.Destroy() end
-				return tween
-			end,
-		}
+		tweens = H.installTweens(world)
 		volumeObserver = nil
 		local dataController = {
 			Observe = function(_self: any, _path: any, callback: any)
