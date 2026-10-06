@@ -63,10 +63,47 @@ function Caps.Blank(cframe: CFrame, color: Color3): BasePart
 	return cap
 end
 
+local function fenceColor(model: Instance, fallback: Color3): Color3
+	local fence = model:FindFirstChild("Fence")
+	if not fence then
+		return fallback
+	end
+	local counts: { [string]: number } = {}
+	local colors: { [string]: Color3 } = {}
+	local best: string? = nil
+	local parts: { Instance } = table.clone(fence:GetDescendants())
+	if fence:IsA("BasePart") then
+		table.insert(parts, fence)
+	end
+	for _, part in parts do
+		local color: Color3? = if part:IsA("BasePart") then (part :: any).Color else nil
+		local size: Vector3? = if part:IsA("BasePart") then (part :: any).Size else nil
+		if color and size and (part :: BasePart).Transparency < 1 then
+			local key = string.format(
+				"%d,%d,%d",
+				math.floor(color.R * 255 + 0.5),
+				math.floor(color.G * 255 + 0.5),
+				math.floor(color.B * 255 + 0.5)
+			)
+			counts[key] = (counts[key] or 0) + size.X * size.Y * size.Z
+			colors[key] = color
+			if best == nil or counts[key] > counts[best] then
+				best = key
+			end
+		end
+	end
+	return if best then colors[best] else fallback
+end
+
+function Caps.ThemeColor(model: Instance, fallback: Color3): Color3
+	local ok, result = pcall(fenceColor, model, fallback)
+	return if ok then result else fallback
+end
+
 function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 	local slot = cell.Slot
 	local sink = if slot then Caps.FillerSink - Caps.SlotRaise else Caps.FillerSink
-	local baseColor = info.Base.Color
+	local baseColor = Caps.ThemeColor(info.Model, info.Base.Color)
 	local cap = Caps.Blank(
 		info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z),
 		Caps.FillerColor(baseColor)
@@ -242,7 +279,7 @@ function Caps.Render(info: Types.PlotInfo, data: PlayerData.Data?, unlocked: num
 			if key then
 				showKey(cap, visual, key)
 			elseif state == emptyState then
-				showEmpty(cap, visual, info.Base.Color)
+				showEmpty(cap, visual, Caps.ThemeColor(info.Model, info.Base.Color))
 			else
 				showLocked(cap, visual, data ~= nil)
 			end

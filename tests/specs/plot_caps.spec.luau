@@ -2,7 +2,7 @@ local roblox = require("@lune/roblox")
 local H = require("../harness/Harness")
 local S = require("../support")
 
-local Color3 = roblox.Color3
+local Color3, Vector3 = roblox.Color3, roblox.Vector3
 
 local describe, it, expect, beforeEach, afterEach = H.describe, H.it, H.expect, H.beforeEach, H.afterEach
 
@@ -119,6 +119,32 @@ describe("Base keycap rendering", function()
 		expect(count > 20):toBe(true)
 	end)
 
+	it("themes keys from the plot's fence colour, falling back to the base colour", function()
+		local Caps = world:require("ServerScriptService.Services.PlotService.Caps")
+		local model = world:newInstance("Model")
+		local fallback = Color3.fromRGB(70, 74, 86)
+		expect(sameColor(Caps.ThemeColor(model, fallback), fallback)):toBe(true)
+		local fence = world:newInstance("Folder")
+		fence.Name = "Fence"
+		fence.Parent = model
+		local yellow = Color3.fromRGB(240, 200, 40)
+		for index, spec in
+			{
+				{ yellow, Vector3.new(40, 2, 1) },
+				{ yellow, Vector3.new(1, 2, 40) },
+				{ Color3.fromRGB(255, 240, 200), Vector3.new(2, 3, 2) },
+			}
+		do
+			local part = world:newInstance("Part")
+			part.Name = `Rail{index}`
+			part.Color = spec[1]
+			part.Size = spec[2]
+			part.Transparency = 0
+			part.Parent = fence
+		end
+		expect(sameColor(Caps.ThemeColor(model, fallback), yellow)):toBe(true)
+	end)
+
 	it("themes filler caps after each plot's own base color", function()
 		local colors = {}
 		for index, color in { Color3.fromRGB(200, 60, 60), Color3.fromRGB(50, 90, 210) } do
@@ -134,7 +160,11 @@ describe("Base keycap rendering", function()
 		local first, second = colors[1], colors[2]
 		expect(sameColor(expectedTint(first), expectedTint(second))):toBe(false)
 		expect(setBaseColor(first) ~= nil):toBe(true)
-		local player = world:join({ Name = "Themed" }, { PlaySeconds = 5000, Board = S.board("GlassTink") }, true)
+		local player = world:join(
+			{ Name = "Themed" },
+			{ PlaySeconds = 5000, Board = S.board("GlassTink") },
+			true
+		)
 		local plot = ownedPlot(player)
 		expect(plot ~= nil):toBe(true)
 	end)
@@ -189,7 +219,10 @@ describe("Base keycap rendering", function()
 		expect(checked):toBe(GameConfig.BoardSlots)
 		expect(unlocked < GameConfig.BoardSlots):toBe(true)
 		local walkTop = plot.Keys.Walkway.CFrame.Position.Y + 0.1
-		expect(walkTop):toBeCloseTo(plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight, 1e-6)
+		expect(walkTop):toBeCloseTo(
+			plot.Base.CFrame.Position.Y + plot.Base.Size.Y / 2 + FloorGrid.CapHeight,
+			1e-6
+		)
 		expect(plot.Keys:FindFirstChild("Slot1").CanCollide):toBe(false)
 	end)
 
@@ -288,7 +321,9 @@ describe("Base keycap rendering", function()
 		expect(Keys.GetIncome(other) ~= Keys.GetIncome("GlassTink")):toBe(true)
 		data.Board[1] = other
 		registry.KeyboardService.BoardChanged:Fire(player)
-		expect(cap:FindFirstChild("Income").Amount.Text):toBe(`+{NumberFormat.Compact(Keys.GetIncome(other))}/s`)
+		expect(cap:FindFirstChild("Income").Amount.Text):toBe(
+			`+{NumberFormat.Compact(Keys.GetIncome(other))}/s`
+		)
 	end)
 
 	it("resets slots to the unowned look when the owner leaves", function()
