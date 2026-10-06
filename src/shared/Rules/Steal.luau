@@ -40,6 +40,15 @@ local Steal = {
 		Busy = "Someone is already stealing from them!",
 		TooFast = "Keep holding to steal it!",
 	}),
+	AlertPhase = table.freeze({
+		Stealing = 1,
+		Stolen = 2,
+		Returned = 3,
+		GotAway = 4,
+		Rejected = 9,
+		Info = 10,
+		Good = 11,
+	}),
 }
 
 function Steal.RarityIndex(keyId: string): number

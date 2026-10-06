@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Charms = require(ReplicatedStorage.Rules.Charms)
+local Steal = require(ReplicatedStorage.Rules.Steal)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -24,6 +25,7 @@ type State = {
 }
 
 local baseHoldAttribute = Attributes.BaseHold
+local alertPhase = Steal.AlertPhase
 local refreshSeconds = 0.2
 local beamColor = Color3.fromRGB(255, 96, 96)
 
@@ -69,21 +71,21 @@ local function playAlarm(index: number)
 end
 
 local function onAlert(name: string, keyIndex: number, phase: number)
-	if phase == 1 then
+	if phase == alertPhase.Stealing then
 		toast(`{name} is stealing your {keyName(keyIndex)}!`, "Bad")
 		playAlarm(keyIndex)
-	elseif phase == 2 then
+	elseif phase == alertPhase.Stolen then
 		toast(`{name} stole your {keyName(keyIndex)}! Chase them!`, "Bad")
 		playAlarm(keyIndex)
-	elseif phase == 3 then
+	elseif phase == alertPhase.Returned then
 		toast("Your key came back!", "Good")
-	elseif phase == 4 then
+	elseif phase == alertPhase.GotAway then
 		toast(`{name} got away with your {keyName(keyIndex)}!`, "Bad")
-	elseif phase == 10 then
+	elseif phase == alertPhase.Info then
 		toast(name, "Info")
-	elseif phase == 11 then
+	elseif phase == alertPhase.Good then
 		toast(name, "Good")
-	elseif phase == 9 then
+	elseif phase == alertPhase.Rejected then
 		toast(name, "Bad")
 		local sounds = controllers.SoundController
 		if sounds then

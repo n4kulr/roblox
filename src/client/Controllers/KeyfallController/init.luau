@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local KeyfallRules = require(ReplicatedStorage.Rules.Keyfall)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.UIController.Kit)
@@ -23,11 +24,7 @@ type State = {
 }
 
 local config = GameConfig.Keyfall
-local eventAnnounce = 1
-local eventGrabbed = 2
-local eventClaimed = 3
-local eventDelivered = 4
-local eventVanished = 5
+local events = KeyfallRules.Events
 local knockButtonOffset = -198
 local beaconRefreshSeconds = 0.25
 
@@ -55,20 +52,20 @@ local function toast(text: string, kind: string)
 end
 
 local function onEvent(kind: number, text: string, keyIndex: number)
-	if kind == eventAnnounce then
+	if kind == events.Announce then
 		toast("A GOLDEN SPACEBAR fell in the arena! GO GO GO!", "Gold")
 		local sounds = controllers.SoundController
 		local mythic = Keys.RarityByName.Mythic
 		if sounds and mythic then
 			sounds:PlayReveal(mythic, "Other")
 		end
-	elseif kind == eventGrabbed then
+	elseif kind == events.Grabbed then
 		toast(`{text} grabbed the Golden Spacebar!`, "Gold")
-	elseif kind == eventClaimed then
+	elseif kind == events.Claimed then
 		toast(`{text} claimed the Golden Spacebar!`, "Gold")
-	elseif kind == eventVanished then
+	elseif kind == events.Vanished then
 		toast("The Golden Spacebar vanished...", "Info")
-	elseif kind == eventDelivered then
+	elseif kind == events.Delivered then
 		toast(`Delivered {keyIndex} {if keyIndex == 1 then "key" else "keys"}!`, "Good")
 	end
 end
