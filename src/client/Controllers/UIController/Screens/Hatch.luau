@@ -99,7 +99,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Name = "RevealCard",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(380, 360),
+		Size = UDim2.fromOffset(380, 380),
 		Color = theme.Panel,
 		StrokeColor = theme.Gold,
 		StrokeThickness = 6,
@@ -113,7 +113,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Parent = card,
 		Name = "Banner",
 		Align = Enum.TextXAlignment.Center,
-		Text = "NEW CHARM!",
+		Text = "NEW PET!",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 12),
 		Size = UDim2.new(1, -24, 0, 40),
@@ -130,7 +130,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	artHolder.Parent = card
 	local charmName = Kit.Label({
 		Parent = card,
-		Name = "CharmName",
+		Name = "PetName",
 		Align = Enum.TextXAlignment.Center,
 		Text = "",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -148,6 +148,17 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0.5, 0, 0, 206),
 		Size = UDim2.fromOffset(150, 30),
 		TextSize = 22,
+	})
+	local status = Kit.Label({
+		Parent = card,
+		Name = "Status",
+		Align = Enum.TextXAlignment.Center,
+		Text = "",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 296),
+		Size = UDim2.new(1, -24, 0, 22),
+		TextSize = 18,
+		Scaled = true,
 	})
 	local effect = Kit.Label({
 		Parent = card,
@@ -179,6 +190,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local art: EggArt.Art? = nil
 	local currentEgg: Eggs.Egg? = nil
 	local currentCharm: CharmConfig.Charm? = nil
+	local currentActive = false
 
 	local function render(time: number)
 		elapsed = time
@@ -225,6 +237,12 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		if not playedPop then
 			playedPop = true
 			playUi("Confirm")
+			context.Toast(
+				if currentActive
+					then `New pet: {charm.Name}! Now active!`
+					else `New pet: {charm.Name}! Stored (only your best {CharmConfig.ActiveLimit} pets are active)`,
+				"Good"
+			)
 		end
 		flash.BackgroundTransparency = 1
 		eggHolder.Visible = false
@@ -235,7 +253,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		cardScale.Scale = math.max(0.05, 0.3 + 0.7 * backOut(alpha))
 	end
 
-	local function start(eggId: string, charmId: string)
+	local function start(eggId: string, charmId: string, isActive: boolean)
 		local egg = Eggs.ById[eggId]
 		local charm = CharmConfig.ById[charmId]
 		if not egg or not charm then
@@ -243,6 +261,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		end
 		currentEgg = egg
 		currentCharm = charm
+		currentActive = isActive
 		for _, child in eggCluster:GetChildren() do
 			child:Destroy()
 		end
@@ -264,9 +283,13 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		rarityChip.Text = rarity.Name
 		Kit.Paint(rarityChip.Parent :: Frame, rarity.Color)
 		effect.Text = Charms.Describe(charm.Id)
+		status.Text = if isActive
+			then "Now active!"
+			else `Stored (only your best {CharmConfig.ActiveLimit} pets are active)`
+		status.TextColor3 = if isActive then theme.Green else theme.Gold
 		effect.TextColor3 = kind.Color
 		Kit.StrokeOf(card).Color = rarity.Color
-		banner.Text = if rarity.Order >= 5 then "AMAZING CHARM!" else "NEW CHARM!"
+		banner.Text = if rarity.Order >= 5 then "AMAZING PET!" else "NEW PET!"
 		lastStage = -1
 		playedPop = false
 		isPlaying = true
@@ -298,8 +321,8 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Destroy = function(_self: Types.Screen)
 			trove:Destroy()
 		end,
-		Play = function(_self: any, eggId: string, charmId: string)
-			start(eggId, charmId)
+		Play = function(_self: any, eggId: string, charmId: string, isActive: boolean?)
+			start(eggId, charmId, isActive ~= false)
 		end,
 		Seek = function(_self: any, time: number)
 			render(time)

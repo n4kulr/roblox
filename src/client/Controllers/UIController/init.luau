@@ -24,8 +24,6 @@ local modules: { [string]: Types.ScreenModule } = {
 	Rebirth = require(script.Screens.Rebirth),
 	Season = require(script.Screens.Season),
 	Leaderboards = require(script.Screens.Leaderboards),
-	GroupChest = require(script.Screens.GroupChest),
-	Charms = require(script.Screens.Charms),
 	Hatch = require(script.Screens.Hatch),
 }
 

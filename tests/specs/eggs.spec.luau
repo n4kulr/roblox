@@ -47,10 +47,6 @@ describe("EggService", function()
 		return world:invoke("HatchEgg", player, index)
 	end
 
-	local function equip(id: any, on: any): any
-		return world:invoke("EquipCharm", player, id, on)
-	end
-
 	local function placeEgg(eggId: any, x: any, z: any): any
 		return world:invoke("PlaceEgg", player, eggId, x, z)
 	end
@@ -304,7 +300,7 @@ describe("EggService", function()
 			expect(hatch(1)):toBe("")
 		end)
 
-		it("hatches at the ready time, grants a charm from the egg table and removes the egg", function()
+		it("hatches at the ready time, grants a pet from the egg table and removes the egg", function()
 			plant("Golden", world.now + 30)
 			world:advance(30)
 			local charmId = hatch(1)
@@ -322,7 +318,7 @@ describe("EggService", function()
 			expect(hatch(1)):toBe("")
 		end)
 
-		it("stacks duplicate charms", function()
+		it("stacks duplicate pets", function()
 			local count = 0
 			for _ = 1, 40 do
 				plant("Linear", 0)
@@ -338,7 +334,7 @@ describe("EggService", function()
 			expect(total):toBe(40)
 		end)
 
-		it("only ever grants charms from each egg drop table", function()
+		it("only ever grants pets from each egg drop table", function()
 			for _, egg in Eggs.Catalog do
 				local allowed: { [string]: boolean } = {}
 				for _, drop in Rules.Drops(egg.Id) do
@@ -421,71 +417,181 @@ describe("EggService", function()
 		end)
 	end)
 
-	describe("equipping", function()
+	describe("pets", function()
+		local plot
+
+		local function activeAttribute(target: any): string
+			return target:GetAttribute("EquippedCharms")
+		end
+
+		local function petModels(): { any }
+			local folder = plot:FindFirstChild("Pets")
+			return if folder then folder:GetChildren() else {}
+		end
+
+		local function petIds(): { string }
+			local ids = {}
+			for _, model in petModels() do
+				table.insert(ids, model:GetAttribute("PetId"))
+			end
+			table.sort(ids)
+			return ids
+		end
+
 		beforeEach(function()
-			data.Charms = { ThockPad = 2, LuckyCable = 1, GoldSpacebar = 1, KeycapPin = 1 }
+			plot = world:newInstance("Model")
+			world.registry.PlotService.GetPlot = function()
+				return plot
+			end
 		end)
 
-		it("equips owned charms and publishes them", function()
-			expect(equip("ThockPad", true)):toBe(true)
-			expect(data.EquippedCharms):toEqual({ "ThockPad" })
-			expect(player:GetAttribute("EquippedCharms")):toBe("ThockPad")
-			expect(equip("LuckyCable", true)):toBe(true)
-			expect(player:GetAttribute("EquippedCharms")):toBe("ThockPad,LuckyCable")
+		it("names the pets after keyboard animals with the same rarities", function()
+			expect(Charms.ById.KeycapPin.Name):toBe("Keycap Kitty")
+			expect(Charms.ById.DiamondSpacebar.Name):toBe("Diamond Dragon")
+			expect(Charms.ById.GoldSpacebar.Name):toBe("Spacebar Bunny")
+			expect(Charms.ById.MidasKey.Name):toBe("Golden Goose")
+			expect(Charms.ById.HyperSwitch.Name):toBe("Switch Fox")
+			expect(Charms.ById.TinySwitch.Name):toBe("Thock Pup")
+			expect(Charms.ById.CloverFob.Name):toBe("Clicky Chick")
+			expect(Charms.ById.DiamondSpacebar.Rarity):toBe("Mythic")
+			expect(Charms.ActiveLimit):toBe(6)
 		end)
 
-		it("rejects unowned and unknown charms", function()
-			expect(equip("DiamondSpacebar", true)):toBe(false)
-			expect(equip("Nope", true)):toBe(false)
-			expect(equip(5, true)):toBe(false)
-			expect(equip("ThockPad", "yes")):toBe(false)
-			expect(data.EquippedCharms):toEqual({})
+		it("grants a pet from a hatch and makes it active when there is room", function()
+			plant("Linear", 0)
+			local id = hatch(1)
+			expect(Charms.ById[id] ~= nil):toBe(true)
+			expect(data.Charms[id]):toBe(1)
+			expect(data.EquippedCharms):toEqual({ id })
+			expect(activeAttribute(player)):toBe(id)
+			expect(#petModels()):toBe(1)
+			expect(petModels()[1]:GetAttribute("PetId")):toBe(id)
 		end)
 
-		it("allows duplicates only up to the owned count", function()
-			expect(equip("ThockPad", true)):toBe(true)
-			expect(equip("ThockPad", true)):toBe(true)
-			expect(equip("ThockPad", true)):toBe(false)
-			expect(data.EquippedCharms):toEqual({ "ThockPad", "ThockPad" })
+		it("keeps only the best six pets active", function()
+			data.Charms = {
+				KeycapPin = 1,
+				CloverFob = 1,
+				TinySwitch = 1,
+				BrassStab = 1,
+				ThockPad = 1,
+				GoldSpacebar = 1,
+				DiamondSpacebar = 1,
+				LuckyLube = 1,
+			}
+			world.registry.EggService:Sync(player)
+			expect(data.EquippedCharms):toEqual({
+				"DiamondSpacebar",
+				"GoldSpacebar",
+				"ThockPad",
+				"BrassStab",
+				"LuckyLube",
+				"KeycapPin",
+			})
+			expect(#petModels()):toBe(6)
+			expect(table.find(petIds(), "CloverFob")):toBeNil()
+			expect(table.find(petIds(), "TinySwitch")):toBeNil()
+			expect(data.Charms.TinySwitch):toBe(1)
 		end)
 
-		it("stops at three equipped charms", function()
-			expect(equip("ThockPad", true)):toBe(true)
-			expect(equip("LuckyCable", true)):toBe(true)
-			expect(equip("GoldSpacebar", true)):toBe(true)
-			expect(equip("KeycapPin", true)):toBe(false)
-			expect(#data.EquippedCharms):toBe(Charms.EquipLimit)
+		it("never activates more than six pets however many are owned", function()
+			for _, charm in Charms.Catalog do
+				data.Charms[charm.Id] = 3
+			end
+			world.registry.EggService:Sync(player)
+			plant("Linear", 0)
+			hatch(1)
+			expect(#data.EquippedCharms):toBe(6)
+			expect(#petModels()):toBe(6)
+			local effects = Rules.Effects(data.EquippedCharms)
+			expect(effects.Income >= 10):toBe(true)
 		end)
 
-		it("unequips one copy at a time and rejects charms that are not equipped", function()
-			expect(equip("ThockPad", false)):toBe(false)
-			equip("ThockPad", true)
-			equip("ThockPad", true)
-			expect(equip("ThockPad", false)):toBe(true)
-			expect(data.EquippedCharms):toEqual({ "ThockPad" })
-			expect(equip("ThockPad", false)):toBe(true)
-			expect(equip("ThockPad", false)):toBe(false)
-			expect(player:GetAttribute("EquippedCharms")):toBe("")
-		end)
-
-		it("fails for players without data", function()
-			local stranger = world:newPlayer()
-			expect(world:invoke("EquipCharm", stranger, "ThockPad", true)):toBe(false)
-		end)
-
-		it("trims invalid equipped charms when data loads", function()
+		it("derives the active set when data loads and ignores stale equipped lists", function()
 			local other, otherData = world:join(
 				nil,
-				{ Charms = { ThockPad = 1 }, EquippedCharms = { "ThockPad", "ThockPad", "Nope", "GoldSpacebar" } },
+				{ Charms = { ThockPad = 1, DiamondSpacebar = 1 }, EquippedCharms = { "KeycapPin", "Nope" } },
 				true
 			)
-			expect(otherData.EquippedCharms):toEqual({ "ThockPad" })
-			expect(other:GetAttribute("EquippedCharms")):toBe("ThockPad")
+			expect(otherData.EquippedCharms):toEqual({ "DiamondSpacebar", "ThockPad" })
+			expect(activeAttribute(other)):toBe("DiamondSpacebar,ThockPad")
+		end)
+
+		it("spawns one pet model per active pet with owner, id and seed", function()
+			data.Charms = { ThockPad = 2, GoldSpacebar = 1 }
+			world.registry.EggService:Sync(player)
+			expect(#petModels()):toBe(3)
+			expect(petIds()):toEqual({ "GoldSpacebar", "ThockPad", "ThockPad" })
+			local seeds = {}
+			for _, model in petModels() do
+				expect(model:GetAttribute("Owner")):toBe(player.UserId)
+				expect(type(model:GetAttribute("Seed"))):toBe("number")
+				seeds[model:GetAttribute("Seed")] = true
+				expect(model.PrimaryPart ~= nil):toBe(true)
+				local body = model:FindFirstChild("Body")
+				expect(body.Anchored):toBe(true)
+				expect(body.CanCollide):toBe(false)
+				local gui = model:FindFirstChild("Name", true)
+				expect(gui.MaxDistance):toBe(40)
+				expect(model:FindFirstChild("Head") ~= nil):toBe(true)
+				expect(model:FindFirstChild("LeftEar") ~= nil):toBe(true)
+			end
+			local count = 0
+			for _ in seeds do
+				count += 1
+			end
+			expect(count):toBe(3)
+		end)
+
+		it("sizes and tints pets by rarity", function()
+			data.Charms = { KeycapPin = 1, DiamondSpacebar = 1 }
+			world.registry.EggService:Sync(player)
+			for _, model in petModels() do
+				local charm = Charms.ById[model:GetAttribute("PetId")]
+				expect(model.Body.Color == charm.Color):toBe(true)
+				local length = model.Body.Size.Z
+				expect(length > 1 and length < 3):toBe(true)
+			end
+		end)
+
+		it("updates the models when a better pet is hatched and does not rebuild otherwise", function()
+			data.Charms = { KeycapPin = 1 }
+			world.registry.EggService:Sync(player)
+			local first = petModels()[1]
+			world.registry.EggService:Sync(player)
+			expect(petModels()[1] == first):toBe(true)
+			data.Charms.DiamondSpacebar = 1
+			plant("Linear", 0)
+			hatch(1)
+			expect(#petModels() >= 2):toBe(true)
+			expect(table.find(petIds(), "DiamondSpacebar") ~= nil):toBe(true)
+		end)
+
+		it("clears pet models when the plot is released and when the player leaves", function()
+			data.Charms = { ThockPad = 1 }
+			world.registry.EggService:Sync(player)
+			expect(#petModels()):toBe(1)
+			world.registry.PlotService.GetPlot = function()
+				return nil
+			end
+			world.registry.EggService:Sync(player)
+			expect(plot:FindFirstChild("Pets")):toBeNil()
+			world.registry.PlotService.GetPlot = function()
+				return plot
+			end
+			world.registry.EggService:Sync(player)
+			expect(#petModels()):toBe(1)
+			world:removePlayer(player)
+			expect(plot:FindFirstChild("Pets")):toBeNil()
+		end)
+
+		it("has no equip packet handler any more", function()
+			expect(world:packets().EquipCharm.OnServerInvoke):toBeNil()
 		end)
 	end)
 
 	describe("integration", function()
-		it("raises settled income with an equipped income charm", function()
+		it("raises settled income with an active income pet", function()
 			data.Board = {}
 			for index = 1, GameConfig.BaseSlots do
 				data.Board[index] = "PlainClack"
@@ -496,7 +602,8 @@ describe("EggService", function()
 			local plain = data.Cash
 			expect(plain > 0):toBe(true)
 			data.Charms = { ThockPad = 1 }
-			expect(equip("ThockPad", true)):toBe(true)
+			world.registry.EggService:Sync(player)
+			expect(data.EquippedCharms):toEqual({ "ThockPad" })
 			data.Cash = 0
 			data.IncomeAt = world.now - 100
 			world.registry.KeyboardService:Settle(player)
@@ -506,7 +613,6 @@ describe("EggService", function()
 		it("keeps persistence fields valid", function()
 			local PlayerData = world:require("ServerScriptService.Data.PlayerData")
 			data.Charms = { ThockPad = 1 }
-			equip("ThockPad", true)
 			give("Linear", 2)
 			plant("Linear", world.now + 10)
 			expect(PlayerData.Validate(data)):toBe(true)
@@ -517,13 +623,11 @@ describe("EggService", function()
 
 		it("clears its packet handlers on Destroy", function()
 			local packets = world:packets()
-			local hatchPacket, equipPacket, placePacket = packets.HatchEgg, packets.EquipCharm, packets.PlaceEgg
+			local hatchPacket, placePacket = packets.HatchEgg, packets.PlaceEgg
 			expect(hatchPacket.OnServerInvoke ~= nil):toBe(true)
-			expect(equipPacket.OnServerInvoke ~= nil):toBe(true)
 			expect(placePacket.OnServerInvoke ~= nil):toBe(true)
 			world:destroy()
 			expect(hatchPacket.OnServerInvoke):toBeNil()
-			expect(equipPacket.OnServerInvoke):toBeNil()
 			expect(placePacket.OnServerInvoke):toBeNil()
 		end)
 

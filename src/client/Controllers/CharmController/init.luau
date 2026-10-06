@@ -3,18 +3,19 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Packets = require(ReplicatedStorage.Packets)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local Orbit = require(script.Orbit)
+local Charms = require(ReplicatedStorage.Rules.Charms)
+local Walkers = require(script.Walkers)
 
 type TroveInstance = typeof(Trove.new())
-type PlayerOrbit = Orbit.Orbit
 
 type State = {
 	Name: string,
-	Hatched: Signal.Signal<string, string>,
+	Hatched: Signal.Signal<string, string, boolean>,
 	Hatch: (self: State, index: number, eggId: string) -> (),
 	_trove: TroveInstance?,
 }
@@ -22,68 +23,17 @@ type State = {
 local scanSeconds = 1
 local promptHold = 0.6
 local promptRange = 12
-local attributeName = "EquippedCharms"
 local folderName = "PlacedEggs"
 local promptName = "HatchPrompt"
 
 local CharmController = {
 	Name = "CharmController",
-	Hatched = Signal.new() :: Signal.Signal<string, string>,
+	Hatched = Signal.new() :: Signal.Signal<string, string, boolean>,
 	_trove = nil :: TroveInstance?,
 }
 local controllers: { [string]: any } = {}
-local orbits: { [Player]: PlayerOrbit } = {}
-local visuals: Folder? = nil
+local walkers = Walkers.New()
 local isHatching = false
-
-local function clearOrbit(player: Player)
-	local orbit = orbits[player]
-	orbits[player] = nil
-	if orbit then
-		for _, model in orbit.Models do
-			model:Destroy()
-		end
-	end
-end
-
-local function syncOrbit(player: Player)
-	local parent = visuals
-	if not parent then
-		return
-	end
-	local text = player:GetAttribute(attributeName)
-	local current = orbits[player]
-	local key = if type(text) == "string" then text else ""
-	if current and current.Ids == key then
-		return
-	end
-	clearOrbit(player)
-	local ids = Orbit.Parse(key)
-	if #ids == 0 then
-		return
-	end
-	local models: { Model } = {}
-	for _, id in ids do
-		local model = Orbit.BuildCharm(parent, id)
-		if model then
-			table.insert(models, model)
-		end
-	end
-	orbits[player] = { Ids = key, Models = models }
-end
-
-local function stepOrbits()
-	local now = os.clock()
-	for player, orbit in orbits do
-		local character = player.Character
-		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		if root and root:IsA("BasePart") then
-			for index, model in orbit.Models do
-				Orbit.Place(model, root.CFrame, index, #orbit.Models, now)
-			end
-		end
-	end
-end
 
 local function toast(text: string, kind: string)
 	local ui = controllers.UIController
@@ -100,8 +50,20 @@ function CharmController.Hatch(_self: State, index: number, eggId: string)
 	task.spawn(function()
 		local charmId = Packets.HatchEgg:Fire(index)
 		isHatching = false
-		if type(charmId) == "string" and charmId ~= "" then
-			CharmController.Hatched:Fire(eggId, charmId)
+		local pet = if type(charmId) == "string" then CharmConfig.ById[charmId] else nil
+		if pet then
+			local owned: { [string]: number } = {}
+			local stored = controllers.DataController:Get({ "Charms" })
+			if type(stored) == "table" then
+				for id, count in stored do
+					if type(id) == "string" and type(count) == "number" then
+						owned[id] = count
+					end
+				end
+			end
+			owned[pet.Id] = math.max(owned[pet.Id] or 0, 1)
+			local isActive = Charms.IsActive(owned, pet.Id)
+			CharmController.Hatched:Fire(eggId, pet.Id, isActive)
 		else
 			toast("Not ready yet!", "Bad")
 		end
@@ -171,36 +133,23 @@ end
 
 function CharmController.Start(self: State)
 	local trove = self._trove :: TroveInstance
-	local folder = Instance.new("Folder")
-	folder.Name = "CharmVisuals"
-	folder.Parent = workspace
-	trove:Add(folder)
-	visuals = folder
-	local function watch(player: Player)
-		syncOrbit(player)
-		trove:Connect(player:GetAttributeChangedSignal(attributeName), function()
-			syncOrbit(player)
-		end)
-	end
-	for _, player in Players:GetPlayers() do
-		watch(player)
-	end
-	trove:Connect(Players.PlayerAdded, watch)
-	trove:Connect(Players.PlayerRemoving, clearOrbit)
-	trove:Connect(RunService.Heartbeat, stepOrbits)
+	trove:Connect(RunService.Heartbeat, function(dt: number)
+		Walkers.Step(walkers, dt)
+	end)
 	trove:Add(task.spawn(function()
 		while true do
 			scanPlots(self)
+			local plots = workspace:FindFirstChild("Plots")
+			if plots then
+				Walkers.Sync(walkers, plots)
+			end
 			task.wait(scanSeconds)
 		end
 	end))
 end
 
 function CharmController.Destroy(self: State)
-	for player in orbits do
-		clearOrbit(player)
-	end
-	visuals = nil
+	Walkers.Clear(walkers)
 	isHatching = false
 	if self._trove then
 		self._trove:Destroy()

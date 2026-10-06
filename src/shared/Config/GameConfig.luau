@@ -192,13 +192,6 @@ return table.freeze({
 			}),
 		}),
 	}),
-	GroupChest = table.freeze({
-		GroupId = 0,
-		CooldownSeconds = 43200,
-		IncomeSeconds = 600,
-		MinCash = 1000,
-		LuckPotionSeconds = 600,
-	}),
 	Playtime = table.freeze({
 		table.freeze({ Seconds = 10, Kind = "Cash", Amount = 30, Min = 100, Rarity = "" }),
 		table.freeze({ Seconds = 50, Kind = "Cash", Amount = 60, Min = 300, Rarity = "" }),

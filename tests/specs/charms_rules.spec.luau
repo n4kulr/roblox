@@ -2,7 +2,7 @@ local H = require("../harness/Harness")
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
-describe("Charm and egg config", function()
+describe("Pet and egg config", function()
 	local Charms, Eggs, Rules
 
 	beforeEach(function()
@@ -12,7 +12,7 @@ describe("Charm and egg config", function()
 		Rules = world:require("ReplicatedStorage.Rules.Charms")
 	end)
 
-	it("defines unique charms with known rarities and kinds", function()
+	it("defines unique pets with known rarities and kinds", function()
 		local seen: { [string]: boolean } = {}
 		for _, charm in Charms.Catalog do
 			expect(seen[charm.Id]):toBeNil()
@@ -24,7 +24,7 @@ describe("Charm and egg config", function()
 		expect(#Charms.Catalog >= 20):toBe(true)
 	end)
 
-	it("has the insane top-tier charms", function()
+	it("has the insane top-tier pets", function()
 		local diamond = Charms.ById.DiamondSpacebar
 		expect(diamond.Rarity):toBe("Mythic")
 		expect(diamond.Kind):toBe("Income")
@@ -49,7 +49,7 @@ describe("Charm and egg config", function()
 		expect(Eggs.ById.Rainbow.HatchSeconds):toBe(7200)
 	end)
 
-	it("only drops rarities that have charms", function()
+	it("only drops rarities that have pets", function()
 		for _, egg in Eggs.Catalog do
 			for rarity in egg.Drops do
 				expect(#Charms.ByRarity[rarity] > 0):toBe(true)
@@ -105,12 +105,12 @@ describe("Charm rules", function()
 		expect(Rules.Effects({ "DiamondSpacebar" }).Income):toBe(10)
 	end)
 
-	it("ignores equipped entries beyond the limit", function()
-		local effects = Rules.Effects({ "ThockPad", "ThockPad", "ThockPad", "ThockPad" })
-		expect(effects.Income):toBe(4)
+	it("ignores active entries beyond the limit", function()
+		local effects = Rules.Effects({ "ThockPad", "ThockPad", "ThockPad", "ThockPad", "ThockPad", "ThockPad", "ThockPad" })
+		expect(effects.Income):toBe(7)
 	end)
 
-	it("describes every charm with its effect", function()
+	it("describes every pet with its effect", function()
 		expect(Rules.Describe("ThockPad")):toBe("x2 Income")
 		expect(Rules.Describe("KeycapPin")):toBe("x1.25 Income")
 		expect(Rules.Describe("LuckyLube")):toBe("x1.4 Luck")
@@ -124,31 +124,59 @@ describe("Charm rules", function()
 		end
 	end)
 
-	it("limits equipping by owned count and slots", function()
-		local owned = { ThockPad = 2, LuckyCable = 1 }
-		expect(Rules.CanEquip(owned, {}, "ThockPad")):toBe(true)
-		expect(Rules.CanEquip(owned, { "ThockPad" }, "ThockPad")):toBe(true)
-		expect(Rules.CanEquip(owned, { "ThockPad", "ThockPad" }, "ThockPad")):toBe(false)
-		expect(Rules.CanEquip(owned, {}, "GoldSpacebar")):toBe(false)
-		expect(Rules.CanEquip(owned, {}, "Nope")):toBe(false)
-		expect(Rules.CanEquip({ ThockPad = 9 }, { "ThockPad", "ThockPad", "ThockPad" }, "ThockPad")):toBe(false)
+	it("ranks pets by a power score with income first", function()
+		expect(Rules.Score("DiamondSpacebar") > Rules.Score("GoldSpacebar")):toBe(true)
+		expect(Rules.Score("GoldSpacebar") > Rules.Score("CloverCrown")):toBe(true)
+		expect(Rules.Score("ThockPad") > Rules.Score("LuckyCable")):toBe(true)
+		expect(Rules.Score("Nope")):toBe(0)
 	end)
 
-	it("picks the best three charms", function()
-		local owned = { KeycapPin = 1, ThockPad = 1, GoldSpacebar = 1, DiamondSpacebar = 1, TinySwitch = 1 }
-		expect(Rules.Best(owned)):toEqual({ "DiamondSpacebar", "GoldSpacebar", "ThockPad" })
+	it("picks the best six pets", function()
+		local owned = {
+			KeycapPin = 1,
+			ThockPad = 1,
+			GoldSpacebar = 1,
+			DiamondSpacebar = 1,
+			TinySwitch = 1,
+			BrassStab = 1,
+			RainbowCoil = 1,
+		}
+		expect(Rules.Best(owned)):toEqual({
+			"DiamondSpacebar",
+			"GoldSpacebar",
+			"RainbowCoil",
+			"ThockPad",
+			"BrassStab",
+			"KeycapPin",
+		})
 		expect(Rules.Best({})):toEqual({})
-		expect(Rules.Best({ ThockPad = 5 })):toEqual({ "ThockPad", "ThockPad", "ThockPad" })
+		expect(#Rules.Best({ ThockPad = 9 })):toBe(6)
 		expect(Rules.Best({ Nope = 3, KeycapPin = 0 })):toEqual({})
 	end)
 
-	it("sanitizes equipped lists against ownership and the limit", function()
-		local owned = { ThockPad = 1, LuckyCable = 1, KeycapPin = 1, TinySwitch = 1 }
-		expect(Rules.Sanitize(owned, { "ThockPad", "ThockPad", "Nope", "LuckyCable", "KeycapPin", "TinySwitch" })):toEqual(
-			{ "ThockPad", "LuckyCable", "KeycapPin" }
-		)
-		expect(Rules.Sanitize(nil, { "ThockPad" })):toEqual({})
-		expect(Rules.Sanitize(owned, "x")):toEqual({})
+	it("only counts the top six pets in the stacked effects", function()
+		local owned = { ThockPad = 10 }
+		local effects = Rules.Effects(Rules.Best(owned))
+		expect(effects.Income):toBe(1 + 6)
+		local all: { [string]: number } = {}
+		for _, pet in Charms.Catalog do
+			all[pet.Id] = 4
+		end
+		expect(#Rules.Best(all)):toBe(6)
+		expect(Rules.Effects(Rules.Best(all)).Income >= 1 + 9):toBe(true)
+	end)
+
+	it("tells whether a pet is among the active six", function()
+		local owned = { ThockPad = 1, GoldSpacebar = 1, DiamondSpacebar = 1, RainbowCoil = 1, BrassStab = 1, MegaLaser = 1 }
+		expect(Rules.IsActive(owned, "DiamondSpacebar")):toBe(true)
+		expect(Rules.IsActive(owned, "KeycapPin")):toBe(false)
+		owned.TinySwitch = 1
+		expect(Rules.IsActive(owned, "TinySwitch")):toBe(false)
+		expect(Rules.IsActive(owned, "MegaLaser")):toBe(true)
+		owned.KeycapPin = 1
+		expect(Rules.IsActive(owned, "KeycapPin")):toBe(true)
+		expect(Rules.IsActive(owned, "MegaLaser")):toBe(false)
+		expect(Rules.IsActive({}, "Nope")):toBe(false)
 	end)
 
 	it("rolls deterministically from a seed and only from the egg table", function()

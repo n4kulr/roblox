@@ -189,6 +189,13 @@ describe("HUD", function()
 		expect(find(hudGui, "Store").Face.Text.Text):toBe("STORE")
 	end)
 
+	it("has no CHARMS or PETS button in the menu", function()
+		expect(find(hudGui, "Charms")):toBeNil()
+		for _, text in texts() do
+			expect(string.find(string.upper(text), "CHARM", 1, true)):toBeNil()
+		end
+	end)
+
 	it("puts KEYS before UPGRADES in the left menu", function()
 		expect(find(hudGui, "Keys").LayoutOrder < find(hudGui, "Upgrades").LayoutOrder):toBe(true)
 		expect(find(hudGui, "Keys").LayoutOrder):toBe(1)
