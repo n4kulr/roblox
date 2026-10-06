@@ -80,14 +80,14 @@ return {
 		end,
 	},
 	{
-		Name = "egg_market_drops",
+		Name = "egg_market_expanded",
 		Screens = {},
 		Run = function(scene)
 			stock(scene, {})
 			scene.Data.Cash = 900000
 			openMarket(scene)
 			local card = scene.PlayerGui:FindFirstChild("Offer2", true)
-			press(card:FindFirstChild("DropsButton", true))
+			press(card:FindFirstChild("Tap", true))
 			tick(scene, 0.3)
 		end,
 	},

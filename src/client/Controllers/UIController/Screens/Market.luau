@@ -20,19 +20,24 @@ type TroveInstance = typeof(Trove.new())
 type Card = {
 	Offer: Market.Offer,
 	Price: number,
+	Wrapper: Frame,
 	Panel: Frame,
-	PriceText: TextLabel,
-	Drops: Frame,
+	Left: number,
 	StockChip: Frame,
 	StockText: TextLabel,
+	StockScale: UIScale,
 	Action: Kit.Button,
+	Extra: number,
 }
 type Stored = { Slot: number?, Bought: { [string]: number }? }
 
 local theme = Kit.Theme
 local config = GameConfig.Market
 local accent = Color3.fromRGB(255, 96, 48)
-local cardSize = Vector2.new(205, 304)
+local barHeight = 84
+local expandedExtra = 84
+local expandInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local popInfo = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local refreshSeconds = 0.25
 local reachSlack = 6
 local stalls = { "Market", "MarketPlaceholder" }
@@ -81,6 +86,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local builtSlot = -1
 	local isOpen = false
 	local isBusy = false
+	local expanded: Card? = nil
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -103,17 +109,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		TextSize = 20,
 	})
 	local timer = timerPill.Label
-	local grid = Kit.GridScroll({
+	local list = Kit.Scroll({
 		Parent = modal.Body,
 		Name = "Offers",
 		Position = UDim2.fromOffset(6, 6),
 		Size = UDim2.new(1, -12, 1, -52),
-		CellSize = UDim2.fromOffset(cardSize.X, cardSize.Y),
+		Padding = 10,
 	})
-	local gridPadding = grid:FindFirstChildOfClass("UIPadding")
-	if gridPadding then
-		gridPadding.PaddingLeft = UDim.new(0, Kit.Space.M)
-	end
 	local bagLabel = Kit.Label({
 		Parent = modal.Body,
 		Name = "Bag",
@@ -124,6 +126,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		TextSize = 24,
 		Title = true,
 		Scaled = true,
+		Align = Enum.TextXAlignment.Center,
 	})
 
 	local function boughtOf(index: number): number
@@ -167,25 +170,59 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			local offer = card.Offer
 			local left = leftOf(offer)
 			card.Price = Market.Price(offer, rate)
-			card.PriceText.Text = NumberFormat.Commas(card.Price)
-			card.StockText.Text = if left > 0 then `x{left} left` else "NO STOCK"
-			Kit.Paint(card.StockChip, if left > 0 then theme.Blue else theme.Grey)
+			card.StockText.Text = if left > 0 then `x{left} Stock` else "NO STOCK"
+			Kit.Paint(card.StockChip, if left > 0 then theme.Blue else theme.Red)
+			if left < card.Left then
+				card.StockScale.Scale = 1.3
+				Kit.Tween(card.StockScale, popInfo, { Scale = 1 })
+			end
+			card.Left = left
+			local priceText = NumberFormat.Compact(card.Price)
 			if left <= 0 then
 				card.Action.SetDisabled(true)
-				card.Action.SetText("NO STOCK")
+				card.Action.SetColor(theme.Grey)
+				card.Action.SetText(priceText)
+				card.Action.SetIconVisible(true)
+				card.Action.SetLocked(true)
 			elseif isFull then
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Grey)
 				card.Action.SetText("BAG FULL")
+				card.Action.SetIconVisible(false)
+				card.Action.SetLocked(false)
 			elseif balance < card.Price then
 				card.Action.SetDisabled(false)
-				card.Action.SetColor(theme.Red)
-				card.Action.SetText(`Need {NumberFormat.Compact(card.Price - balance)} more!`)
+				card.Action.SetColor(theme.Grey)
+				card.Action.SetText(priceText)
+				card.Action.SetIconVisible(true)
+				card.Action.SetLocked(true)
 			else
 				card.Action.SetDisabled(false)
 				card.Action.SetColor(theme.Green)
-				card.Action.SetText("BUY")
+				card.Action.SetText(priceText)
+				card.Action.SetIconVisible(true)
+				card.Action.SetLocked(false)
 			end
+		end
+	end
+
+	local function setExpanded(card: Card, isOn: boolean)
+		local extra = if isOn then expandedExtra else 0
+		card.Extra = extra
+		Kit.Tween(card.Wrapper, expandInfo, { Size = UDim2.new(1, 0, 0, barHeight + extra) })
+	end
+
+	local function toggle(card: Card)
+		local previous = expanded
+		if previous and previous ~= card then
+			setExpanded(previous, false)
+		end
+		if previous == card then
+			setExpanded(card, false)
+			expanded = nil
+		else
+			setExpanded(card, true)
+			expanded = card
 		end
 	end
 
@@ -202,13 +239,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		end
 		if bagCount() >= Eggs.BagCap then
 			playUi("Error")
-			Kit.Shake(card.Panel)
+			Kit.Shake(card.Wrapper)
 			context.Toast(fullMessage, "Bad")
 			return
 		end
 		if balance < card.Price then
 			playUi("Error")
-			Kit.Shake(card.Panel)
+			Kit.Shake(card.Wrapper)
 			context.Toast(`Need {NumberFormat.Compact(card.Price - balance)} more!`, "Bad")
 			return
 		end
@@ -238,154 +275,151 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		end)
 	end
 
-	local function buildDrops(panel: Frame, egg: Eggs.Egg): Frame
-		local overlay = Kit.Panel({
-			Parent = panel,
-			Name = "Drops",
-			Size = UDim2.new(1, -12, 0, 170),
-			Position = UDim2.fromOffset(6, 6),
-			Color = theme.PanelDeep,
-			Radius = Kit.Radius.M,
-		})
-		overlay.ZIndex = 5
-		overlay.Visible = false
-		Kit.Label({
-			Parent = overlay,
-			Name = "Heading",
-			Text = "DROP CHANCES",
-			Position = UDim2.fromOffset(8, 6),
-			Size = UDim2.new(1, -16, 0, 26),
-			TextSize = 20,
-			Title = true,
-			Scaled = true,
-		}).ZIndex =
-			6
+	local function buildDrops(bar: Frame, egg: Eggs.Egg)
+		local panel = Instance.new("Frame")
+		panel.Name = "Details"
+		panel.BackgroundTransparency = 1
+		panel.Position = UDim2.fromOffset(30, 0)
+		panel.Size = UDim2.new(1, -46, 1, 0)
+		panel.Parent = bar
 		local total = 0
+		local names: { string } = {}
 		for _, weight in egg.Drops do
 			total += weight
 		end
-		local row = 0
 		for _, rarity in CharmConfig.Rarities do
-			local weight = egg.Drops[rarity.Name]
-			if weight then
-				local line = Kit.Chip({
-					Parent = overlay,
-					Name = rarity.Name,
-					Text = `{rarity.Name}  {percentText(weight / total)}`,
-					Size = UDim2.new(1, -20, 0, 28),
-					Position = UDim2.fromOffset(10, 34 + row * 32),
-					Color = rarity.Color,
-					TextSize = 20,
-				})
-				line.ZIndex = 7
-				(line.Parent :: Frame).ZIndex = 6
-				row += 1
+			if egg.Drops[rarity.Name] then
+				table.insert(names, rarity.Name)
 			end
 		end
-		return overlay
+		local count = #names
+		local gap = 6
+		for index, name in names do
+			local rarity = CharmConfig.RarityByName[name]
+			local weight = egg.Drops[name]
+			Kit.Chip({
+				Parent = panel,
+				Name = name,
+				Text = `{name} {percentText(weight / total)}`,
+				Size = UDim2.new(1 / count, -gap, 0, 30),
+				Position = UDim2.new((index - 1) / count, 0, 0, barHeight + 6),
+				Color = rarity.Color,
+				TextSize = 20,
+			})
+		end
+		Kit.Label({
+			Parent = panel,
+			Name = "Description",
+			Text = egg.Tagline,
+			Position = UDim2.fromOffset(2, barHeight + 42),
+			Size = UDim2.new(1, -2, 0, 24),
+			TextSize = 18,
+			Subtle = true,
+			Scaled = true,
+		})
 	end
 
 	local function buildCard(offer: Market.Offer, animate: boolean)
 		local egg = Eggs.ById[offer.EggId]
+		local wrapper = Instance.new("Frame")
+		wrapper.Name = `Offer{offer.Index}`
+		wrapper.BackgroundTransparency = 1
+		wrapper.Size = UDim2.new(1, 0, 0, barHeight)
+		wrapper.LayoutOrder = offer.Index
+		wrapper.Parent = list
+		cardsTrove:Add(wrapper)
 		local panel = Kit.Panel({
-			Parent = grid,
-			Name = `Offer{offer.Index}`,
-			Size = UDim2.fromOffset(cardSize.X, cardSize.Y),
+			Parent = wrapper,
+			Name = "Bar",
+			Size = UDim2.fromScale(1, 1),
 			Color = theme.Panel,
-			StrokeColor = if offer.IsDeal then theme.Gold else nil,
-			StrokeThickness = if offer.IsDeal then 5 else nil,
-			LayoutOrder = offer.Index,
 			Radius = Kit.Radius.L,
-			Shards = true,
+			Flat = true,
 		})
-		cardsTrove:Add(panel)
-		local art = EggArt.Build(panel, egg, 118, "Art")
-		art.Root.AnchorPoint = Vector2.new(0.5, 0)
-		art.Root.Position = UDim2.new(0.5, 0, 0, 8)
+		panel.ClipsDescendants = true
+		local accentColor = Kit.Shade(egg.Color, 0.1)
+		local accent = Kit.Panel({
+			Parent = panel,
+			Name = "Accent",
+			Position = UDim2.fromOffset(4, 4),
+			Size = UDim2.new(0, 16, 1, -8),
+			Color = accentColor,
+			Radius = 10,
+			Flat = true,
+			StrokeThickness = 0,
+		})
+		Kit.Panel({
+			Parent = accent,
+			Name = "Fill",
+			Position = UDim2.new(1, -8, 0, 0),
+			Size = UDim2.new(0, 8, 1, 0),
+			Color = accentColor,
+			Radius = 0,
+			Flat = true,
+			StrokeThickness = 0,
+		})
+		local tap = Instance.new("TextButton")
+		tap.Name = "Tap"
+		tap.BackgroundTransparency = 1
+		tap.Text = ""
+		tap.AutoButtonColor = false
+		tap.Size = UDim2.new(1, 0, 0, barHeight)
+		tap.Parent = panel
+		local plate = Kit.Panel({
+			Parent = panel,
+			Name = "Plate",
+			Position = UDim2.fromOffset(30, 8),
+			Size = UDim2.fromOffset(68, 68),
+			Color = Kit.Shade(egg.Color, 0.62),
+			Radius = Kit.Radius.M,
+		})
+		local art = EggArt.Build(plate, egg, 58, "Art")
+		art.Root.AnchorPoint = Vector2.new(0.5, 0.5)
+		art.Root.Position = UDim2.fromScale(0.5, 0.5)
 		Kit.Label({
 			Parent = panel,
 			Name = "EggName",
 			Text = egg.Name,
-			Position = UDim2.fromOffset(8, 128),
-			Size = UDim2.new(1, -16, 0, 28),
-			TextSize = 24,
+			Position = UDim2.fromOffset(112, 8),
+			Size = UDim2.new(1, -330, 0, 34),
+			TextSize = 30,
 			Title = true,
-			Scaled = true,
 		})
 		Kit.Label({
 			Parent = panel,
 			Name = "HatchTime",
 			Text = `Hatches in {TimeFormat.Clock(egg.HatchSeconds)}`,
-			Position = UDim2.fromOffset(8, 156),
-			Size = UDim2.new(1, -16, 0, 20),
-			TextSize = 17,
+			Position = UDim2.fromOffset(112, 48),
+			Size = UDim2.fromOffset(176, 26),
+			TextSize = 18,
 			Subtle = true,
-			Scaled = true,
 		})
 		local stockText = Kit.Chip({
 			Parent = panel,
 			Name = "Stock",
 			Text = "",
-			Size = UDim2.fromOffset(92, 26),
-			Position = UDim2.fromOffset(12, 182),
+			Size = UDim2.fromOffset(104, 26),
+			Position = UDim2.fromOffset(296, 48),
 			Color = theme.Blue,
-			TextSize = 16,
+			TextSize = 18,
 		})
-		local drops = buildDrops(panel, egg)
-		Kit.Button(cardsTrove, {
-			Parent = panel,
-			Name = "DropsButton",
-			Text = "DROPS",
-			Position = UDim2.new(1, -12, 0, 180),
-			AnchorPoint = Vector2.new(1, 0),
-			Size = UDim2.fromOffset(84, 30),
-			Color = theme.Purple,
-			TextSize = 16,
-			Callback = function()
-				drops.Visible = not drops.Visible
-			end,
-			Sound = playUi,
-		})
-		local priceText = Kit.Chip({
-			Parent = panel,
-			Name = "Price",
-			Text = "",
-			Size = UDim2.fromOffset(cardSize.X - 30, 30),
-			Position = UDim2.fromOffset(15, 214),
-			Color = theme.Track,
-			TextSize = 22,
-		})
-		Kit.Icon({
-			Parent = priceText.Parent :: Frame,
-			Name = "PriceIcon",
-			Glyph = "Clicks",
-			Size = UDim2.fromOffset(28, 28),
-			Position = UDim2.fromOffset(4, 1),
-		})
-		if offer.IsDeal then
-			local ribbonText = Kit.Chip({
-				Parent = panel,
-				Name = "Deal",
-				Text = "DEAL!",
-				Size = UDim2.fromOffset(64, 24),
-				Position = UDim2.new(1, -2, 0, 4),
-				AnchorPoint = Vector2.new(1, 0),
-				Color = theme.Red,
-				TextSize = 18,
-			})
-			local ribbon = ribbonText.Parent :: Frame
-			ribbon.Rotation = 10
-		end
+		local stockChip = stockText.Parent :: Frame
+		local stockScale = Instance.new("UIScale")
+		stockScale.Name = "Pop"
+		stockScale.Parent = stockChip
+		buildDrops(panel, egg)
 		local card: Card
 		local action = Kit.Button(cardsTrove, {
 			Parent = panel,
 			Name = "Buy",
-			Text = "BUY",
-			Position = UDim2.new(0.5, 0, 1, -8),
-			AnchorPoint = Vector2.new(0.5, 1),
-			Size = UDim2.new(0.88, 0, 0, 44),
+			Text = "",
+			Glyph = "Clicks",
+			IconLeft = true,
+			Position = UDim2.new(1, -16, 0, 42),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Size = UDim2.fromOffset(190, 62),
 			Color = theme.Green,
-			TextSize = 22,
+			TextSize = 28,
 			Callback = function()
 				buy(card)
 			end,
@@ -394,19 +428,25 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		card = {
 			Offer = offer,
 			Price = 0,
+			Wrapper = wrapper,
 			Panel = panel,
-			PriceText = priceText,
-			Drops = drops,
-			StockChip = stockText.Parent :: Frame,
+			Left = leftOf(offer),
+			StockChip = stockChip,
 			StockText = stockText,
+			StockScale = stockScale,
 			Action = action,
+			Extra = 0,
 		}
+		cardsTrove:Connect(tap.Activated, function()
+			playUi("Click")
+			toggle(card)
+		end)
 		table.insert(cards, card)
 		if animate then
 			local scale = Instance.new("UIScale")
 			scale.Name = "Intro"
-			scale.Scale = 0.7
-			scale.Parent = panel
+			scale.Scale = 0.85
+			scale.Parent = wrapper
 			Kit.Tween(
 				scale,
 				TweenInfo.new(
@@ -425,6 +465,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	local function rebuild(animate: boolean)
 		cardsTrove:Clean()
 		table.clear(cards)
+		expanded = nil
 		builtSlot = currentSlot
 		for _, offer in Market.Offers(currentSlot) do
 			buildCard(offer, animate)
