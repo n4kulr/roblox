@@ -15,6 +15,8 @@ type CapState = {
 	Rest: CFrame,
 	LastPress: number,
 	Tween: Tween?,
+	Held: boolean,
+	RaiseToken: number?,
 }
 type PlotState = {
 	Model: Model,
@@ -32,6 +34,8 @@ local maxCharacters = 8
 local pressDepth = 1.1
 local fillerPressDepth = 0.75
 local debounceSeconds = 0.12
+local releaseDelaySeconds = 0.35
+local raiseSeconds = 0.4
 local minHeight = -1
 local maxHeight = 7
 local blankVolume = 0.35
@@ -63,19 +67,46 @@ local function pressCap(cap: CapState)
 	local part = cap.Part
 	local depth = if part:GetAttribute("Filler") == true then fillerPressDepth else pressDepth
 	releaseTween(cap)
+	cap.Held = true
 	local down = TweenService:Create(
 		part,
 		TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ CFrame = cap.Rest * CFrame.new(0, -depth, 0) }
 	)
 	cap.Tween = down
-	down.Completed:Once(function(playbackState: Enum.PlaybackState)
-		if playbackState ~= Enum.PlaybackState.Completed or cap.Tween ~= down then
+	down.Completed:Once(function()
+		if cap.Tween == down then
+			cap.Tween = nil
+		end
+		down:Destroy()
+	end)
+	down:Play()
+end
+
+local function isStoodOn(cap: CapState): boolean
+	for _, standing in standingOn do
+		if standing == cap then
+			return true
+		end
+	end
+	return false
+end
+
+local function raiseCap(cap: CapState)
+	if not cap.Held or isStoodOn(cap) then
+		return
+	end
+	local token = os.clock()
+	cap.RaiseToken = token
+	task.delay(releaseDelaySeconds, function()
+		if cap.RaiseToken ~= token or isStoodOn(cap) or cap.Part.Parent == nil then
 			return
 		end
+		cap.Held = false
+		releaseTween(cap)
 		local up = TweenService:Create(
-			part,
-			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			cap.Part,
+			TweenInfo.new(raiseSeconds, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 			{ CFrame = cap.Rest }
 		)
 		cap.Tween = up
@@ -85,10 +116,8 @@ local function pressCap(cap: CapState)
 			end
 			up:Destroy()
 		end)
-		down:Destroy()
 		up:Play()
 	end)
-	down:Play()
 end
 
 local function capKey(cap: CapState): Keys.Key?
@@ -107,6 +136,10 @@ end
 
 local function triggerCap(cap: CapState, player: Player)
 	if cap.Part:GetAttribute("Locked") == true then
+		return
+	end
+	cap.RaiseToken = nil
+	if cap.Held then
 		return
 	end
 	local now = os.clock()
@@ -130,7 +163,8 @@ local function addCap(state: PlotState, child: Instance)
 	if existing then
 		releaseTween(existing)
 	end
-	state.Caps[cell] = { Part = child, Rest = child.CFrame, LastPress = 0, Tween = nil }
+	state.Caps[cell] =
+		{ Part = child, Rest = child.CFrame, LastPress = 0, Tween = nil, Held = false, RaiseToken = nil }
 end
 
 local function removeCap(state: PlotState, child: Instance)
@@ -280,13 +314,17 @@ local function update()
 					else
 						standingOn[player] = nil
 					end
+					if previous then
+						raiseCap(previous)
+					end
 				end
 			end
 		end
 	end
-	for player in standingOn do
+	for player, standing in standingOn do
 		if not seen[player] then
 			standingOn[player] = nil
+			raiseCap(standing)
 		end
 	end
 end
