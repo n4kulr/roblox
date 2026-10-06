@@ -116,6 +116,6 @@ Two Sonnet agents are running; their work is not merged yet.
      - first rebirth at 60-75 min, and each rebirth takes 1.4x longer than the last
      - Mythic at 4-6h; Secret at 20h or more
    - Results go in `docs/economy.md`.
-2. **Bulk upgrade buying and the click lockup.**
+2. **Bulk upgrade buying and the click lockup (DONE, merged; partial buys allowed, e.g. x10 with cash for 4 buys 4).**
    - **Bulk buying:** `BuyUpgrade` becomes `(id, amount)`, where amount 0 means MAX. It gets a 10/s rate limit and a new `Rules/UpgradeCost.luau`. The Upgrades panel gets an x1 / x10 / MAX toggle.
    - **Lockup:** fix upgrade clicks locking up when they hit the rate limit.
