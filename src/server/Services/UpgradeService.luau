@@ -5,6 +5,7 @@ local Packets = require(ReplicatedStorage.Packets)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
 local UpgradeCost = require(ReplicatedStorage.Rules.UpgradeCost)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type State = {
 	Name: string,
@@ -13,7 +14,7 @@ type State = {
 local UpgradeService = {
 	Name = "UpgradeService",
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 
 local function buyUpgrade(player: Player, upgradeId: string, amount: number): boolean
 	if type(upgradeId) ~= "string" or type(amount) ~= "number" or amount % 1 ~= 0 or amount < 0 then
@@ -24,7 +25,7 @@ local function buyUpgrade(player: Player, upgradeId: string, amount: number): bo
 		return false
 	end
 	services.KeyboardService:Settle(player)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica then
 		return false
@@ -51,7 +52,7 @@ local function buyUpgrade(player: Player, upgradeId: string, amount: number): bo
 end
 
 function UpgradeService.Init(_self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function UpgradeService.Start(_self: State)

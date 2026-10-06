@@ -19,6 +19,7 @@ local Intruders = require(script.Intruders)
 local Lock = require(script.Lock)
 local Types = require(script.Types)
 local Walls = require(script.Walls)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type PlotInfo = Types.PlotInfo
@@ -35,7 +36,7 @@ local PlotService = {
 	PlotAssigned = Signal.new() :: Signal.Signal<Player>,
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local plots: { PlotInfo } = {}
 local plotByPlayer: { [Player]: PlotInfo } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
@@ -439,7 +440,7 @@ local function activateLock(info: PlotInfo, player: Player): boolean
 	if Lock.StatusAt(state, now) ~= Lock.Ready then
 		return false
 	end
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	Lock.Start(
 		info,
 		state,
@@ -456,7 +457,7 @@ local function activateLock(info: PlotInfo, player: Player): boolean
 end
 
 function PlotService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 
@@ -477,7 +478,7 @@ local function buildPlots(trove: TroveInstance)
 end
 
 local function loadPlayer(player: Player)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	if data then
 		assign(player, data)
 		services.KeyboardService:NotifyBoardChanged(player)
@@ -521,7 +522,7 @@ function PlotService.Start(self: State)
 	end))
 	services.KeyboardService.BoardChanged:Connect(function(player: Player)
 		local info = plotByPlayer[player]
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
+		local data = services.DataService:GetData(player)
 		if info and data then
 			refreshWalls(info, data)
 			render(info, data)

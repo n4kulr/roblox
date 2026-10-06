@@ -5,8 +5,9 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Rewards = require(script.Parent.Parent.Parent.Utils.Rewards)
+local ServerTypes = require(script.Parent.Parent.Parent.Types)
 
-export type Grant = (player: Player, services: { [string]: any }) -> boolean
+export type Grant = (player: Player, services: ServerTypes.Registry) -> boolean
 
 local starterPotionSeconds = GameConfig.Boosts.PotionSeconds
 local starterKeyRarity = "Epic"

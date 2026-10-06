@@ -9,6 +9,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Commands = require(script.Commands)
 local Targets = require(script.Targets)
 local Types = require(script.Types)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 
@@ -22,7 +23,7 @@ local AdminService = {
 	Name = "AdminService",
 	Console = nil :: any,
 } :: Lifecycle.System & { Console: any, IsAdmin: any, Execute: any }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local context: Types.Context = { Services = services }
 local trove: TroveInstance? = nil
 
@@ -132,8 +133,8 @@ function AdminService.Execute(
 end
 
 function AdminService.Init(_self: Lifecycle.System, registry: { [string]: any })
-	services = registry
-	context = { Services = registry }
+	services = registry :: any
+	context = { Services = registry :: any }
 	trove = Trove.new()
 end
 

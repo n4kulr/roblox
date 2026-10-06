@@ -5,12 +5,13 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Rewards = require(script.Parent.Parent.Utils.Rewards)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type Session = { Start: number, Mask: number }
 type Tier = { Seconds: number, Kind: string, Amount: number, Min: number, Rarity: string }
 
 local PlaytimeService = { Name = "PlaytimeService" }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local sessions: { [Player]: Session } = {}
 
 local function publish(player: Player, session: Session)
@@ -65,7 +66,7 @@ local function claim(player: Player, index: number): boolean
 end
 
 function PlaytimeService.Init(_self: any, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function PlaytimeService.Start(_self: any)

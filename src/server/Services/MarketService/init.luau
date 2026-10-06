@@ -5,7 +5,6 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Market = require(ReplicatedStorage.Rules.Market)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Character = require(script.Parent.Parent.Utils.Character)
 local Stall = require(script.Stall)
 
@@ -18,6 +17,7 @@ type State = {
 
 local config = GameConfig.Market
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local ServerTypes = require(script.Parent.Parent.Types)
 local boundaryGuardSeconds = 1
 local reachSlack = 6
 
@@ -25,7 +25,7 @@ local MarketService = {
 	Name = "MarketService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local counter: BasePart? = nil
 
 local function isOfferIndex(value: any): boolean
@@ -54,7 +54,7 @@ local function buy(player: Player, index: number): boolean
 	if not isOfferIndex(index) or not isNearCounter(player) then
 		return false
 	end
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica then
 		return false
@@ -122,7 +122,7 @@ local function bindStall(trove: TroveInstance): Model
 end
 
 function MarketService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

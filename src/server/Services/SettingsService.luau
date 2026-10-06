@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -14,7 +15,7 @@ local SettingsService = {
 	Name = "SettingsService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 
 local booleanSettings: { [string]: boolean } = { LowGraphics = true, AutoPlace = true }
 local volumeSettings: { [string]: boolean } =
@@ -40,7 +41,7 @@ local function setSetting(player: Player, name: string, value: number)
 end
 
 function SettingsService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

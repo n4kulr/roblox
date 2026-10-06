@@ -39,7 +39,7 @@ local registry: { [string]: Command } = {}
 local ordered: { Command } = {}
 
 local function dataOf(context: Context, player: Player): PlayerData.Data?
-	return context.Services.DataService:GetData(player) :: PlayerData.Data?
+	return context.Services.DataService:GetData(player)
 end
 
 local function deepCopy(value: any): any

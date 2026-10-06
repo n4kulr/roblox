@@ -27,8 +27,8 @@ end
 
 function Execution.CanRun(context: Types.Context, session: Types.Session): boolean
 	local first, second = session.Players[1], session.Players[2]
-	local dataFirst = context.Services.DataService:GetData(first) :: PlayerData.Data?
-	local dataSecond = context.Services.DataService:GetData(second) :: PlayerData.Data?
+	local dataFirst = context.Services.DataService:GetData(first)
+	local dataSecond = context.Services.DataService:GetData(second)
 	if not dataFirst or not dataSecond then
 		return false
 	end

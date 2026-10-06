@@ -7,6 +7,7 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type Entry = { Name: string, Value: number }
@@ -29,7 +30,7 @@ local LeaderboardService = {
 	Name = "LeaderboardService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local cache: { [number]: { Entry } } = {}
 local isRemote: { [number]: boolean } = {}
 local names: { [number]: string } = {}
@@ -43,7 +44,7 @@ end
 local function fallbackEntries(board: Board): { Entry }
 	local entries: { Entry } = {}
 	for _, player in Players:GetPlayers() do
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
+		local data = services.DataService:GetData(player)
 		if data then
 			table.insert(entries, { Name = player.Name, Value = fieldValue(data, board.Field) })
 		end
@@ -117,7 +118,7 @@ end
 
 local function submitAll()
 	for _, player in Players:GetPlayers() do
-		local data = services.DataService:GetData(player) :: PlayerData.Data?
+		local data = services.DataService:GetData(player)
 		if data then
 			submit(player, data)
 		end
@@ -125,7 +126,7 @@ local function submitAll()
 end
 
 local function updateStats(player: Player)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local values = statValues[player]
 	if data and values then
 		values.Clicks.Value = data.Cash
@@ -156,7 +157,7 @@ local function createStats(player: Player)
 end
 
 function LeaderboardService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

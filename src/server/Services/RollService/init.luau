@@ -9,8 +9,8 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
 local Roll = require(script.Roll)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Character = require(script.Parent.Parent.Utils.Character)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -22,7 +22,7 @@ local RollService = {
 	Name = "RollService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local rng = Random.new()
 local bucketCapacity = 3
 local noPasses: { [string]: boolean } = table.freeze({})
@@ -54,7 +54,7 @@ local function isInOwnBase(player: Player): boolean
 end
 
 local function handleRoll(player: Player): (number, boolean)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
 		return 0, false
@@ -107,7 +107,7 @@ local function handleRoll(player: Player): (number, boolean)
 end
 
 function RollService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

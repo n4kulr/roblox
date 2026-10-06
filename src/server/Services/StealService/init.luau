@@ -17,6 +17,7 @@ local WalkSpeed = require(script.Parent.Parent.Utils.WalkSpeed)
 local Drops = require(script.Drops)
 local Prompts = require(script.Prompts)
 local Types = require(script.Types)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -39,7 +40,7 @@ local StealService = {
 	Name = "StealService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local prompts: { [Player]: { [number]: Types.PromptRecord } } = {}
 local carriers: { [Player]: Types.Carrier } = {}
 local locks: { [number]: Types.Lock } = {}
@@ -48,10 +49,6 @@ local knockReadyAt: { [Player]: number } = {}
 local ragdolls: { [Player]: any } = {}
 local drops: { [BasePart]: Types.Drop } = {}
 local playClock: { [Player]: number } = {}
-
-local function getData(player: Player): PlayerData.Data?
-	return services.DataService:GetData(player) :: PlayerData.Data?
-end
 
 local function distanceBetween(a: BasePart, b: BasePart): number
 	return (a.CFrame.Position - b.CFrame.Position).Magnitude
@@ -74,7 +71,7 @@ local function takePlaySeconds(player: Player): number
 end
 
 local function savePlaytime(player: Player)
-	local data = getData(player)
+	local data = services.DataService:GetData(player)
 	local whole = takePlaySeconds(player)
 	if data and whole > 0 then
 		services.DataService:Set(player, { "PlaySeconds" }, data.PlaySeconds + whole)
@@ -129,8 +126,8 @@ local function checkSteal(
 	cap: BasePart,
 	expectedKeyId: string
 ): (boolean, string)
-	local thiefData = getData(thief)
-	local victimData = getData(owner)
+	local thiefData = services.DataService:GetData(thief)
+	local victimData = services.DataService:GetData(owner)
 	local thiefRoot = Character.RootOf(thief)
 	local lockedAt = math.max(lockedUntil[owner.UserId] or 0, services.PlotService:GetLockedUntil(owner))
 	local lock = locks[owner.UserId]
@@ -179,7 +176,7 @@ end
 
 local function returnToVictim(thief: Player, carrier: Types.Carrier)
 	local victim = Players:GetPlayerByUserId(carrier.VictimUserId)
-	if not victim or not getData(victim) then
+	if not victim or not services.DataService:GetData(victim) then
 		return
 	end
 	services.KeyboardService:RestoreKey(victim, carrier.Slot, carrier.KeyId)
@@ -229,7 +226,7 @@ local function deliver(thief: Player, carrier: Types.Carrier)
 	end
 	lockedUntil[carrier.VictimUserId] = os.time() + config.BaseLockSeconds
 	local victim = Players:GetPlayerByUserId(carrier.VictimUserId)
-	if victim and getData(victim) then
+	if victim and services.DataService:GetData(victim) then
 		services.DataService:Set(victim, { "TheftLessonDone" }, true)
 		alert(victim, thief.DisplayName, keyIndex, 4)
 		syncPrompts(victim)
@@ -267,7 +264,7 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 		character:SetAttribute(WalkSpeed.StolenAttribute, nil)
 		WalkSpeed.Refresh(character)
 	end)
-	local victimData = getData(owner)
+	local victimData = services.DataService:GetData(owner)
 	local knockPrompt = Prompts.CreateKnock(
 		root,
 		owner.UserId,
@@ -297,7 +294,7 @@ local function onHoldBegan(
 	record: Types.PromptRecord,
 	thief: Player
 )
-	local data = getData(owner)
+	local data = services.DataService:GetData(owner)
 	local current = if data then boardKey(data, slot) else ""
 	record.Holding[thief] = current
 	record.HoldStarted[thief] = os.clock()
@@ -319,7 +316,7 @@ local function onTriggered(
 	record: Types.PromptRecord,
 	thief: Player
 )
-	local data = getData(owner)
+	local data = services.DataService:GetData(owner)
 	local current = if data then boardKey(data, slot) else ""
 	local held = record.Holding[thief] or current
 	local startedAt = record.HoldStarted[thief]
@@ -327,7 +324,7 @@ local function onTriggered(
 	record.HoldStarted[thief] = nil
 	local isAllowed, reason = checkSteal(thief, owner, slot, cap, held)
 	if isAllowed then
-		local thiefData = getData(thief)
+		local thiefData = services.DataService:GetData(thief)
 		local speed = Charms.Effects(if thiefData then thiefData.EquippedCharms else nil).StealSpeed
 		local required =
 			Steal.HoldSeconds(Steal.RarityIndex(held), data ~= nil and data.TheftLessonDone == false, speed)
@@ -375,7 +372,7 @@ local function createRecord(owner: Player, slot: number, cap: BasePart): Types.P
 end
 
 function syncPrompts(owner: Player)
-	local data = getData(owner)
+	local data = services.DataService:GetData(owner)
 	local caps = services.PlotService:GetCaps(owner) :: { BasePart }?
 	if not data or not caps then
 		clearPrompts(owner)
@@ -458,7 +455,7 @@ end
 local function returnDrop(drop: Types.Drop, thiefName: string)
 	destroyDrop(drop)
 	local owner = Players:GetPlayerByUserId(drop.OwnerUserId)
-	if not owner or not getData(owner) then
+	if not owner or not services.DataService:GetData(owner) then
 		return
 	end
 	services.KeyboardService:RestoreKey(owner, drop.Slot, drop.KeyId)
@@ -514,7 +511,7 @@ local function knock(victim: Player, thief: Player)
 	if readyAt and os.clock() < readyAt then
 		return
 	end
-	local data = getData(victim)
+	local data = services.DataService:GetData(victim)
 	local range = Prompts.KnockRange(data ~= nil and data.TheftLessonDone == false)
 	local victimRoot = Character.RootOf(victim)
 	local thiefRoot = Character.RootOf(thief)
@@ -577,7 +574,7 @@ local function step()
 end
 
 function StealService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 
@@ -616,7 +613,7 @@ function StealService.Start(self: State)
 		end
 	end))
 	for _, player in Players:GetPlayers() do
-		if getData(player) then
+		if services.DataService:GetData(player) then
 			playClock[player] = os.clock()
 			syncPrompts(player)
 		end

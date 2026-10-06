@@ -13,6 +13,7 @@ local Inventory = require(script.Inventory)
 local Pets = require(script.Pets)
 local Placed = require(script.Placed)
 local Tools = require(script.Tools)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 
@@ -32,14 +33,14 @@ local EggService = {
 	Name = "EggService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local random: Random? = nil
 local shown: { [Player]: Placed.Shown } = {}
 local petsShown: { [Player]: Pets.Shown } = {}
 local playerTroves: { [Player]: TroveInstance } = {}
 
 local function dataOf(player: Player): PlayerData.Data?
-	return services.DataService:GetData(player) :: PlayerData.Data?
+	return services.DataService:GetData(player)
 end
 
 local function plotOf(player: Player): (Model?, BasePart?, BasePart?)
@@ -379,7 +380,7 @@ local function loadPlayer(player: Player, data: PlayerData.Data)
 end
 
 function EggService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

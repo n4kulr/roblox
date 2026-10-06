@@ -1,7 +1,9 @@
 --!strict
 
+local ServerTypes = require(script.Parent.Parent.Parent.Types)
+
 export type Context = {
-	Services: { [string]: any },
+	Services: ServerTypes.Registry,
 }
 
 export type Command = {

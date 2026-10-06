@@ -3,12 +3,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 local Rewards = {}
 
 function Rewards.ExtendPotion(
 	player: Player,
-	services: { [string]: any },
+	services: ServerTypes.Registry,
 	field: string,
 	seconds: number
 ): boolean
@@ -24,7 +25,7 @@ function Rewards.ExtendPotion(
 	return true
 end
 
-function Rewards.GrantRandomKey(player: Player, services: { [string]: any }, rarity: string): boolean
+function Rewards.GrantRandomKey(player: Player, services: ServerTypes.Registry, rarity: string): boolean
 	local group = Keys.ByRarity[rarity]
 	local data = services.DataService:GetData(player)
 	if not group or not data then
@@ -38,7 +39,7 @@ function Rewards.GrantRandomKey(player: Player, services: { [string]: any }, rar
 	return true
 end
 
-function Rewards.AddClicks(player: Player, services: { [string]: any }, amount: number): boolean
+function Rewards.AddClicks(player: Player, services: ServerTypes.Registry, amount: number): boolean
 	local data = services.DataService:GetData(player)
 	if not data or not services.DataService:AdjustCash(player, amount) then
 		return false
@@ -49,7 +50,7 @@ function Rewards.AddClicks(player: Player, services: { [string]: any }, amount: 
 	return true
 end
 
-function Rewards.Grant(player: Player, services: { [string]: any }, reward: any): boolean
+function Rewards.Grant(player: Player, services: ServerTypes.Registry, reward: any): boolean
 	local kind = reward.Kind
 	if kind == "Clicks" then
 		return Rewards.AddClicks(player, services, reward.Amount)
