@@ -66,6 +66,8 @@ local function newScenario(world: any)
 	for _, passId in owned do
 		player:SetAttribute(`Pass_{passId}`, true)
 	end
+	player:SetAttribute("PlaytimeStart", now - 130)
+	player:SetAttribute("PlaytimeClaimed", 1)
 	world.Players.LocalPlayer = player
 	world.tree.ReplicatedStorage.GetAttributeChangedSignal = function()
 		return Signal.new()
