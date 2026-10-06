@@ -315,6 +315,7 @@ local function buildView(root: Instance, index: number): View
 		Position = UDim2.fromOffset(-24, -12),
 		ZIndex = 5,
 	})
+	Viewport.Glint(model, 0)
 
 	local row = Instance.new("Frame")
 	row.Name = "Row"
@@ -684,6 +685,7 @@ function ResultCards.Show(self: ResultCards, slot: ResultSlots.Slot, payload: Pa
 	end
 	Viewport.Light(view.Model, if isGolden then goldColor else white, if rank >= epicRank then 0.25 else 0)
 	Viewport.Pose(view.Model, staticYaw)
+	Viewport.Zoom(view.Model, Viewport.PopScale(0))
 	view.RarityLabel.Text = rarityText
 	view.IncomeLabel.Text = incomeText
 	paintCard(view, rarity, isGolden)
@@ -843,10 +845,12 @@ end
 
 local function stepView(self: ResultCards, view: View, dt: number)
 	view.Age += dt
+	Viewport.Zoom(view.Model, Viewport.PopScale(view.Age))
 	if self._isLowGraphics() then
 		view.Shimmer.Visible = false
 	else
 		local handle = view.Model
+		Viewport.Glint(handle, view.Age)
 		Viewport.Pose(
 			handle,
 			(staticYaw + view.Age * spinSpeed) % 360,

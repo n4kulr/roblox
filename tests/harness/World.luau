@@ -232,6 +232,7 @@ local function makeFakeServices(world)
 	local heartbeat = world:require("ReplicatedStorage.Packages.Signal").new()
 	services.RunService = {
 		Heartbeat = heartbeat,
+		RenderStepped = world:require("ReplicatedStorage.Packages.Signal").new(),
 		Stepped = world:require("ReplicatedStorage.Packages.Signal").new(),
 		IsServer = function()
 			return true

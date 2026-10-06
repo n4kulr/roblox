@@ -7,7 +7,9 @@ local Eggs = require(ReplicatedStorage.Config.Eggs)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Charms = require(ReplicatedStorage.Rules.Charms)
+local AssetOverride = require(ReplicatedStorage.Utils.AssetOverride)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
+local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local PetModels = require(ReplicatedStorage.Utils.PetModels)
 local HatchPlan = require(script.Parent.Parent.HatchPlan)
 local Kit = require(script.Parent.Parent.Kit)
@@ -17,24 +19,36 @@ local Viewport = require(script.Parent.Parent.Viewport)
 type Shard = { Frame: Frame, Angle: number, Speed: number, Spin: number }
 type Piece = { Frame: Frame, Angle: number, Speed: number, Spin: number, Color: number }
 type Star = { Frame: Frame, Angle: number, Radius: number, Phase: number }
+type Queued = { Egg: string, Charm: string, Active: boolean }
 
 local theme = Kit.Theme
-local eggSize = 320
-local petSize = 340
-local centerY = 0.47
+local centerY = 0.44
 local shardCap = 24
-local confettiCap = 40
+local sparkCap = 14
+local confettiCap = 36
 local starCap = 14
 local lineCount = HatchPlan.CrackLines
-local minTapTime = 0.25
 local queueLimit = 5
-local dropBounce = 0.15
-local gravity = 900
-local shardLife = 1.3
+local gravity = 1500
+local shardLife = 1.1
+local sparkLife = 0.7
 local confettiLife = 2.2
+local maxStep = 1 / 20
 local white = Color3.new(1, 1, 1)
 local ink = theme.Ink
 local gold = theme.Gold
+local goldGradient = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 244, 170)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 190, 40)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 244, 170)),
+})
+local rainbowGradient = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 92, 110)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 200, 70)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(110, 235, 110)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(70, 200, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 92, 110)),
+})
 local rainbowColors: { Color3 } = {
 	Color3.fromRGB(255, 92, 110),
 	Color3.fromRGB(255, 190, 70),
@@ -49,11 +63,20 @@ local function clamp01(value: number): number
 	return math.clamp(value, 0, 1)
 end
 
-local function backOut(alpha: number): number
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	local t = alpha - 1
-	return 1 + c3 * t ^ 3 + c1 * t ^ 2
+local function backOut(alpha: number, overshoot: number): number
+	local c3 = overshoot + 1
+	local t = clamp01(alpha) - 1
+	return 1 + c3 * t ^ 3 + overshoot * t ^ 2
+end
+
+local function outQuad(alpha: number): number
+	local t = clamp01(alpha)
+	return 1 - (1 - t) * (1 - t)
+end
+
+local function inQuad(alpha: number): number
+	local t = clamp01(alpha)
+	return t * t
 end
 
 local function box(parent: Instance, name: string, z: number): Frame
@@ -68,14 +91,69 @@ local function box(parent: Instance, name: string, z: number): Frame
 	return frame
 end
 
-local function tintBurst(burst: Frame, color: Color3)
-	for _, child in burst:GetChildren() do
-		if child:IsA("ImageLabel") then
-			child.ImageColor3 = color
-		elseif child:IsA("Frame") then
-			child.BackgroundColor3 = color
-		end
-	end
+local function squareHolder(parent: Instance, name: string, z: number): Frame
+	local holder = box(parent, name, z)
+	holder.Position = UDim2.fromScale(0.5, centerY)
+	holder.Size = UDim2.fromScale(0.9, 0.5)
+	local ratio = Instance.new("UIAspectRatioConstraint")
+	ratio.AspectRatio = 1
+	ratio.AspectType = Enum.AspectType.FitWithinMaxSize
+	ratio.DominantAxis = Enum.DominantAxis.Width
+	ratio.Parent = holder
+	return holder
+end
+
+local function textBlock(
+	parent: Instance,
+	name: string,
+	y: number,
+	height: number,
+	textSize: number,
+	stroke: number
+): (TextLabel, UIScale)
+	local label = Kit.Label({
+		Parent = parent,
+		Name = name,
+		Align = Enum.TextXAlignment.Center,
+		Text = "",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, y),
+		Size = UDim2.fromScale(0.9, height),
+		TextSize = textSize,
+		Title = true,
+		Scaled = true,
+		StrokeSize = stroke,
+	})
+	label.ZIndex = 8
+	label.Visible = false
+	local scale = Instance.new("UIScale")
+	scale.Parent = label
+	return label, scale
+end
+
+local function vignetteEdge(
+	parent: Instance,
+	name: string,
+	position: UDim2,
+	size: UDim2,
+	rotation: number
+): Frame
+	local frame = Instance.new("Frame")
+	frame.Name = name
+	frame.BackgroundColor3 = ink
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.Position = position
+	frame.Size = size
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = rotation
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	gradient.Parent = frame
+	frame.Parent = parent
+	return frame
 end
 
 function HatchScreen.new(context: Types.Context): Types.Screen
@@ -86,21 +164,48 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local gui, root = Kit.ScreenGui("ThockHatch", 30, context.PlayerGui, trove)
 	gui.Enabled = false
 
-	local backdrop = Instance.new("Frame")
-	backdrop.Name = "Backdrop"
-	backdrop.BackgroundColor3 = ink
-	backdrop.BackgroundTransparency = 1
-	backdrop.BorderSizePixel = 0
-	backdrop.Size = UDim2.fromScale(1, 1)
-	backdrop.Parent = root
+	local vignette: { Frame } = {
+		vignetteEdge(root, "VignetteTop", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.32), 90),
+		vignetteEdge(root, "VignetteBottom", UDim2.fromScale(0, 0.68), UDim2.fromScale(1, 0.32), 270),
+		vignetteEdge(root, "VignetteLeft", UDim2.fromScale(0, 0), UDim2.fromScale(0.26, 1), 0),
+		vignetteEdge(root, "VignetteRight", UDim2.fromScale(0.74, 0), UDim2.fromScale(0.26, 1), 180),
+	}
+
+	local shaker = Instance.new("Frame")
+	shaker.Name = "Shaker"
+	shaker.BackgroundTransparency = 1
+	shaker.BorderSizePixel = 0
+	shaker.Size = UDim2.fromScale(1, 1)
+	shaker.ZIndex = 2
+	shaker.Parent = root
 
 	local stage = Instance.new("Frame")
 	stage.Name = "Stage"
 	stage.BackgroundTransparency = 1
 	stage.BorderSizePixel = 0
+	stage.AnchorPoint = Vector2.new(0.5, 0.5)
+	stage.Position = UDim2.fromScale(0.5, 0.5)
 	stage.Size = UDim2.fromScale(1, 1)
-	stage.ZIndex = 2
-	stage.Parent = root
+	stage.Parent = shaker
+	local stageScale = Instance.new("UIScale")
+	stageScale.Parent = stage
+
+	local glow = box(stage, "Glow", 2)
+	glow.Position = UDim2.fromScale(0.5, centerY)
+	glow.Size = UDim2.fromOffset(620, 620)
+	local glowLayers: { Frame } = {}
+	for index, fraction in { 1, 0.7, 0.42 } do
+		local layer = Instance.new("Frame")
+		layer.Name = `Layer{index}`
+		layer.AnchorPoint = Vector2.new(0.5, 0.5)
+		layer.Position = UDim2.fromScale(0.5, 0.5)
+		layer.Size = UDim2.fromScale(fraction, fraction)
+		layer.BackgroundTransparency = 0.82 - index * 0.04
+		layer.BorderSizePixel = 0
+		Kit.Corner(layer, 400)
+		layer.Parent = glow
+		table.insert(glowLayers, layer)
+	end
 
 	local rays = Kit.Burst({
 		Parent = stage,
@@ -109,6 +214,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Color = white,
 	})
 	rays.Name = "Rays"
+	rays.ZIndex = 3
 	rays.Visible = false
 
 	local stars: { Star } = {}
@@ -134,17 +240,14 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		})
 	end
 
-	local eggHolder = box(stage, "EggStage", 4)
-	eggHolder.Size = UDim2.fromOffset(eggSize, eggSize)
-	local eggScale = Instance.new("UIScale")
-	eggScale.Parent = eggHolder
+	local eggHolder = squareHolder(stage, "EggStage", 4)
 	local eggBox = Instance.new("Frame")
 	eggBox.Name = "Tilt"
 	eggBox.BackgroundTransparency = 1
 	eggBox.BorderSizePixel = 0
-	eggBox.AnchorPoint = Vector2.new(0.5, 0.5)
-	eggBox.Position = UDim2.fromScale(0.5, 0.5)
-	eggBox.Size = UDim2.fromScale(1, 1)
+	eggBox.AnchorPoint = Vector2.new(0.5, 0.92)
+	eggBox.Position = UDim2.fromScale(0.5, 0.92)
+	eggBox.Size = UDim2.fromScale(0, 0)
 	eggBox.Parent = eggHolder
 	local eggView = Viewport.new({
 		Parent = eggBox,
@@ -159,12 +262,11 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		line.BackgroundColor3 = ink
 		line.BorderSizePixel = 0
 		line.AnchorPoint = Vector2.new(0.5, 0.5)
-		local angle = (index - 1) * (360 / lineCount) + random:NextNumber() * 20
-		local radius = 30 + random:NextNumber() * 80
-		line.Position =
-			UDim2.new(0.5, math.cos(math.rad(angle)) * radius, 0.5, math.sin(math.rad(angle)) * radius * 1.1)
-		line.Size = UDim2.fromOffset(6, 38 + random:NextNumber() * 40)
-		line.Rotation = angle + 90 + (random:NextNumber() - 0.5) * 40
+		local angle = math.rad((index - 1) * (360 / lineCount) + random:NextNumber() * 20)
+		local radius = 0.1 + random:NextNumber() * 0.26
+		line.Position = UDim2.fromScale(0.5 + math.cos(angle) * radius, 0.5 + math.sin(angle) * radius * 1.15)
+		line.Size = UDim2.fromScale(0.022, 0.1 + random:NextNumber() * 0.1)
+		line.Rotation = math.deg(angle) + 90 + (random:NextNumber() - 0.5) * 40
 		line.ZIndex = 2
 		line.Visible = false
 		Kit.Corner(line, 3)
@@ -176,29 +278,42 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local shards: { Shard } = {}
 	for index = 1, shardCap do
 		local frame = box(stage, `Shard{index}`, 5)
-		local width = 22 + random:NextNumber() * 28
+		local width = 24 + random:NextNumber() * 30
 		frame.Size = UDim2.fromOffset(width, width * 0.7)
 		frame.BackgroundTransparency = 0
-		Kit.Corner(frame, 4)
+		Kit.Corner(frame, 5)
 		table.insert(shards, {
 			Frame = frame,
 			Angle = (index - 1) * (360 / shardCap) + random:NextNumber() * 14 - 90,
-			Speed = 260 + random:NextNumber() * 420,
-			Spin = (random:NextNumber() - 0.5) * 900,
+			Speed = 320 + random:NextNumber() * 520,
+			Spin = (random:NextNumber() - 0.5) * 1000,
 		})
 	end
 
-	local petHolder = box(stage, "PetStage", 6)
-	petHolder.Size = UDim2.fromOffset(petSize, petSize)
-	petHolder.Position = UDim2.fromScale(0.5, centerY)
-	local petScale = Instance.new("UIScale")
-	petScale.Parent = petHolder
+	local petHolder = squareHolder(stage, "PetStage", 6)
 	local petView = Viewport.new({
 		Parent = petHolder,
 		Name = "PetModel",
 		Direction = Vector3.new(0.35, 0.3, -1),
 		ZIndex = 1,
 	})
+	petView.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	petView.Frame.Position = UDim2.fromScale(0.5, 0.5)
+
+	local sparks: { Shard } = {}
+	for index = 1, sparkCap do
+		local frame = box(stage, `Spark{index}`, 7)
+		frame.Size = UDim2.fromOffset(18, 18)
+		frame.BackgroundTransparency = 0
+		frame.BackgroundColor3 = white
+		Kit.Corner(frame, 3)
+		table.insert(sparks, {
+			Frame = frame,
+			Angle = (index - 1) * (360 / sparkCap) + random:NextNumber() * 18,
+			Speed = 260 + random:NextNumber() * 300,
+			Spin = (random:NextNumber() - 0.5) * 540,
+		})
+	end
 
 	local pieces: { Piece } = {}
 	for index = 1, confettiCap do
@@ -214,91 +329,15 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		})
 	end
 
-	local title = Kit.Label({
-		Parent = stage,
-		Name = "Title",
-		Align = Enum.TextXAlignment.Center,
-		Text = "NEW PET!",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.13),
-		Size = UDim2.fromOffset(640, 70),
-		TextSize = 60,
-		Title = true,
-		Scaled = true,
-	})
-	title.ZIndex = 8
-	title.Visible = false
-	local titleScale = Instance.new("UIScale")
-	titleScale.Parent = title
-	local petName = Kit.Label({
-		Parent = stage,
-		Name = "PetName",
-		Align = Enum.TextXAlignment.Center,
-		Text = "",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, centerY, 215),
-		Size = UDim2.fromOffset(640, 60),
-		TextSize = 52,
-		Title = true,
-		Scaled = true,
-	})
-	petName.ZIndex = 8
-	petName.Visible = false
-	local nameScale = Instance.new("UIScale")
-	nameScale.Parent = petName
-	local chipHolder = Kit.Chip({
-		Parent = stage,
-		Name = "Rarity",
-		Text = "",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, centerY, 268),
-		Size = UDim2.fromOffset(190, 36),
-		TextSize = 24,
-	})
-	local chip = chipHolder.Parent :: Frame
-	chip.ZIndex = 8
-	chip.Visible = false
-	local effect = Kit.Label({
-		Parent = stage,
-		Name = "Effect",
-		Align = Enum.TextXAlignment.Center,
-		Text = "",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, centerY, 316),
-		Size = UDim2.fromOffset(560, 40),
-		TextSize = 34,
-		Title = true,
-		Scaled = true,
-	})
-	effect.ZIndex = 8
-	effect.Visible = false
-	local status = Kit.Label({
-		Parent = stage,
-		Name = "Status",
-		Align = Enum.TextXAlignment.Center,
-		Text = "",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, centerY, 352),
-		Size = UDim2.fromOffset(640, 26),
-		TextSize = 20,
-		Scaled = true,
-	})
-	status.ZIndex = 8
-	status.Visible = false
-	local hint = Kit.Label({
-		Parent = stage,
-		Name = "Hint",
-		Align = Enum.TextXAlignment.Center,
-		Text = "Tap to continue",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -28),
-		Size = UDim2.fromOffset(360, 36),
-		TextSize = 28,
-		Title = true,
-		Scaled = true,
-	})
-	hint.ZIndex = 8
-	hint.Visible = false
+	local petName, nameScale = textBlock(stage, "PetName", 0.76, 0.12, 76, 5)
+	local nameGradient = Instance.new("UIGradient")
+	nameGradient.Enabled = false
+	nameGradient.Parent = petName
+	local rarityName, rarityScale = textBlock(stage, "RarityName", 0.845, 0.065, 44, 4)
+	local chance, chanceScale = textBlock(stage, "Chance", 0.905, 0.05, 30, 3)
+	chance.TextColor3 = white
+	local hint, _hintScale = textBlock(stage, "Hint", 0.965, 0.04, 24, 3)
+	hint.Text = "Tap to continue"
 
 	local flash = Instance.new("Frame")
 	flash.Name = "Flash"
@@ -323,12 +362,15 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local events: { HatchPlan.Event } = {}
 	local nextEvent = 1
 	local elapsed = 0
+	local exitElapsed: number? = nil
 	local isPlaying = false
 	local currentEgg: Eggs.Egg? = nil
 	local currentCharm: CharmConfig.Charm? = nil
 	local rarityColor = white
+	local rarityOrder = 1
 	local isActivePet = false
-	local queue: { { Egg: string, Charm: string, Active: boolean } } = {}
+	local queue: { Queued } = {}
+	local flightX, flightY = 0, 0
 
 	local function sound(): any
 		return context.Controllers.SoundController
@@ -342,9 +384,9 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		end
 		local sounds = sound()
 		local kind = event.Kind
-		if kind == "Land" then
+		if kind == "Appear" then
 			if sounds then
-				sounds:PlaySwitch("MxBlack", "Press", 0.7, 1, nil, "Other")
+				sounds:PlaySwitch("MxBlack", "Press", 0.7, 0.7, nil, "Other")
 			end
 		elseif kind == "Swell" then
 			if sounds then
@@ -354,35 +396,24 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 					"Other"
 				)
 			end
-		elseif kind == "Crack" then
-			local item = current.Beats[event.Index]
+		elseif kind == "Swing" then
+			local swing = current.Swings[event.Index]
 			if sounds then
-				sounds:PlaySwitch("MxBlue", "Press", item.Pitch, item.Volume, nil, "Other")
+				sounds:PlaySwitch("MxBlue", "Press", swing.Pitch, swing.Volume, nil, "Other")
 			end
-		elseif kind == "CrackRelease" then
-			local item = current.Beats[event.Index]
+		elseif kind == "Crack" then
 			if sounds then
-				sounds:PlaySwitch("MxBlue", "Release", item.Pitch, item.Volume * 0.8, nil, "Other")
+				sounds:PlaySwitch("MxBrown", "Release", 0.6 + 0.12 * event.Index, 0.8, nil, "Other")
 			end
 		elseif kind == "Burst" then
 			if sounds then
-				sounds:PlaySwitch("MxBlue", "Release", 1.4, 1, nil, "Other")
-				if current.Name == "Basic" then
-					playUi("Confirm")
-				else
+				sounds:PlaySwitch("MxBlue", "Press", 0.55, 1, nil, "Other")
+				sounds:PlaySwitch("MxBlue", "Release", 1.5, 1, nil, "Other")
+				if current.Name ~= "Basic" then
 					sounds:PlayReveal(HatchPlan.RevealRarity(charm.Rarity, current.Name), "Other")
 				end
 			end
-			context.Toast(
-				if isActivePet
-					then `New pet: {charm.Name}! Now active!`
-					else `New pet: {charm.Name}! Stored (only your best {CharmConfig.ActiveLimit} pets are active)`,
-				"Good"
-			)
-		elseif kind == "Name" then
-			if sounds and current.Name ~= "Basic" then
-				playUi("Confirm")
-			end
+			playUi("Confirm")
 		end
 	end
 
@@ -394,89 +425,89 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		end
 		local burstAt = current.BurstAt
 		local isLow = current.IsLow
-		backdrop.BackgroundTransparency = 1 - 0.7 * clamp01(time / 0.25)
+		local exiting = exitElapsed
+		local exitAlpha = if exiting then inQuad(exiting / HatchPlan.ExitSeconds) else 0
+
+		local vignetteAlpha = outQuad(time / 0.4) * (1 - exitAlpha)
+		for _, edge in vignette do
+			edge.BackgroundTransparency = 1 - vignetteAlpha
+		end
 
 		local shake = 0
-		if not isLow and current.Shake > 0 then
-			for index, item in current.Beats do
-				if time >= item.Start and time <= item.End then
-					shake = current.Shake * index / #current.Beats
-				end
-			end
-			if time >= burstAt then
-				shake = current.Shake * 2 * math.exp(-(time - burstAt) * 6)
-			end
+		if not isLow and current.Shake > 0 and time >= burstAt then
+			shake = current.Shake * 2 * math.exp(-(time - burstAt) * 6)
 		end
-		stage.Position = UDim2.fromOffset(math.sin(time * 57) * shake, math.cos(time * 43) * shake)
-
-		local tilt, squash, drop = 0, 1, 0
-		if time < current.Land - dropBounce then
-			local alpha = clamp01(time / (current.Land - dropBounce))
-			drop = -560 * (1 - alpha * alpha)
-		elseif time < current.Land then
-			local alpha = (time - (current.Land - dropBounce)) / dropBounce
-			drop = -38 * math.sin(alpha * math.pi)
-			squash = 1 - 0.06 * math.sin(alpha * math.pi)
-		end
-		local shown = 0
-		for _, item in current.Beats do
-			if time >= item.Start then
-				local alpha = clamp01((time - item.Start) / (item.End - item.Start))
-				tilt = math.sin(alpha * math.pi * 3) * item.Tilt * (1 - 0.15 * alpha)
-				squash = 1 + 0.07 * math.sin(alpha * math.pi)
-				if time >= item.Start + 0.08 then
-					shown = math.max(shown, item.Cracks)
-				end
-			end
-		end
-		eggHolder.Visible = time < burstAt + 0.06
-		eggHolder.Position = UDim2.new(0.5, 0, centerY, drop)
-		eggScale.Scale = current.EggScale * squash
-		eggBox.Rotation = tilt
-		Viewport.Pose(eggView, tilt * 0.6)
-		for index, line in cracks do
-			line.Visible = index <= shown
-		end
+		shaker.Position = UDim2.fromOffset(math.sin(time * 57) * shake, math.cos(time * 43) * shake)
 
 		local after = time - burstAt
-		local flashAlpha = 0
-		if after >= -0.12 and after < 0.45 then
-			flashAlpha = if after < 0 then 1 + after / 0.12 else 1 - after / 0.45
-		end
-		flash.BackgroundTransparency = 1 - 0.85 * clamp01(flashAlpha)
-
 		local isRevealed = after >= 0
+
+		eggHolder.Visible = time < burstAt
+		if time < burstAt then
+			local pop = HatchPlan.PopScale(time)
+			local grow = HatchPlan.Grow(current, time)
+			local squashX, squashY = HatchPlan.Squash(current, time)
+			eggBox.Size = UDim2.fromScale(0.9 * pop * grow * squashX, 0.9 * pop * grow * squashY)
+			local tilt = HatchPlan.Tilt(current, time)
+			eggBox.Rotation = tilt
+			Viewport.Pose(eggView, tilt * 0.5)
+			local shown = HatchPlan.CracksShown(current, time)
+			for index, line in cracks do
+				line.Visible = index <= shown
+			end
+		end
+
+		flash.BackgroundTransparency = 1 - HatchPlan.Flash(current, time)
+
 		rays.Visible = isRevealed
+		glow.Visible = isRevealed
 		petHolder.Visible = isRevealed
-		title.Visible = isRevealed
 		if isRevealed then
-			local appear = clamp01(after / 0.5)
-			petScale.Scale = math.max(0.05, backOut(appear))
-			local bob = if isLow then 0 else math.sin(after * 3) * 0.05
+			local appear = after / HatchPlan.SpringSeconds
+			local spring = math.max(0.02, backOut(appear, 2.4))
+			petView.Frame.Size = UDim2.fromScale(spring, spring)
+			local bob = if isLow then 0 else math.sin(after * 2.4) * 0.04
 			Viewport.Pose(
 				petView,
-				if isLow then 20 else (after * current.Spin) % 360,
+				if isLow then 20 else (20 + after * current.Spin) % 360,
 				0,
 				0,
 				bob * petView.Radius
 			)
-			rays.Rotation = if isLow then 0 else after * 22
-			tintBurst(
-				rays,
-				if current.Rainbow
-					then Color3.fromHSV((after * 0.5) % 1, 0.55, 1)
-					else rarityColor:Lerp(white, 0.2)
+			local pulse = if isLow then 1 else 1 + 0.05 * math.sin(after * 3)
+			glow.Size = UDim2.fromOffset(620 * spring * pulse, 620 * spring * pulse)
+			local tint = if current.Rainbow
+				then Color3.fromHSV((after * 0.4) % 1, 0.55, 1)
+				else rarityColor:Lerp(white, 0.2)
+			for _, layer in glowLayers do
+				layer.BackgroundColor3 = tint
+			end
+			rays.Rotation = if isLow then 0 else after * 20
+			for _, child in rays:GetChildren() do
+				if child:IsA("ImageLabel") then
+					child.ImageColor3 = tint
+				elseif child:IsA("Frame") then
+					child.BackgroundColor3 = tint
+				end
+			end
+			rays.Size = UDim2.fromOffset(
+				current.RayDiameter * outQuad(after / 0.5),
+				current.RayDiameter * outQuad(after / 0.5)
 			)
-			rays.Size = UDim2.fromOffset(current.RayDiameter, current.RayDiameter)
-			titleScale.Scale = 1 + 0.5 * (1 - clamp01(after / 0.3)) ^ 2
 		end
+
 		petName.Visible = time >= current.NameAt
-		nameScale.Scale = 1 + 0.6 * (1 - clamp01((time - current.NameAt) / 0.25)) ^ 2
-		chip.Visible = time >= current.ChipAt
-		effect.Visible = time >= current.ChipAt
-		status.Visible = time >= current.ChipAt
-		hint.Visible = time >= current.ReadyAt
+		nameScale.Scale = math.max(0.01, backOut((time - current.NameAt) / 0.3, 2.2))
+		rarityName.Visible = time >= current.RarityAt
+		rarityScale.Scale = math.max(0.01, backOut((time - current.RarityAt) / 0.3, 2.2))
+		chance.Visible = time >= current.ChanceAt
+		chanceScale.Scale = math.max(0.01, backOut((time - current.ChanceAt) / 0.3, 2))
+		hint.Visible = time >= current.ReadyAt and exiting == nil
 		hint.TextTransparency = 0.15 + 0.3 * (0.5 + 0.5 * math.sin(time * 6))
+		if nameGradient.Enabled then
+			nameGradient.Rotation = if current.Rainbow then (after * 120) % 360 else 0
+			nameGradient.Offset = Vector2.new(if current.Rainbow then 0 else math.sin(after * 2) * 0.25, 0)
+		end
 
 		for index, shard in shards do
 			local frame = shard.Frame
@@ -488,29 +519,42 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 					0.5,
 					math.cos(angle) * shard.Speed * after,
 					centerY,
-					math.sin(angle) * shard.Speed * after + 0.5 * gravity * after * after
+					math.sin(angle) * shard.Speed * after + 0.5 * gravity * after * after - 60
 				)
 				frame.Rotation = shard.Spin * after
-				frame.BackgroundTransparency = clamp01((after - 0.8) / 0.5)
+				frame.BackgroundTransparency = clamp01((after - 0.6) / 0.5)
 			else
 				frame.Visible = false
 			end
 		end
-		for index, piece in pieces do
-			local frame = piece.Frame
-			if isRevealed and index <= current.Confetti and after < confettiLife then
-				local angle = math.rad(piece.Angle)
+		for index, spark in sparks do
+			local frame = spark.Frame
+			if isRevealed and index <= current.Sparks and after < sparkLife then
+				local angle = math.rad(spark.Angle)
+				local travel = outQuad(after / sparkLife) * spark.Speed
 				frame.Visible = true
-				frame.BackgroundColor3 = if current.Rainbow
-					then rainbowColors[piece.Color]
-					else rarityColor:Lerp(rainbowColors[piece.Color], 0.35)
+				frame.BackgroundColor3 = if index % 2 == 0 then white else rarityColor:Lerp(white, 0.5)
+				frame.Position = UDim2.new(0.5, math.cos(angle) * travel, centerY, math.sin(angle) * travel)
+				frame.Rotation = 45 + spark.Spin * after
+				local size = 18 * (1 - clamp01(after / sparkLife))
+				frame.Size = UDim2.fromOffset(size, size)
+			else
+				frame.Visible = false
+			end
+		end
+		for index, confetti in pieces do
+			local frame = confetti.Frame
+			if isRevealed and index <= current.Confetti and after < confettiLife then
+				local angle = math.rad(confetti.Angle)
+				frame.Visible = true
+				frame.BackgroundColor3 = rainbowColors[confetti.Color]
 				frame.Position = UDim2.new(
 					0.5,
-					math.cos(angle) * piece.Speed * after * 0.8,
+					math.cos(angle) * confetti.Speed * after * 0.8,
 					centerY,
-					math.sin(angle) * piece.Speed * after + 0.5 * 1100 * after * after
+					math.sin(angle) * confetti.Speed * after + 0.5 * 1100 * after * after
 				)
-				frame.Rotation = piece.Spin * after
+				frame.Rotation = confetti.Spin * after
 				frame.BackgroundTransparency = clamp01((after - 1.7) / 0.5)
 			else
 				frame.Visible = false
@@ -521,6 +565,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 			if isRevealed and index <= current.Stars then
 				local angle = math.rad(star.Angle + after * 12)
 				local pulse = 0.6 + 0.4 * math.sin(after * 4 + star.Phase)
+				local size = 26 * pulse * clamp01(after * 3)
 				frame.Visible = true
 				frame.Position = UDim2.new(
 					0.5,
@@ -529,19 +574,22 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 					math.sin(angle) * star.Radius * 0.8
 				)
 				frame.Rotation = after * 40
-				frame.Size =
-					UDim2.fromOffset(26 * pulse * clamp01(after * 3), 26 * pulse * clamp01(after * 3))
+				frame.Size = UDim2.fromOffset(size, size)
 			else
 				frame.Visible = false
 			end
 		end
+
+		stageScale.Scale = 1 - 0.94 * exitAlpha
+		stage.Position = UDim2.new(0.5, flightX * exitAlpha, 0.5, flightY * exitAlpha)
 	end
 
 	local function advance(target: number, onlyReveal: boolean)
 		while nextEvent <= #events and events[nextEvent].At <= target do
 			local event = events[nextEvent]
 			nextEvent += 1
-			local isRevealEvent = event.Kind == "Burst" or event.Kind == "Name" or event.Kind == "Chip"
+			local kind = event.Kind
+			local isRevealEvent = kind == "Burst" or kind == "Name" or kind == "Rarity" or kind == "Chance"
 			if not onlyReveal or isRevealEvent then
 				fire(event)
 			end
@@ -553,8 +601,30 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local clearModels: () -> ()
 	local start: (eggId: string, charmId: string, isActive: boolean) -> ()
 
-	local function finish()
+	local function petsTarget(): (number, number)
+		local ok, dx, dy = pcall(function()
+			local hud = context.PlayerGui:FindFirstChild("Pets", true)
+			if not hud or not hud:IsA("GuiObject") then
+				return 0, 0
+			end
+			local position, size = hud.AbsolutePosition, hud.AbsoluteSize
+			local rootSize = root.AbsoluteSize
+			local rootPosition = root.AbsolutePosition
+			local scale = root:FindFirstChild("ViewportScale") :: UIScale?
+			local factor = if scale then scale.Scale else 1
+			local x = (position.X + size.X / 2 - rootPosition.X) / factor - rootSize.X / 2
+			local y = (position.Y + size.Y / 2 - rootPosition.Y) / factor - rootSize.Y / 2
+			return x, y
+		end)
+		if ok and type(dx) == "number" and type(dy) == "number" and dx == dx and dy == dy then
+			return dx, dy
+		end
+		return 0, 0
+	end
+
+	local function complete()
 		isPlaying = false
+		exitElapsed = nil
 		clearModels()
 		flash.BackgroundTransparency = 1
 		local following = table.remove(queue, 1)
@@ -563,6 +633,21 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		else
 			context.Close("Hatch")
 		end
+	end
+
+	local function beginExit()
+		local charm = currentCharm
+		if exitElapsed ~= nil or not charm then
+			return
+		end
+		exitElapsed = 0
+		flightX, flightY = petsTarget()
+		context.Toast(
+			if isActivePet
+				then `New pet: {charm.Name}! Now active!`
+				else `New pet: {charm.Name}! Stored (only your best {CharmConfig.ActiveLimit} pets are active)`,
+			"Good"
+		)
 	end
 
 	clearModels = function()
@@ -575,26 +660,34 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		if not isPlaying or not current then
 			return
 		end
-		advance(elapsed + dt, false)
+		local clamped = math.min(dt, maxStep)
+		local exiting = exitElapsed
+		if exiting then
+			exitElapsed = exiting + clamped
+			elapsed += clamped
+			render(elapsed)
+			if (exitElapsed :: number) >= HatchPlan.ExitSeconds then
+				complete()
+			end
+			return
+		end
+		advance(elapsed + clamped, false)
 		if elapsed >= current.AutoAt then
-			finish()
+			beginExit()
 		end
 	end
 
 	local function tap()
 		local current = plan
-		if not isPlaying or not current or elapsed < minTapTime then
+		if not isPlaying or not current or elapsed < HatchPlan.MinTapSeconds then
 			return
 		end
-		if elapsed < current.BurstAt then
+		if exitElapsed ~= nil then
+			complete()
+		elseif elapsed < current.BurstAt then
 			advance(current.BurstAt, true)
-		elseif elapsed < current.ReadyAt then
-			advance(current.ReadyAt, true)
-			while nextEvent <= #events and events[nextEvent].At <= current.ReadyAt do
-				nextEvent += 1
-			end
 		else
-			finish()
+			beginExit()
 		end
 	end
 
@@ -625,27 +718,33 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		events = HatchPlan.Events(built)
 		nextEvent = 1
 		elapsed = 0
+		exitElapsed = nil
 		currentEgg = egg
 		currentCharm = charm
 		isActivePet = isActive
 		rarityColor = rarity.Color
-		Viewport.Set(eggView, EggModel.Model(egg))
-		Viewport.Set(petView, (PetModels.Build(charm)))
-		local kind = CharmConfig.Kinds[charm.Kind]
+		rarityOrder = rarity.Order
+		Viewport.Set(eggView, AssetOverride.Find("Eggs", egg.Id) or EggModel.Model(egg))
+		Viewport.Set(petView, AssetOverride.Find("Pets", charm.Id) or (PetModels.Build(charm)))
 		petName.Text = charm.Name
-		petName.TextColor3 = rarity.Color:Lerp(white, 0.35)
-		chipHolder.Text = rarity.Name
-		Kit.Paint(chip, rarity.Color)
-		effect.Text = Charms.Describe(charm.Id)
-		effect.TextColor3 = kind.Color
-		status.Text = if isActive
-			then "Now active!"
-			else `Stored (only your best {CharmConfig.ActiveLimit} pets are active)`
-		status.TextColor3 = if isActive then theme.Green else gold
-		title.Text = if rarity.Order >= 5
-			then `{string.upper(rarity.Name)} PET!!!`
-			else if rarity.Order >= 3 then `{string.upper(rarity.Name)} PET!` else "NEW PET!"
-		title.TextColor3 = rarity.Color:Lerp(white, 0.4)
+		rarityName.Text = rarity.Name
+		rarityName.TextColor3 = rarity.Color:Lerp(white, 0.2)
+		local oneIn = 0
+		for _, drop in Charms.Drops(eggId) do
+			if drop.CharmId == charmId and drop.Chance > 0 then
+				oneIn = math.floor(1 / drop.Chance + 0.5)
+			end
+		end
+		chance.Text = if oneIn > 0 then `1 in {NumberFormat.Commas(oneIn)}` else ""
+		if rarityOrder >= 5 then
+			petName.TextColor3 = white
+			nameGradient.Enabled = true
+			nameGradient.Color = if built.Rainbow and rarityOrder >= 6 then rainbowGradient else goldGradient
+		else
+			petName.TextColor3 = rarity.Color:Lerp(white, 0.35)
+			nameGradient.Enabled = false
+		end
+		flightX, flightY = 0, 0
 		isPlaying = true
 		render(0)
 		context.Open("Hatch")
@@ -690,7 +789,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	end
 
 	trove:Connect(tapCatcher.Activated, tap)
-	trove:Connect(RunService.Heartbeat, function(dt: number)
+	trove:Connect(RunService.RenderStepped, function(dt: number)
 		if gui.Enabled then
 			step(dt)
 		end
@@ -708,6 +807,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Close = function(_self: Types.Screen)
 			gui.Enabled = false
 			isPlaying = false
+			exitElapsed = nil
 			table.clear(queue)
 			clearModels()
 		end,
@@ -733,6 +833,9 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 			local current = plan
 			if not isPlaying or not current then
 				return "Idle"
+			end
+			if exitElapsed ~= nil then
+				return "Exit"
 			end
 			return HatchPlan.PhaseAt(current, elapsed)
 		end,
