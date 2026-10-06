@@ -90,7 +90,6 @@ export type ResultCards = {
 	_shakeStrength: number,
 	_destroyed: boolean,
 	Show: (self: ResultCards, slot: ResultSlots.Slot, payload: Payload, isRare: boolean) -> (),
-	Slide: (self: ResultCards) -> (),
 	Fade: (self: ResultCards, isRare: boolean, isFast: boolean) -> (),
 	Hide: (self: ResultCards, isRare: boolean) -> (),
 	Run: (self: ResultCards, actions: { ResultSlots.Action }) -> (),
@@ -761,23 +760,6 @@ function ResultCards.Show(self: ResultCards, slot: ResultSlots.Slot, payload: Pa
 	end
 end
 
-function ResultCards.Slide(self: ResultCards)
-	local view = self._rail
-	if not view or self._destroyed then
-		return
-	end
-	local left: ResultSlots.Slot = "Left"
-	view.Slot = left
-	local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	track(
-		view,
-		TweenService:Create(view.Holder, info, {
-			AnchorPoint = Vector2.new(slotAnchor[left], 1),
-			Position = UDim2.new(0.5, slotOffset[left], 1, -bottomOffset),
-		})
-	):Play()
-end
-
 function ResultCards.Fade(self: ResultCards, isRare: boolean, isFast: boolean)
 	local view = if isRare then self._rail else self._common
 	if not view or self._destroyed then
@@ -822,12 +804,8 @@ function ResultCards.Run(self: ResultCards, actions: { ResultSlots.Action })
 	for _, action in actions do
 		if action.Kind == "Show" then
 			self:Show(action.Slot, action.Payload :: Payload, action.IsRare)
-		elseif action.Kind == "Slide" then
-			self:Slide()
 		elseif action.Kind == "Fade" then
 			self:Fade(action.IsRare, action.Fast == true)
-		elseif action.Kind == "Hide" then
-			self:Hide(action.IsRare)
 		end
 	end
 end

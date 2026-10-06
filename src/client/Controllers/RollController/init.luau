@@ -16,6 +16,7 @@ local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local WaitFor = require(ReplicatedStorage.Packages.WaitFor)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
+local AdminRewards = require(script.AdminRewards)
 local BaseZone = require(script.BaseZone)
 local Travel = require(script.Travel)
 local ResultSlots = require(script.ResultSlots)
@@ -33,10 +34,8 @@ local comboWindow = 0.6
 local comboStep = 0.03
 local comboMax = 0.3
 local releaseDelay = 0.07
-local pauseSeconds = 1
-local slideSeconds = 0.3
-local fadeSeconds = 0.25
 local goldColor = Color3.fromRGB(255, 210, 64)
+local rewardStaggerSeconds = 1.6
 
 local rarityRank: { [string]: number } = {}
 for index, rarity in Keys.Rarities do
@@ -111,7 +110,7 @@ local function showCard(key: Keys.Key, rarity: Keys.Rarity, isGolden: boolean)
 		return
 	end
 	local payload: ResultCards.Payload = { Key = key, Rarity = rarity, IsGolden = isGolden }
-	shown:Run(slots:Push(payload, isRare, hold, os.clock(), isLowGraphics))
+	shown:Run(slots:Push(payload, hold, os.clock()))
 end
 
 local function goldenFeedback()
@@ -456,6 +455,36 @@ local function onRareRoll(playerName: string, index: number)
 	controllers.SoundController:PlayReveal(rarity, "Other")
 end
 
+local rewardHandlers: AdminRewards.Handlers = {
+	Key = function(keyId: string, order: number)
+		local key = Keys.ById[keyId]
+		if not key then
+			return
+		end
+		task.delay((order - 1) * rewardStaggerSeconds, function()
+			if not destroyed then
+				reveal(key.Index, false)
+			end
+		end)
+	end,
+	Toast = function(text: string, kind: string)
+		local ui = controllers.UIController
+		if ui then
+			ui:Toast(text, kind)
+		end
+	end,
+	Pop = function()
+		local sounds = controllers.SoundController
+		if sounds then
+			sounds:PlayUi("Confirm")
+		end
+	end,
+}
+
+local function onAdminReward(kind: string, id: string, count: number)
+	AdminRewards.Dispatch(rewardHandlers, kind, id, count)
+end
+
 function RollController.RequestRoll(_self: State): boolean
 	return press(true)
 end
@@ -527,11 +556,7 @@ function RollController.Start(self: State)
 		cards = ResultCards.new(playerGui, trove, function()
 			return isLowGraphics
 		end)
-		resultSlots = ResultSlots.new({
-			PauseSeconds = pauseSeconds,
-			SlideSeconds = slideSeconds,
-			FadeSeconds = fadeSeconds,
-		})
+		resultSlots = ResultSlots.new()
 	end
 	trove:Connect(UserInputService.InputBegan, onInput)
 	trove:Connect(UserInputService.InputEnded, onInputEnded)
@@ -552,6 +577,7 @@ function RollController.Start(self: State)
 		end
 	end)
 	trove:Add(Packets.RareRoll.OnClientEvent:Connect(onRareRoll))
+	trove:Add(Packets.AdminReward.OnClientEvent:Connect(onAdminReward))
 	local promise = WaitFor.Child(workspace, "Plots", 30)
 		:andThen(function(folder: Instance)
 			if destroyed then

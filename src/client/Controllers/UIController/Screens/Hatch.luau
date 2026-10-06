@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local EggArt = require(script.Parent.Parent.EggArt)
@@ -297,6 +298,39 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		context.Open("Hatch")
 	end
 
+	local function reveal(charmId: string): boolean
+		local charm = CharmConfig.ById[charmId]
+		if not charm then
+			return false
+		end
+		local egg = Eggs.Catalog[1]
+		for _, candidate in Eggs.Catalog do
+			if candidate.Drops[charm.Rarity] then
+				egg = candidate
+				break
+			end
+		end
+		local owned: { [string]: number } = {}
+		local dataController = context.Controllers.DataController
+		local stored = if dataController then dataController:Get({ "Charms" }) else nil
+		if type(stored) == "table" then
+			for id, count in stored do
+				if type(id) == "string" and type(count) == "number" then
+					owned[id] = count
+				end
+			end
+		end
+		owned[charm.Id] = math.max(owned[charm.Id] or 0, 1)
+		start(egg.Id, charm.Id, Charms.IsActive(owned, charm.Id))
+		return true
+	end
+
+	trove:Add(Packets.AdminReward.OnClientEvent:Connect(function(kind: string, id: string, _count: number)
+		if kind == "Pet" then
+			reveal(id)
+		end
+	end))
+
 	local charmController = context.Controllers.CharmController
 	if charmController then
 		trove:Add(charmController.Hatched:Connect(start))
@@ -323,6 +357,9 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		end,
 		Play = function(_self: any, eggId: string, charmId: string, isActive: boolean?)
 			start(eggId, charmId, isActive ~= false)
+		end,
+		Reveal = function(_self: any, charmId: string): boolean
+			return reveal(charmId)
 		end,
 		Seek = function(_self: any, time: number)
 			render(time)
