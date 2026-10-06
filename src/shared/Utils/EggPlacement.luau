@@ -2,13 +2,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 
-export type Rect = {
-	X: number,
-	Z: number,
-	HalfX: number,
-	HalfZ: number,
-}
+export type Rect = FloorGrid.Rect
 
 export type Spot = {
 	X: number,
@@ -25,16 +21,12 @@ local function isFinite(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) ~= math.huge
 end
 
-function EggPlacement.RectOf(base: CFrame, part: BasePart): Rect
-	local relative = base:ToObjectSpace(part.CFrame)
-	local size = part.Size
-	local right, up, look = relative.RightVector, relative.UpVector, relative.LookVector
-	return {
-		X = relative.Position.X,
-		Z = relative.Position.Z,
-		HalfX = (math.abs(right.X) * size.X + math.abs(up.X) * size.Y + math.abs(look.X) * size.Z) / 2,
-		HalfZ = (math.abs(right.Z) * size.X + math.abs(up.Z) * size.Y + math.abs(look.Z) * size.Z) / 2,
-	}
+EggPlacement.RectOf = FloorGrid.RectOf
+
+function EggPlacement.IsBlocked(rect: Rect?, x: number, z: number): boolean
+	return rect ~= nil
+		and math.abs(x - rect.X) < rect.HalfX + Eggs.RollKeyClear
+		and math.abs(z - rect.Z) < rect.HalfZ + Eggs.RollKeyClear
 end
 
 function EggPlacement.Check(baseSize: Vector3, rollKey: Rect?, placed: { Spot }, x: any, z: any): Reason
@@ -46,11 +38,7 @@ function EggPlacement.Check(baseSize: Vector3, rollKey: Rect?, placed: { Spot },
 	if math.abs(x) > limitX or math.abs(z) > limitZ then
 		return "Bounds"
 	end
-	if
-		rollKey
-		and math.abs(x - rollKey.X) < rollKey.HalfX + Eggs.RollKeyClear
-		and math.abs(z - rollKey.Z) < rollKey.HalfZ + Eggs.RollKeyClear
-	then
+	if EggPlacement.IsBlocked(rollKey, x, z) then
 		return "RollKey"
 	end
 	for _, other in placed do

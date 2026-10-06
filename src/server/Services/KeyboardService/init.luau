@@ -29,14 +29,10 @@ local KeyboardService = {
 	BoardChanged = Signal.new() :: Signal.Signal<Player>,
 	_trove = nil :: TroveInstance?,
 }
-local context: Types.Context = { Services = {} }
+local context: Types.Context = { Services = nil :: any }
 local cache = StatsCache.new()
 local offlinePassWaitSeconds = 20
 local pendingOffline: { [Player]: boolean } = {}
-
-local function getData(player: Player): PlayerData.Data?
-	return context.Services.DataService:GetData(player) :: PlayerData.Data?
-end
 
 local function boardRate(player: Player, data: PlayerData.Data): number
 	local passService = context.Services.PassService
@@ -52,7 +48,7 @@ local function settle(player: Player)
 	if pendingOffline[player] then
 		return
 	end
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	local replica = context.Services.DataService:GetReplica(player)
 	if not data or not replica then
 		return
@@ -104,7 +100,7 @@ local function finishOffline(player: Player)
 		return
 	end
 	pendingOffline[player] = nil
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if data then
 		grantOffline(player, data)
 	end
@@ -118,7 +114,7 @@ local function placeKey(player: Player, slot: number, keyId: string): boolean
 	if type(slot) ~= "number" or type(keyId) ~= "string" or not isInteger(slot) then
 		return false
 	end
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or not slotInRange(data, slot) then
 		return false
 	end
@@ -140,7 +136,7 @@ local function clearSlot(player: Player, slot: number): boolean
 	if type(slot) ~= "number" or not isInteger(slot) then
 		return false
 	end
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or not slotInRange(data, slot) then
 		return false
 	end
@@ -159,7 +155,7 @@ local function sellKey(player: Player, keyId: string, count: number): boolean
 	if type(keyId) ~= "string" or type(count) ~= "number" or not isInteger(count) or count < 1 then
 		return false
 	end
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or Keys.Resolve(keyId) == nil or (data.Inventory[keyId] or 0) < count then
 		return false
 	end
@@ -175,7 +171,7 @@ local function fuseKey(player: Player, keyId: string): string
 		return ""
 	end
 	local nextId = Variants.Next(keyId)
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or not nextId or (data.Inventory[keyId] or 0) < Variants.FuseCost then
 		return ""
 	end
@@ -187,7 +183,7 @@ local function fuseKey(player: Player, keyId: string): string
 end
 
 local function equipBest(player: Player): boolean
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data then
 		return false
 	end
@@ -203,7 +199,7 @@ local function equipBest(player: Player): boolean
 end
 
 function KeyboardService.Init(self: State, registry: { [string]: any })
-	context.Services = registry
+	context.Services = registry :: any
 	self._trove = Trove.new()
 end
 
@@ -258,7 +254,7 @@ function KeyboardService.Settle(_self: State, player: Player)
 end
 
 function KeyboardService.Normalize(_self: State, player: Player)
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if data then
 		normalize(player, data)
 	end
@@ -273,7 +269,7 @@ function KeyboardService.InvalidateStats(_self: State, player: Player)
 end
 
 function KeyboardService.GetRate(_self: State, player: Player): number
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	return if data then boardRate(player, data) else 0
 end
 
@@ -282,7 +278,7 @@ function KeyboardService.GetRollStats(
 	player: Player,
 	luckMultiplier: number
 ): StatsCache.RollStats?
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	return if data then cache:Roll(player, data, luckMultiplier) else nil
 end
 
@@ -292,7 +288,7 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag
 		return false
 	end
 	settle(player)
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data then
 		return false
 	end
@@ -321,7 +317,7 @@ function KeyboardService.AddKey(_self: State, player: Player, keyId: string, tag
 end
 
 function KeyboardService.TakeFromSlot(_self: State, player: Player, slot: number, keyId: string): boolean
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or not slotInRange(data, slot) then
 		return false
 	end
@@ -335,7 +331,7 @@ function KeyboardService.TakeFromSlot(_self: State, player: Player, slot: number
 end
 
 function KeyboardService.RestoreKey(_self: State, player: Player, slot: number, keyId: string): boolean
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not data or Keys.Resolve(keyId) == nil then
 		return false
 	end

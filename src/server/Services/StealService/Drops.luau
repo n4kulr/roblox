@@ -1,6 +1,8 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Gui = require(ReplicatedStorage.Utils.Gui)
 local KeyVisual = require(script.Parent.Parent.Parent.Utils.KeyVisual)
 local Prompts = require(script.Parent.Prompts)
 
@@ -48,23 +50,19 @@ function Drops.Build(
 	part:SetAttribute("OwnerUserId", ownerUserId)
 	part:SetAttribute("KeyId", keyId)
 	part:SetAttribute("SpinSpeed", spinSpeed)
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "OwnerTag"
-	gui.Size = UDim2.fromOffset(220, 44)
-	gui.StudsOffset = Vector3.new(0, 2.6, 0)
-	gui.AlwaysOnTop = true
-	gui.MaxDistance = 120
-	local label = Instance.new("TextLabel")
-	label.Name = "Owner"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(255, 236, 140)
-	label.TextStrokeTransparency = 0
-	label.Text = `OWNER: {ownerName}`
-	label.Parent = gui
-	gui.Parent = part
+	local gui = Gui.Billboard(part, {
+		Name = "OwnerTag",
+		Size = UDim2.fromOffset(220, 44),
+		Offset = Vector3.new(0, 2.6, 0),
+		AlwaysOnTop = true,
+		MaxDistance = 120,
+	})
+	Gui.Label(gui, {
+		Name = "Owner",
+		Text = `OWNER: {ownerName}`,
+		Color = Color3.fromRGB(255, 236, 140),
+		TextStrokeTransparency = 0,
+	})
 	local prompt = Prompts.CreateTakeBack(part, ownerUserId, keyId)
 	CollectionService:AddTag(part, spinnerTag)
 	return part, prompt

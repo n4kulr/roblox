@@ -6,7 +6,7 @@ describe("Roll", function()
 	local world, Roll, Keys
 	beforeEach(function()
 		world = H.newWorld()
-		Roll = world:require("ServerScriptService.Services.RollService.Roll")
+		Roll = world:require("ReplicatedStorage.Rules.Roll")
 		Keys = world:require("ReplicatedStorage.Config.Keys")
 	end)
 

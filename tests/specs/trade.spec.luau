@@ -399,22 +399,16 @@ describe("TradeService", function()
 			expect(world.saves[b]):toBe(1)
 		end)
 
-		it("logs the completed trade and flags mythic keys", function()
-			local a, _, b = setup()
+		it("swaps mythic keys without printing to the output", function()
+			local a, aData, b, bData = setup()
 			offer(a, "GoldenSpacebar", 1)
 			offer(b, "OfficeTap", 1)
 			ready(a, true)
 			ready(b, true)
 			world:advance(config.ConfirmCountdownSeconds + 0.5)
-			local line
-			for _, log in world.logs do
-				if string.find(log, "[Trade]", 1, true) then
-					line = log
-				end
-			end
-			expect(line ~= nil):toBe(true)
-			expect(string.find(line, "Ann <-> Bob", 1, true) ~= nil):toBe(true)
-			expect(string.find(line, "GoldenSpacebar [MYTHIC+]", 1, true) ~= nil):toBe(true)
+			expect(aData.Inventory.GoldenSpacebar):toBeNil()
+			expect(bData.Inventory.GoldenSpacebar):toBe(1)
+			expect(#world.logs):toBe(0)
 		end)
 
 		it("allows a new trade after completing", function()

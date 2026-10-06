@@ -6,7 +6,7 @@ local Types = require(script.Parent.Types)
 local Inventory = {}
 
 function Inventory.Add(context: Types.Context, player: Player, keyId: string, amount: number)
-	local data = context.Services.DataService:GetData(player) :: PlayerData.Data?
+	local data = context.Services.DataService:GetData(player)
 	if data then
 		context.Services.DataService:Set(
 			player,
@@ -28,7 +28,7 @@ function Inventory.Remove(
 end
 
 function Inventory.SetTag(context: Types.Context, player: Player, slot: number, tag: string)
-	local data = context.Services.DataService:GetData(player) :: PlayerData.Data?
+	local data = context.Services.DataService:GetData(player)
 	if not data or type(data.BoardTags) ~= "table" then
 		return
 	end

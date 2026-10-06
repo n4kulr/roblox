@@ -236,7 +236,7 @@ describe("Base keycap rendering", function()
 		local first = plot.Keys:FindFirstChild("Slot1"):FindFirstChild("Top").Letter
 		expect(first.Visible):toBe(true)
 		expect(first.Text):toBe(string.upper(string.sub(Keys.ById.GlassTink.Name, 1, 1)))
-		expect(plot.Keys:FindFirstChild("Slot3"):FindFirstChild("Top").Letter.Visible):toBe(false)
+		expect(plot.Keys:FindFirstChild("Slot3"):FindFirstChild("Top"):FindFirstChild("Letter")):toBeNil()
 		data.Board[1] = ""
 		registry.KeyboardService.BoardChanged:Fire(player)
 		expect(first.Visible):toBe(false)
@@ -263,8 +263,8 @@ describe("Base keycap rendering", function()
 			local surface = cap:FindFirstChild("Top")
 			expect(surface.Enabled):toBe(true)
 			expect(surface.Rim.Visible):toBe(true)
-			expect(surface.Plus.Visible):toBe(false)
-			expect(surface.Lock.Visible):toBe(false)
+			expect(surface:FindFirstChild("Plus")):toBeNil()
+			expect(surface:FindFirstChild("Lock")):toBeNil()
 		end
 	end)
 
@@ -278,10 +278,11 @@ describe("Base keycap rendering", function()
 		expect(cap.Transparency):toBe(0.4)
 		expect(sameColor(cap.Color, plot.Base.Color:Lerp(Color3.new(1, 1, 1), 0.25))):toBe(true)
 		expect(restTop(plot, cap)):toBeCloseTo(plot.Base.Size.Y / 2 + FloorGrid.CapHeight + 0.25, 1e-6)
-		expect(cap:FindFirstChild("Income").Enabled):toBe(false)
+		expect(cap:FindFirstChild("Income")):toBeNil()
 		local surface = cap:FindFirstChild("Top")
 		expect(surface.Plus.Visible):toBe(true)
-		expect(surface.Lock.Visible):toBe(false)
+		expect(surface:FindFirstChild("Lock")):toBeNil()
+		expect(surface:FindFirstChild("Letter")):toBeNil()
 		expect(surface.Rim.Visible):toBe(true)
 	end)
 
@@ -292,10 +293,10 @@ describe("Base keycap rendering", function()
 		expect(cap:GetAttribute("Locked")):toBe(true)
 		expect(cap:GetAttribute("KeyId")):toBeNil()
 		expect(sameColor(cap.Color, Color3.fromRGB(26, 26, 30))):toBe(true)
-		expect(cap:FindFirstChild("Income").Enabled):toBe(false)
+		expect(cap:FindFirstChild("Income")):toBeNil()
 		local surface = cap:FindFirstChild("Top")
 		expect(surface.Lock.Visible):toBe(true)
-		expect(surface.Plus.Visible):toBe(false)
+		expect(surface:FindFirstChild("Plus")):toBeNil()
 	end)
 
 	it("updates a slot and its billboard when the board changes", function()
@@ -337,7 +338,49 @@ describe("Base keycap rendering", function()
 		local cap = plot.Keys:FindFirstChild("Slot1")
 		expect(cap:GetAttribute("KeyId")):toBeNil()
 		expect(cap:GetAttribute("Locked")):toBeNil()
-		expect(cap:FindFirstChild("Income").Enabled):toBe(false)
-		expect(cap:FindFirstChild("Top").Enabled):toBe(false)
+		expect(cap:FindFirstChild("Income")):toBeNil()
+		expect(cap:FindFirstChild("Top")):toBeNil()
+		expect(sameColor(cap.Color, Color3.fromRGB(26, 26, 30))):toBe(true)
+	end)
+
+	describe("instance budget", function()
+		local function count(root: any): number
+			local total = 0
+			for _ in root:GetDescendants() do
+				total += 1
+			end
+			return total
+		end
+
+		it("builds no slot gui on a plot nobody owns", function()
+			local fresh = count(plots:GetChildren()[1])
+			local player, _, plot = join()
+			expect(count(plot) > fresh):toBe(true)
+			world:removePlayer(player)
+			expect(count(plot)):toBe(fresh)
+		end)
+
+		it("only builds the glyphs a slot currently needs", function()
+			local _, _, plot = join()
+			local filled = plot.Keys:FindFirstChild("Slot1")
+			local empty = plot.Keys:FindFirstChild("Slot3")
+			local locked = plot.Keys:FindFirstChild(`Slot{Stats.Slots({}) + 1}`)
+			expect(count(filled) < 20):toBe(true)
+			expect(#empty:GetDescendants()):toBe(4)
+			expect(#locked:GetDescendants()):toBe(4)
+		end)
+
+		it("gives every filler key exactly one glyph and nothing else", function()
+			local _, _, plot = join()
+			local fillers = 0
+			for _, cap in capsOf(plot) do
+				if cap:GetAttribute("Filler") then
+					fillers += 1
+					expect(#cap:GetDescendants()):toBe(2)
+					expect(cap:FindFirstChild("Legend").Glyph.Text ~= ""):toBe(true)
+				end
+			end
+			expect(fillers > 20):toBe(true)
+		end)
 	end)
 end)

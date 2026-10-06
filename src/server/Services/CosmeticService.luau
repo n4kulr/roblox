@@ -4,9 +4,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local MeshTemplates = require(script.Parent.Parent.Utils.MeshTemplates)
-local Caps = require(script.Parent.PlotService.Caps)
-local Legend = require(script.Parent.PlotService.Legend)
+local Parts = require(ReplicatedStorage.Utils.Parts)
+local ServerTypes = require(script.Parent.Parent.Types)
+local FloorKeys = require(script.Parent.Parent.Utils.FloorKeys)
+local Legend = require(script.Parent.Parent.Utils.Legend)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -33,7 +34,6 @@ local accentChance = 15
 local accentBlend = 0.45
 local gridOffset = 512
 local gridStride = 1024
-local meshTimeout = 6
 local capHeight = FloorGrid.CapHeight
 
 local CosmeticService = {
@@ -41,6 +41,7 @@ local CosmeticService = {
 	_trove = nil :: TroveInstance?,
 }
 
+local services: ServerTypes.Registry = nil :: any
 local accentRarities: { Color3 } = {}
 for _, rarity in Keys.Rarities do
 	if
@@ -106,13 +107,13 @@ function CosmeticService.Plan(part: BasePart): Plan?
 end
 
 local function buildCap(plan: Plan, cell: Cell, base: Color3): BasePart
-	local cap = Caps.Blank(
-		plan.Frame * CFrame.new(cell.X, capHeight / 2 - Caps.FillerSink, cell.Z),
-		Caps.FillerColor(base)
+	local cap = FloorKeys.Blank(
+		plan.Frame * CFrame.new(cell.X, capHeight / 2 - FloorKeys.Sink, cell.Z),
+		FloorKeys.Color(base)
 	)
 	cap.Name = `Cosmetic{cell.I}_{cell.J}`
 	cap:SetAttribute("Cosmetic", true)
-	cap:SetAttribute("PressDepth", Caps.FillerPress)
+	cap:SetAttribute("PressDepth", FloorKeys.Press)
 	cap:SetAttribute("GridX", cell.I)
 	cap:SetAttribute("GridZ", cell.J)
 	local seed = Legend.SeedOf(modelName, (cell.I + gridOffset) * gridStride + cell.J + gridOffset)
@@ -136,33 +137,35 @@ function CosmeticService.Build(part: BasePart): Model?
 	for _, cell in plan.Cells do
 		buildCap(plan, cell, part.Color).Parent = model
 	end
-	local walkway = Instance.new("Part")
-	walkway.Name = "Walkway"
-	walkway.Shape = Enum.PartType.Cylinder
-	walkway.Anchored = true
-	walkway.CanCollide = true
-	walkway.CanQuery = true
-	walkway.CanTouch = false
-	walkway.Transparency = 1
-	walkway.Size = Vector3.new(walkwayThickness, plan.Diameter, plan.Diameter)
-	walkway.CFrame = plan.Frame
-		* CFrame.new(0, Caps.FloorTop() - walkwayThickness / 2, 0)
-		* CFrame.Angles(0, 0, math.pi / 2)
-	walkway.Parent = model
+	Parts.New({
+		Name = "Walkway",
+		Parent = model,
+		Shape = Enum.PartType.Cylinder,
+		Anchored = true,
+		CanCollide = true,
+		CanQuery = true,
+		CanTouch = false,
+		Transparency = 1,
+		Size = Vector3.new(walkwayThickness, plan.Diameter, plan.Diameter),
+		CFrame = plan.Frame
+			* CFrame.new(0, FloorKeys.Top() - walkwayThickness / 2, 0)
+			* CFrame.Angles(0, 0, math.pi / 2),
+	})
 	model:SetAttribute("Frame", plan.Frame)
 	model:SetAttribute("Pitch", FloorGrid.CellSize)
 	model:SetAttribute("CapHeight", capHeight)
 	return model
 end
 
-function CosmeticService.Init(self: State, _services: { [string]: any })
+function CosmeticService.Init(self: State, registry: { [string]: any })
+	services = registry :: any
 	self._trove = Trove.new()
 end
 
 function CosmeticService.Start(self: State)
 	local trove = self._trove :: TroveInstance
 	local thread = task.spawn(function()
-		MeshTemplates.Wait(meshTimeout)
+		services.MeshService:Wait()
 		local part = findPart()
 		if not part then
 			return

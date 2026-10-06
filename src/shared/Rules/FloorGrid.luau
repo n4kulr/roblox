@@ -128,7 +128,7 @@ function FloorGrid.Locate(layout: Layout, x: number, z: number): Cell?
 	return if index then layout.Lookup[index] else nil
 end
 
-local function localRect(base: CFrame, part: BasePart): Rect
+function FloorGrid.RectOf(base: CFrame, part: BasePart): Rect
 	local relative = base:ToObjectSpace(part.CFrame)
 	local size = part.Size
 	local right, up, look = relative.RightVector, relative.UpVector, relative.LookVector
@@ -145,7 +145,7 @@ function FloorGrid.ForPlot(base: BasePart, rollKey: BasePart, board: BasePart): 
 	return FloorGrid.Build(
 		base.Size.X,
 		base.Size.Z,
-		localRect(base.CFrame, rollKey),
+		FloorGrid.RectOf(base.CFrame, rollKey),
 		boardCenter.X,
 		boardCenter.Z
 	)

@@ -1,7 +1,6 @@
 --!strict
 
 local EggPlacement = require(script.Parent.EggPlacement)
-local Eggs = require(script.Parent.Parent.Config.Eggs)
 
 export type Walker = {
 	X: number,
@@ -29,12 +28,6 @@ local PetWander = {
 
 local attempts = 16
 
-local function blocked(rect: EggPlacement.Rect?, x: number, z: number): boolean
-	return rect ~= nil
-		and math.abs(x - rect.X) < rect.HalfX + Eggs.RollKeyClear
-		and math.abs(z - rect.Z) < rect.HalfZ + Eggs.RollKeyClear
-end
-
 function PetWander.PickPoint(
 	random: Random,
 	halfX: number,
@@ -46,7 +39,7 @@ function PetWander.PickPoint(
 	for _ = 1, attempts do
 		local x = random:NextNumber(-limitX, limitX)
 		local z = random:NextNumber(-limitZ, limitZ)
-		if not blocked(avoid, x, z) then
+		if not EggPlacement.IsBlocked(avoid, x, z) then
 			return x, z
 		end
 	end

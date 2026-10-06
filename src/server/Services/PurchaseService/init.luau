@@ -3,9 +3,10 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local Products = require(script.Products)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 local PurchaseService = { Name = "PurchaseService" }
-local registry: { [string]: any } = {}
+local registry: ServerTypes.Registry = nil :: any
 local maxReceipts = 100
 
 local function prune(receipts: { [string]: number })
@@ -58,7 +59,7 @@ local function processReceipt(receipt: { [string]: any }): Enum.ProductPurchaseD
 end
 
 function PurchaseService.Init(_self: any, services: { [string]: any })
-	registry = services
+	registry = services :: any
 end
 
 function PurchaseService.Start(_self: any)

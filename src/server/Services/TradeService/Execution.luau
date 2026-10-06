@@ -9,26 +9,10 @@ local Types = require(script.Parent.Types)
 
 local Execution = {}
 
-local function describe(offer: Types.Offer): string
-	local ids: { string } = {}
-	for keyId, count in offer do
-		if count > 0 then
-			table.insert(ids, keyId)
-		end
-	end
-	table.sort(ids)
-	local parts: { string } = {}
-	for _, keyId in ids do
-		local flag = if Trade.IsAtLeast(keyId, "Mythic") then " [MYTHIC+]" else ""
-		table.insert(parts, `{offer[keyId]}x {keyId}{flag}`)
-	end
-	return if #parts > 0 then table.concat(parts, ", ") else "nothing"
-end
-
 function Execution.CanRun(context: Types.Context, session: Types.Session): boolean
 	local first, second = session.Players[1], session.Players[2]
-	local dataFirst = context.Services.DataService:GetData(first) :: PlayerData.Data?
-	local dataSecond = context.Services.DataService:GetData(second) :: PlayerData.Data?
+	local dataFirst = context.Services.DataService:GetData(first)
+	local dataSecond = context.Services.DataService:GetData(second)
 	if not dataFirst or not dataSecond then
 		return false
 	end
@@ -73,11 +57,6 @@ function Execution.Run(context: Types.Context, session: Types.Session): boolean
 	end
 	dataService:RequestSave(first)
 	dataService:RequestSave(second)
-	print(
-		`[Trade] {first.Name} <-> {second.Name}: {first.Name} gave {describe(offerFirst)}; {second.Name} gave {describe(
-			offerSecond
-		)}`
-	)
 	return true
 end
 

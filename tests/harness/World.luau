@@ -1054,7 +1054,19 @@ function World.boot(self, names: { string }, extra: { [string]: any }?)
 		registry[name] = override
 	end
 	local order = {}
+	local implied = {
+		PlotService = "MeshService",
+		CosmeticService = "MeshService",
+		StealService = "PlaytimeService",
+	}
+	local ordered = table.clone(names)
 	for _, name in names do
+		local dependency = implied[name]
+		if dependency and not table.find(ordered, dependency) then
+			table.insert(ordered, 1, dependency)
+		end
+	end
+	for _, name in ordered do
 		if registry[name] == nil then
 			local module = self:require(`ServerScriptService.Services.{name}`)
 			registry[name] = module

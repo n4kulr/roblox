@@ -6,14 +6,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lifecycle = require(ReplicatedStorage.Lifecycle)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Config = require(script.Parent.Parent.Config.Admin)
+local Access = require(script.Access)
 local Commands = require(script.Commands)
 local Targets = require(script.Targets)
 local Types = require(script.Types)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 
-local allowlist: { [number]: boolean } = {}
-local maxArgumentLength = 200
+local verdicts: { [Player]: boolean } = {}
 local deniedMessage = "Not allowed"
 local adminAttribute = "IsAdmin"
 local developerAttribute = "IsDeveloper"
@@ -22,21 +24,30 @@ local AdminService = {
 	Name = "AdminService",
 	Console = nil :: any,
 } :: Lifecycle.System & { Console: any, IsAdmin: any, Execute: any }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local context: Types.Context = { Services = services }
 local trove: TroveInstance? = nil
 
+local function rankInGroup(player: Player, groupId: number): number
+	local ok, rank = pcall(function()
+		return player:GetRankInGroup(groupId)
+	end)
+	return if ok and type(rank) == "number" then rank else 0
+end
+
 local function isAdmin(player: Player): boolean
-	if RunService:IsStudio() then
-		return true
+	local known = verdicts[player]
+	if known ~= nil then
+		return known
 	end
-	if allowlist[player.UserId] then
-		return true
-	end
-	if game.CreatorType == Enum.CreatorType.User then
-		return player.UserId == game.CreatorId
-	end
-	return false
+	local verdict = Access.Check(player, {
+		IsStudio = RunService:IsStudio(),
+		CreatorType = game.CreatorType,
+		CreatorId = game.CreatorId,
+		RankInGroup = rankInGroup,
+	})
+	verdicts[player] = verdict
+	return verdict
 end
 
 local function execute(player: Player, command: string, argument: string): (boolean, string)
@@ -61,13 +72,13 @@ local function handleChat(player: Player, message: string)
 end
 
 local function bindPlayer(player: Player)
-	local admin = isAdmin(player)
-	player:SetAttribute(adminAttribute, admin)
-	player:SetAttribute(developerAttribute, admin)
 	local serviceTrove = trove :: TroveInstance
 	serviceTrove:Connect(player.Chatted, function(message: string)
 		handleChat(player, message)
 	end)
+	local admin = isAdmin(player)
+	player:SetAttribute(adminAttribute, admin)
+	player:SetAttribute(developerAttribute, admin)
 end
 
 local function readyTargets(targets: { Player }): number
@@ -109,13 +120,15 @@ local function installConsole()
 			return hatchTargets(targetsFrom(target))
 		end,
 		Run = function(player: Player, command: string, argument: string?): (boolean, string)
-			return Commands.Execute(context, player, command, argument or "")
+			return execute(player, command, argument or "")
 		end,
 		IsAdmin = isAdmin,
 	}
 	AdminService.Console = admin
-	local g = _G :: any
-	g.ThockAdmin = admin
+	if RunService:IsStudio() then
+		local g = _G :: any
+		g.ThockAdmin = admin
+	end
 end
 
 function AdminService.IsAdmin(_self: any, player: Player): boolean
@@ -132,14 +145,17 @@ function AdminService.Execute(
 end
 
 function AdminService.Init(_self: Lifecycle.System, registry: { [string]: any })
-	services = registry
-	context = { Services = registry }
+	services = registry :: any
+	context = { Services = registry :: any }
 	trove = Trove.new()
 end
 
 function AdminService.Start(_self: Lifecycle.System)
 	local serviceTrove = trove :: TroveInstance
 	serviceTrove:Connect(Players.PlayerAdded, bindPlayer)
+	serviceTrove:Connect(Players.PlayerRemoving, function(player: Player)
+		verdicts[player] = nil
+	end)
 	for _, player in Players:GetPlayers() do
 		bindPlayer(player)
 	end
@@ -147,8 +163,11 @@ function AdminService.Start(_self: Lifecycle.System)
 		if type(command) ~= "string" or type(argument) ~= "string" then
 			return "Bad request"
 		end
-		local _, result =
-			execute(player, string.sub(command, 1, 32), string.sub(argument, 1, maxArgumentLength))
+		local _, result = execute(
+			player,
+			string.sub(command, 1, Config.MaxCommandLength),
+			string.sub(argument, 1, Config.MaxArgumentLength)
+		)
 		return result
 	end
 	installConsole()
@@ -161,6 +180,7 @@ function AdminService.Destroy(_self: Lifecycle.System)
 	if g.ThockAdmin then
 		g.ThockAdmin = nil
 	end
+	table.clear(verdicts)
 	if trove then
 		trove:Destroy()
 		trove = nil

@@ -3,6 +3,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local Gui = require(ReplicatedStorage.Utils.Gui)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
 local Walls = require(script.Parent.Walls)
 
@@ -100,47 +102,40 @@ function Lock.ShowLasers(info: Types.PlotInfo, state: Types.Defense)
 	local high = math.max(low, height - laserMargin)
 	for index = 1, laserCount do
 		local fraction = (index - 1) / (laserCount - 1)
-		local laser = Instance.new("Part")
-		laser.Name = `Laser{index}`
-		laser.Anchored = true
-		laser.CanCollide = false
-		laser.CanQuery = false
-		laser.CanTouch = false
-		laser.CastShadow = false
-		laser.Material = Enum.Material.Neon
-		laser.Color = laserColor
-		laser.Transparency = 0.15
-		laser.Size = Vector3.new(defense.EntranceWidth, laserThickness, laserThickness)
-		laser.CFrame = entrance * CFrame.new(0, low + (high - low) * fraction, 0)
-		laser.Parent = folder
+		Parts.New({
+			Name = `Laser{index}`,
+			Parent = folder,
+			Anchored = true,
+			Passive = true,
+			CastShadow = false,
+			Material = Enum.Material.Neon,
+			Color = laserColor,
+			Transparency = 0.15,
+			Size = Vector3.new(defense.EntranceWidth, laserThickness, laserThickness),
+			CFrame = entrance * CFrame.new(0, low + (high - low) * fraction, 0),
+		})
 	end
-	local anchor = Instance.new("Part")
-	anchor.Name = "LockAnchor"
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanQuery = false
-	anchor.CanTouch = false
-	anchor.CastShadow = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(1, 1, 1)
-	anchor.CFrame = entrance * CFrame.new(0, height + anchorLift, 0)
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "LockTimer"
-	gui.Size = UDim2.fromOffset(260, 56)
-	gui.AlwaysOnTop = true
-	gui.MaxDistance = 200
-	gui.Adornee = anchor
-	local label = Instance.new("TextLabel")
-	label.Name = "Countdown"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = Color3.fromRGB(255, 80, 90)
-	label.TextStrokeTransparency = 0
-	label.Text = ""
-	label.Parent = gui
-	gui.Parent = anchor
+	local anchor = Parts.New({
+		Name = "LockAnchor",
+		Anchored = true,
+		Passive = true,
+		CastShadow = false,
+		Transparency = 1,
+		Size = Vector3.new(1, 1, 1),
+		CFrame = entrance * CFrame.new(0, height + anchorLift, 0),
+	})
+	local gui = Gui.Billboard(anchor, {
+		Name = "LockTimer",
+		Size = UDim2.fromOffset(260, 56),
+		AlwaysOnTop = true,
+		MaxDistance = 200,
+		Adornee = anchor,
+	})
+	local label = Gui.Label(gui, {
+		Name = "Countdown",
+		Color = Color3.fromRGB(255, 80, 90),
+		TextStrokeTransparency = 0,
+	})
 	folder.Parent = info.Model
 	anchor.Parent = info.Model
 	state.Lasers = folder

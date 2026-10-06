@@ -5,13 +5,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
+local Roll = require(ReplicatedStorage.Rules.Roll)
 local Rules = require(ReplicatedStorage.Rules.Keyfall)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
-local Roll = require(script.Parent.RollService.Roll)
+local Character = require(script.Parent.Parent.Utils.Character)
 local Arena = require(script.Arena)
 local Types = require(script.Types)
 local Visual = require(script.Visual)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -40,7 +41,7 @@ local KeyfallService = {
 	Name = "KeyfallService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local rng = Random.new()
 local arena: Types.Arena? = nil
 local capFolder: Folder? = nil
@@ -52,15 +53,6 @@ local lastKnock: { [Player]: number } = {}
 local nextDropAt = 0
 local nextSpacebarAt = 0
 local isGoldenActive = false
-
-local function getData(player: Player): PlayerData.Data?
-	return services.DataService:GetData(player) :: PlayerData.Data?
-end
-
-local function rootOfCharacter(character: Model?): BasePart?
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	return if root and root:IsA("BasePart") then root else nil
-end
 
 local function goldenIndex(): number
 	local key = Keys.Resolve(goldenId)
@@ -128,7 +120,7 @@ local function refreshCarry(carry: Types.Carry)
 	for _, part in carry.Visuals do
 		part:Destroy()
 	end
-	local root = rootOfCharacter(carry.Character)
+	local root = Character.RootOfModel(carry.Character)
 	carry.Visuals = if root then Visual.Stack(carry.Character, root, carry.Keys, goldenId) else {}
 end
 
@@ -160,7 +152,7 @@ local function dropCarry(player: Player, character: Model)
 	if not carry then
 		return
 	end
-	local root = rootOfCharacter(character)
+	local root = Character.RootOfModel(character)
 	local position = if root then root.CFrame.Position else nil
 	endCarry(player)
 	for index, keyId in carry.Keys do
@@ -187,7 +179,7 @@ local function hookCharacter(player: Player, character: Model)
 	local trove = Trove.new()
 	hooks[player] = { Character = character, Trove = trove }
 	isDead[player] = nil
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoid = Character.HumanoidOf(character)
 	if humanoid then
 		trove:Connect(humanoid.Died, function()
 			isDead[player] = true
@@ -204,7 +196,7 @@ local function deliver(player: Player, carry: Types.Carry)
 	local remaining: { string } = {}
 	for _, keyId in carry.Keys do
 		if services.KeyboardService:AddKey(player, keyId) then
-			local data = getData(player)
+			local data = services.DataService:GetData(player)
 			if data then
 				services.DataService:Set(player, { "Discovered", keyId }, (data.Discovered[keyId] or 0) + 1)
 			end
@@ -269,8 +261,8 @@ end
 
 local function updatePlayer(player: Player, now: number)
 	local character = player.Character
-	local root = rootOfCharacter(character)
-	if not character or not root or not getData(player) then
+	local root = Character.RootOfModel(character)
+	if not character or not root or not services.DataService:GetData(player) then
 		return
 	end
 	hookCharacter(player, character)
@@ -375,8 +367,8 @@ local function knock(player: Player, targetUserId: number): boolean
 	end
 	local target = Players:GetPlayerByUserId(targetUserId)
 	local carry = if target then carries[target] else nil
-	local ownRoot = rootOfCharacter(player.Character)
-	local targetRoot = if target then rootOfCharacter(target.Character) else nil
+	local ownRoot = Character.RootOfModel(player.Character)
+	local targetRoot = if target then Character.RootOfModel(target.Character) else nil
 	if not target or not ownRoot or not targetRoot then
 		return false
 	end
@@ -430,7 +422,7 @@ function KeyfallService.IsCarrying(_self: State, player: Player): boolean
 end
 
 function KeyfallService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

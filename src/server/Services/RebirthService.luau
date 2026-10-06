@@ -6,9 +6,10 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 local RebirthService = { Name = "RebirthService" }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 
 local function clearBoard(player: Player, data: PlayerData.Data)
 	local inventory: { [string]: number } = {}
@@ -31,7 +32,7 @@ local function clearBoard(player: Player, data: PlayerData.Data)
 end
 
 local function rebirth(player: Player, force: boolean): boolean
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica then
 		return false
@@ -53,7 +54,7 @@ local function rebirth(player: Player, force: boolean): boolean
 end
 
 function RebirthService.Init(_self: any, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function RebirthService.Force(_self: any, player: Player): boolean

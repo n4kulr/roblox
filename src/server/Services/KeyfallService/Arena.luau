@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
 
 local keyfall = GameConfig.Keyfall
@@ -15,15 +16,15 @@ local sideways = CFrame.Angles(0, 0, math.pi / 2)
 local Arena = {}
 
 local function disc(name: string, center: Vector3, topY: number, radius: number, color: Color3): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Shape = Enum.PartType.Cylinder
-	part.Size = Vector3.new(floorThickness, radius * 2, radius * 2)
-	part.CFrame = CFrame.new(center.X, topY - floorThickness / 2, center.Z) * sideways
-	part.Anchored = true
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	return part
+	return Parts.New({
+		Name = name,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(floorThickness, radius * 2, radius * 2),
+		CFrame = CFrame.new(center.X, topY - floorThickness / 2, center.Z) * sideways,
+		Anchored = true,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+	})
 end
 
 local function build(): Types.Arena

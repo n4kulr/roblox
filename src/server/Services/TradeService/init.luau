@@ -6,7 +6,7 @@ local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local Trade = require(ReplicatedStorage.Rules.Trade)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
 local Execution = require(script.Execution)
 local Types = require(script.Types)
 
@@ -26,14 +26,10 @@ local TradeService = {
 	Name = "TradeService",
 	_trove = nil :: TroveInstance?,
 }
-local context: Types.Context = { Services = {} }
+local context: Types.Context = { Services = nil :: any }
 local sessions: { [Player]: Types.Session } = {}
 local requests: { [Player]: Types.Request } = {}
 local isRunning = false
-
-local function getData(player: Player): PlayerData.Data?
-	return context.Services.DataService:GetData(player) :: PlayerData.Data?
-end
 
 local function isBusy(player: Player): boolean
 	local character = player.Character
@@ -45,17 +41,11 @@ local function isBusy(player: Player): boolean
 	return carried ~= nil or (type(keyfall) == "number" and keyfall > 0)
 end
 
-local function rootOf(player: Player): BasePart?
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	return if root and root:IsA("BasePart") then root else nil
-end
-
 local function isInRange(first: Player, second: Player): boolean
 	if config.MaxRange <= 0 then
 		return true
 	end
-	local firstRoot, secondRoot = rootOf(first), rootOf(second)
+	local firstRoot, secondRoot = Character.RootOf(first), Character.RootOf(second)
 	if not firstRoot or not secondRoot then
 		return false
 	end
@@ -183,7 +173,7 @@ local function startCountdown(session: Types.Session)
 end
 
 local function canTrade(player: Player): boolean
-	return getData(player) ~= nil
+	return context.Services.DataService:GetData(player) ~= nil
 		and sessions[player] == nil
 		and requests[player] == nil
 		and not isBusy(player)
@@ -207,7 +197,7 @@ local function onRequest(sender: Player, userId: number): boolean
 		return false
 	end
 	if
-		getData(target) == nil
+		context.Services.DataService:GetData(target) == nil
 		or sessions[target] ~= nil
 		or isBusy(target)
 		or not isInRange(sender, target)
@@ -264,8 +254,8 @@ local function onRespond(responder: Player, userId: number, isAccepted: boolean)
 	end
 	requests[responder] = nil
 	if
-		getData(sender) == nil
-		or getData(responder) == nil
+		context.Services.DataService:GetData(sender) == nil
+		or context.Services.DataService:GetData(responder) == nil
 		or sessions[sender] ~= nil
 		or sessions[responder] ~= nil
 		or isBusy(sender)
@@ -299,7 +289,7 @@ end
 
 local function onOffer(player: Player, keyId: string, count: number)
 	local session = sessions[player]
-	local data = getData(player)
+	local data = context.Services.DataService:GetData(player)
 	if not session or not data then
 		return
 	end
@@ -388,7 +378,7 @@ local function watch()
 end
 
 function TradeService.Init(self: State, registry: { [string]: any })
-	context.Services = registry
+	context.Services = registry :: any
 	self._trove = Trove.new()
 end
 

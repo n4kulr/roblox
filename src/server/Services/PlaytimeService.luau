@@ -1,31 +1,57 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Rewards = require(script.Parent.Parent.Utils.Rewards)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type Session = { Start: number, Mask: number }
 type Tier = { Seconds: number, Kind: string, Amount: number, Min: number, Rarity: string }
 
-local PlaytimeService = { Name = "PlaytimeService" }
-local services: { [string]: any } = {}
+local PlaytimeService = { Name = "PlaytimeService", SaveSeconds = 30 }
+local services: ServerTypes.Registry = nil :: any
 local sessions: { [Player]: Session } = {}
+local playClock: { [Player]: number } = {}
+local saveThread: thread? = nil
 
 local function publish(player: Player, session: Session)
 	player:SetAttribute("PlaytimeStart", session.Start)
 	player:SetAttribute("PlaytimeClaimed", session.Mask)
 end
 
+local function takeSeconds(player: Player): number
+	local started = playClock[player]
+	if not started then
+		playClock[player] = os.clock()
+		return 0
+	end
+	local whole = math.max(0, math.floor(os.clock() - started))
+	playClock[player] = started + whole
+	return whole
+end
+
+local function savePlaySeconds(player: Player)
+	local data = services.DataService:GetData(player)
+	local whole = takeSeconds(player)
+	if data and whole > 0 then
+		services.DataService:Set(player, { "PlaySeconds" }, data.PlaySeconds + whole)
+	end
+end
+
 local function begin(player: Player, _data: PlayerData.Data)
 	local session = { Start = os.time(), Mask = 0 }
 	sessions[player] = session
+	playClock[player] = os.clock()
 	publish(player, session)
 end
 
-local function finish(player: Player, _data: PlayerData.Data)
+local function finish(player: Player, data: PlayerData.Data)
 	sessions[player] = nil
+	data.PlaySeconds += takeSeconds(player)
+	playClock[player] = nil
 end
 
 local function grant(player: Player, tier: Tier): boolean
@@ -65,17 +91,40 @@ local function claim(player: Player, index: number): boolean
 end
 
 function PlaytimeService.Init(_self: any, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function PlaytimeService.Start(_self: any)
 	services.DataService.PlayerLoaded:Connect(begin)
 	services.DataService.PlayerReleasing:Connect(finish)
 	Packets.ClaimPlaytime.OnServerInvoke = claim
+	for _, player in Players:GetPlayers() do
+		if services.DataService:GetData(player) then
+			playClock[player] = os.clock()
+		end
+	end
+	saveThread = task.spawn(function()
+		while true do
+			task.wait(PlaytimeService.SaveSeconds)
+			for _, player in Players:GetPlayers() do
+				savePlaySeconds(player)
+			end
+		end
+	end)
+end
+
+function PlaytimeService.GetPendingSeconds(_self: any, player: Player): number
+	local started = playClock[player]
+	return if started then math.max(0, math.floor(os.clock() - started)) else 0
 end
 
 function PlaytimeService.Destroy(_self: any)
 	Packets.ClaimPlaytime.OnServerInvoke = nil
+	if saveThread then
+		task.cancel(saveThread)
+		saveThread = nil
+	end
+	table.clear(playClock)
 end
 
 return PlaytimeService

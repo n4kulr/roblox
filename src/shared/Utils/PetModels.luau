@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
+local Parts = require(script.Parent.Parts)
 
 export type Style = {
 	Ears: string,
@@ -104,22 +105,19 @@ function PetModels.StyleOf(charm: CharmConfig.Charm): Style
 end
 
 local function newPart(model: Model, name: string, shape: Enum.PartType, size: Vector3, color: Color3): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Shape = shape
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.Massless = true
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = model
-	return part
+	return Parts.New({
+		Name = name,
+		Parent = model,
+		Shape = shape,
+		Anchored = true,
+		Passive = true,
+		CastShadow = false,
+		Massless = true,
+		Size = size,
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Smooth = true,
+	})
 end
 
 function PetModels.Build(charm: CharmConfig.Charm): (Model, number)

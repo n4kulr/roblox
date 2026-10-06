@@ -7,9 +7,10 @@ local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
+local Roll = require(ReplicatedStorage.Rules.Roll)
 local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
-local Roll = require(script.Roll)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
+local Character = require(script.Parent.Parent.Utils.Character)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -21,7 +22,7 @@ local RollService = {
 	Name = "RollService",
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local rng = Random.new()
 local bucketCapacity = 3
 local noPasses: { [string]: boolean } = table.freeze({})
@@ -45,16 +46,15 @@ end
 
 local function isInOwnBase(player: Player): boolean
 	local base = services.PlotService:GetBase(player) :: BasePart?
-	local character = player.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if not base or not root or not root:IsA("BasePart") then
+	local root = Character.RootOf(player)
+	if not base or not root then
 		return false
 	end
 	return BaseBounds.Contains(base.CFrame, base.Size, root.CFrame.Position, GameConfig.RollInBaseMargin)
 end
 
 local function handleRoll(player: Player): (number, boolean)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
 		return 0, false
@@ -107,7 +107,7 @@ local function handleRoll(player: Player): (number, boolean)
 end
 
 function RollService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

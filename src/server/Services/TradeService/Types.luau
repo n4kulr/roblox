@@ -1,5 +1,7 @@
 --!strict
 
+local ServerTypes = require(script.Parent.Parent.Parent.Types)
+
 export type Offer = { [string]: number }
 
 export type Session = {
@@ -17,7 +19,7 @@ export type Request = {
 }
 
 export type Context = {
-	Services: { [string]: any },
+	Services: ServerTypes.Registry,
 }
 
 return {}

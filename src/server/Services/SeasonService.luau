@@ -6,9 +6,10 @@ local Packets = require(ReplicatedStorage.Packets)
 local Season = require(ReplicatedStorage.Rules.Season)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Rewards = require(script.Parent.Parent.Utils.Rewards)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 local SeasonService = { Name = "SeasonService" }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 
 local function ensureCurrent(player: Player, data: PlayerData.Data)
 	if data.Season.Id == GameConfig.Season.Id then
@@ -27,7 +28,7 @@ local function claim(player: Player, level: number, premium: boolean): boolean
 	if type(level) ~= "number" or type(premium) ~= "boolean" then
 		return false
 	end
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
 	if not data or not replica then
 		return false
@@ -46,7 +47,7 @@ local function claim(player: Player, level: number, premium: boolean): boolean
 end
 
 function SeasonService.Init(_self: any, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function SeasonService.Start(_self: any)
@@ -55,7 +56,7 @@ function SeasonService.Start(_self: any)
 end
 
 function SeasonService.AddRoll(_self: any, player: Player, isGolden: boolean)
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	if not data or data.Season.Id ~= GameConfig.Season.Id then
 		return
 	end

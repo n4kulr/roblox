@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
 type State = {
@@ -19,7 +20,7 @@ local PassService = {
 	Resolved = Signal.new() :: Signal.Signal<Player>,
 	_trove = nil :: TroveInstance?,
 }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 local retryDelaySeconds = 2
 local attributePrefix = "Pass_"
 local passIdByAttribute: { [string]: string } = {}
@@ -124,7 +125,7 @@ local function resolve(player: Player)
 end
 
 function PassService.Init(self: State, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 	self._trove = Trove.new()
 end
 

@@ -3,11 +3,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Packets = require(ReplicatedStorage.Packets)
 local Codes = require(script.Parent.Parent.Config.Codes)
-local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Rewards = require(script.Parent.Parent.Utils.Rewards)
+local ServerTypes = require(script.Parent.Parent.Types)
 
 local CodeService = { Name = "CodeService" }
-local services: { [string]: any } = {}
+local services: ServerTypes.Registry = nil :: any
 
 local maxLength = 32
 local resultSuccess = 1
@@ -32,7 +32,7 @@ local function redeem(player: Player, text: string): number
 		return resultInvalid
 	end
 	local entry = Codes.ByCode[code]
-	local data = services.DataService:GetData(player) :: PlayerData.Data?
+	local data = services.DataService:GetData(player)
 	if not entry or not data then
 		return resultInvalid
 	end
@@ -51,7 +51,7 @@ local function redeem(player: Player, text: string): number
 end
 
 function CodeService.Init(_self: any, registry: { [string]: any })
-	services = registry
+	services = registry :: any
 end
 
 function CodeService.Start(_self: any)

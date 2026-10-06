@@ -1,5 +1,8 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Gui = require(ReplicatedStorage.Utils.Gui)
+
 local Legend = {
 	Transparency = 0.1,
 	Darken = 0.5,
@@ -62,28 +65,23 @@ end
 
 function Legend.Attach(cap: BasePart, seed: number, color: Color3): SurfaceGui
 	local text = Legend.Text(seed)
-	local surface = Instance.new("SurfaceGui")
-	surface.Name = "Legend"
-	surface.Face = Enum.NormalId.Top
-	surface.Adornee = cap
-	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	surface.PixelsPerStud = Legend.PixelsPerStud
-	surface.LightInfluence = 1
-	surface.AlwaysOnTop = false
-	surface.MaxDistance = Legend.MaxDistance
-	local label = Instance.new("TextLabel")
-	label.Name = "Glyph"
-	label.BackgroundTransparency = 1
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.Size = UDim2.fromScale(0.5, 0.5)
-	label.Font = Enum.Font.FredokaOne
-	label.Text = text
-	label.TextColor3 = color
-	label.TextTransparency = Legend.Transparency
-	label.TextScaled = true
-	label.Parent = surface
-	surface.Parent = cap
+	local surface = Gui.Surface(cap, {
+		Name = "Legend",
+		Face = Enum.NormalId.Top,
+		Adornee = cap,
+		PixelsPerStud = Legend.PixelsPerStud,
+		LightInfluence = 1,
+		AlwaysOnTop = false,
+		MaxDistance = Legend.MaxDistance,
+	})
+	Gui.Label(surface, {
+		Name = "Glyph",
+		Text = text,
+		Centered = true,
+		Size = UDim2.fromScale(0.5, 0.5),
+		Color = color,
+		Transparency = Legend.Transparency,
+	})
 	return surface
 end
 

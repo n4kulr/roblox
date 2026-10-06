@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local Character = require(script.Parent.Character)
 
 local config = GameConfig.Steal
 
@@ -22,7 +23,7 @@ function WalkSpeed.Resolve(character: Model): number
 end
 
 function WalkSpeed.Refresh(character: Model)
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoid = Character.HumanoidOf(character)
 	if humanoid then
 		humanoid.WalkSpeed = WalkSpeed.Resolve(character)
 	end
