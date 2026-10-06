@@ -150,7 +150,7 @@ function onTriggered(state: Types.SpawnState, player: Player)
 		return
 	end
 	local keyId = takePickup(state)
-	local key = if keyId then Keys.ById[keyId] else nil
+	local key = if keyId then Keys.Resolve(keyId) else nil
 	if keyId and key then
 		startCarry(player, character, root, humanoid, keyId)
 		toast(player, `You grabbed {key.Name}! Run home to keep it!`, goodPhase)
@@ -168,7 +168,7 @@ local function tryDeliver(player: Player, root: BasePart)
 	end
 	endCarry(player)
 	local data = services.DataService:GetData(player) :: PlayerData.Data?
-	local key = Keys.ById[carrier.KeyId]
+	local key = Keys.Resolve(carrier.KeyId)
 	if not data or not key or not services.KeyboardService:AddKey(player, carrier.KeyId) then
 		return
 	end

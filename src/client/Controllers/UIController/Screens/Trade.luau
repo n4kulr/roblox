@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Trade = require(ReplicatedStorage.Rules.Trade)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -193,20 +194,21 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	local function ensurePicker(key: Keys.Key): Picker
-		local existing = pickers[key.Id]
+	local function ensurePicker(keyId: string, key: Keys.Key): Picker
+		local existing = pickers[keyId]
 		if existing then
 			return existing
 		end
 		local wrapper = Instance.new("Frame")
-		wrapper.Name = key.Id
+		wrapper.Name = keyId
 		wrapper.BackgroundTransparency = 1
 		wrapper.BorderSizePixel = 0
-		wrapper.LayoutOrder = -key.Index
+		wrapper.LayoutOrder = -(select(2, KeyTiers.Parse(keyId)) * 1000 + key.Index)
 		wrapper.Parent = pickerGrid
 		local cell = Cells.New(trove, {
 			Parent = wrapper,
 			Key = key,
+			KeyId = keyId,
 			HasChips = true,
 			Sound = playUi,
 		})
@@ -219,7 +221,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Red,
 			TextSize = 24,
 			Callback = function()
-				adjust(key.Id, -1)
+				adjust(keyId, -1)
 			end,
 			Sound = playUi,
 		})
@@ -232,25 +234,30 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Green,
 			TextSize = 24,
 			Callback = function()
-				adjust(key.Id, 1)
+				adjust(keyId, 1)
 			end,
 			Sound = playUi,
 		})
 		local picker: Picker = { Wrapper = wrapper, Cell = cell }
-		pickers[key.Id] = picker
+		pickers[keyId] = picker
 		return picker
 	end
 
 	local function refreshPicker()
-		for _, key in Keys.Catalog do
-			local owned = inventory[key.Id] or 0
-			local picker = pickers[key.Id]
-			if owned > 0 then
-				picker = ensurePicker(key)
+		for keyId, picker in pickers do
+			if (inventory[keyId] or 0) <= 0 then
+				picker.Wrapper.Visible = false
+			end
+		end
+		for keyId, owned in inventory do
+			local key = Keys.Resolve(keyId)
+			local picker = pickers[keyId]
+			if key and owned > 0 then
+				picker = ensurePicker(keyId, key)
 			end
 			if picker then
 				picker.Wrapper.Visible = owned > 0
-				local offered = mine[key.Id] or 0
+				local offered = mine[keyId] or 0
 				picker.Cell.SetFound(true, if offered > 0 then `Offering {offered}` else "", theme.Gold)
 				local count = picker.Cell.Count
 				if count then
@@ -267,11 +274,12 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			end
 		end
 		for index, entry in entries do
-			local key = Keys.ById[entry.KeyId]
+			local key = Keys.Resolve(entry.KeyId)
 			if key then
 				local cell = Cells.New(offerTrove, {
 					Parent = grid,
 					Key = key,
+					KeyId = entry.KeyId,
 					LayoutOrder = index,
 					HasChips = true,
 				})

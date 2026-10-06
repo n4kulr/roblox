@@ -90,7 +90,7 @@ local function boardKey(data: PlayerData.Data, slot: number): string
 		return ""
 	end
 	local keyId = data.Board[slot]
-	return if type(keyId) == "string" and Keys.ById[keyId] ~= nil then keyId else ""
+	return if type(keyId) == "string" and Keys.Resolve(keyId) ~= nil then keyId else ""
 end
 
 local function alert(player: Player, name: string, keyIndex: number, phase: number)
@@ -187,7 +187,7 @@ local function returnToVictim(thief: Player, carrier: Types.Carrier)
 		return
 	end
 	services.KeyboardService:RestoreKey(victim, carrier.Slot, carrier.KeyId)
-	local key = Keys.ById[carrier.KeyId]
+	local key = Keys.Resolve(carrier.KeyId)
 	alert(victim, thief.DisplayName, if key then key.Index else 0, 3)
 end
 
@@ -203,7 +203,7 @@ local function returnToDeparting(carrier: Types.Carrier, data: PlayerData.Data)
 	local current = data.Board[slot]
 	local isFree = slot >= 1
 		and slot <= Stats.Slots(data.Upgrades)
-		and (type(current) ~= "string" or Keys.ById[current] == nil)
+		and (type(current) ~= "string" or Keys.Resolve(current) == nil)
 	if isFree then
 		data.Board[slot] = carrier.KeyId
 		data.BoardTags[slot] = ""
@@ -224,7 +224,7 @@ end
 
 local function deliver(thief: Player, carrier: Types.Carrier)
 	endCarry(thief)
-	local key = Keys.ById[carrier.KeyId]
+	local key = Keys.Resolve(carrier.KeyId)
 	local keyIndex = if key then key.Index else 0
 	local added = services.KeyboardService:AddKey(thief, carrier.KeyId, "@" .. carrier.VictimName)
 	if not added then
@@ -247,7 +247,7 @@ local function startCarry(thief: Player, owner: Player, slot: number, keyId: str
 	if not character or not root then
 		return
 	end
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	local carryTrove = Trove.new()
 	local carrier: Types.Carrier = {
 		KeyId = keyId,
@@ -305,7 +305,7 @@ local function onHoldBegan(
 	local current = if data then boardKey(data, slot) else ""
 	record.Holding[thief] = current
 	local isAllowed = checkSteal(thief, owner, slot, cap, current)
-	local key = Keys.ById[current]
+	local key = Keys.Resolve(current)
 	if isAllowed and key then
 		if not locks[owner.UserId] then
 			locks[owner.UserId] = { Thief = thief, Slot = slot }
@@ -451,7 +451,7 @@ local function returnDrop(drop: Types.Drop, thiefName: string)
 		return
 	end
 	services.KeyboardService:RestoreKey(owner, drop.Slot, drop.KeyId)
-	local key = Keys.ById[drop.KeyId]
+	local key = Keys.Resolve(drop.KeyId)
 	alert(owner, thiefName, if key then key.Index else 0, 3)
 end
 

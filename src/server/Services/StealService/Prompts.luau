@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Steal = require(ReplicatedStorage.Rules.Steal)
+local Variants = require(ReplicatedStorage.Rules.Variants)
 
 local config = GameConfig.Steal
 
@@ -31,8 +32,8 @@ function Prompts.Create(parent: BasePart, ownerUserId: number, slot: number): Pr
 end
 
 function Prompts.Update(prompt: ProximityPrompt, keyId: string, lessonPending: boolean, isOpen: boolean)
-	local key = Keys.ById[keyId]
-	prompt.ObjectText = if key then key.Name else ""
+	local key = Keys.Resolve(keyId)
+	prompt.ObjectText = if key then Variants.Name(keyId) else ""
 	prompt.HoldDuration = Steal.HoldSeconds(Steal.RarityIndex(keyId), lessonPending)
 	prompt.Enabled = isOpen
 	prompt:SetAttribute(Prompts.OpenAttribute, isOpen)
@@ -62,11 +63,11 @@ function Prompts.CreateKnock(root: BasePart, victimUserId: number, range: number
 end
 
 function Prompts.CreateTakeBack(part: BasePart, ownerUserId: number, keyId: string): ProximityPrompt
-	local key = Keys.ById[keyId]
+	local key = Keys.Resolve(keyId)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = Prompts.TakeBackName
 	prompt.ActionText = "Take back"
-	prompt.ObjectText = if key then key.Name else ""
+	prompt.ObjectText = if key then Variants.Name(keyId) else ""
 	prompt.HoldDuration = Prompts.TakeBackHold
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.MaxActivationDistance = Prompts.TakeBackRange

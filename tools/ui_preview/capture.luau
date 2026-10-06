@@ -38,6 +38,10 @@ local spareIds = {
 	AmethystPop = 1,
 	SunburstKey = 1,
 	OfficeTap = 12,
+	["GlassTink@Gold"] = 2,
+	["LavaKey@Rainbow"] = 1,
+	["CrystalChime@Mythical"] = 1,
+	LavaKey = 5,
 }
 local leaderboardRows = {
 	{ Name = "KeebKing", Value = 98234100 },
@@ -350,6 +354,26 @@ local scenarios: { { Name: string, Screens: { string }, NoBase: boolean?, Run: (
 		Run = function(scene)
 			openModal(scene, "Keys")
 			local cell = find(scene, "GlassTink")
+			press(cell.Hit)
+			tick(scene, 0.4)
+		end,
+	},
+	{
+		Name = "keys_detail_variant",
+		Screens = { "Keys" },
+		Run = function(scene)
+			openModal(scene, "Keys")
+			local cell = find(scene, "LavaKey")
+			press(cell.Hit)
+			tick(scene, 0.4)
+		end,
+	},
+	{
+		Name = "keys_detail_mythical",
+		Screens = { "Keys" },
+		Run = function(scene)
+			openModal(scene, "Keys")
+			local cell = find(scene, "CrystalChime@Mythical")
 			press(cell.Hit)
 			tick(scene, 0.4)
 		end,

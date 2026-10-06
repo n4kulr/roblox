@@ -10,18 +10,15 @@ local KeyVisual = {}
 local carriedScale = 0.6
 
 function KeyVisual.NewCap(keyId: string, name: string, size: Vector3): BasePart?
-	local key = Keys.ById[keyId]
-	if not key then
+	if not Keys.Resolve(keyId) then
 		return nil
 	end
-	local rarity = Keys.GetRarity(key)
 	local template = MeshTemplates.Get("Keycap")
 	local part: BasePart = if template then template:Clone() else Instance.new("Part")
 	part.Name = name
 	part.Anchored = false
 	part.Size = size
-	part.Color = rarity.Color
-	Keys.ApplyFinish(part, rarity)
+	Keys.ApplyVariantFinish(part, keyId)
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
@@ -30,7 +27,7 @@ function KeyVisual.NewCap(keyId: string, name: string, size: Vector3): BasePart?
 end
 
 function KeyVisual.Attach(character: Model, root: BasePart, keyId: string, name: string): Model?
-	if not Keys.ById[keyId] then
+	if not Keys.Resolve(keyId) then
 		return nil
 	end
 	local model = KeyModels.BuildScaled(keyId, carriedScale)

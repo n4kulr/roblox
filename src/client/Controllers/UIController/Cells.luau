@@ -1,7 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Variants = require(ReplicatedStorage.Rules.Variants)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Kit = require(script.Parent.Kit)
 
@@ -10,6 +12,7 @@ type TroveInstance = typeof(Trove.new())
 export type CellProps = {
 	Parent: Instance,
 	Key: Keys.Key,
+	KeyId: string?,
 	LayoutOrder: number?,
 	HasChips: boolean?,
 	Callback: (() -> ())?,
@@ -91,13 +94,20 @@ end
 
 function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local key = props.Key
+	local keyId = props.KeyId or key.Id
+	local _, tier = KeyTiers.Parse(keyId)
+	local tierInfo = KeyTiers.Get(tier)
 	local rarity = Keys.GetRarity(key)
-	local isSecret = rarity.Name == "Secret"
+	local displayColor = if tier == 1
+		then rarity.Color:Lerp(tierInfo.Color, 0.65)
+		elseif tier == 3 then rarity.Color:Lerp(Color3.fromRGB(46, 20, 92), 0.7)
+		else rarity.Color
+	local isSecret = rarity.Name == "Secret" or tier == 2
 	local cell = Kit.Panel({
 		Parent = props.Parent,
-		Name = key.Id,
+		Name = keyId,
 		Size = Cells.Size,
-		Color = rarity.Color,
+		Color = displayColor,
 		LayoutOrder = props.LayoutOrder,
 		Shards = true,
 		Radius = Kit.Radius.L,
@@ -105,7 +115,13 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	cell.ClipsDescendants = true
 	local paintGradient = cell:FindFirstChild("Paint") :: UIGradient
 	paintGradient.Enabled = not isSecret
-	Kit.RarityPaint(trove, cell, rarity.Name, rarity.Color, Kit.Radius.L)
+	if tier == 0 then
+		Kit.RarityPaint(trove, cell, rarity.Name, rarity.Color, Kit.Radius.L)
+	elseif tier == 2 then
+		Kit.RarityPaint(trove, cell, "Secret", displayColor, Kit.Radius.L)
+	else
+		Kit.RarityPaint(trove, cell, if tier == 3 then "Mythic" else "Legendary", displayColor, Kit.Radius.L)
+	end
 	local rainbow = cell:FindFirstChild("Rainbow") :: UIGradient?
 	local shimmer = cell:FindFirstChild("Shimmer") :: GuiObject?
 	local isIncomeCard = props.HasChips == true
@@ -113,11 +129,11 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		Parent = cell,
 		Diameter = if isIncomeCard then 90 else 112,
 		Position = if isIncomeCard then UDim2.fromOffset(62, 34) else UDim2.fromOffset(62, 54),
-		Color = rarity.Color,
+		Color = displayColor,
 	})
 	local keycap = Kit.Keycap({
 		Parent = cell,
-		Color = rarity.Color,
+		Color = displayColor,
 		Glyph = Cells.Glyph(key),
 		Size = if isIncomeCard then UDim2.fromOffset(48, 48) else UDim2.fromOffset(62, 62),
 		Position = UDim2.new(0.5, 0, 0, if isIncomeCard then 10 else 22),
@@ -126,7 +142,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local nameLabel = Kit.Label({
 		Parent = cell,
 		Name = "Name",
-		Text = key.Name,
+		Text = Variants.Name(keyId),
 		Position = UDim2.fromOffset(4, if isIncomeCard then 104 else 92),
 		Size = UDim2.new(1, -8, 0, if isIncomeCard then 20 else 24),
 		TextSize = if isIncomeCard then 16 else 19,
@@ -176,6 +192,17 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		stolenChip = stolenFrame
 		stolenLabel = stolen
 	end
+	if isIncomeCard and tier > 0 then
+		Kit.Chip({
+			Parent = cell,
+			Name = "TierChip",
+			Text = tierInfo.Chip,
+			Size = UDim2.new(1, -8, 0, 18),
+			Position = UDim2.fromOffset(4, 128),
+			Color = if tier == 1 then Kit.Shade(tierInfo.Color, -0.25) else tierInfo.Color,
+			TextSize = 13,
+		})
+	end
 	local callback = props.Callback
 	if callback then
 		local pressScale = Instance.new("UIScale")
@@ -214,13 +241,13 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		StolenChip = stolenChip,
 		StolenLabel = stolenLabel,
 		SetFound = function(isFound: boolean, info: string, infoColor: Color3?)
-			keycap.SetColor(if isFound then rarity.Color else unknownColor)
+			keycap.SetColor(if isFound then displayColor else unknownColor)
 			if isFound then
 				keycap.SetGlyph(Cells.Glyph(key))
 			else
 				keycap.SetGlyph("?", theme.Gold)
 			end
-			Kit.Paint(cell, if isFound then rarity.Color else Kit.Shade(unknownColor, -0.1))
+			Kit.Paint(cell, if isFound then displayColor else Kit.Shade(unknownColor, -0.1))
 			paintGradient.Enabled = not (isSecret and isFound)
 			if rainbow then
 				rainbow.Enabled = isFound
@@ -228,7 +255,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			if shimmer then
 				shimmer.Visible = isFound
 			end
-			nameLabel.Text = if isFound then key.Name else "???"
+			nameLabel.Text = if isFound then Variants.Name(keyId) else "???"
 			infoLabel.Text = info
 			infoLabel.TextColor3 = infoColor or theme.Text
 		end,
