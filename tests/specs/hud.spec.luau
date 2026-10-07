@@ -205,50 +205,21 @@ describe("HUD", function()
 		expect(find(hudGui, "Index").LayoutOrder):toBe(3)
 	end)
 
-	describe("roll in base", function()
+	describe("roll button", function()
 		local function click(button: any)
 			button.MouseButton1Down:Fire()
 		end
 
-		local function bottomColor(button: any): any
-			return button.Face.Paint.Color.Keypoints[1].Value
-		end
-
-		local function tag()
-			return find(hudGui, "BaseTag")
-		end
-
-		it("shows no warning inside the base", function()
-			expect(tag().Visible):toBe(false)
+		it("rolls from the HUD button without a base check", function()
 			click(find(hudGui, "Roll"))
 			expect(rollRequests):toBe(1)
 			expect(#toasts):toBe(0)
-		end)
-
-		it("greys the ROLL button and shows GO TO YOUR BASE outside", function()
-			local Theme = world:require(`{screens}.Kit.Theme`)
-			rollController.InBaseChanged:Fire(false)
-			expect(tag().Visible):toBe(true)
-			expect(tag().Text.Text):toBe("GO TO YOUR BASE")
-			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Grey:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
-			rollController.InBaseChanged:Fire(true)
-			expect(tag().Visible):toBe(false)
-			expect(bottomColor(find(hudGui, "Roll"))):toBe(Theme.Colors.Gold:Lerp(roblox.Color3.new(1, 1, 1), 0.25))
-		end)
-
-		it("toasts and refuses a roll click outside the base", function()
 			inBase = false
 			rollController.InBaseChanged:Fire(false)
 			click(find(hudGui, "Roll"))
-			expect(rollRequests):toBe(0)
-			expect(#toasts):toBe(1)
-			expect(toasts[1]):toBe("Go to your base to roll!")
-		end)
-
-		it("pulses MY BASE when the click is refused", function()
-			inBase = false
-			click(find(hudGui, "Roll"))
-			expect(find(hudGui, "MyBase"):FindFirstChild("PulseScale") ~= nil):toBe(true)
+			expect(rollRequests):toBe(2)
+			expect(#toasts):toBe(0)
+			expect(find(hudGui, "BaseTag")):toBeNil()
 		end)
 	end)
 

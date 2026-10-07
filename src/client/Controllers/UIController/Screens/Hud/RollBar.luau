@@ -6,10 +6,9 @@ local Types = require(script.Parent.Types)
 
 local RollBar = {}
 
-function RollBar.Build(env: Types.Env, myBaseButton: Kit.Button): Frame
+function RollBar.Build(env: Types.Env, _myBaseButton: Kit.Button): Frame
 	local trove = env.Trove
 	local root = env.Root
-	local context = env.Context
 	local rollController = env.RollController
 	local theme = Kit.Theme
 	local margin = Layout.Margin
@@ -42,20 +41,6 @@ function RollBar.Build(env: Types.Env, myBaseButton: Kit.Button): Frame
 	fit()
 	trove:Connect(root:GetPropertyChangedSignal("AbsoluteSize"), fit)
 
-	local pulseSeconds = 1.8
-	local pulseToken = 0
-	local function pulseMyBase()
-		pulseToken += 1
-		local mine = pulseToken
-		myBaseButton.SetGlow(true)
-		Kit.Pulse(myBaseButton.Instance)
-		Kit.Later(trove, pulseSeconds, function()
-			if pulseToken == mine then
-				myBaseButton.SetGlow(false)
-			end
-		end)
-	end
-
 	local rollHolder = Instance.new("Frame")
 	rollHolder.Name = "RollHolder"
 	rollHolder.BackgroundTransparency = 1
@@ -67,7 +52,7 @@ function RollBar.Build(env: Types.Env, myBaseButton: Kit.Button): Frame
 	rollBreath.Parent = rollHolder
 	rollHolder.Parent = bottom
 	Kit.Breathe(trove, rollBreath, 0.035, 0.9)
-	local rollButton = Kit.Button(trove, {
+	Kit.Button(trove, {
 		Parent = rollHolder,
 		Name = "Roll",
 		Text = "ROLL!",
@@ -78,42 +63,9 @@ function RollBar.Build(env: Types.Env, myBaseButton: Kit.Button): Frame
 		Lip = 10,
 		Immediate = true,
 		Callback = function()
-			if not rollController:IsInBase() then
-				context.Toast("Go to your base to roll!", "Bad")
-				pulseMyBase()
-				return
-			end
 			rollController:RequestRoll()
 		end,
 	})
-	local baseTag = Kit.Panel({
-		Parent = rollHolder,
-		Name = "BaseTag",
-		Size = UDim2.fromOffset(150, 24),
-		Position = UDim2.new(0.5, 0, 0, -12),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Color = theme.Red,
-		StrokeThickness = Kit.StrokeSize.Thin,
-		Pill = true,
-	})
-	baseTag.ZIndex = Kit.ZIndex.BadgeText
-	baseTag.Visible = false
-	local baseTagText = Kit.Label({
-		Parent = baseTag,
-		Name = "Text",
-		Text = "GO TO YOUR BASE",
-		Size = UDim2.fromScale(1, 1),
-		TextSize = Kit.Text.Small,
-		Align = Enum.TextXAlignment.Center,
-		Scaled = true,
-	})
-	baseTagText.ZIndex = Kit.ZIndex.Float
-	local function showBaseState(isInBase: boolean)
-		rollButton.SetColor(if isInBase then theme.Gold else theme.Grey)
-		baseTag.Visible = not isInBase
-	end
-	showBaseState(rollController:IsInBase())
-	trove:Add(rollController.InBaseChanged:Connect(showBaseState))
 	local hint = Kit.Panel({
 		Parent = rollHolder,
 		Name = "KeyHint",

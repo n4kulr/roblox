@@ -205,6 +205,7 @@ local function lockOf(visual: Types.CapVisual): ImageLabel
 	local created = Instance.new("ImageLabel")
 	created.Name = "Lock"
 	created.BackgroundTransparency = 1
+	created.BorderSizePixel = 0
 	created.AnchorPoint = Vector2.new(0.5, 0.5)
 	created.Position = UDim2.fromScale(0.5, 0.5)
 	created.Size = UDim2.fromScale(0.5, 0.5)

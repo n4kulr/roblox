@@ -17,7 +17,6 @@ local slotMaxWidth = Config.SlotMaxWidth
 local slotShare = Config.SlotShare
 local bottomOffset = Config.BottomOffset
 local minWidth = Config.MinWidth
-local modelInset = Config.ModelInset
 local nameTextSize = Config.NameTextSize
 local chipTextSize = Config.ChipTextSize
 local glyphWidth = Config.GlyphWidth
@@ -66,7 +65,7 @@ function Layout.SizeCard(
 	incomeText: string
 )
 	local limit = Layout.MaxWidth(self)
-	local nameWidth = Layout.Estimate(nameText, nameTextSize) + 44 + modelInset
+	local nameWidth = Layout.Estimate(nameText, nameTextSize) + 40
 	local rarityWidth = Layout.Estimate(rarityText, chipTextSize) + chipPad
 	local incomeWidth = Layout.Estimate(incomeText, chipTextSize) + chipPad
 	local rowWidth = rarityWidth + incomeWidth + chipGap

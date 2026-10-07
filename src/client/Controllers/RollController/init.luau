@@ -114,16 +114,6 @@ local function goldenFeedback()
 	KeyVisual.Tint(visual, goldColor)
 end
 
-local function isInRange(): boolean
-	local part = visual.Key
-	local character = Players.LocalPlayer.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	if not part or not root or not root:IsA("BasePart") then
-		return false
-	end
-	return (root.Position - part.Position).Magnitude <= GameConfig.RollRange
-end
-
 local function reveal(index: number, isGolden: boolean)
 	local key = Keys.Catalog[index]
 	if not key then
@@ -168,7 +158,7 @@ end
 
 local function press(autoRelease: boolean): boolean
 	local now = os.clock()
-	if destroyed or not isInBase or now - lastPress < rollInterval then
+	if destroyed or now - lastPress < rollInterval then
 		return false
 	end
 	lastPress = now
@@ -223,7 +213,7 @@ local function onInput(input: InputObject, gameProcessed: boolean)
 			isHolding = true
 		end
 	elseif input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.ButtonR2 then
-		if isInRange() and press(false) then
+		if press(false) then
 			isHolding = true
 		end
 	end

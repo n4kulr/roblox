@@ -20,8 +20,8 @@ export type Style = {
 	Accent: Color3?,
 }
 
-local baseSize = 1.5
-local sizeStep = 0.25
+local baseSize = 4.25
+local sizeStep = 0.85
 local legHeight = 0.16
 local eyeColor = Color3.fromRGB(25, 25, 30)
 local darkColor = Color3.fromRGB(38, 32, 40)
@@ -88,6 +88,16 @@ local species: { [string]: Style } = {
 
 local fallback = style({})
 local meshTemplates: { [string]: MeshPart } = {}
+local meshDisplayScale: { [string]: number } = {
+	DiamondSpacebar = 1.55,
+	RainbowCoil = 1.45,
+	MegaLaser = 1.25,
+	MidasKey = 1.2,
+	PhantomPaw = 1.15,
+	LightningSwitch = 1.15,
+	GoldSpacebar = 1.1,
+	CloverCrown = 1.1,
+}
 
 local PetModels = {
 	MaxParts = 36,
@@ -167,11 +177,12 @@ local function buildMesh(charm: CharmConfig.Charm, meshId: string): (Model?, num
 		return nil, nil
 	end
 	local size = PetModels.SizeOf(charm.Rarity)
+	local displayScale = meshDisplayScale[charm.Id] or 1
 	local body = template:Clone()
 	body.Name = "Body"
 	local extent = math.max(body.Size.X, body.Size.Y, body.Size.Z)
 	if extent > 1e-3 then
-		body.Size = body.Size * (size / extent)
+		body.Size = body.Size * (size * displayScale / extent)
 	end
 	body.Color = charm.Color
 	body.Anchored = true

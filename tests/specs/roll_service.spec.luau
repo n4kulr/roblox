@@ -1,6 +1,5 @@
 local H = require("../harness/Harness")
 local S = require("../support")
-local roblox = require("@lune/roblox")
 
 local describe, it, expect, beforeEach = H.describe, H.it, H.expect, H.beforeEach
 
@@ -127,81 +126,23 @@ describe("RollService handler", function()
 		end)
 	end)
 
-	describe("roll in base", function()
+	describe("roll from anywhere", function()
 		local function placeAt(player: any, x: number, y: number, z: number)
 			world:moveCharacter(player, x, y, z)
 		end
 
-		it("accepts rolls anywhere over the base footprint", function()
+		it("accepts rolls over the base and far from it", function()
 			local player = world:joinAtBase()
-			for _, spot in { { 0, 3, 0 }, { 21, 3, 21 }, { -21, 3, -21 }, { 0, 30, 0 } } do
+			for _, spot in { { 0, 3, 0 }, { 21, 3, 21 }, { 200, 3, 0 }, { 0, 60, 0 }, { 500, 3, 0 } } do
 				world:advance(5)
 				placeAt(player, spot[1], spot[2], spot[3])
 				expect(roll(player) > 0):toBe(true)
 			end
 		end)
 
-		it("accepts exactly at the margin and rejects just past it", function()
-			local player = world:joinAtBase()
-			local edge = 22 + GameConfig.RollInBaseMargin
-			placeAt(player, edge, 3, 0)
-			expect(roll(player) > 0):toBe(true)
-			world:advance(5)
-			placeAt(player, edge + 0.1, 3, 0)
-			expect(roll(player)):toBe(0)
-			world:advance(5)
-			placeAt(player, 0, 3, -(edge + 0.1))
-			expect(roll(player)):toBe(0)
-			world:advance(5)
-			placeAt(player, 0, 3, -edge)
-			expect(roll(player) > 0):toBe(true)
-		end)
-
-		it("rejects far away, too high and below the base", function()
-			local player, data = world:joinAtBase()
-			for _, spot in { { 200, 3, 0 }, { 0, 60, 0 }, { 0, -40, 0 } } do
-				world:advance(5)
-				placeAt(player, spot[1], spot[2], spot[3])
-				expect(roll(player)):toBe(0)
-			end
-			expect(data.Rolls):toBe(0)
-		end)
-
-		it("does not spend tokens on rejected rolls", function()
-			local player = world:joinAtBase()
-			placeAt(player, 500, 3, 0)
-			for _ = 1, 20 do
-				roll(player)
-			end
-			placeAt(player, 0, 3, 0)
-			local accepted = 0
-			for _ = 1, 10 do
-				if roll(player) > 0 then
-					accepted += 1
-				end
-			end
-			expect(accepted):toBe(3)
-		end)
-
-		it("rejects players without a character", function()
+		it("accepts rolls without a character as long as the player has a plot", function()
 			local player = world:joinAtBase()
 			player.Character = nil
-			expect(roll(player)):toBe(0)
-		end)
-
-		it("follows a rotated base", function()
-			local player = world:joinAtBase()
-			local base = world.fakeRegistry.PlotService:GetBase(player)
-			base.CFrame = roblox.CFrame.new(100, 0, 0) * roblox.CFrame.Angles(0, math.pi / 2, 0)
-			base.Size = roblox.Vector3.new(44, 1, 20)
-			local margin = GameConfig.RollInBaseMargin
-			placeAt(player, 100, 3, 22 + margin - 0.5)
-			expect(roll(player) > 0):toBe(true)
-			world:advance(5)
-			placeAt(player, 100 + 10 + margin + 0.5, 3, 0)
-			expect(roll(player)):toBe(0)
-			world:advance(5)
-			placeAt(player, 100 + 10 + margin - 0.5, 3, 0)
 			expect(roll(player) > 0):toBe(true)
 		end)
 	end)

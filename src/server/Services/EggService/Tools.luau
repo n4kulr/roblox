@@ -21,7 +21,7 @@ local function build(egg: Eggs.Egg): Tool
 	tool.Name = Tools.NameOf(egg)
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	tool.ManualActivationOnly = true
+	tool.ManualActivationOnly = false
 	tool.ToolTip = ""
 	tool.Grip = CFrame.new(0, -0.3, 0)
 	tool:SetAttribute(Tools.EggAttribute, egg.Id)

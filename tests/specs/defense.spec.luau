@@ -867,13 +867,13 @@ describe("Base defense", function()
 		it("rejects steals and disables the prompts while locked", function()
 			local victim, victimData, thief, _, plot, cap = stealSetup()
 			local prompt = cap:FindFirstChild("StealPrompt")
-			expect(prompt.Enabled):toBe(true)
+			expect(prompt:GetAttribute("Open")):toBe(true)
 			triggerLock(plot, victim)
-			expect(prompt.Enabled):toBe(false)
+			expect(prompt:GetAttribute("Open")):toBe(false)
 			for _, other in registry.PlotService:GetCaps(victim) do
 				local stealPrompt = other:FindFirstChild("StealPrompt")
 				if stealPrompt then
-					expect(stealPrompt.Enabled):toBe(false)
+					expect(stealPrompt:GetAttribute("Open")):toBe(false)
 				end
 			end
 			attempt(cap, thief)
@@ -890,7 +890,7 @@ describe("Base defense", function()
 			world:advance(defense.LockBaseSeconds + 1)
 			expect(registry.PlotService:IsLocked(victim)):toBe(false)
 			local prompt = cap:FindFirstChild("StealPrompt")
-			expect(prompt.Enabled):toBe(true)
+			expect(prompt:GetAttribute("Open")):toBe(true)
 			local position = cap.CFrame.Position
 			world:moveCharacter(thief, position.X, 3, position.Z)
 			attempt(cap, thief)

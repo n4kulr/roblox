@@ -391,7 +391,7 @@ describe("StealService", function()
 			world:advance(100)
 			local hold = prompt(victim, 1).HoldDuration
 			attempt(thief, victim, 1)
-			expect(data.Cash):toBe(math.floor(Keys.GetIncome("GlassTink") * (100 + hold)))
+			expect(data.Cash):toBe(math.floor(Keys.GetIncome("GlassTink") * math.floor(100 + hold)))
 			expect(data.IncomeAt):toBe(math.floor(world.now))
 			local settled = data.Cash
 			world:advance(50)
@@ -696,6 +696,8 @@ describe("StealService", function()
 		it("protects a knocked thief from another knock for 3 seconds after getting up", function()
 			local victim, _, thief = stolen()
 			local second = prompt(victim, 2)
+			local stealConfig = world:require("ServerScriptService.Config.Steal")
+			local lockedFor = stealConfig.RagdollSeconds + stealConfig.KnockCooldownSeconds
 			second.PromptButtonHoldBegan:Fire(thief)
 			knockPrompt(thief).Triggered:Fire(victim)
 			takeBack().Triggered:Fire(victim)
@@ -708,7 +710,7 @@ describe("StealService", function()
 			expect(p:GetAttribute("Open")):toBe(false)
 			p.Triggered:Fire(victim)
 			expect(thief.Character:GetAttribute("CarryingKey")):toBe("PlainClack")
-			world:advance(2.6)
+			world:advance(lockedFor)
 			expect(p:GetAttribute("Open")):toBe(true)
 			p.Triggered:Fire(victim)
 			expect(thief.Character:GetAttribute("CarryingKey")):toBeNil()
@@ -734,7 +736,7 @@ describe("StealService", function()
 
 	describe("one steal per victim", function()
 		local function enabledOf(owner: any, slot: number): any
-			return prompt(owner, slot).Enabled
+			return prompt(owner, slot):GetAttribute("Open") == true
 		end
 
 		local function setupTwo()

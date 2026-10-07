@@ -9,8 +9,6 @@ local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Roll = require(ReplicatedStorage.Rules.Roll)
-local BaseBounds = require(ReplicatedStorage.Utils.BaseBounds)
-local Character = require(script.Parent.Parent.Utils.Character)
 local ServerTypes = require(script.Parent.Parent.Types)
 
 type TroveInstance = typeof(Trove.new())
@@ -45,19 +43,10 @@ local function takeToken(player: Player, rate: number): boolean
 	return true
 end
 
-local function isInOwnBase(player: Player): boolean
-	local base = services.PlotService:GetBase(player) :: BasePart?
-	local root = Character.RootOf(player)
-	if not base or not root then
-		return false
-	end
-	return BaseBounds.Contains(base.CFrame, base.Size, root.CFrame.Position, GameConfig.RollInBaseMargin)
-end
-
 local function handleRoll(player: Player): (number, boolean)
 	local data = services.DataService:GetData(player)
 	local replica = services.DataService:GetReplica(player)
-	if not data or not replica or not services.PlotService:GetPlot(player) or not isInOwnBase(player) then
+	if not data or not replica or not services.PlotService:GetPlot(player) then
 		return 0, false
 	end
 	local passService = services.PassService

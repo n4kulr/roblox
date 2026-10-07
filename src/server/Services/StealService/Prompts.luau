@@ -27,8 +27,10 @@ function Prompts.Create(parent: BasePart, ownerUserId: number, slot: number): Pr
 	prompt.ActionText = "Steal!"
 	prompt.MaxActivationDistance = config.PromptRange
 	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
 	prompt:SetAttribute(WorldNames.Attributes.OwnerUserId, ownerUserId)
 	prompt:SetAttribute(WorldNames.Attributes.Slot, slot)
+	prompt:SetAttribute(Prompts.OpenAttribute, false)
 	prompt.Parent = parent
 	return prompt
 end
@@ -39,7 +41,6 @@ function Prompts.Update(prompt: ProximityPrompt, keyId: string, lessonPending: b
 	local baseHold = Steal.HoldSeconds(Steal.RarityIndex(keyId), lessonPending)
 	prompt.HoldDuration = baseHold
 	prompt:SetAttribute(Prompts.BaseHoldAttribute, baseHold)
-	prompt.Enabled = isOpen
 	prompt:SetAttribute(Prompts.OpenAttribute, isOpen)
 	prompt:SetAttribute(WorldNames.Attributes.KeyId, keyId)
 	prompt:SetAttribute(WorldNames.Attributes.Income, Keys.GetIncome(keyId))

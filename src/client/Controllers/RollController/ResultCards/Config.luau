@@ -28,7 +28,7 @@ return table.freeze({
 	ConfettiCap = 30,
 	Gravity = 1100,
 	ModelSize = 88,
-	ModelInset = 64,
+	ModelInset = 0,
 	StaticYaw = 28,
 	SpinSpeed = 70,
 	BobHeight = 0.07,

@@ -1,12 +1,14 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local Steal = require(ReplicatedStorage.Rules.Steal)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local HoldAnim = require(script.HoldAnim)
 local PromptFocus = require(script.PromptFocus)
 local ChatNotice = require(script.Parent.Parent.Util.ChatNotice)
 local Ragdoll = require(script.Ragdoll)
@@ -154,6 +156,16 @@ function StealController.Start(self: State)
 	local trove = self._trove :: TroveInstance
 	trove:Add(Packets.StealAlert.OnClientEvent:Connect(onAlert))
 	trove:Add(Packets.StealFeed.OnClientEvent:Connect(onFeed))
+	trove:Connect(ProximityPromptService.PromptButtonHoldBegan, function(prompt: ProximityPrompt)
+		if prompt.Name == stealPromptName then
+			HoldAnim.Start()
+		end
+	end)
+	trove:Connect(ProximityPromptService.PromptButtonHoldEnded, function(prompt: ProximityPrompt)
+		if prompt.Name == stealPromptName then
+			HoldAnim.Stop()
+		end
+	end)
 	local watched: { [ProximityPrompt]: boolean } = {}
 	local function speedUp(instance: Instance)
 		if not instance:IsA("ProximityPrompt") or instance.Name ~= stealPromptName then
@@ -206,6 +218,7 @@ function StealController.Start(self: State)
 	trove:Add(characterTrove)
 	trove:Connect(localPlayer.CharacterAdded, function(character: Model)
 		characterTrove:Clean()
+		HoldAnim.Stop()
 		stopCarrying()
 		watchCharacter(character, characterTrove)
 		Ragdoll.Watch(character, characterTrove)
@@ -217,6 +230,7 @@ function StealController.Start(self: State)
 end
 
 function StealController.Destroy(self: State)
+	HoldAnim.Stop()
 	stopCarrying()
 	if self._trove then
 		self._trove:Destroy()

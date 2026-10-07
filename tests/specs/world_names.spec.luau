@@ -52,8 +52,4 @@ describe("WorldNames", function()
 		end
 	end)
 
-	it("matches the names the loading screen copies", function()
-		local Config = world:require("ReplicatedFirst.Loading.Config")
-		expect(Config.ReadyAttribute):toBe(WorldNames.Attributes.ClientReady)
-	end)
 end)

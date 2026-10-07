@@ -91,10 +91,11 @@ end
 function PromptFocus.Refresh(prompts: { ProximityPrompt }, context: Context)
 	local candidates: { ProximityPrompt } = {}
 	for _, prompt in prompts do
+		local ownerId = prompt:GetAttribute(Attributes.OwnerUserId)
 		if
 			prompt.Name == stealName
 			and isOpen(prompt)
-			and prompt:GetAttribute(Attributes.OwnerUserId) ~= context.UserId
+			and ownerId ~= context.UserId
 			and not context.IsCarrying
 		then
 			table.insert(candidates, prompt)
@@ -104,7 +105,9 @@ function PromptFocus.Refresh(prompts: { ProximityPrompt }, context: Context)
 	for _, prompt in prompts do
 		local shouldShow = false
 		if prompt.Name == stealName then
-			shouldShow = table.find(candidates, prompt) ~= nil
+			local isOwn = prompt:GetAttribute(Attributes.OwnerUserId) == context.UserId
+			shouldShow = not isOwn
+				and table.find(candidates, prompt) ~= nil
 				and (
 					prompt == best
 					or PromptFocus.DistanceTo(prompt, context.Origin) > prompt.MaxActivationDistance
