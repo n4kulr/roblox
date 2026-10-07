@@ -194,3 +194,37 @@ Place models in ReplicatedStorage.Assets and they are used automatically, fallin
 - **Guide:** `EggController/Guide.luau` (beam to a base target, bouncing part-built arrow, off-screen edge arrow via `Utils/EdgeIndicator`, placement hint inside the base). Tunables live in `Config/Eggs.Guide`. Created while `HeldEgg` is set, destroyed when it clears.
 - **Market buttons:** price, `PLACE YOUR EGG FIRST`, `BASE FULL`. The egg bag label and `Eggs.BagCap` are gone.
 - **Migration:** `PlayerData.EggInventory` is now a legacy queue only. On load, if `HeldEgg` is empty one queued egg moves into it (catalog order), and each placement promotes the next queued egg. Nothing is lost or created. `/giveegg` uses `EggService:GrantEgg` (first egg held, the rest queued).
+
+## Architecture (after the 2026-10-07 cleanup)
+
+Where things live and the rules every change follows:
+
+- **Constants**
+  - World names (attributes, tags, folders, parts, prompts): `src/shared/Config/WorldNames.luau`. Never type a raw attribute string; `world_names_usage.spec` fails on one.
+  - Tunables: frozen tables in `src/shared/Config/*`. Server-only tunables go in `src/server/Config/*` (Admin, Steal). Module-local tunables are camelCase constants at the top of the file.
+  - UI tokens in `UIController/Kit/Theme.luau`: Colors, Space, Radius, Stroke, Text, Motion (TweenInfos), Layer/ZIndex, Transparency. Screens use tokens, not literals.
+  - Packet enums: `Rules/Steal.AlertPhase`, `Rules/Trade.Phase`, `Rules/Keyfall.Events`, pinned by `packet_enums.spec`.
+- **Pure logic** lives in `src/shared/Rules/*` (Board, Roll, Income, Steal, Variants, Charms...), with no service dependencies and unit tests.
+- **Server**
+  - Services are folders: `init` plus focused submodules sharing a `Context`, e.g. StealService (Carry, Knock, PromptSync, Locks), PlotService (Assignment, Defense, Build, Present, Respawn), KeyboardService (Income, Inventory, StatsCache), AdminService (Access, Commands/*).
+  - Typed registry in `src/server/Types.luau`.
+  - MeshService loads first; PlaytimeService owns play seconds.
+  - Hot paths are cached (StatsCache) and invalidated through `KeyboardService:NotifyBoardChanged`.
+- **Client**
+  - PlotController is the only way to find your own plot, base or roll key.
+  - RollController/CameraShake is the only owner of `Humanoid.CameraOffset`.
+  - Big controllers are folders: KeyPressController, Cinematic, ResultCards, EggController (Placement, Ghost, HeldTool, Hatching, Wobble, Guide).
+- **UI**
+  - `Kit/init` is the single surface over per-component modules.
+  - Helpers:
+    - `Kit.Poll`: replaces Heartbeat loops.
+    - `Kit.Request`/`Kit.Spawn`: busy-guarded packet calls.
+    - `Kit.Later`: trove-owned delays.
+    - `Kit.Confirm`, `Kit.PriceButton`, `Kit.CountUp`, `Kit.Flash`.
+  - UIController owns one shared Economy tracker and one PetState, passed in the screen context.
+  - `PlayerState` is the seam for player-attribute and plot reads.
+  - Big screens are folders: Hud, Keys, Market, Upgrades, Cheats.
+- **Shared helpers**, one module each: `Utils/Parts`, `Gui`, `KeyLegend`, `EdgeIndicator`, `AssetOverride`; server-only `server/Utils/Character`, `FloorKeys`, `Legend`.
+- **Tests**: shared fakes live in `tests/harness/Fakes.luau` (`H.press`, `H.installTweens`, `H.fakeDataController`, `H.fakeSound`).
+- **Untouched by design**: everything obby (owner will rework it), and the group chest leftovers (`Packets.ClaimGroupChest`, `PlayerData.GroupChestAt`).
+- **Dev panel**: the HUD button next to Settings, shown only when the server sets `IsDeveloper`. Live admins come from `server/Config/Admin`: the UserIds allowlist, then the creator, then group rank.
