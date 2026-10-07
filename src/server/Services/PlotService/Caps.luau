@@ -8,6 +8,7 @@ local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Gui = require(ReplicatedStorage.Utils.Gui)
 local KeyLegend = require(ReplicatedStorage.Utils.KeyLegend)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
+local MeshParts = require(ReplicatedStorage.Utils.MeshParts)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local FloorKeys = require(script.Parent.Parent.Parent.Utils.FloorKeys)
 local Legend = require(script.Parent.Parent.Parent.Utils.Legend)
@@ -120,6 +121,7 @@ local function newVisual(cap: BasePart): Types.CapVisual
 		Letter = nil,
 		Lock = nil,
 		Decor = nil,
+		Skin = nil,
 	}
 end
 
@@ -138,6 +140,16 @@ local function clearDecor(visual: Types.CapVisual)
 		visual.Decor = nil
 		decor:Destroy()
 	end
+end
+
+local function clearSkin(cap: BasePart, visual: Types.CapVisual)
+	local skin = visual.Skin
+	if not skin then
+		return
+	end
+	visual.Skin = nil
+	skin:Destroy()
+	cap.Transparency = 0
 end
 
 local function amountOf(cap: BasePart, visual: Types.CapVisual): TextLabel
@@ -240,10 +252,35 @@ end
 
 local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, key: Keys.Key)
 	local rarity = Keys.GetRarity(key)
-	Keys.ApplyVariantFinish(cap, keyId)
-	cap.Transparency = 0
+	clearDecor(visual)
+	clearSkin(cap, visual)
 	cap:SetAttribute(WorldNames.Attributes.KeyId, keyId)
 	cap:SetAttribute(WorldNames.Attributes.Locked, nil)
+	local meshId = KeyModels.MeshIdOf(keyId)
+	local skin: BasePart? = nil
+	if meshId then
+		skin = MeshParts.Clone(meshId, "KeySkin")
+	end
+	if skin then
+		skin.Size = cap.Size
+		skin.CFrame = cap.CFrame
+		skin.Anchored = false
+		skin.Massless = true
+		Keys.ApplyVariantFinish(skin, keyId)
+		skin.Transparency = 0
+		local weld = Instance.new("WeldConstraint")
+		weld.Name = "KeySkinWeld"
+		weld.Part0 = cap
+		weld.Part1 = skin
+		weld.Parent = skin
+		skin.Parent = cap
+		visual.Skin = skin
+		cap.Transparency = 1
+	else
+		Keys.ApplyVariantFinish(cap, keyId)
+		cap.Transparency = 0
+		visual.Decor = KeyModels.Mount(cap, key.Id)
+	end
 	local amount = amountOf(cap, visual)
 	amount.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
 	amount.TextColor3 = rarity.Color:Lerp(white, textLighten)
@@ -258,12 +295,11 @@ local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, ke
 	local letter = letterOf(visual)
 	letter.Text = string.upper(string.sub(key.Name, 1, 1))
 	letter.Visible = true
-	clearDecor(visual)
-	visual.Decor = KeyModels.Mount(cap, key.Id)
 end
 
 local function showEmpty(cap: BasePart, visual: Types.CapVisual, base: Color3)
 	clearDecor(visual)
+	clearSkin(cap, visual)
 	paintCap(cap, Caps.EmptyColor(base), Caps.EmptyTransparency, false)
 	hideBillboard(visual)
 	visual.Surface.Enabled = true
@@ -277,6 +313,7 @@ end
 
 local function showLocked(cap: BasePart, visual: Types.CapVisual)
 	clearDecor(visual)
+	clearSkin(cap, visual)
 	paintCap(cap, Caps.LockedColor, Caps.LockedTransparency, true)
 	hideBillboard(visual)
 	visual.Surface.Enabled = true
@@ -293,6 +330,7 @@ local function showUnowned(info: Types.PlotInfo, cap: BasePart)
 	if visual then
 		info.Visuals[cap] = nil
 		clearDecor(visual)
+		clearSkin(cap, visual)
 		visual.Surface:Destroy()
 		if visual.Billboard then
 			visual.Billboard:Destroy()

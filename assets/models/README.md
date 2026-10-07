@@ -36,3 +36,13 @@ return table.freeze({
 ```
 
 An empty string keeps the plain parts for that mesh. At server start `AssetService:CreateMeshPartAsync` builds one template per id, and plots and the carried key visual clone it; if a mesh fails to load the game falls back to plain parts. Only placeholder plots are re-skinned; plots authored in `workspace.Plots` are left alone.
+
+## Roster meshes (pets / keys / eggs)
+
+| Assets | Config | Used by |
+| --- | --- | --- |
+| `roster/pets_sae/*.obj` | `Config/PetMeshes.luau` (charm id) | `Utils/PetModels` |
+| `roster/keys/*.obj` | `Config/KeyMeshes.luau` (key id) | `Utils/KeyModels`, board skins, carry visual |
+| `roster/eggs/*.obj` | `Config/EggMeshes.luau` (egg id) | `Utils/EggModel` |
+
+Empty string = old placeholder. After Bulk Import, paste each MeshId into the matching config table.

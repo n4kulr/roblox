@@ -1,7 +1,10 @@
 --!strict
 
+local AssetService = game:GetService("AssetService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
+local PetMeshes = require(ReplicatedStorage.Config.PetMeshes)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Parts = require(script.Parent.Parts)
 
 export type Style = {
@@ -84,6 +87,7 @@ local species: { [string]: Style } = {
 }
 
 local fallback = style({})
+local meshTemplates: { [string]: MeshPart } = {}
 
 local PetModels = {
 	MaxParts = 36,
@@ -120,7 +124,80 @@ local function newPart(model: Model, name: string, shape: Enum.PartType, size: V
 	})
 end
 
+local function meshIdOf(charmId: string): string?
+	local ids = PetMeshes :: { [string]: string }
+	local meshId = ids[charmId]
+	if type(meshId) == "string" and meshId ~= "" then
+		return meshId
+	end
+	return nil
+end
+
+local function templateOf(meshId: string): MeshPart?
+	local cached = meshTemplates[meshId]
+	if cached then
+		return cached
+	end
+	local ok, result = pcall(function()
+		return AssetService:CreateMeshPartAsync(Content.fromUri(meshId), {
+			CollisionFidelity = Enum.CollisionFidelity.Box,
+			RenderFidelity = Enum.RenderFidelity.Precise,
+		})
+	end)
+	if not ok then
+		warn(`[PetModels] mesh {meshId} failed to load, using placeholder: {result}`)
+		return nil
+	end
+	local template = result :: MeshPart
+	template.Name = "Body"
+	template.Anchored = true
+	template.CanCollide = false
+	template.CanQuery = false
+	template.CanTouch = false
+	template.Massless = true
+	template.CastShadow = false
+	template.Material = Enum.Material.SmoothPlastic
+	meshTemplates[meshId] = template
+	return template
+end
+
+local function buildMesh(charm: CharmConfig.Charm, meshId: string): (Model?, number?)
+	local template = templateOf(meshId)
+	if not template then
+		return nil, nil
+	end
+	local size = PetModels.SizeOf(charm.Rarity)
+	local body = template:Clone()
+	body.Name = "Body"
+	local height = body.Size.Y
+	if height > 1e-3 then
+		body.Size = body.Size * (size / height)
+	end
+	body.Color = charm.Color
+	body.Anchored = true
+	body.CanCollide = false
+	body.CanQuery = false
+	body.CanTouch = false
+	body.Massless = true
+	body.CastShadow = false
+	body.Material = Enum.Material.SmoothPlastic
+	body.CFrame = CFrame.new()
+	local model = Instance.new("Model")
+	model.Name = `Pet_{charm.Id}`
+	body.Parent = model
+	model.PrimaryPart = body
+	model:SetAttribute(WorldNames.Attributes.Lift, 0)
+	return model, size
+end
+
 function PetModels.Build(charm: CharmConfig.Charm): (Model, number)
+	local meshId = meshIdOf(charm.Id)
+	if meshId then
+		local meshModel, meshSize = buildMesh(charm, meshId)
+		if meshModel and meshSize then
+			return meshModel, meshSize
+		end
+	end
 	local s = PetModels.SizeOf(charm.Rarity)
 	local look = PetModels.StyleOf(charm)
 	local color = charm.Color

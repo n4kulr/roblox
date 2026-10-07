@@ -142,7 +142,8 @@ local function vignetteEdge(
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = rotation
 	gradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.55, 0.35),
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	gradient.Parent = frame
@@ -155,14 +156,23 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local playUi = Kit.UiSound(context.Controllers)
 	local random = Random.new(7)
 
-	local gui, root = Kit.ScreenGui("ThockHatch", Kit.Layer.Cinematic, context.PlayerGui, trove)
+	local gui, root = Kit.ScreenGui("ThockHatch", Kit.Layer.Cinematic, context.PlayerGui, trove, true)
 	gui.Enabled = false
 
+	local dim = Instance.new("Frame")
+	dim.Name = "Dim"
+	dim.BackgroundColor3 = ink
+	dim.BackgroundTransparency = 1
+	dim.BorderSizePixel = 0
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.ZIndex = 0
+	dim.Parent = root
+
 	local vignette: { Frame } = {
-		vignetteEdge(root, "VignetteTop", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.32), 90),
-		vignetteEdge(root, "VignetteBottom", UDim2.fromScale(0, 0.68), UDim2.fromScale(1, 0.32), 270),
-		vignetteEdge(root, "VignetteLeft", UDim2.fromScale(0, 0), UDim2.fromScale(0.26, 1), 0),
-		vignetteEdge(root, "VignetteRight", UDim2.fromScale(0.74, 0), UDim2.fromScale(0.26, 1), 180),
+		vignetteEdge(root, "VignetteTop", UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.38), 90),
+		vignetteEdge(root, "VignetteBottom", UDim2.fromScale(0, 0.62), UDim2.fromScale(1, 0.38), 270),
+		vignetteEdge(root, "VignetteLeft", UDim2.fromScale(0, 0), UDim2.fromScale(0.34, 1), 0),
+		vignetteEdge(root, "VignetteRight", UDim2.fromScale(0.66, 0), UDim2.fromScale(0.34, 1), 180),
 	}
 
 	local shaker = Instance.new("Frame")
@@ -423,8 +433,9 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		local exitAlpha = if exiting then inQuad(exiting / HatchPlan.ExitSeconds) else 0
 
 		local vignetteAlpha = outQuad(time / 0.4) * (1 - exitAlpha)
+		dim.BackgroundTransparency = 1 - vignetteAlpha * 0.62
 		for _, edge in vignette do
-			edge.BackgroundTransparency = 1 - vignetteAlpha
+			edge.BackgroundTransparency = 1 - vignetteAlpha * 0.85
 		end
 
 		local shake = 0
@@ -622,6 +633,10 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		exitElapsed = nil
 		clearModels()
 		flash.BackgroundTransparency = 1
+		dim.BackgroundTransparency = 1
+		for _, edge in vignette do
+			edge.BackgroundTransparency = 1
+		end
 		local following = table.remove(queue, 1)
 		if following then
 			start(following.Egg, following.Charm, following.Active)

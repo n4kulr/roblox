@@ -1,8 +1,10 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EggMeshes = require(ReplicatedStorage.Config.EggMeshes)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
 local WorldNames = require(ReplicatedStorage.Config.WorldNames)
+local MeshParts = require(script.Parent.MeshParts)
 local Parts = require(script.Parent.Parts)
 
 export type Options = {
@@ -211,7 +213,45 @@ function EggModel.StyleOf(eggId: string): Style
 	return styles[eggId] or fallbackStyle
 end
 
+local function buildMesh(parent: Instance, egg: Eggs.Egg, options: Options): { BasePart }?
+	local meshId = MeshParts.IdOf(EggMeshes :: { [string]: string }, egg.Id)
+	if not meshId then
+		return nil
+	end
+	local bodyName = options.BodyName or WorldNames.Parts.EggBody
+	local body = MeshParts.Clone(meshId, bodyName)
+	if not body then
+		return nil
+	end
+	local scale = options.Scale
+	local origin = options.Origin or CFrame.new()
+	local targetHeight = EggModel.HeightOf(scale)
+	local height = body.Size.Y
+	if height > 1e-3 then
+		body.Size = body.Size * (targetHeight / height)
+	end
+	body.CFrame = origin
+	body.Color = if options.Ghost then options.Ghost else egg.Color
+	body.Anchored = options.Anchored
+	body.Massless = not options.Anchored
+	body.CanCollide = false
+	body.CanQuery = false
+	body.CanTouch = false
+	if options.Ghost then
+		body.Transparency = ghostTransparency
+		body.Material = Enum.Material.Neon
+	elseif EggModel.StyleOf(egg.Id).Metal then
+		body.Material = Enum.Material.Metal
+	end
+	body.Parent = parent
+	return { body :: BasePart }
+end
+
 function EggModel.Build(parent: Instance, egg: Eggs.Egg, options: Options): { BasePart }
+	local meshed = buildMesh(parent, egg, options)
+	if meshed then
+		return meshed
+	end
 	local scale = options.Scale
 	local origin = options.Origin or CFrame.new()
 	local ghost = options.Ghost

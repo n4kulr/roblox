@@ -106,7 +106,8 @@ function Pets.Refresh(
 			local model, size = build(charm)
 			local seed = ownerId * 31 + index * 7919
 			local walker = PetWander.New(seed, base.Size.X / 2, base.Size.Z / 2, avoid)
-			local lift = PetModels.LiftOf(size)
+			local liftAttr = model:GetAttribute(WorldNames.Attributes.Lift)
+			local lift = if type(liftAttr) == "number" then liftAttr else PetModels.LiftOf(size)
 			model:SetAttribute(WorldNames.Attributes.Owner, ownerId)
 			model:SetAttribute(WorldNames.Attributes.PetId, id)
 			model:SetAttribute(WorldNames.Attributes.Seed, seed)

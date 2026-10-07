@@ -30,6 +30,7 @@ export type CapVisual = {
 	Letter: TextLabel?,
 	Lock: ImageLabel?,
 	Decor: Model?,
+	Skin: BasePart?,
 }
 
 export type Frame = {

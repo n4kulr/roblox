@@ -1,12 +1,14 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local KeyMeshes = require(ReplicatedStorage.Config.KeyMeshes)
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
 local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local AssetOverride = require(script.Parent.AssetOverride)
 local Gui = require(script.Parent.Gui)
 local KeyLegend = require(script.Parent.KeyLegend)
+local MeshParts = require(script.Parent.MeshParts)
 local Parts = require(script.Parent.Parts)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 
@@ -644,7 +646,12 @@ function KeyModels.Legend(cap: BasePart, key: Keys.Key, pixelsPerStud: number?):
 	return KeyLegend.Mount(cap, key, pixelsPerStud or KeyModels.LegendPixelsPerStud)
 end
 
-function KeyModels.BuildMesh(variantId: string, template: MeshPart, scale: number): Model?
+function KeyModels.BuildMesh(
+	variantId: string,
+	template: MeshPart,
+	scale: number,
+	skipDecor: boolean?
+): Model?
 	local keyId = KeyTiers.Parse(variantId)
 	local key = Keys.ById[keyId]
 	if not key then
@@ -668,14 +675,31 @@ function KeyModels.BuildMesh(variantId: string, template: MeshPart, scale: numbe
 	model.PrimaryPart = cap
 	KeyModels.Legend(cap, key, KeyModels.LegendPixelsPerStud / scale)
 	markLegend(model, cap, key, legendMeshStroke, legendMeshFill)
-	KeyModels.Mount(cap, variantId)
+	if not skipDecor then
+		KeyModels.Mount(cap, variantId)
+	end
 	return model
+end
+
+function KeyModels.MeshIdOf(keyId: string): string?
+	local baseId = KeyTiers.Parse(keyId)
+	return MeshParts.IdOf(KeyMeshes :: { [string]: string }, baseId)
 end
 
 function KeyModels.Build(keyId: string): Model
 	local authored = AssetOverride.Find("Keys", keyId) or AssetOverride.Find("Keys", (KeyTiers.Parse(keyId)))
 	if authored then
 		return authored
+	end
+	local customId = KeyModels.MeshIdOf(keyId)
+	if customId then
+		local custom = MeshParts.Template(customId)
+		if custom then
+			local model = KeyModels.BuildMesh(keyId, custom, KeyModels.ViewScale, true)
+			if model then
+				return model
+			end
+		end
 	end
 	local template = meshTemplate("Keycap")
 	if template then

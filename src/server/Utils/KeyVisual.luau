@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
+local MeshParts = require(ReplicatedStorage.Utils.MeshParts)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 local MeshTemplates = require(script.Parent.MeshTemplates)
 
@@ -14,9 +15,20 @@ function KeyVisual.NewCap(keyId: string, name: string, size: Vector3): BasePart?
 	if not Keys.Resolve(keyId) then
 		return nil
 	end
-	local template = MeshTemplates.Get("Keycap")
-	local part: BasePart = if template then template:Clone() else Instance.new("Part")
-	part.Name = name
+	local meshId = KeyModels.MeshIdOf(keyId)
+	local part: BasePart
+	local cloned = if meshId then MeshParts.Clone(meshId, name) else nil
+	if cloned then
+		part = cloned
+	else
+		local template = MeshTemplates.Get("Keycap")
+		if template then
+			part = template:Clone()
+		else
+			part = Instance.new("Part")
+		end
+		part.Name = name
+	end
 	part.Anchored = false
 	part.Size = size
 	Keys.ApplyVariantFinish(part, keyId)
@@ -29,7 +41,15 @@ function KeyVisual.Attach(character: Model, root: BasePart, keyId: string, name:
 	if not Keys.Resolve(keyId) then
 		return nil
 	end
-	local model = KeyModels.BuildScaled(keyId, carriedScale)
+	local model: Model
+	local meshId = KeyModels.MeshIdOf(keyId)
+	if meshId then
+		local template = MeshParts.Template(meshId)
+		local built = if template then KeyModels.BuildMesh(keyId, template, carriedScale, true) else nil
+		model = built or KeyModels.BuildScaled(keyId, carriedScale)
+	else
+		model = KeyModels.BuildScaled(keyId, carriedScale)
+	end
 	model.Name = name
 	local primary = model.PrimaryPart
 	if not primary then

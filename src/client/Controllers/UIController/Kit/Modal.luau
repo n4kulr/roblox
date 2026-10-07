@@ -69,6 +69,10 @@ function Modal.ScreenGui(
 	gui.Name = name
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = ignoresInset == true
+	if ignoresInset == true then
+		gui.ClipToDeviceSafeArea = false
+		gui.ScreenInsets = Enum.ScreenInsets.None
+	end
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = displayOrder
 	local root = Instance.new("Frame")

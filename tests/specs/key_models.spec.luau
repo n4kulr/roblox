@@ -52,7 +52,8 @@ describe("Key models", function()
 			local model = KeyModels.Build(key.Id)
 			expect(model.PrimaryPart ~= nil):toBe(true)
 			local count = #partsOf(model)
-			expect(count >= 3):toBe(true)
+			local minParts = if model.PrimaryPart.ClassName == "MeshPart" then 1 else 3
+			expect(count >= minParts):toBe(true)
 			expect(count <= KeyModels.PartLimit):toBe(true)
 			expect(model.Name):toBe(key.Id)
 		end
@@ -75,7 +76,7 @@ describe("Key models", function()
 
 	it("gives every legend a letter and a darker skirt", function()
 		for _, key in Keys.Catalog do
-			local model = KeyModels.Build(key.Id)
+			local model = KeyModels.BuildScaled(key.Id, 1)
 			local dish = model:FindFirstChild("Dish")
 			expect(dish:FindFirstChild("Legend").Letter.Text):toBe(string.upper(string.sub(key.Name, 1, 1)))
 			local skirt, top = model.Skirt.Color, model.Top.Color
@@ -104,16 +105,16 @@ describe("Key models", function()
 	end)
 
 	it("builds Legendary and higher models with more parts than the plain keycap", function()
-		local plain = #partsOf(KeyModels.Build("PlainClack"))
+		local plain = #partsOf(KeyModels.BuildScaled("PlainClack", 1))
 		for _, key in Keys.Catalog do
 			if rarityIndex(key) >= legendaryIndex then
-				expect(#partsOf(KeyModels.Build(key.Id)) > plain):toBe(true)
+				expect(#partsOf(KeyModels.BuildScaled(key.Id, 1)) > plain):toBe(true)
 			end
 		end
 	end)
 
 	it("makes lava from smooth plastic with embers and no neon", function()
-		local model = KeyModels.Build("LavaKey")
+		local model = KeyModels.BuildScaled("LavaKey", 1)
 		local emitters = 0
 		for _, descendant in model:GetDescendants() do
 			if descendant.ClassName == "ParticleEmitter" then
