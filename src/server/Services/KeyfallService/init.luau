@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Roll = require(ReplicatedStorage.Rules.Roll)
 local Rules = require(ReplicatedStorage.Rules.Keyfall)
@@ -31,11 +32,6 @@ local dropPickupDelay = 0.6
 local verticalReach = 10
 local hipHeight = 3
 local scatterRadius = 2.5
-local eventAnnounce = 1
-local eventGrabbed = 2
-local eventClaimed = 3
-local eventDelivered = 4
-local eventVanished = 5
 
 local KeyfallService = {
 	Name = "KeyfallService",
@@ -66,7 +62,7 @@ end
 local function vanishKey(keyId: string)
 	if keyId == goldenId and isGoldenActive then
 		isGoldenActive = false
-		announce(eventVanished, "", goldenIndex())
+		announce(Rules.Events.Vanished, "", goldenIndex())
 	end
 end
 
@@ -115,7 +111,7 @@ end
 
 local function refreshCarry(carry: Types.Carry)
 	local count = #carry.Keys
-	carry.Character:SetAttribute("KeyfallCount", count)
+	carry.Character:SetAttribute(WorldNames.Attributes.KeyfallCount, count)
 	Visual.SetSpeed(carry.Character, Rules.CarrySpeed(count))
 	for _, part in carry.Visuals do
 		part:Destroy()
@@ -136,7 +132,7 @@ local function beginCarry(player: Player, character: Model): Types.Carry
 			part:Destroy()
 		end
 		table.clear(carry.Visuals)
-		character:SetAttribute("KeyfallCount", nil)
+		character:SetAttribute(WorldNames.Attributes.KeyfallCount, nil)
 		Visual.SetSpeed(character, steal.NormalWalkSpeed)
 	end)
 	carries[player] = carry
@@ -203,7 +199,7 @@ local function deliver(player: Player, carry: Types.Carry)
 			delivered += 1
 			if keyId == goldenId then
 				isGoldenActive = false
-				announce(eventClaimed, player.DisplayName, goldenIndex())
+				announce(Rules.Events.Claimed, player.DisplayName, goldenIndex())
 			end
 		else
 			table.insert(remaining, keyId)
@@ -216,7 +212,7 @@ local function deliver(player: Player, carry: Types.Carry)
 		refreshCarry(carry)
 	end
 	if delivered > 0 then
-		Packets.KeyfallEvent:FireClient(player, eventDelivered, "", delivered)
+		Packets.KeyfallEvent:FireClient(player, Rules.Events.Delivered, "", delivered)
 	end
 end
 
@@ -255,7 +251,7 @@ local function pickUp(player: Player, character: Model, cap: Types.Cap)
 	table.insert(carry.Keys, cap.KeyId)
 	refreshCarry(carry)
 	if cap.IsGolden then
-		announce(eventGrabbed, player.DisplayName, goldenIndex())
+		announce(Rules.Events.Grabbed, player.DisplayName, goldenIndex())
 	end
 end
 
@@ -285,7 +281,7 @@ local function updatePlayer(player: Player, now: number)
 	local cap = findPickup(
 		position,
 		if carry then #carry.Keys else 0,
-		character:GetAttribute("CarryingKey") ~= nil,
+		character:GetAttribute(WorldNames.Attributes.CarryingKey) ~= nil,
 		now
 	)
 	if cap then
@@ -308,7 +304,7 @@ local function updateCaps(now: number)
 			cap.Part.CFrame = CFrame.new(at.X, y, at.Z)
 			if alpha >= 1 then
 				cap.IsLanded = true
-				cap.Part:SetAttribute("Landed", true)
+				cap.Part:SetAttribute(WorldNames.Attributes.Landed, true)
 			end
 		end
 	end
@@ -348,7 +344,7 @@ local function spawnSpacebar(now: number)
 	end
 	isGoldenActive = true
 	addCap(goldenId, Rules.RandomPointInDisc(rng, current.Center, current.Radius), true)
-	announce(eventAnnounce, "", goldenIndex())
+	announce(Rules.Events.Announce, "", goldenIndex())
 end
 
 local function step()
@@ -437,7 +433,7 @@ function KeyfallService.Start(self: State)
 	local now = os.clock()
 	arena = Arena.Resolve()
 	local folder = Instance.new("Folder")
-	folder.Name = "KeyfallCaps"
+	folder.Name = WorldNames.Folders.KeyfallCaps
 	folder.Parent = workspace
 	trove:Add(folder)
 	capFolder = folder

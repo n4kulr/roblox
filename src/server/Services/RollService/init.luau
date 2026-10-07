@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
@@ -60,7 +61,7 @@ local function handleRoll(player: Player): (number, boolean)
 		return 0, false
 	end
 	local passService = services.PassService
-	local serverLuckUntil = ReplicatedStorage:GetAttribute("ServerLuckUntil")
+	local serverLuckUntil = ReplicatedStorage:GetAttribute(WorldNames.Attributes.ServerLuckUntil)
 	local luck = Boosts.LuckMultiplier(
 		data.Boosts,
 		if passService then passService:GetPasses(player) else noPasses,

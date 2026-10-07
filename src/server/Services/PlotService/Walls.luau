@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
 
@@ -14,8 +15,8 @@ export type Segment = {
 }
 
 local defense = GameConfig.Defense
-local folderName = "GlassWalls"
-local fenceName = "Fence"
+local folderName = WorldNames.Folders.GlassWalls
+local fenceName = WorldNames.Parts.Fence
 local edgeInset = 0.25
 local pillarSize = 1.4
 local glassThickness = 0.6
@@ -436,8 +437,8 @@ function Walls.Apply(info: Types.PlotInfo, level: any)
 	end
 	info.WallLevel = clamped
 	info.WallHeight = total
-	if info.Model:GetAttribute("WallHeight") ~= total then
-		info.Model:SetAttribute("WallHeight", total)
+	if info.Model:GetAttribute(WorldNames.Attributes.WallHeight) ~= total then
+		info.Model:SetAttribute(WorldNames.Attributes.WallHeight, total)
 	end
 end
 

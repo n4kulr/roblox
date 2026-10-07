@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Lifecycle = require(ReplicatedStorage.Lifecycle)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -17,8 +18,8 @@ type TroveInstance = typeof(Trove.new())
 
 local verdicts: { [Player]: boolean } = {}
 local deniedMessage = "Not allowed"
-local adminAttribute = "IsAdmin"
-local developerAttribute = "IsDeveloper"
+local adminAttribute = WorldNames.Attributes.IsAdmin
+local developerAttribute = WorldNames.Attributes.IsDeveloper
 
 local AdminService = {
 	Name = "AdminService",

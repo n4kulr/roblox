@@ -1,11 +1,12 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 
 local AssetOverride = {}
 
 function AssetOverride.Find(category: string, id: string): Model?
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local assets = ReplicatedStorage:FindFirstChild(WorldNames.Folders.Assets)
 	local folder = if assets then assets:FindFirstChild(category) else nil
 	local source = if folder then folder:FindFirstChild(id) else nil
 	if not source then

@@ -17,6 +17,7 @@ type State = {
 
 local config = GameConfig.Market
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local ServerTypes = require(script.Parent.Parent.Types)
 local boundaryGuardSeconds = 1
 local reachSlack = 6
@@ -116,7 +117,7 @@ local function bindStall(trove: TroveInstance): Model
 	counter = anchor
 	local prompt = Stall.EnsurePrompt(anchor)
 	trove:Connect(prompt.Triggered, function(player: Player)
-		player:SetAttribute("OpenMarket", os.clock())
+		player:SetAttribute(WorldNames.Attributes.OpenMarket, os.clock())
 	end)
 	return model
 end

@@ -4,11 +4,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Stats = require(ReplicatedStorage.Rules.Stats)
+local Steal = require(ReplicatedStorage.Rules.Steal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
-local Alerts = require(script.Parent.Parent.Parent.Utils.Alerts)
 local Character = require(script.Parent.Parent.Parent.Utils.Character)
 local KeyVisual = require(script.Parent.Parent.Parent.Utils.KeyVisual)
 local WalkSpeed = require(script.Parent.Parent.Parent.Utils.WalkSpeed)
@@ -39,7 +40,12 @@ function Carry.ReturnToVictim(context: Types.Context, thief: Player, carrier: Ty
 	end
 	context.Services.KeyboardService:RestoreKey(victim, carrier.Slot, carrier.KeyId)
 	local key = Keys.Resolve(carrier.KeyId)
-	Alerts.Send(victim, thief.DisplayName, if key then key.Index else 0, Alerts.Phase.Returned)
+	Packets.StealAlert:FireClient(
+		victim,
+		thief.DisplayName,
+		if key then key.Index else 0,
+		Steal.AlertPhase.Returned
+	)
 end
 
 function Carry.Fail(context: Types.Context, thief: Player)
@@ -68,7 +74,7 @@ function Carry.ReleaseOf(context: Types.Context, victim: Player, data: PlayerDat
 		if carrier.VictimUserId == victim.UserId and context.Carriers[thief] == carrier then
 			Carry.End(context, thief)
 			Carry.ReturnToDeparting(carrier, data)
-			Alerts.Bad(thief, Config.VictimLeftMessage)
+			Packets.StealAlert:FireClient(thief, Config.VictimLeftMessage, 0, Steal.AlertPhase.Rejected)
 		end
 	end
 end
@@ -87,7 +93,7 @@ function Carry.Deliver(context: Types.Context, thief: Player, carrier: Types.Car
 	local victim = Players:GetPlayerByUserId(carrier.VictimUserId)
 	if victim and services.DataService:GetData(victim) then
 		services.DataService:Set(victim, { "TheftLessonDone" }, true)
-		Alerts.Send(victim, thief.DisplayName, keyIndex, Alerts.Phase.Delivered)
+		Packets.StealAlert:FireClient(victim, thief.DisplayName, keyIndex, Steal.AlertPhase.GotAway)
 		context.SyncPrompts(victim)
 	end
 	Packets.StealFeed:FireAllClients(thief.DisplayName, carrier.VictimName, keyIndex)
@@ -115,11 +121,11 @@ function Carry.Begin(context: Types.Context, thief: Player, owner: Player, slot:
 	if visual then
 		carryTrove:Add(visual)
 	end
-	character:SetAttribute("CarryingKey", keyId)
+	character:SetAttribute(WorldNames.Attributes.CarryingKey, keyId)
 	character:SetAttribute(WalkSpeed.StolenAttribute, owner.UserId)
 	WalkSpeed.Refresh(character)
 	carryTrove:Add(function()
-		character:SetAttribute("CarryingKey", nil)
+		character:SetAttribute(WorldNames.Attributes.CarryingKey, nil)
 		character:SetAttribute(WalkSpeed.StolenAttribute, nil)
 		WalkSpeed.Refresh(character)
 	end)
@@ -143,7 +149,12 @@ function Carry.Begin(context: Types.Context, thief: Player, owner: Player, slot:
 	carryTrove:Connect(thief.CharacterRemoving, function()
 		Carry.Fail(context, thief)
 	end)
-	Alerts.Send(owner, thief.DisplayName, if key then key.Index else 0, Alerts.Phase.Carry)
+	Packets.StealAlert:FireClient(
+		owner,
+		thief.DisplayName,
+		if key then key.Index else 0,
+		Steal.AlertPhase.Stolen
+	)
 end
 
 return Carry

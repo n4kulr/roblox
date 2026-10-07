@@ -2,10 +2,12 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 
 local EditorOnly = {}
 
-EditorOnly.Tag = "EditorOnly"
+EditorOnly.Tag = WorldNames.Tags.EditorOnly
 
 function EditorOnly.Strip()
 	local tagged = CollectionService:GetTagged(EditorOnly.Tag)

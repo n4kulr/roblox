@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Gui = require(ReplicatedStorage.Utils.Gui)
 
@@ -190,8 +191,8 @@ end
 
 function OwnerSign.new(model: Model, base: BasePart, trove: TroveInstance): Display
 	local guis: { Instance } = {}
-	local sign = model:FindFirstChild("Sign")
-	local panel = if sign then sign:FindFirstChild("Panel") else nil
+	local sign = model:FindFirstChild(WorldNames.Parts.Sign)
+	local panel = if sign then sign:FindFirstChild(WorldNames.Parts.Panel) else nil
 	if panel and panel:IsA("BasePart") then
 		local front, back, aspect = OwnerSign.Faces(panel, base)
 		table.insert(guis, newSurface(panel, front, aspect))

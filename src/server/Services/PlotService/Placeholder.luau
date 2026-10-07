@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 
 local Placeholder = {}
@@ -26,10 +27,11 @@ function Placeholder.Build(folder: Folder)
 		local origin = CFrame.lookAt(position, Vector3.new(0, position.Y, 0))
 		local model = Instance.new("Model")
 		model.Name = `Plot{index}`
-		local base = newPart(model, "Base", Vector3.new(44, 1, 44), origin, Color3.fromRGB(70, 74, 86))
+		local base =
+			newPart(model, WorldNames.Parts.Base, Vector3.new(44, 1, 44), origin, Color3.fromRGB(70, 74, 86))
 		newPart(
 			model,
-			"RollKey",
+			WorldNames.Parts.RollKey,
 			Vector3.new(8, 3, 8),
 			origin * CFrame.new(0, 2, -10),
 			Color3.fromRGB(215, 215, 220)

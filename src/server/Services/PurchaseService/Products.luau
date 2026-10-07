@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Monetization = require(ReplicatedStorage.Config.Monetization)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Boosts = require(ReplicatedStorage.Rules.Boosts)
 local Rewards = require(script.Parent.Parent.Parent.Utils.Rewards)
 local ServerTypes = require(script.Parent.Parent.Parent.Types)
@@ -28,9 +29,9 @@ local function makeGrant(product: Monetization.Product): Grant?
 		end
 	elseif kind == "ServerLuck" then
 		return function(player, _services)
-			local current = ReplicatedStorage:GetAttribute("ServerLuckUntil")
+			local current = ReplicatedStorage:GetAttribute(WorldNames.Attributes.ServerLuckUntil)
 			local expiresAt = if type(current) == "number" then current else 0
-			ReplicatedStorage:SetAttribute("ServerLuckBy", player.DisplayName)
+			ReplicatedStorage:SetAttribute(WorldNames.Attributes.ServerLuckBy, player.DisplayName)
 			ReplicatedStorage:SetAttribute(
 				"ServerLuckUntil",
 				Boosts.Extend(expiresAt, os.time(), product.Amount)

@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
@@ -31,7 +32,7 @@ local function build(): Types.Arena
 	local trove = Trove.new()
 	local center = keyfall.ArenaCenter
 	local folder = Instance.new("Folder")
-	folder.Name = "KeyfallArena"
+	folder.Name = WorldNames.Folders.KeyfallArena
 	local rim = disc("Rim", center, center.Y - 0.2, keyfall.ArenaRadius + rimMargin, rimColor)
 	rim.Parent = folder
 	local floor = disc("Floor", center, center.Y, keyfall.ArenaRadius, floorColor)
@@ -58,8 +59,8 @@ local function fromFloor(floor: BasePart): Types.Arena
 end
 
 function Arena.Resolve(): Types.Arena
-	local authored = workspace:FindFirstChild("Arena")
-	local floor = if authored then authored:FindFirstChild("Floor") else nil
+	local authored = workspace:FindFirstChild(WorldNames.Folders.Arena)
+	local floor = if authored then authored:FindFirstChild(WorldNames.Parts.Floor) else nil
 	if floor and floor:IsA("BasePart") then
 		return fromFloor(floor)
 	end

@@ -4,6 +4,7 @@ local AssetService = game:GetService("AssetService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Meshes = require(ReplicatedStorage.Config.Meshes)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 export type Name = "Keycap" | "RollKey"
@@ -51,7 +52,7 @@ function MeshTemplates.Load()
 	local current = generation
 	local ids = Meshes :: { [string]: string }
 	local toLoad: { { Name: string, Id: string } } = {}
-	local authored = ServerStorage:FindFirstChild("Meshes")
+	local authored = ServerStorage:FindFirstChild(WorldNames.Folders.Meshes)
 	for _, name in names do
 		local source = if authored then authored:FindFirstChild(name) else nil
 		local meshId = ids[name]
@@ -116,7 +117,7 @@ local function folderIn(parent: Instance, name: string): Folder
 end
 
 function MeshTemplates.Replicate()
-	local meshes = folderIn(folderIn(ReplicatedStorage, "Assets"), "Meshes")
+	local meshes = folderIn(folderIn(ReplicatedStorage, WorldNames.Folders.Assets), WorldNames.Folders.Meshes)
 	for _, name in names do
 		local template = templates[name]
 		local old = meshes:FindFirstChild(name)
@@ -135,8 +136,8 @@ end
 function MeshTemplates.Destroy()
 	generation += 1
 	pending = 0
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local meshes = if assets then assets:FindFirstChild("Meshes") else nil
+	local assets = ReplicatedStorage:FindFirstChild(WorldNames.Folders.Assets)
+	local meshes = if assets then assets:FindFirstChild(WorldNames.Folders.Meshes) else nil
 	if meshes then
 		for _, name in names do
 			local copy = meshes:FindFirstChild(name)

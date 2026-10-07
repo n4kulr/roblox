@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Trade = require(ReplicatedStorage.Rules.Trade)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -18,7 +19,6 @@ type State = {
 
 local config = GameConfig.Trade
 local watchSeconds = 0.5
-local phaseOpen, phaseCountdown, phaseDone, phaseCancelled = 1, 2, 3, 4
 local itemsChanged = "Trade cancelled: items changed"
 local busyMessage = "Trade cancelled: someone is busy"
 
@@ -36,8 +36,8 @@ local function isBusy(player: Player): boolean
 	if not character then
 		return false
 	end
-	local carried = character:GetAttribute("CarryingKey")
-	local keyfall = character:GetAttribute("KeyfallCount")
+	local carried = character:GetAttribute(WorldNames.Attributes.CarryingKey)
+	local keyfall = character:GetAttribute(WorldNames.Attributes.KeyfallCount)
 	return carried ~= nil or (type(keyfall) == "number" and keyfall > 0)
 end
 
@@ -89,7 +89,7 @@ local function sendState(session: Types.Session, phase: number, notes: { [Player
 end
 
 local function currentPhase(session: Types.Session): number
-	return if session.Remaining > 0 then phaseCountdown else phaseOpen
+	return if session.Remaining > 0 then Trade.Phase.Countdown else Trade.Phase.Open
 end
 
 local function stopCountdown(session: Types.Session)
@@ -110,7 +110,7 @@ local function closeSession(session: Types.Session, phase: number, notes: { [Pla
 	end
 	for _, player in session.Players do
 		local note = if notes then notes[player] else nil
-		if phase == phaseDone or note ~= nil then
+		if phase == Trade.Phase.Done or note ~= nil then
 			local partner = partnerOf(session, player)
 			Packets.TradeState:FireClient(
 				player,
@@ -131,7 +131,7 @@ local function cancelAll(session: Types.Session, text: string)
 	for _, player in session.Players do
 		notes[player] = text
 	end
-	closeSession(session, phaseCancelled, notes)
+	closeSession(session, Trade.Phase.Cancelled, notes)
 end
 
 local function finish(session: Types.Session)
@@ -140,7 +140,7 @@ local function finish(session: Types.Session)
 	end
 	local isSuccess = Execution.Run(context, session)
 	if isSuccess then
-		closeSession(session, phaseDone, nil)
+		closeSession(session, Trade.Phase.Done, nil)
 	else
 		cancelAll(session, itemsChanged)
 	end
@@ -150,7 +150,7 @@ local function startCountdown(session: Types.Session)
 	stopCountdown(session)
 	local token = session.Token
 	session.Remaining = config.ConfirmCountdownSeconds
-	sendState(session, phaseCountdown)
+	sendState(session, Trade.Phase.Countdown)
 	task.spawn(function()
 		while true do
 			task.wait(1)
@@ -167,7 +167,7 @@ local function startCountdown(session: Types.Session)
 				finish(session)
 				return
 			end
-			sendState(session, phaseCountdown)
+			sendState(session, Trade.Phase.Countdown)
 		end
 	end)
 end
@@ -226,7 +226,7 @@ local function openSession(first: Player, second: Player)
 	}
 	sessions[first] = session
 	sessions[second] = session
-	sendState(session, phaseOpen)
+	sendState(session, Trade.Phase.Open)
 end
 
 local function onRespond(responder: Player, userId: number, isAccepted: boolean)
@@ -242,7 +242,7 @@ local function onRespond(responder: Player, userId: number, isAccepted: boolean)
 	if not isAccepted then
 		Packets.TradeState:FireClient(
 			sender,
-			phaseCancelled,
+			Trade.Phase.Cancelled,
 			`{responder.DisplayName} said no thanks`,
 			{},
 			{},
@@ -264,7 +264,7 @@ local function onRespond(responder: Player, userId: number, isAccepted: boolean)
 	then
 		Packets.TradeState:FireClient(
 			responder,
-			phaseCancelled,
+			Trade.Phase.Cancelled,
 			"Can't trade right now",
 			{},
 			{},
@@ -274,7 +274,7 @@ local function onRespond(responder: Player, userId: number, isAccepted: boolean)
 		)
 		Packets.TradeState:FireClient(
 			sender,
-			phaseCancelled,
+			Trade.Phase.Cancelled,
 			"Can't trade right now",
 			{},
 			{},
@@ -311,7 +311,7 @@ local function onOffer(player: Player, keyId: string, count: number)
 		session.Ready[member] = false
 	end
 	stopCountdown(session)
-	sendState(session, phaseOpen)
+	sendState(session, Trade.Phase.Open)
 end
 
 local function onReady(player: Player, isReady: boolean)
@@ -330,7 +330,7 @@ local function onReady(player: Player, isReady: boolean)
 	session.Ready[player] = isReady
 	if not isReady then
 		stopCountdown(session)
-		sendState(session, phaseOpen)
+		sendState(session, Trade.Phase.Open)
 		return
 	end
 	if session.Ready[partner] then
@@ -341,13 +341,13 @@ local function onReady(player: Player, isReady: boolean)
 		end
 		return
 	end
-	sendState(session, phaseOpen)
+	sendState(session, Trade.Phase.Open)
 end
 
 local function onCancel(player: Player)
 	local session = sessions[player]
 	if session then
-		closeSession(session, phaseCancelled, {
+		closeSession(session, Trade.Phase.Cancelled, {
 			[player] = "Trade cancelled",
 			[partnerOf(session, player)] = `{player.DisplayName} cancelled the trade`,
 		})
@@ -360,7 +360,7 @@ local function onLeft(player: Player)
 	if session then
 		closeSession(
 			session,
-			phaseCancelled,
+			Trade.Phase.Cancelled,
 			{ [partnerOf(session, player)] = `{player.DisplayName} left the trade` }
 		)
 	end

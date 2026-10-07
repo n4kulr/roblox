@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 local Rewards = require(script.Parent.Parent.Utils.Rewards)
@@ -18,8 +19,8 @@ local playClock: { [Player]: number } = {}
 local saveThread: thread? = nil
 
 local function publish(player: Player, session: Session)
-	player:SetAttribute("PlaytimeStart", session.Start)
-	player:SetAttribute("PlaytimeClaimed", session.Mask)
+	player:SetAttribute(WorldNames.Attributes.PlaytimeStart, session.Start)
+	player:SetAttribute(WorldNames.Attributes.PlaytimeClaimed, session.Mask)
 end
 
 local function takeSeconds(player: Player): number

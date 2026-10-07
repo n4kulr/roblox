@@ -3,17 +3,18 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Steal = require(ReplicatedStorage.Rules.Steal)
 local Variants = require(ReplicatedStorage.Rules.Variants)
 
 local config = GameConfig.Steal
 
 local Prompts = {
-	StealName = "StealPrompt",
-	KnockName = "KnockPrompt",
-	TakeBackName = "TakeBackPrompt",
-	OpenAttribute = "Open",
-	BaseHoldAttribute = "BaseHold",
+	StealName = WorldNames.Prompts.StealPrompt,
+	KnockName = WorldNames.Prompts.KnockPrompt,
+	TakeBackName = WorldNames.Prompts.TakeBackPrompt,
+	OpenAttribute = WorldNames.Attributes.Open,
+	BaseHoldAttribute = WorldNames.Attributes.BaseHold,
 	KnockSlack = 2,
 	TakeBackSlack = 4,
 	TakeBackHold = 0.5,
@@ -26,8 +27,8 @@ function Prompts.Create(parent: BasePart, ownerUserId: number, slot: number): Pr
 	prompt.ActionText = "Steal!"
 	prompt.MaxActivationDistance = config.PromptRange
 	prompt.RequiresLineOfSight = false
-	prompt:SetAttribute("OwnerUserId", ownerUserId)
-	prompt:SetAttribute("Slot", slot)
+	prompt:SetAttribute(WorldNames.Attributes.OwnerUserId, ownerUserId)
+	prompt:SetAttribute(WorldNames.Attributes.Slot, slot)
 	prompt.Parent = parent
 	return prompt
 end
@@ -40,9 +41,9 @@ function Prompts.Update(prompt: ProximityPrompt, keyId: string, lessonPending: b
 	prompt:SetAttribute(Prompts.BaseHoldAttribute, baseHold)
 	prompt.Enabled = isOpen
 	prompt:SetAttribute(Prompts.OpenAttribute, isOpen)
-	prompt:SetAttribute("KeyId", keyId)
-	prompt:SetAttribute("Income", Keys.GetIncome(keyId))
-	prompt:SetAttribute("RarityIndex", Steal.RarityIndex(keyId))
+	prompt:SetAttribute(WorldNames.Attributes.KeyId, keyId)
+	prompt:SetAttribute(WorldNames.Attributes.Income, Keys.GetIncome(keyId))
+	prompt:SetAttribute(WorldNames.Attributes.RarityIndex, Steal.RarityIndex(keyId))
 end
 
 function Prompts.KnockRange(lessonPending: boolean): number
@@ -59,7 +60,7 @@ function Prompts.CreateKnock(root: BasePart, victimUserId: number, range: number
 	prompt.MaxActivationDistance = range
 	prompt.RequiresLineOfSight = false
 	prompt.Enabled = false
-	prompt:SetAttribute("VictimUserId", victimUserId)
+	prompt:SetAttribute(WorldNames.Attributes.VictimUserId, victimUserId)
 	prompt:SetAttribute(Prompts.OpenAttribute, true)
 	prompt.Parent = root
 	return prompt
@@ -76,7 +77,7 @@ function Prompts.CreateTakeBack(part: BasePart, ownerUserId: number, keyId: stri
 	prompt.MaxActivationDistance = Prompts.TakeBackRange
 	prompt.RequiresLineOfSight = false
 	prompt.Enabled = false
-	prompt:SetAttribute("OwnerUserId", ownerUserId)
+	prompt:SetAttribute(WorldNames.Attributes.OwnerUserId, ownerUserId)
 	prompt:SetAttribute(Prompts.OpenAttribute, true)
 	prompt.Parent = part
 	return prompt

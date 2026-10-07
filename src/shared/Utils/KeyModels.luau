@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local AssetOverride = require(script.Parent.AssetOverride)
 local Gui = require(script.Parent.Gui)
 local KeyLegend = require(script.Parent.KeyLegend)
@@ -534,12 +535,12 @@ local function markLegend(model: Model, cap: BasePart, key: Keys.Key, strokeColo
 	anchor.Name = KeyModels.LegendAnchorName
 	anchor.Position = Vector3.new(0, cap.Size.Y / 2, 0)
 	anchor.Parent = cap
-	model:SetAttribute("LegendText", legendLetter(key))
-	model:SetAttribute("LegendColor", legendTextColor)
-	model:SetAttribute("LegendStrokeColor", strokeColor)
-	model:SetAttribute("LegendStrokeTransparency", legendStrokeTransparency)
-	model:SetAttribute("LegendFont", legendFont.Name)
-	model:SetAttribute("LegendFill", fill)
+	model:SetAttribute(WorldNames.Attributes.LegendText, legendLetter(key))
+	model:SetAttribute(WorldNames.Attributes.LegendColor, legendTextColor)
+	model:SetAttribute(WorldNames.Attributes.LegendStrokeColor, strokeColor)
+	model:SetAttribute(WorldNames.Attributes.LegendStrokeTransparency, legendStrokeTransparency)
+	model:SetAttribute(WorldNames.Attributes.LegendFont, legendFont.Name)
+	model:SetAttribute(WorldNames.Attributes.LegendFill, fill)
 end
 
 local function addBase(model: Model, key: Keys.Key?, color: Color3, shape: Shape, scale: number)
@@ -633,8 +634,8 @@ function KeyModels.BuildScaled(variantId: string, scale: number): Model
 end
 
 local function meshTemplate(name: string): MeshPart?
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local meshes = if assets then assets:FindFirstChild("Meshes") else nil
+	local assets = ReplicatedStorage:FindFirstChild(WorldNames.Folders.Assets)
+	local meshes = if assets then assets:FindFirstChild(WorldNames.Folders.Meshes) else nil
 	local template = if meshes then meshes:FindFirstChild(name) else nil
 	return if template and template:IsA("MeshPart") then template else nil
 end

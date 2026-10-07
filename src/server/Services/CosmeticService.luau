@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Parts = require(ReplicatedStorage.Utils.Parts)
@@ -27,7 +28,7 @@ export type Plan = {
 }
 
 local partName = "keyboardstuff"
-local modelName = "CosmeticKeys"
+local modelName = WorldNames.Folders.CosmeticKeys
 local inset = 0.5
 local walkwayThickness = 0.2
 local accentChance = 15
@@ -112,10 +113,10 @@ local function buildCap(plan: Plan, cell: Cell, base: Color3): BasePart
 		FloorKeys.Color(base)
 	)
 	cap.Name = `Cosmetic{cell.I}_{cell.J}`
-	cap:SetAttribute("Cosmetic", true)
-	cap:SetAttribute("PressDepth", FloorKeys.Press)
-	cap:SetAttribute("GridX", cell.I)
-	cap:SetAttribute("GridZ", cell.J)
+	cap:SetAttribute(WorldNames.Attributes.Cosmetic, true)
+	cap:SetAttribute(WorldNames.Attributes.PressDepth, FloorKeys.Press)
+	cap:SetAttribute(WorldNames.Attributes.GridX, cell.I)
+	cap:SetAttribute(WorldNames.Attributes.GridZ, cell.J)
 	local seed = Legend.SeedOf(modelName, (cell.I + gridOffset) * gridStride + cell.J + gridOffset)
 	local legendBase = base
 	if #accentRarities > 0 and Legend.Hash(seed + 7919) % 100 < accentChance then
@@ -138,7 +139,7 @@ function CosmeticService.Build(part: BasePart): Model?
 		buildCap(plan, cell, part.Color).Parent = model
 	end
 	Parts.New({
-		Name = "Walkway",
+		Name = WorldNames.Parts.Walkway,
 		Parent = model,
 		Shape = Enum.PartType.Cylinder,
 		Anchored = true,
@@ -151,9 +152,9 @@ function CosmeticService.Build(part: BasePart): Model?
 			* CFrame.new(0, FloorKeys.Top() - walkwayThickness / 2, 0)
 			* CFrame.Angles(0, 0, math.pi / 2),
 	})
-	model:SetAttribute("Frame", plan.Frame)
-	model:SetAttribute("Pitch", FloorGrid.CellSize)
-	model:SetAttribute("CapHeight", capHeight)
+	model:SetAttribute(WorldNames.Attributes.Frame, plan.Frame)
+	model:SetAttribute(WorldNames.Attributes.Pitch, FloorGrid.CellSize)
+	model:SetAttribute(WorldNames.Attributes.CapHeight, capHeight)
 	return model
 end
 

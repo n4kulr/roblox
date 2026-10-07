@@ -1,11 +1,12 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Character = require(script.Parent.Character)
 
 local Ragdoll = {
-	Attribute = "Ragdolled",
+	Attribute = WorldNames.Attributes.Ragdolled,
 }
 
 local upperAngle = 70

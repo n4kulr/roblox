@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local Gui = require(ReplicatedStorage.Utils.Gui)
@@ -15,7 +16,7 @@ export type Shown = {
 	Models: { [number]: Model },
 }
 
-local folderName = "PlacedEggs"
+local folderName = WorldNames.Folders.PlacedEggs
 local scale = EggModel.PlacedScale
 local labelRise = 1.9
 local readyColor = Color3.fromRGB(255, 226, 90)
@@ -67,12 +68,12 @@ local function create(
 	local center = base.CFrame * CFrame.new(entry.X, floorY + height / 2, entry.Z)
 	local parts = EggModel.Build(model, egg, { Scale = scale, Anchored = true, Origin = center })
 	model.PrimaryPart = parts[1]
-	model:SetAttribute("EggId", egg.Id)
-	model:SetAttribute("X", entry.X)
-	model:SetAttribute("Z", entry.Z)
-	model:SetAttribute("Phase", index * 1.7)
-	model:SetAttribute("Drop", EggModel.PivotDrop(scale))
-	model:SetAttribute("BaseCFrame", center * CFrame.new(EggModel.PivotOffset(scale)))
+	model:SetAttribute(WorldNames.Attributes.EggId, egg.Id)
+	model:SetAttribute(WorldNames.Attributes.X, entry.X)
+	model:SetAttribute(WorldNames.Attributes.Z, entry.Z)
+	model:SetAttribute(WorldNames.Attributes.Phase, index * 1.7)
+	model:SetAttribute(WorldNames.Attributes.Drop, EggModel.PivotDrop(scale))
+	model:SetAttribute(WorldNames.Attributes.BaseCFrame, center * CFrame.new(EggModel.PivotOffset(scale)))
 	newLabel(model, center, height)
 	model.Parent = folder
 	return model
@@ -137,9 +138,9 @@ function Placed.Refresh(shown: Shown, plot: Model, base: BasePart, list: { Inven
 		local entry = list[index]
 		if
 			not entry
-			or model:GetAttribute("EggId") ~= entry.Id
-			or model:GetAttribute("X") ~= entry.X
-			or model:GetAttribute("Z") ~= entry.Z
+			or model:GetAttribute(WorldNames.Attributes.EggId) ~= entry.Id
+			or model:GetAttribute(WorldNames.Attributes.X) ~= entry.X
+			or model:GetAttribute(WorldNames.Attributes.Z) ~= entry.Z
 		then
 			model:Destroy()
 			shown.Models[index] = nil
@@ -154,8 +155,8 @@ function Placed.Refresh(shown: Shown, plot: Model, base: BasePart, list: { Inven
 				shown.Models[index] = model
 			end
 			model.Name = `PlacedEgg{index}`
-			model:SetAttribute("Index", index)
-			model:SetAttribute("ReadyAt", entry.ReadyAt)
+			model:SetAttribute(WorldNames.Attributes.Index, index)
+			model:SetAttribute(WorldNames.Attributes.ReadyAt, entry.ReadyAt)
 			local label = model:FindFirstChild("Text", true)
 			if label and label:IsA("TextLabel") then
 				local text, color = textOf(egg, entry.ReadyAt, now)
