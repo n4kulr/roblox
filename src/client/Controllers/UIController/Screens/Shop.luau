@@ -1,10 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local BoostState = require(script.Parent.Parent.BoostState)
+local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Purchases = require(script.Parent.Parent.Purchases)
 local Types = require(script.Parent.Parent.Types)
@@ -16,7 +15,6 @@ type Row = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local bannerHeight = 120
 local passHeight = 172
 local productHeight = 142
@@ -29,7 +27,7 @@ local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
 	SeasonPremium = { Glyph = "Pass" },
 	StarterPack = { Glyph = "Gift" },
 	LuckPotion = { Glyph = "Potion" },
-	ClicksPotion = { Glyph = "Potion", Color = Color3.fromRGB(255, 190, 40) },
+	ClicksPotion = { Glyph = "Potion", Color = theme.Amber },
 	ServerLuck = { Glyph = "Globe" },
 	ClicksSmall = { Glyph = "Clicks" },
 	ClicksLarge = { Glyph = "Income" },
@@ -38,7 +36,7 @@ local glyphs: { [string]: { Glyph: string, Color: Color3? } } = {
 local productColors: { [string]: Color3 } = {
 	StarterPack = theme.Orange,
 	LuckPotion = theme.Green,
-	ClicksPotion = theme.Yellow,
+	ClicksPotion = theme.Gold,
 	ServerLuck = theme.Purple,
 	Clicks = theme.Blue,
 }
@@ -49,7 +47,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
-	local boostState = BoostState.Track(dataController, trove)
+	local boostState = Economy.BoostsFor(context, trove)
 	local rows: { Row } = {}
 	local isOpen = false
 
@@ -63,7 +61,6 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Shop")
 		end,
-		Sound = playUi,
 	})
 	local scroll = Kit.Scroll({
 		Parent = modal.Body,
@@ -91,7 +88,6 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 			Color = theme.Green,
 			TextSize = textSize,
 			Callback = callback,
-			Sound = playUi,
 		})
 	end
 
@@ -158,7 +154,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 				Text = description,
 				Position = UDim2.fromOffset(10, iconSize + nameSize + 18),
 				Size = UDim2.new(1, -20, 0, 20),
-				TextSize = 16,
+				TextSize = Kit.Text.Small,
 				Align = Enum.TextXAlignment.Center,
 				Scaled = true,
 			})
@@ -196,7 +192,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Shards = true,
 		Radius = Kit.Radius.L,
 		Gloss = true,
-		StrokeThickness = 4,
+		StrokeThickness = Kit.StrokeSize.Heavy,
 	})
 	Kit.Icon({
 		Parent = banner,
@@ -211,7 +207,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Text = "STARTER PACK",
 		Position = UDim2.fromOffset(130, 18),
 		Size = UDim2.new(0.5, -130, 0, 48),
-		TextSize = 40,
+		TextSize = Kit.Text.Jumbo,
 		Title = true,
 		Scaled = true,
 	})
@@ -221,7 +217,7 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		Text = "Clicks, a potion and an Epic key!",
 		Position = UDim2.fromOffset(130, 70),
 		Size = UDim2.new(0.5, -130, 0, 30),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Scaled = true,
 	})
 	local bannerButton = Kit.Button(trove, {
@@ -234,9 +230,8 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(1, 0.5),
 		Size = UDim2.fromOffset(190, 64),
 		Color = theme.Green,
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Callback = if starter then productCallback(starter) else comingSoon,
-		Sound = playUi,
 	})
 	if starter then
 		table.insert(rows, { Button = bannerButton, Product = starter })
@@ -308,17 +303,9 @@ function ShopScreen.new(context: Types.Context): Types.Screen
 		end
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refreshAll)
 
 	return {
 		Modal = true,

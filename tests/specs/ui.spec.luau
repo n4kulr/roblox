@@ -55,7 +55,7 @@ local function press(button: any)
 end
 
 describe("UI screens", function()
-	local world, playerGui, context, built, Glyphs, data
+	local world, playerGui, context, built, IconAtlas, data
 
 	local function boot(name: string)
 		local screen = world:require(`{screens}.Screens.{name}`).new(context)
@@ -170,7 +170,7 @@ describe("UI screens", function()
 			end,
 			Toast = function() end,
 		}
-		Glyphs = world:require(`{screens}.Glyphs`)
+		IconAtlas = world:require(`{screens}.IconAtlas`)
 	end)
 
 	local function allTexts(): { string }
@@ -363,6 +363,37 @@ describe("UI screens", function()
 			expect(claims):toEqual({ { 1, false } })
 		end)
 
+		it("reports a partial claim instead of success", function()
+			data.Season.Xp = 1000
+			local toasts = {}
+			context.Toast = function(text: string)
+				table.insert(toasts, text)
+			end
+			local _, gui = openSeason()
+			local attempts = 0
+			world:packets().ClaimSeason.Fire = function()
+				attempts += 1
+				return attempts == 1
+			end
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(5)
+			expect(string.match(toasts[#toasts], "^Claimed 1 of %d+ rewards!$") ~= nil):toBe(true)
+		end)
+
+		it("lets the player claim again after the packet errors", function()
+			local _, gui = openSeason()
+			local attempts = 0
+			world:packets().ClaimSeason.Fire = function()
+				attempts += 1
+				error("network")
+			end
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(1)
+			press(gui:FindFirstChild("Claim", true))
+			world:advance(1)
+			expect(attempts):toBe(2)
+		end)
+
 		it("ignores tiles that are not claimable", function()
 			local _, gui = openSeason()
 			press(tile(gui, 2, "Free").Hit)
@@ -483,7 +514,7 @@ describe("UI screens", function()
 		expect(#Upgrades.List):toBeGreaterThan(6)
 		for _, upgrade in Upgrades.List do
 			expect(type(upgrade.Glyph)):toBe("string")
-			expect(Glyphs.Has(upgrade.Glyph)):toBe(true)
+			expect(IconAtlas.Has(upgrade.Glyph)):toBe(true)
 		end
 	end)
 
@@ -614,11 +645,123 @@ describe("UI screens", function()
 		end)
 	end)
 
-	it("builds every glyph used by the icon helpers", function()
-		for _, name in Glyphs.Names do
-			local holder = world:newInstance("Frame")
-			Glyphs.Build(name, { Parent = holder })
-			expect(#holder:GetChildren()):toBe(1)
+	describe("Trade offers", function()
+		local function offerCells(gui: any, gridName: string): { any }
+			local out = {}
+			for _, item in gui:FindFirstChild(gridName, true):GetChildren() do
+				if item.ClassName == "Frame" then
+					table.insert(out, item)
+				end
+			end
+			return out
 		end
+
+		it("updates counts in place and drops removed offers without rebuilding the rest", function()
+			local controller = context.Controllers.TradeController
+			local screen = boot("Trade")
+			screen:Open()
+			world:flush()
+			local gui = playerGui:FindFirstChild("ThockTrade")
+			local grids = {}
+			for _, item in gui:GetDescendants() do
+				if item.ClassName == "ScrollingFrame" then
+					table.insert(grids, item)
+				end
+			end
+			local state = controller:GetState()
+			state.Mine = { { KeyId = "PlainClack", Count = 1 }, { KeyId = "CreamyThock", Count = 2 } }
+			controller.StateChanged:Fire(state)
+			local youGrid
+			for _, grid in grids do
+				if #grid:GetChildren() > 0 and #offerCells(grid.Parent, grid.Name) >= 2 then
+					youGrid = grid
+				end
+			end
+			local before = {}
+			for _, grid in grids do
+				before[grid] = offerCells(grid.Parent, grid.Name)
+			end
+			state.Mine = { { KeyId = "PlainClack", Count = 3 } }
+			controller.StateChanged:Fire(state)
+			for grid, cells in before do
+				local after = offerCells(grid.Parent, grid.Name)
+				if #cells >= 2 then
+					expect(#after):toBe(1)
+					expect(after[1] == cells[1] or after[1] == cells[2]):toBe(true)
+				end
+			end
+			expect(youGrid ~= nil):toBe(true)
+		end)
+	end)
+
+	describe("Hud refresh", function()
+		it("recomputes season badges at 1 Hz instead of every tick", function()
+			local seasonReads = 0
+			local dataController = context.Controllers.DataController
+			local get = dataController.Get
+			dataController.Get = function(self: any, path: { any }?)
+				if path and path[1] == "Season" then
+					seasonReads += 1
+				end
+				return get(self, path)
+			end
+			boot("Hud")
+			world:flush()
+			local baseline = seasonReads
+			for _ = 1, 20 do
+				world.fakeServices.RunService.Heartbeat:Fire(0.1)
+			end
+			expect(seasonReads - baseline <= 3):toBe(true)
+		end)
+
+		it("refreshes immediately when economy data changes", function()
+			local callbacks = {}
+			local dataController = context.Controllers.DataController
+			dataController.Observe = function(_self: any, path: { any }, callback: any)
+				callbacks[table.concat(path, ".")] = callback
+				callback(data[path[1]])
+				return function() end
+			end
+			local screen = boot("Hud")
+			local hud = playerGui:FindFirstChild("ThockHud")
+			local before = hud:FindFirstChild("Upgrades", true)
+			expect(before ~= nil):toBe(true)
+			callbacks["Cash"](9e9)
+			world.fakeServices.RunService.Heartbeat:Fire(0.1)
+			expect(hud:FindFirstChild("Badge", true).Visible):toBe(true)
+			screen:Destroy()
+		end)
+	end)
+
+	it("builds an atlas icon for every glyph name", function()
+		local Kit = world:require(`{screens}.Kit`)
+		for name in IconAtlas.Rects do
+			local holder = world:newInstance("Frame")
+			local icon = Kit.Icon({ Parent = holder, Glyph = name })
+			expect(icon.ClassName):toBe("ImageLabel")
+			expect(icon.Image):toBe(IconAtlas.Image)
+			expect(icon.ImageRectOffset):toBe(IconAtlas.Rects[name])
+		end
+	end)
+
+	it("resolves every glyph named by config and the screens", function()
+		local Upgrades = world:require("ReplicatedStorage.Config.Upgrades")
+		local CharmConfig = world:require("ReplicatedStorage.Config.Charms")
+		for _, upgrade in Upgrades.List do
+			expect(IconAtlas.Has(upgrade.Glyph)):toBe(true)
+		end
+		for _, kind in CharmConfig.Kinds do
+			expect(IconAtlas.Has(kind.Glyph)):toBe(true)
+		end
+		for _, name in { "Check", "Warning", "Info", "Star", "Burst", "Close", "Lock", "Thief", "Gift", "Store" } do
+			expect(IconAtlas.Has(name)):toBe(true)
+		end
+	end)
+
+	it("falls back to the Star icon for unknown names", function()
+		local Kit = world:require(`{screens}.Kit`)
+		local icon = Kit.Icon({ Parent = world:newInstance("Frame"), Glyph = "NotAnIcon" })
+		expect(icon.ClassName):toBe("ImageLabel")
+		expect(icon.ImageRectOffset):toBe(IconAtlas.Rects.Star)
 	end)
 end)

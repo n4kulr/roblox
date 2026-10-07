@@ -1,9 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Keys = require(ReplicatedStorage.Config.Keys)
-local UiAssets = require(ReplicatedStorage.Config.UiAssets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Cells = require(script.Parent.Parent.Cells)
@@ -16,7 +14,6 @@ type Filter = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.2
 local filterWidth = 150
 local filterHeight = 48
 
@@ -24,7 +21,6 @@ local IndexScreen = {}
 
 function IndexScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local playUi = Kit.UiSound(context.Controllers)
 	local cells: { [string]: Cells.Cell } = {}
 	local filters: { Filter } = {}
 	local discovered: { [string]: number } = {}
@@ -37,13 +33,11 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Name = "Index",
 		Title = "INDEX",
 		Glyph = "Index",
-		IconAsset = UiAssets.Icons.Index,
 		MaxSize = Vector2.new(900, 640),
 		HeaderColor = theme.Blue,
 		OnClose = function()
 			context.Close("Index")
 		end,
-		Sound = playUi,
 	})
 	local foundPill = Kit.Pill({
 		Parent = modal.HeaderRight,
@@ -51,7 +45,7 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		Glyph = "Star",
 		Text = "Found 0/0",
 		Size = UDim2.fromOffset(190, 40),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Color = theme.Track,
 	})
 	local foundLabel = foundPill.Label
@@ -95,12 +89,11 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.new(1, 0, 0, filterHeight),
 			LayoutOrder = order,
 			Color = rarity.Color,
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Callback = function()
 				selected = if selected == rarity.Name then nil else rarity.Name
 				applyFilter()
 			end,
-			Sound = playUi,
 		})
 		table.insert(filters, { Rarity = rarity, Button = button })
 	end
@@ -142,17 +135,9 @@ function IndexScreen.new(context: Types.Context): Types.Screen
 		isDirty = true
 	end))
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen or not isDirty then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refreshAll()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
+		return isOpen and isDirty
+	end, refreshAll)
 	refreshAll()
 
 	return {

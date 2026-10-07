@@ -6,12 +6,4 @@ return table.freeze({
 	IconAtlas = "rbxassetid://103213574924512",
 	IconCell = 128,
 	LockIcon = Vector2.new(768, 256),
-	Icons = table.freeze({
-		Upgrades = "",
-		Keys = "",
-		Index = "",
-		Settings = "",
-		MyBase = "",
-		Clicks = "",
-	}),
 })

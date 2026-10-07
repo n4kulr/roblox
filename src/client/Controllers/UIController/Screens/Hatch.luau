@@ -34,12 +34,12 @@ local shardLife = 1.1
 local sparkLife = 0.7
 local confettiLife = 2.2
 local maxStep = 1 / 20
-local white = Color3.new(1, 1, 1)
+local white = theme.White
 local ink = theme.Ink
 local gold = theme.Gold
 local goldGradient = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 244, 170)),
-	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 190, 40)),
+	ColorSequenceKeypoint.new(0.5, theme.Amber),
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 244, 170)),
 })
 local rainbowGradient = ColorSequence.new({
@@ -49,13 +49,7 @@ local rainbowGradient = ColorSequence.new({
 	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(70, 200, 255)),
 	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 92, 110)),
 })
-local rainbowColors: { Color3 } = {
-	Color3.fromRGB(255, 92, 110),
-	Color3.fromRGB(255, 190, 70),
-	Color3.fromRGB(110, 235, 110),
-	Color3.fromRGB(70, 200, 255),
-	Color3.fromRGB(170, 110, 255),
-}
+local rainbowColors: { Color3 } = Kit.Rainbow
 
 local HatchScreen = {}
 
@@ -124,7 +118,7 @@ local function textBlock(
 		Scaled = true,
 		StrokeSize = stroke,
 	})
-	label.ZIndex = 8
+	label.ZIndex = Kit.ZIndex.Hover
 	label.Visible = false
 	local scale = Instance.new("UIScale")
 	scale.Parent = label
@@ -161,7 +155,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	local playUi = Kit.UiSound(context.Controllers)
 	local random = Random.new(7)
 
-	local gui, root = Kit.ScreenGui("ThockHatch", 30, context.PlayerGui, trove)
+	local gui, root = Kit.ScreenGui("ThockHatch", Kit.Layer.Cinematic, context.PlayerGui, trove)
 	gui.Enabled = false
 
 	local vignette: { Frame } = {
@@ -176,7 +170,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	shaker.BackgroundTransparency = 1
 	shaker.BorderSizePixel = 0
 	shaker.Size = UDim2.fromScale(1, 1)
-	shaker.ZIndex = 2
+	shaker.ZIndex = Kit.ZIndex.Under
 	shaker.Parent = root
 
 	local stage = Instance.new("Frame")
@@ -214,7 +208,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Color = white,
 	})
 	rays.Name = "Rays"
-	rays.ZIndex = 3
+	rays.ZIndex = Kit.ZIndex.Fill
 	rays.Visible = false
 
 	local stars: { Star } = {}
@@ -253,7 +247,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Parent = eggBox,
 		Name = "EggModel",
 		Direction = Vector3.new(0, 0.12, 1),
-		ZIndex = 1,
+		ZIndex = Kit.ZIndex.Base,
 	})
 	local cracks: { Frame } = {}
 	for index = 1, lineCount do
@@ -267,7 +261,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		line.Position = UDim2.fromScale(0.5 + math.cos(angle) * radius, 0.5 + math.sin(angle) * radius * 1.15)
 		line.Size = UDim2.fromScale(0.022, 0.1 + random:NextNumber() * 0.1)
 		line.Rotation = math.deg(angle) + 90 + (random:NextNumber() - 0.5) * 40
-		line.ZIndex = 2
+		line.ZIndex = Kit.ZIndex.Under
 		line.Visible = false
 		Kit.Corner(line, 3)
 		Kit.Stroke(line, white, 2)
@@ -295,7 +289,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Parent = petHolder,
 		Name = "PetModel",
 		Direction = Vector3.new(0.35, 0.3, -1),
-		ZIndex = 1,
+		ZIndex = Kit.ZIndex.Base,
 	})
 	petView.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	petView.Frame.Position = UDim2.fromScale(0.5, 0.5)
@@ -345,7 +339,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	flash.BackgroundTransparency = 1
 	flash.BorderSizePixel = 0
 	flash.Size = UDim2.fromScale(1, 1)
-	flash.ZIndex = 20
+	flash.ZIndex = Kit.ZIndex.Tooltip
 	flash.Parent = root
 
 	local tapCatcher = Instance.new("TextButton")
@@ -355,7 +349,7 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 	tapCatcher.BackgroundTransparency = 1
 	tapCatcher.BorderSizePixel = 0
 	tapCatcher.Size = UDim2.fromScale(1, 1)
-	tapCatcher.ZIndex = 25
+	tapCatcher.ZIndex = Kit.ZIndex.Top
 	tapCatcher.Parent = root
 
 	local plan: HatchPlan.Plan? = nil
@@ -603,7 +597,8 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 
 	local function petsTarget(): (number, number)
 		local ok, dx, dy = pcall(function()
-			local hud = context.PlayerGui:FindFirstChild("Pets", true)
+			local getAnchor = context.GetAnchor
+			local hud = if getAnchor then getAnchor("Pets") else nil
 			if not hud or not hud:IsA("GuiObject") then
 				return 0, 0
 			end
@@ -762,16 +757,8 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 				break
 			end
 		end
-		local owned: { [string]: number } = {}
-		local dataController = context.Controllers.DataController
-		local stored = if dataController then dataController:Get({ "Charms" }) else nil
-		if type(stored) == "table" then
-			for id, count in stored do
-				if type(id) == "string" and type(count) == "number" then
-					owned[id] = count
-				end
-			end
-		end
+		local pets = context.Pets
+		local owned = if pets then table.clone(pets.Owned()) else {}
 		owned[charm.Id] = math.max(owned[charm.Id] or 0, 1)
 		start(egg.Id, charm.Id, Charms.IsActive(owned, charm.Id))
 		return true

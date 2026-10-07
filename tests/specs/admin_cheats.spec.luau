@@ -205,6 +205,25 @@ describe("Dev panel", function()
 		expect(closed):toBe(0)
 	end)
 
+	it("sizes every grid so its columns exactly fill the row", function()
+		player:SetAttribute("IsDeveloper", true)
+		local screen = build()
+		screen:Open()
+		world:flush()
+		for _, grid in gui():GetDescendants() do
+			if grid.ClassName == "UIGridLayout" then
+				local columns = math.round(1 / grid.CellSize.X.Scale)
+				local used = grid.CellSize.X.Offset * columns + grid.CellPadding.X.Offset * (columns - 1)
+				expect(used <= 0):toBe(true)
+			end
+		end
+		local rarity = gui():FindFirstChild("GiveRarityCommon", true)
+		local layout = rarity.Parent:FindFirstChildOfClass("UIGridLayout")
+		expect(math.round(1 / layout.CellSize.X.Scale)):toBe(3)
+		local used = layout.CellSize.X.Offset * 3 + layout.CellPadding.X.Offset * 2
+		expect(used <= 0):toBe(true)
+	end)
+
 	it("shows the last result in the status line", function()
 		player:SetAttribute("IsDeveloper", true)
 		local screen = build()

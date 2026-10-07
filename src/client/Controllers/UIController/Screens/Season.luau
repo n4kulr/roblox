@@ -1,14 +1,13 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Monetization = require(ReplicatedStorage.Config.Monetization)
 local SeasonLevels = require(ReplicatedStorage.Config.Season)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Season = require(ReplicatedStorage.Rules.Season)
-local BoostState = require(script.Parent.Parent.BoostState)
+local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
 local Purchases = require(script.Parent.Parent.Purchases)
 local Types = require(script.Parent.Parent.Types)
@@ -22,10 +21,8 @@ type Tile = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local columnWidth = 112
 local claimDelay = 0.3
-local lockedColor = Color3.fromHex("E3E9F5")
 
 local rewardGlyph: { [string]: string } = {
 	Clicks = "Clicks",
@@ -34,7 +31,7 @@ local rewardGlyph: { [string]: string } = {
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
-	ClicksPotion = Color3.fromRGB(255, 190, 40),
+	ClicksPotion = theme.Amber,
 }
 
 local SeasonScreen = {}
@@ -43,11 +40,11 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
-	local boostState = BoostState.Track(dataController, trove)
+	local boostState = Economy.BoostsFor(context, trove)
 	local premiumPass = Monetization.PassById[GameConfig.Season.PremiumPassId]
 	local tiles: { Tile } = {}
 	local isOpen = false
-	local isBusy = false
+	local claimGuard = Kit.Request(trove)
 	local refresh: () -> ()
 
 	local function currentSeason(): Season.Progress
@@ -60,12 +57,11 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function claimAll(claims: { Season.Claim })
-		if isBusy or #claims == 0 then
+		if claimGuard.IsBusy() or #claims == 0 then
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local granted = 0
+		local granted = 0
+		claimGuard.Run(function()
 			for _, claim in claims do
 				local ok = Packets.ClaimSeason:Fire(claim.Level, claim.Premium)
 				if ok ~= true then
@@ -74,10 +70,13 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				granted += 1
 				task.wait(claimDelay)
 			end
-			isBusy = false
-			if granted > 0 then
+		end, function()
+			if granted == #claims then
 				playUi("Confirm")
 				context.Toast(`Claimed {granted} reward{if granted == 1 then "" else "s"}!`, "Good")
+			elseif granted > 0 then
+				playUi("Confirm")
+				context.Toast(`Claimed {granted} of {#claims} rewards!`, "Info")
 			else
 				playUi("Error")
 				context.Toast("Couldn't claim that!", "Bad")
@@ -96,7 +95,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Season")
 		end,
-		Sound = playUi,
 	})
 
 	local passButton = Kit.Button(trove, {
@@ -107,7 +105,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.fromOffset(230, 46),
 		Color = theme.Purple,
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Callback = function()
 			if boostState.Owns(GameConfig.Season.PremiumPassId) then
 				return
@@ -117,7 +115,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				context.Toast("Coming soon!", "Info")
 			end
 		end,
-		Sound = playUi,
 	})
 
 	local trackLabels = Instance.new("Frame")
@@ -140,7 +137,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = "Text",
 			Text = text,
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -162,7 +159,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 	local columns = Instance.new("UIListLayout")
 	columns.FillDirection = Enum.FillDirection.Horizontal
 	columns.SortOrder = Enum.SortOrder.LayoutOrder
-	columns.Padding = UDim.new(0, 8)
+	columns.Padding = UDim.new(0, Kit.Space.S)
 	columns.Parent = scroll
 	scroll.Parent = modal.Body
 
@@ -173,7 +170,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = if premium then "Premium" else "Free",
 			Position = UDim2.fromScale(0, if premium then 0.58 else 0.14),
 			Size = UDim2.fromScale(1, 0.38),
-			Color = lockedColor,
+			Color = theme.Locked,
 			Shards = true,
 		})
 		Kit.Icon({
@@ -190,7 +187,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Text = reward.Label,
 			Position = UDim2.fromScale(0.04, 0.55),
 			Size = UDim2.fromScale(0.92, 0.4),
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 			Align = Enum.TextXAlignment.Center,
 			Wrapped = true,
 			Scaled = true,
@@ -218,10 +215,10 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		hit.BorderSizePixel = 0
 		hit.Text = ""
 		hit.Size = UDim2.fromScale(1, 1)
-		hit.ZIndex = 6
+		hit.ZIndex = Kit.ZIndex.BadgeText
 		hit.Parent = panel
 		trove:Connect(hit.Activated, function()
-			if isBusy then
+			if claimGuard.IsBusy() then
 				return
 			end
 			if not tile.IsClaimable then
@@ -250,7 +247,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			Name = "Level",
 			Text = `LVL {entry.Level}`,
 			Size = UDim2.fromScale(1, 0.12),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Color = theme.Gold,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -272,7 +269,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		Text = "Lvl 0",
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.new(0, 120, 1, 0),
-		TextSize = 36,
+		TextSize = Kit.Text.Headline,
 		Color = theme.Gold,
 		Scaled = true,
 	})
@@ -283,7 +280,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0, 0.5),
 		Size = UDim2.new(1, -130 - 190, 0, 40),
 		Color = theme.Orange,
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 	})
 
 	local claimButton: Kit.Button
@@ -321,13 +318,13 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 					Size = UDim2.fromOffset(30, 30),
 				})
 			elseif isLockedByPass then
-				Kit.Paint(tile.Panel, lockedColor)
+				Kit.Paint(tile.Panel, theme.Locked)
 				tile.Mark.Visible = true
 			elseif isReached then
 				Kit.Paint(tile.Panel, theme.Green)
 				tile.Mark.Visible = false
 			else
-				Kit.Paint(tile.Panel, lockedColor)
+				Kit.Paint(tile.Panel, theme.Locked)
 				tile.Mark.Visible = true
 			end
 		end
@@ -338,7 +335,7 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 				else "SOON"
 		)
 		passButton.SetColor(if owns then theme.Green else theme.Purple)
-		claimButton.SetDisabled(claimable == 0 and not isBusy)
+		claimButton.SetDisabled(claimable == 0 and not claimGuard.IsBusy())
 		claimButton.SetGlow(claimable > 0)
 	end
 
@@ -350,9 +347,9 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(1, 0.5),
 		Size = UDim2.fromOffset(180, 56),
 		Color = theme.Green,
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Callback = function()
-			if isBusy then
+			if claimGuard.IsBusy() then
 				return
 			end
 			local claims = Season.Claimable(currentSeason(), ownsPremium())
@@ -363,7 +360,6 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 			end
 			claimAll(claims)
 		end,
-		Sound = playUi,
 	})
 
 	trove:Add(dataController:Observe({ "Season" }, function(_value: any)
@@ -372,17 +368,9 @@ function SeasonScreen.new(context: Types.Context): Types.Screen
 		end
 	end))
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

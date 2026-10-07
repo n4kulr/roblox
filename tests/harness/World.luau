@@ -736,7 +736,14 @@ function World._environment(self, node: any)
 	}
 	env.TweenInfo = {
 		new = function(...)
-			return table.pack(...)
+			local info = table.pack(...)
+			info.Time = info[1] or 1
+			info.EasingStyle = info[2] or "Quad"
+			info.EasingDirection = info[3] or "Out"
+			info.RepeatCount = info[4] or 0
+			info.Reverses = info[5] or false
+			info.DelayTime = info[6] or 0
+			return info
 		end,
 	}
 	env.unpack = table.unpack

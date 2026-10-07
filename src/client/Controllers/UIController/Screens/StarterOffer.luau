@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
@@ -34,10 +33,8 @@ local burstDiameter = 720
 local burstSeconds = 40
 local popStagger = 0.07
 local tileDelay = 0.12
-local flashInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local flashInfo = Kit.Motion.Fade
 local ribbonColor = theme.Orange
-local panelTop = Color3.fromHex("6A4BE0")
-local panelBottom = Color3.fromHex("2E1F7A")
 
 local function tilesFor(product: Monetization.Product): { Tile }
 	local potionMinutes = GameConfig.Boosts.PotionSeconds // 60
@@ -80,7 +77,6 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("StarterOffer")
 		end,
-		Sound = playUi,
 	})
 	local panel = modal.Panel
 	local header = panel:FindFirstChild("Header")
@@ -93,7 +89,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	end
 	local paint = panel:FindFirstChild("Paint")
 	if paint then
-		(paint :: UIGradient).Color = ColorSequence.new(panelTop, panelBottom)
+		(paint :: UIGradient).Color = ColorSequence.new(theme.PromoTop, theme.PromoBottom)
 	end
 
 	local stage = Instance.new("Frame")
@@ -112,25 +108,13 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Color = theme.Gold,
 	})
 	burst.Name = "Sparkles"
-	local spin = TweenService:Create(
-		burst,
-		TweenInfo.new(burstSeconds, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
-		{ Rotation = 360 }
-	)
+	local spin = TweenService:Create(burst, Kit.Retime(Kit.Motion.Spin, burstSeconds), { Rotation = 360 })
 	spin:Play()
 	trove:Add(function()
 		spin:Cancel()
 	end)
 
-	local flash = Instance.new("Frame")
-	flash.Name = "Flash"
-	flash.BackgroundColor3 = Color3.new(1, 1, 1)
-	flash.BackgroundTransparency = 1
-	flash.BorderSizePixel = 0
-	flash.Size = UDim2.fromScale(1, 1)
-	flash.ZIndex = 20
-	Kit.Corner(flash, Kit.Radius.Panel)
-	flash.Parent = stage
+	local flash = Kit.Flash({ Parent = stage, Radius = Kit.Radius.Panel, ZIndex = Kit.ZIndex.Tooltip })
 
 	local ribbonHolder = Instance.new("Frame")
 	ribbonHolder.Name = "RibbonHolder"
@@ -165,20 +149,20 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		StrokeThickness = Kit.StrokeSize.Heavy,
 		Gloss = true,
 	})
-	ribbon.ZIndex = 3
+	ribbon.ZIndex = Kit.ZIndex.Fill
 	local ribbonLabel = Kit.Label({
 		Parent = ribbon,
 		Name = "Title",
 		Text = "STARTER PACK",
 		Size = UDim2.new(1, -40, 1, -8),
 		Position = UDim2.fromOffset(20, 4),
-		TextSize = 48,
+		TextSize = Kit.Text.Giant,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 		Title = true,
-		StrokeSize = 4,
+		StrokeSize = Kit.StrokeSize.Heavy,
 	})
-	ribbonLabel.ZIndex = 5
+	ribbonLabel.ZIndex = Kit.ZIndex.Badge
 
 	local badge = Kit.Chip({
 		Parent = panel,
@@ -188,11 +172,11 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(1, -18, 0, 104),
 		AnchorPoint = Vector2.new(1, 0),
 		Color = theme.Red,
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 	})
 	local badgeFrame = badge.Parent :: Frame
 	badgeFrame.Rotation = 7
-	badgeFrame.ZIndex = 8
+	badgeFrame.ZIndex = Kit.ZIndex.Hover
 
 	local timerPill = Kit.Pill({
 		Parent = panel,
@@ -201,7 +185,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Text = "15:00",
 		Size = UDim2.fromOffset(150, 36),
 		Position = UDim2.new(0, 22, 0, 108),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 	})
 	local timerChip = timerPill.Label
 
@@ -249,7 +233,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 			Text = tile.Amount,
 			Position = UDim2.fromOffset(6, 114),
 			Size = UDim2.new(1, -12, 0, 30),
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 			Title = true,
@@ -260,7 +244,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 			Text = tile.Caption,
 			Position = UDim2.fromOffset(6, 146),
 			Size = UDim2.new(1, -12, 0, 22),
-			TextSize = 19,
+			TextSize = Kit.Text.Lead,
 			Color = theme.Subtext,
 			Align = Enum.TextXAlignment.Center,
 			Subtle = true,
@@ -275,7 +259,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, tileTop + tileHeight + 14),
 		Size = UDim2.fromOffset(300, 30),
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Color = theme.Cream,
 		Align = Enum.TextXAlignment.Center,
 		RichText = true,
@@ -301,14 +285,13 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		Lip = 9,
 		Size = UDim2.fromScale(1, 1),
 		Color = theme.Green,
-		TextSize = 40,
+		TextSize = Kit.Text.Jumbo,
 		Callback = function()
 			if not Purchases.PromptProduct(starterPack) then
 				playUi("Error")
 				context.Toast("Coming soon!", "Info")
 			end
 		end,
-		Sound = playUi,
 	})
 	buy.SetGlow(true)
 	Kit.Breathe(trove, buyPulse, 0.06, 0.6)
@@ -320,7 +303,7 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 	decline.BorderSizePixel = 0
 	decline.Font = Kit.Font
 	decline.Text = "No thanks"
-	decline.TextSize = 20
+	decline.TextSize = Kit.Text.Label
 	decline.TextColor3 = theme.TextDim
 	decline.TextTransparency = 0.25
 	decline.Size = UDim2.fromOffset(160, 32)
@@ -340,11 +323,9 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 		timerChip.Text = TimeFormat.Clock(math.max(0, target - os.clock()))
 	end
 
-	trove:Connect(RunService.Heartbeat, function()
-		if isOpen then
-			refreshTimer()
-		end
-	end)
+	Kit.Poll(trove, 0, function()
+		return isOpen
+	end, refreshTimer)
 
 	trove:Add(dataController:Observe({ "StarterPackBought" }, function(value: any)
 		isBought = value == true
@@ -356,17 +337,16 @@ function StarterOffer.new(context: Types.Context): Types.Screen
 
 	local function playEntrance()
 		ribbonPop.Scale = 0.4
-		Kit.Tween(ribbonPop, Kit.PopInfo(), { Scale = 1 })
+		Kit.Tween(ribbonPop, Kit.Motion.Spring, { Scale = 1 })
 		for _, pop in tilePops do
 			pop.Scale = 0.01
 		end
 		for index, pop in tilePops do
 			local delay = tileDelay + (index - 1) * popStagger
-			local info = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, delay)
+			local info = Kit.Retime(Kit.Motion.Pop, 0.3, delay)
 			Kit.Tween(pop, info, { Scale = 1 })
 		end
-		flash.BackgroundTransparency = 0.35
-		Kit.Tween(flash, flashInfo, { BackgroundTransparency = 1 })
+		flash.Fire(0.35, flashInfo)
 	end
 
 	return {

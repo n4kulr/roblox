@@ -33,9 +33,8 @@ export type Cell = {
 
 local theme = Kit.Theme
 local perkGlyphs: { [string]: string } = { Luck = "Luck", Speed = "Speed", Income = "Clicks" }
-local pressInfo = TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local springInfo = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local unknownColor = Color3.fromRGB(122, 127, 138)
+local pressInfo = Kit.Motion.Press
+local springInfo = Kit.Motion.SpringQuick
 
 local rarityRank: { [string]: number } = {}
 for index, rarity in Keys.Rarities do
@@ -100,7 +99,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 	local rarity = Keys.GetRarity(key)
 	local displayColor = if tier == 1
 		then rarity.Color:Lerp(tierInfo.Color, 0.65)
-		elseif tier == 3 then rarity.Color:Lerp(Color3.fromRGB(46, 20, 92), 0.7)
+		elseif tier == 3 then rarity.Color:Lerp(theme.Tier3Tint, 0.7)
 		else rarity.Color
 	local isSecret = rarity.Name == "Secret" or tier == 2
 	local cell = Kit.Panel({
@@ -175,7 +174,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Position = UDim2.new(1, -4, 0, 4),
 			AnchorPoint = Vector2.new(1, 0),
 			Color = theme.Red,
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 		})
 		countChip = (count :: TextLabel).Parent :: Frame
 		local stolen = Kit.Chip({
@@ -185,7 +184,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Size = UDim2.new(1, -8, 0, 18),
 			Position = UDim2.fromOffset(4, 128),
 			Color = theme.Orange,
-			TextSize = 13,
+			TextSize = Kit.Text.Tiny,
 		})
 		local stolenFrame = stolen.Parent :: Frame
 		stolenFrame.Visible = false
@@ -200,7 +199,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 			Size = UDim2.new(1, -8, 0, 18),
 			Position = UDim2.fromOffset(4, 128),
 			Color = if tier == 1 then Kit.Shade(tierInfo.Color, -0.25) else tierInfo.Color,
-			TextSize = 13,
+			TextSize = Kit.Text.Tiny,
 		})
 	end
 	local callback = props.Callback
@@ -214,7 +213,7 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		hit.BorderSizePixel = 0
 		hit.Text = ""
 		hit.Size = UDim2.fromScale(1, 1)
-		hit.ZIndex = 5
+		hit.ZIndex = Kit.ZIndex.Badge
 		hit.Parent = cell
 		trove:Connect(hit.MouseButton1Down, function()
 			Kit.Tween(pressScale, pressInfo, { Scale = 0.94 })
@@ -241,13 +240,13 @@ function Cells.New(trove: TroveInstance, props: CellProps): Cell
 		StolenChip = stolenChip,
 		StolenLabel = stolenLabel,
 		SetFound = function(isFound: boolean, info: string, infoColor: Color3?)
-			keycap.SetColor(if isFound then displayColor else unknownColor)
+			keycap.SetColor(if isFound then displayColor else theme.Unknown)
 			if isFound then
 				keycap.SetGlyph(Cells.Glyph(key))
 			else
 				keycap.SetGlyph("?", theme.Gold)
 			end
-			Kit.Paint(cell, if isFound then displayColor else Kit.Shade(unknownColor, -0.1))
+			Kit.Paint(cell, if isFound then displayColor else Kit.Shade(theme.Unknown, -0.1))
 			paintGradient.Enabled = not (isSecret and isFound)
 			if rainbow then
 				rainbow.Enabled = isFound

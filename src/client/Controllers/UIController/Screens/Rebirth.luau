@@ -1,7 +1,6 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Rebirth = require(ReplicatedStorage.Rules.Rebirth)
@@ -11,7 +10,6 @@ local Kit = require(script.Parent.Parent.Kit)
 local Types = require(script.Parent.Parent.Types)
 
 local theme = Kit.Theme
-local refreshSeconds = 0.2
 
 local function multiplierText(value: number): string
 	return `x{string.format("%.1f", value)} Clicks`
@@ -22,9 +20,9 @@ local RebirthScreen = {}
 function RebirthScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
-	local tracker = Economy.Track(context.Controllers.DataController, trove)
+	local tracker = Economy.For(context, trove)
 	local isOpen = false
-	local isBusy = false
+	local rebirthGuard = Kit.Request(trove)
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -36,7 +34,6 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Rebirth")
 		end,
-		Sound = playUi,
 	})
 
 	local heading = Kit.Label({
@@ -45,7 +42,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Text = "Rebirth 0 > 1",
 		Position = UDim2.fromOffset(10, 12),
 		Size = UDim2.new(1, -20, 0, 44),
-		TextSize = 36,
+		TextSize = Kit.Text.Headline,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -73,7 +70,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 			Text = caption,
 			Position = UDim2.fromOffset(0, 8),
 			Size = UDim2.new(1, 0, 0, 26),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Color = theme.TextDim,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
@@ -84,7 +81,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 			Text = "",
 			Position = UDim2.fromOffset(6, 40),
 			Size = UDim2.new(1, -12, 0, 60),
-			TextSize = 32,
+			TextSize = Kit.Text.Big,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -106,7 +103,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Text = "Requires",
 		Position = UDim2.fromOffset(10, 200),
 		Size = UDim2.new(1, -20, 0, 26),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -117,10 +114,10 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromOffset(40, 230),
 		Size = UDim2.new(1, -80, 0, 40),
 		Color = theme.Green,
-		TextSize = 26,
+		TextSize = Kit.Text.Subhead,
 	})
 
-	local action = Kit.Button(trove, {
+	local action = Kit.PriceButton(trove, {
 		Parent = modal.Body,
 		Name = "Rebirth",
 		Text = "REBIRTH",
@@ -131,23 +128,13 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		AnchorPoint = Vector2.new(0.5, 0),
 		Size = UDim2.fromOffset(300, 70),
 		Color = theme.Green,
-		TextSize = 40,
+		TextSize = Kit.Text.Jumbo,
 		Callback = function()
-			if isBusy then
-				return
-			end
-			local balance = tracker.Balance()
-			if not balance or balance < Rebirth.Cost(tracker.GetRebirths()) then
-				playUi("Error")
-				context.Toast("Not enough Clicks yet!", "Bad")
-				return
-			end
-			isBusy = true
 			local reached = tracker.GetRebirths() + 1
-			task.spawn(function()
-				local done = Packets.Rebirth:Fire()
-				isBusy = false
-				if done == true then
+			rebirthGuard.Run(function()
+				return Packets.Rebirth:Fire()
+			end, function(isOk: boolean, done: any)
+				if isOk and done == true then
 					playUi("Confirm")
 					context.Toast(`Rebirth {reached}! Clicks are now stronger!`, "Good")
 				else
@@ -156,7 +143,13 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 				end
 			end)
 		end,
-		Sound = playUi,
+	}, {
+		CanAfford = function()
+			local balance = tracker.Balance()
+			return balance ~= nil and balance >= Rebirth.Cost(tracker.GetRebirths())
+		end,
+		DeniedText = "Not enough Clicks yet!",
+		Toast = context.Toast,
 	})
 
 	Kit.Label({
@@ -166,7 +159,7 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.new(0, 10, 1, -8),
 		AnchorPoint = Vector2.new(0, 1),
 		Size = UDim2.new(1, -20, 0, 32),
-		TextSize = 22,
+		TextSize = Kit.Text.Strong,
 		Subtle = true,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -187,17 +180,9 @@ function RebirthScreen.new(context: Types.Context): Types.Screen
 		action.SetGlow(canRebirth)
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Fast, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

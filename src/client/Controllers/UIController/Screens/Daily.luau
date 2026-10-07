@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -24,11 +23,10 @@ type Tile = {
 }
 
 local theme = Kit.Theme
-local refreshSeconds = 0.25
 local claimedColor = Kit.Shade(theme.Green, 0.6)
 local iconRest = UDim2.fromScale(0.2, 0.08)
 local iconUp = UDim2.fromScale(0.2, -0.02)
-local bounceInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, true)
+local bounceInfo = Kit.Motion.Bounce
 
 local rewardGlyph: { [string]: string } = {
 	Cash = "Clicks",
@@ -37,7 +35,7 @@ local rewardGlyph: { [string]: string } = {
 	Key = "Keys",
 }
 local rewardTint: { [string]: Color3? } = {
-	ClicksPotion = Color3.fromRGB(255, 190, 40),
+	ClicksPotion = theme.Amber,
 }
 
 local function minutesText(seconds: number): string
@@ -49,12 +47,12 @@ local DailyScreen = {}
 function DailyScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local playUi = Kit.UiSound(context.Controllers)
-	local tracker = Economy.Track(context.Controllers.DataController, trove)
+	local tracker = Economy.For(context, trove)
 	local localPlayer = Players.LocalPlayer
 	local tiles: { Tile } = {}
 	local claimedHere: { [number]: boolean } = {}
 	local isOpen = false
-	local isBusy = false
+	local claimGuard = Kit.Request(trove)
 
 	local modal = Kit.Modal(trove, {
 		Parent = context.PlayerGui,
@@ -66,7 +64,6 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Daily")
 		end,
-		Sound = playUi,
 	})
 
 	Kit.Label({
@@ -75,7 +72,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		Text = "Play to unlock gifts!",
 		Position = UDim2.fromOffset(10, 8),
 		Size = UDim2.new(1, -20, 0, 40),
-		TextSize = 30,
+		TextSize = Kit.Text.Banner,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -173,7 +170,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function claim(index: number)
-		if isBusy then
+		if claimGuard.IsBusy() then
 			return
 		end
 		local tile = tiles[index]
@@ -186,12 +183,11 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			context.Toast("Keep playing to unlock this gift!", "Info")
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local reward = rewardText(index)
-			local isClaimed = Packets.ClaimPlaytime:Fire(index)
-			isBusy = false
-			if isClaimed == true then
+		local reward = rewardText(index)
+		claimGuard.Run(function()
+			return Packets.ClaimPlaytime:Fire(index)
+		end, function(isOk: boolean, result: any)
+			if isOk and result == true then
 				claimedHere[index] = true
 				playUi("Confirm")
 				Kit.Pulse(tile.Button.Instance, theme.Gold)
@@ -212,12 +208,11 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Text = "",
 			Color = theme.Grey,
 			LayoutOrder = index,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			IconScale = 0.4,
 			Callback = function()
 				claim(index)
 			end,
-			Sound = playUi,
 		})
 		local face = button.Face
 		local icon = face:FindFirstChild("Icon") :: GuiObject
@@ -232,7 +227,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Text = Playtime.Name(tier.Seconds),
 			Position = UDim2.fromOffset(8, 4),
 			Size = UDim2.new(0.5, 0, 0, 20),
-			TextSize = 16,
+			TextSize = Kit.Text.Small,
 		})
 		local row = Instance.new("Frame")
 		row.Name = "Row"
@@ -243,7 +238,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		rowList.FillDirection = Enum.FillDirection.Horizontal
 		rowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rowList.VerticalAlignment = Enum.VerticalAlignment.Center
-		rowList.Padding = UDim.new(0, 4)
+		rowList.Padding = UDim.new(0, Kit.Space.Xs)
 		rowList.Parent = row
 		row.Parent = face
 		Kit.Icon({
@@ -259,7 +254,7 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 			Name = "Reward",
 			Text = "",
 			Size = UDim2.new(1, -34, 1, 0),
-			TextSize = 20,
+			TextSize = Kit.Text.Label,
 			Align = Enum.TextXAlignment.Left,
 			Scaled = true,
 			LayoutOrder = 2,
@@ -291,17 +286,9 @@ function DailyScreen.new(context: Types.Context): Types.Screen
 		end
 	end)
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			refresh()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, refresh)
 
 	return {
 		Modal = true,

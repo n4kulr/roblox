@@ -12,8 +12,6 @@ type Row = { Name: string, Value: number }
 
 local theme = Kit.Theme
 local rowHeight = 60
-local silverColor = Color3.fromRGB(190, 198, 212)
-local bronzeColor = Color3.fromRGB(205, 127, 70)
 
 local tabs: { { Title: string, Glyph: string, Color: Color3, Compact: boolean } } = {
 	{ Title = "Clicks Earned", Glyph = "Clicks", Color = theme.Green, Compact = true },
@@ -25,18 +23,17 @@ local function rankColor(rank: number): Color3
 	if rank == 1 then
 		return theme.Gold
 	elseif rank == 2 then
-		return silverColor
+		return theme.Silver
 	elseif rank == 3 then
-		return bronzeColor
+		return theme.Bronze
 	end
-	return theme.Cell
+	return theme.Panel
 end
 
 local LeaderboardsScreen = {}
 
 function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
-	local playUi = Kit.UiSound(context.Controllers)
 	local selected = 1
 	local requestToken = 0
 	local tabBar: Kit.TabBar
@@ -51,7 +48,6 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		OnClose = function()
 			context.Close("Leaderboards")
 		end,
-		Sound = playUi,
 	})
 
 	local tabEntries: { Kit.Tab } = {}
@@ -72,7 +68,6 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		OnSelect = function(id: string)
 			load(tonumber(id) or 1)
 		end,
-		Sound = playUi,
 	})
 
 	local list = Kit.Scroll({
@@ -80,7 +75,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		Name = "List",
 		Position = UDim2.fromOffset(Kit.Space.S, 74),
 		Size = UDim2.new(1, -2 * Kit.Space.S, 1, -82),
-		Padding = 8,
+		Padding = Kit.Space.S,
 	})
 	local status = Kit.Label({
 		Parent = modal.Body,
@@ -89,7 +84,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Size = UDim2.new(1, -40, 0, 40),
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Color = theme.TextDim,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -134,7 +129,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 				Name = "Rank",
 				Text = tostring(rank),
 				Size = UDim2.fromScale(1, 1),
-				TextSize = 26,
+				TextSize = Kit.Text.Subhead,
 				Align = Enum.TextXAlignment.Center,
 				Scaled = true,
 				Title = true,
@@ -155,7 +150,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 				Text = if isMe then `{row.Name} (you)` else row.Name,
 				Position = UDim2.fromOffset(72, 0),
 				Size = UDim2.new(1, -250, 0, rowHeight),
-				TextSize = 26,
+				TextSize = Kit.Text.Subhead,
 				Color = textColor,
 				Scaled = true,
 				Outline = rank > 3,
@@ -177,7 +172,7 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 				AnchorPoint = Vector2.new(1, 0),
 				Position = UDim2.new(1, -14, 0, 0),
 				Size = UDim2.fromOffset(130, rowHeight),
-				TextSize = 28,
+				TextSize = Kit.Text.Heading,
 				Color = textColor,
 				Align = Enum.TextXAlignment.Right,
 				Scaled = true,
@@ -193,8 +188,9 @@ function LeaderboardsScreen.new(context: Types.Context): Types.Screen
 		local token = requestToken
 		clearRows()
 		status.Text = "Loading..."
-		task.spawn(function()
-			local rows = Packets.GetLeaderboard:Fire(tab)
+		Kit.Spawn(trove, function()
+			return Packets.GetLeaderboard:Fire(tab)
+		end, function(_isOk: boolean, rows: any)
 			if token ~= requestToken then
 				return
 			end

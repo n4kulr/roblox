@@ -13,7 +13,6 @@ local outDir = process.args[1] or "ui-preview"
 local width = tonumber(process.args[2]) or 1280
 local height = tonumber(process.args[3]) or 720
 local only = process.args[4]
-local useAtlas = process.env.PREVIEW_ATLAS == "1"
 
 local screensPath = "StarterPlayer.StarterPlayerScripts.Controllers.UIController"
 local viewport = roblox.Vector2.new(width, height)
@@ -55,9 +54,6 @@ local leaderboardRows = {
 }
 
 local function newScenario(world: any)
-	if useAtlas then
-		world.tree.ReplicatedStorage:SetAttribute("IconAtlasPreview", "rbxassetid://preview-atlas")
-	end
 	local Signal = world:require("ReplicatedStorage.Packages.Signal")
 	local Trove = world:require("ReplicatedStorage.Packages.Trove")
 	local Keys = world:require("ReplicatedStorage.Config.Keys")
@@ -248,7 +244,13 @@ local base = { "Hud", "Offers" }
 
 local function glyphSheet(scene: any, size: number)
 	local world = scene.World
-	local Glyphs = world:require(`{screensPath}.Glyphs`)
+	local IconAtlas = world:require(`{screensPath}.IconAtlas`)
+	local Kit = world:require(`{screensPath}.Kit`)
+	local names = {}
+	for name in IconAtlas.Rects do
+		table.insert(names, name)
+	end
+	table.sort(names)
 	local gui = world:newInstance("ScreenGui")
 	gui.Name = "GlyphSheet"
 	gui.IgnoreGuiInset = true
@@ -261,13 +263,14 @@ local function glyphSheet(scene: any, size: number)
 	grid.CellSize = UDim2.fromOffset(size + 40, size + 30)
 	grid.CellPadding = UDim2.fromOffset(4, 4)
 	grid.Parent = board
-	for _, name in Glyphs.Names do
+	for _, name in names do
 		local cell = world:newInstance("Frame")
 		cell.BackgroundTransparency = 1
 		cell.BorderSizePixel = 0
 		cell.Parent = board
-		Glyphs.Build(name, {
+		Kit.Icon({
 			Parent = cell,
+			Glyph = name,
 			Size = UDim2.fromOffset(size, size),
 			Position = UDim2.fromOffset(20, 0),
 		})

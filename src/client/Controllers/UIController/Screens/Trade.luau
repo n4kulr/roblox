@@ -12,9 +12,9 @@ local Types = require(script.Parent.Parent.Types)
 type TroveInstance = typeof(Trove.new())
 type Entry = { KeyId: string, Count: number }
 type Picker = { Wrapper: Frame, Cell: Cells.Cell }
+type Offer = { Cell: Cells.Cell, Cleanup: () -> (), Count: number }
 
 local theme = Kit.Theme
-local teal = Color3.fromRGB(0, 168, 168)
 local warnRarity = "Epic"
 local pickerCellSize = UDim2.fromOffset(124, 196)
 local panelHeight = 0.4
@@ -37,12 +37,18 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local controller = context.Controllers.TradeController
 	local dataController = context.Controllers.DataController
-	local playUi = Kit.UiSound(context.Controllers)
 	local inventory: { [string]: number } = {}
 	local mine: { [string]: number } = {}
 	local pickers: { [string]: Picker } = {}
-	local offerTrove = Trove.new()
-	trove:Add(offerTrove)
+	local offers: { [Instance]: { [string]: Offer } } = {}
+	trove:Add(function()
+		for _, list in offers do
+			for _, offer in list do
+				offer.Cleanup()
+			end
+		end
+		table.clear(offers)
+	end)
 	local isOpen = false
 
 	local modal = Kit.Modal(trove, {
@@ -51,11 +57,10 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Title = "TRADE",
 		Glyph = "Trade",
 		MaxSize = Vector2.new(920, 700),
-		HeaderColor = teal,
+		HeaderColor = theme.TealDeep,
 		OnClose = function()
 			context.Close("Trade")
 		end,
-		Sound = playUi,
 	})
 	local body = modal.Body
 
@@ -65,7 +70,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = offerTexts.Open,
 		Position = UDim2.fromOffset(8, 4),
 		Size = UDim2.new(1, -16, 0, 30),
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		Color = theme.Gold,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -93,7 +98,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Text = name,
 			Position = UDim2.fromOffset(8, 4),
 			Size = UDim2.new(1, -16, 0, 26),
-			TextSize = 22,
+			TextSize = Kit.Text.Strong,
 			Align = Enum.TextXAlignment.Center,
 			Scaled = true,
 		})
@@ -126,14 +131,13 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		IconLeft = true,
 		Size = UDim2.new(0.5, -9, 1, 0),
 		Color = theme.Grey,
-		TextSize = 28,
+		TextSize = Kit.Text.Heading,
 		Callback = function()
 			local state = controller:GetState()
 			if state then
 				controller:SetReady(not state.MyReady)
 			end
 		end,
-		Sound = playUi,
 	})
 	local theirReady = Kit.Panel({
 		Parent = readyRow,
@@ -149,7 +153,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = "Waiting...",
 		Position = UDim2.fromOffset(8, 0),
 		Size = UDim2.new(1, -16, 1, 0),
-		TextSize = 24,
+		TextSize = Kit.Text.Title,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 	})
@@ -160,7 +164,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = offerTexts.Warning,
 		Position = UDim2.new(0, 8, panelHeight, 100),
 		Size = UDim2.new(1, -16, 0, 24),
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 		Color = theme.Orange,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -173,7 +177,7 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		Text = "YOUR SPARE KEYS",
 		Position = UDim2.new(0, 8, panelHeight, 126),
 		Size = UDim2.new(1, -16, 0, 22),
-		TextSize = 18,
+		TextSize = Kit.Text.Body,
 		Color = theme.TextDim,
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
@@ -210,7 +214,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Key = key,
 			KeyId = keyId,
 			HasChips = true,
-			Sound = playUi,
 		})
 		Kit.Button(trove, {
 			Parent = wrapper,
@@ -219,11 +222,10 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(58, 36),
 			Position = UDim2.fromOffset(0, 152),
 			Color = theme.Red,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			Callback = function()
 				adjust(keyId, -1)
 			end,
-			Sound = playUi,
 		})
 		Kit.Button(trove, {
 			Parent = wrapper,
@@ -232,11 +234,10 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(58, 36),
 			Position = UDim2.fromOffset(66, 152),
 			Color = theme.Green,
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			Callback = function()
 				adjust(keyId, 1)
 			end,
-			Sound = playUi,
 		})
 		local picker: Picker = { Wrapper = wrapper, Cell = cell }
 		pickers[keyId] = picker
@@ -268,25 +269,50 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function fillOffers(grid: ScrollingFrame, entries: { Entry })
-		for _, child in grid:GetChildren() do
-			if child:IsA("Frame") then
-				child:Destroy()
-			end
+		local current = offers[grid]
+		if not current then
+			current = {}
+			offers[grid] = current
 		end
+		local seen: { [string]: boolean } = {}
 		for index, entry in entries do
 			local key = Keys.Resolve(entry.KeyId)
 			if key then
-				local cell = Cells.New(offerTrove, {
-					Parent = grid,
-					Key = key,
-					KeyId = entry.KeyId,
-					LayoutOrder = index,
-					HasChips = true,
-				})
-				cell.SetFound(true, "", theme.Gold)
-				if cell.Count then
-					cell.Count.Text = `x{entry.Count}`
+				seen[entry.KeyId] = true
+				local offer = current[entry.KeyId]
+				if not offer then
+					local cellTrove = Trove.new()
+					local cell = Cells.New(cellTrove, {
+						Parent = grid,
+						Key = key,
+						KeyId = entry.KeyId,
+						LayoutOrder = index,
+						HasChips = true,
+					})
+					cell.SetFound(true, "", theme.Gold)
+					offer = {
+						Cell = cell,
+						Cleanup = function()
+							cellTrove:Destroy()
+						end,
+						Count = -1,
+					}
+					current[entry.KeyId] = offer
 				end
+				offer.Cell.Instance.LayoutOrder = index
+				if offer.Count ~= entry.Count then
+					offer.Count = entry.Count
+					if offer.Cell.Count then
+						offer.Cell.Count.Text = `x{entry.Count}`
+					end
+				end
+			end
+		end
+		for keyId, offer in current do
+			if not seen[keyId] then
+				offer.Cleanup()
+				offer.Cell.Instance:Destroy()
+				current[keyId] = nil
 			end
 		end
 	end
@@ -295,7 +321,6 @@ function TradeScreen.new(context: Types.Context): Types.Screen
 		if state == nil then
 			return
 		end
-		offerTrove:Clean()
 		table.clear(mine)
 		local hasRareOffer = false
 		for _, entry in state.Mine do

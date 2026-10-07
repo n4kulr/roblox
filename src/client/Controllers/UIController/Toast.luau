@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local HudLayout = require(script.Parent.HudLayout)
 local Kit = require(script.Parent.Kit)
 
 type TroveInstance = typeof(Trove.new())
@@ -19,7 +20,7 @@ type Entry = {
 
 local Toast = {}
 
-local toastTop = Kit.TabBarTop + Kit.TabBarHeight + Kit.ClicksGap + Kit.ClicksHeight + Kit.ToastGap
+local toastTop = HudLayout.ToastTop
 local toastHeight = 54
 local slideDistance = 28
 local maxStacked = 3
@@ -36,9 +37,9 @@ local kinds: { [string]: Color3 } = {
 	Info = Kit.Theme.Blue,
 	Gold = Kit.Theme.Gold,
 }
-local showInfo = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local fadeInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local hideInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+local showInfo = Kit.Motion.PopLarge
+local fadeInfo = Kit.Motion.Base
+local hideInfo = Kit.Motion.Leave
 
 local function collectFades(root: Instance): { FadeTarget }
 	local list: { FadeTarget } = {}
@@ -71,7 +72,7 @@ local function collectFades(root: Instance): { FadeTarget }
 end
 
 function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, kind: string?) -> ()
-	local _gui, root = Kit.ScreenGui("ThockToasts", 20, playerGui, trove)
+	local _gui, root = Kit.ScreenGui("ThockToasts", Kit.Layer.Toast, playerGui, trove)
 	local holder = Instance.new("Frame")
 	holder.Name = "Holder"
 	holder.BackgroundTransparency = 1
@@ -172,7 +173,7 @@ function Toast.new(playerGui: Instance, trove: TroveInstance): (text: string, ki
 			Name = "Text",
 			Text = text,
 			Size = UDim2.fromOffset(0, toastHeight - 4),
-			TextSize = 24,
+			TextSize = Kit.Text.Title,
 			Align = Enum.TextXAlignment.Center,
 			LayoutOrder = 2,
 		})

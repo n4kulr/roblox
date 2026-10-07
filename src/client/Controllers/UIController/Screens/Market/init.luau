@@ -1,11 +1,7 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
-local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Market = require(ReplicatedStorage.Rules.Market)
@@ -14,7 +10,10 @@ local TimeFormat = require(ReplicatedStorage.Utils.TimeFormat)
 local Economy = require(script.Parent.Parent.Economy)
 local EggArt = require(script.Parent.Parent.EggArt)
 local Kit = require(script.Parent.Parent.Kit)
+local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
+local Counter = require(script.Counter)
+local Display = require(script.Display)
 
 type TroveInstance = typeof(Trove.new())
 type Card = {
@@ -32,18 +31,10 @@ type Card = {
 type Stored = { Slot: number?, Bought: { [string]: number }? }
 
 local theme = Kit.Theme
-local config = GameConfig.Market
-local accent = Color3.fromRGB(255, 96, 48)
-local barHeight = 84
+local barHeight = Display.BarHeight
 local expandedExtra = 84
-local expandInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local popInfo = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local refreshSeconds = 0.25
-local reachSlack = 6
-local stalls = { "Market", "MarketPlaceholder" }
-local priceGap = 4
-local priceIconSize = 34
-local priceTextSize = 28
+local expandInfo = Kit.Motion.Base
+local popInfo = Kit.Motion.Pop
 local holdingText = "PLACE YOUR EGG FIRST"
 local holdingMessage = "Place the egg you are holding on your base first!"
 local fullText = "BASE FULL"
@@ -51,82 +42,19 @@ local fullMessage = `Your base holds {Eggs.PlacedCap} eggs! Hatch one first.`
 
 local MarketScreen = {}
 
-local function counterPosition(): Vector3?
-	for _, name in stalls do
-		local stall = workspace:FindFirstChild(name)
-		local counter = if stall then stall:FindFirstChild("Counter", true) else nil
-		if counter and counter:IsA("BasePart") then
-			return counter.Position
-		end
-	end
-	return nil
-end
-
-local function isNearCounter(): boolean
-	local character = Players.LocalPlayer.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	local position = counterPosition()
-	if not root or not root:IsA("BasePart") or not position then
-		return false
-	end
-	return (root.Position - position).Magnitude <= config.PromptRange + reachSlack
-end
-
-local function percentText(chance: number): string
-	local percent = chance * 100
-	return if percent >= 10 or percent % 1 == 0
-		then string.format("%d%%", math.floor(percent + 0.5))
-		else string.format("%.1f%%", percent)
-end
-
-local function centerPrice(face: Frame)
-	local icon = face:FindFirstChild("Icon") :: GuiObject?
-	local text = face:FindFirstChild("Text") :: TextLabel?
-	if not (icon and text) then
-		return
-	end
-	local holder = Instance.new("Frame")
-	holder.Name = "Price"
-	holder.BackgroundTransparency = 1
-	holder.BorderSizePixel = 0
-	holder.Position = UDim2.fromOffset(0, 2)
-	holder.Size = UDim2.new(1, 0, 1, -4)
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.VerticalAlignment = Enum.VerticalAlignment.Center
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, priceGap)
-	list.Parent = holder
-	icon.AnchorPoint = Vector2.zero
-	icon.Position = UDim2.new()
-	icon.Size = UDim2.fromOffset(priceIconSize, priceIconSize)
-	icon.LayoutOrder = 1
-	icon.Parent = holder
-	text.Position = UDim2.new()
-	text.Size = UDim2.fromScale(0, 1)
-	text.AutomaticSize = Enum.AutomaticSize.X
-	text.TextScaled = false
-	text.TextSize = priceTextSize
-	text.TextTruncate = Enum.TextTruncate.None
-	text.LayoutOrder = 2
-	text.Parent = holder
-	holder.Parent = face
-end
-
 function MarketScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
 	local cardsTrove = Trove.new()
 	trove:Add(cardsTrove)
 	local playUi = Kit.UiSound(context.Controllers)
 	local dataController = context.Controllers.DataController
-	local tracker = Economy.Track(dataController, trove)
+	local tracker = Economy.For(context, trove)
 	local cards: { Card } = {}
 	local stored: Stored = {}
 	local currentSlot = Market.Slot(workspace:GetServerTimeNow())
 	local builtSlot = -1
 	local isOpen = false
-	local isBusy = false
+	local buyGuard = Kit.Request(trove)
 	local expanded: Card? = nil
 
 	local modal = Kit.Modal(trove, {
@@ -135,11 +63,10 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Title = "EGG MARKET",
 		Glyph = "Shop",
 		MaxSize = Vector2.new(900, 680),
-		HeaderColor = accent,
+		HeaderColor = theme.Ember,
 		OnClose = function()
 			context.Close("Market")
 		end,
-		Sound = playUi,
 	})
 	local timerPill = Kit.Pill({
 		Parent = modal.HeaderRight,
@@ -147,7 +74,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		Glyph = "Clock",
 		Text = "New stock in 0:00",
 		Size = UDim2.fromOffset(260, 40),
-		TextSize = 20,
+		TextSize = Kit.Text.Label,
 	})
 	local timer = timerPill.Label
 	local list = Kit.Scroll({
@@ -251,7 +178,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 	end
 
 	local function buy(card: Card)
-		if isBusy then
+		if buyGuard.IsBusy() then
 			return
 		end
 		local offer = card.Offer
@@ -273,16 +200,15 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			context.Toast(`Need {NumberFormat.Compact(card.Price - balance)} more!`, "Bad")
 			return
 		end
-		if not isNearCounter() then
+		if not Counter.IsNear() then
 			playUi("Error")
 			context.Toast("Get closer to the market!", "Bad")
 			return
 		end
-		isBusy = true
-		task.spawn(function()
-			local bought = Packets.MarketBuy:Fire(offer.Index)
-			isBusy = false
-			if bought == true then
+		buyGuard.Run(function()
+			return Packets.MarketBuy:Fire(offer.Index)
+		end, function(isOk: boolean, bought: any)
+			if isOk and bought == true then
 				playUi("Confirm")
 				context.Toast(Eggs.Guide.BoughtToast, "Good")
 				context.Close("Market")
@@ -292,57 +218,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 					if isHolding()
 						then holdingMessage
 						elseif isBaseFull() then fullMessage
-						elseif isNearCounter() then "Couldn't buy that one!"
+						elseif Counter.IsNear() then "Couldn't buy that one!"
 						else "Get closer to the market!",
 					"Bad"
 				)
 			end
 			refreshCards()
 		end)
-	end
-
-	local function buildDrops(bar: Frame, egg: Eggs.Egg)
-		local panel = Instance.new("Frame")
-		panel.Name = "Details"
-		panel.BackgroundTransparency = 1
-		panel.Position = UDim2.fromOffset(30, 0)
-		panel.Size = UDim2.new(1, -46, 1, 0)
-		panel.Parent = bar
-		local total = 0
-		local names: { string } = {}
-		for _, weight in egg.Drops do
-			total += weight
-		end
-		for _, rarity in CharmConfig.Rarities do
-			if egg.Drops[rarity.Name] then
-				table.insert(names, rarity.Name)
-			end
-		end
-		local count = #names
-		local gap = 6
-		for index, name in names do
-			local rarity = CharmConfig.RarityByName[name]
-			local weight = egg.Drops[name]
-			Kit.Chip({
-				Parent = panel,
-				Name = name,
-				Text = `{name} {percentText(weight / total)}`,
-				Size = UDim2.new(1 / count, -gap, 0, 30),
-				Position = UDim2.new((index - 1) / count, 0, 0, barHeight + 6),
-				Color = rarity.Color,
-				TextSize = 20,
-			})
-		end
-		Kit.Label({
-			Parent = panel,
-			Name = "Description",
-			Text = egg.Tagline,
-			Position = UDim2.fromOffset(2, barHeight + 42),
-			Size = UDim2.new(1, -2, 0, 24),
-			TextSize = 18,
-			Subtle = true,
-			Scaled = true,
-		})
 	end
 
 	local function buildCard(offer: Market.Offer, animate: boolean)
@@ -408,7 +290,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Text = egg.Name,
 			Position = UDim2.fromOffset(112, 8),
 			Size = UDim2.new(1, -330, 0, 34),
-			TextSize = 30,
+			TextSize = Kit.Text.Banner,
 			Title = true,
 		})
 		Kit.Label({
@@ -417,7 +299,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Text = `Hatches in {TimeFormat.Clock(egg.HatchSeconds)}`,
 			Position = UDim2.fromOffset(112, 48),
 			Size = UDim2.fromOffset(176, 26),
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 			Subtle = true,
 		})
 		local stockText = Kit.Chip({
@@ -427,13 +309,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			Size = UDim2.fromOffset(104, 26),
 			Position = UDim2.fromOffset(296, 48),
 			Color = theme.Blue,
-			TextSize = 18,
+			TextSize = Kit.Text.Body,
 		})
 		local stockChip = stockText.Parent :: Frame
 		local stockScale = Instance.new("UIScale")
 		stockScale.Name = "Pop"
 		stockScale.Parent = stockChip
-		buildDrops(panel, egg)
+		Display.BuildDrops(panel, egg)
 		local card: Card
 		local action = Kit.Button(cardsTrove, {
 			Parent = panel,
@@ -445,13 +327,12 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			AnchorPoint = Vector2.new(1, 0.5),
 			Size = UDim2.fromOffset(190, 62),
 			Color = theme.Green,
-			TextSize = 28,
+			TextSize = Kit.Text.Heading,
 			Callback = function()
 				buy(card)
 			end,
-			Sound = playUi,
 		})
-		centerPrice(action.Face)
+		Display.CenterPrice(action.Face)
 		card = {
 			Offer = offer,
 			Price = 0,
@@ -474,18 +355,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			scale.Name = "Intro"
 			scale.Scale = 0.85
 			scale.Parent = wrapper
-			Kit.Tween(
-				scale,
-				TweenInfo.new(
-					0.2,
-					Enum.EasingStyle.Back,
-					Enum.EasingDirection.Out,
-					0,
-					false,
-					(offer.Index - 1) * 0.04
-				),
-				{ Scale = 1 }
-			)
+			Kit.Tween(scale, Kit.Retime(Kit.Motion.Pop, 0.2, (offer.Index - 1) * 0.04), { Scale = 1 })
 		end
 	end
 
@@ -526,21 +396,12 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		end))
 	end
 
-	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(dt: number)
-		if not isOpen then
-			return
-		end
-		elapsed += dt
-		if elapsed >= refreshSeconds then
-			elapsed = 0
-			tick()
-		end
-	end)
+	Kit.Poll(trove, Kit.PollSeconds.Relaxed, function()
+		return isOpen
+	end, tick)
 
-	local player = Players.LocalPlayer
-	trove:Connect(player:GetAttributeChangedSignal("OpenMarket"), function()
-		if player:GetAttribute("OpenMarket") ~= nil then
+	trove:Connect(PlayerState.MarketRequested(), function()
+		if PlayerState.IsMarketRequested() then
 			context.Open("Market")
 		end
 	end)

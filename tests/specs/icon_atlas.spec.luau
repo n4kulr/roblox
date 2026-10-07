@@ -53,25 +53,25 @@ describe("IconAtlas", function()
 		expect(table.isfrozen(atlas.Rects)):toBe(true)
 	end)
 
-	it("does not apply while Image is empty", function()
+	it("reads the image and cell size from UiAssets", function()
+		local UiAssets = world:require("ReplicatedStorage.Config.UiAssets")
+		expect(atlas.Image):toBe(UiAssets.IconAtlas)
+		expect(atlas.CellSize):toBe(UiAssets.IconCell)
+	end)
+
+	it("applies a rect to an image and rejects unknown names", function()
 		local label = world:newInstance("ImageLabel")
-		label.Image = "untouched"
-		if atlas.Image == "" then
-			expect(atlas.Apply(label, "Luck")):toBe(false)
-			expect(label.Image):toBe("untouched")
-		end
+		expect(atlas.Apply(label, "Luck")):toBe(true)
+		expect(label.Image):toBe(atlas.Image)
+		expect(label.ImageRectOffset):toBe(atlas.Rects.Luck)
 		expect(atlas.Apply(label, "Nope")):toBe(false)
 	end)
 
-	it("applies the preview image from the attribute", function()
-		if atlas.Image ~= "" then
-			return
-		end
-		world.tree.ReplicatedStorage:SetAttribute("IconAtlasPreview", "rbxassetid://preview-atlas")
+	it("resolves aliases to their target icon", function()
 		local label = world:newInstance("ImageLabel")
-		expect(atlas.Apply(label, "Luck")):toBe(true)
-		expect(label.Image):toBe("rbxassetid://preview-atlas")
-		expect(label.ImageRectOffset):toBe(atlas.Rects.Luck)
-		expect(atlas.Apply(label, "Nope")):toBe(false)
+		expect(atlas.Apply(label, "Coin")):toBe(true)
+		expect(label.ImageRectOffset):toBe(atlas.Rects.Clicks)
+		expect(atlas.Has("Market")):toBe(true)
+		expect(atlas.Has("Nope")):toBe(false)
 	end)
 end)
