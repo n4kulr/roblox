@@ -11,8 +11,8 @@ local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local RateLimit = require(ReplicatedStorage.Utils.RateLimit)
 local Economy = require(script.Parent.Parent.Economy)
 local Kit = require(script.Parent.Parent.Kit)
-local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
+local LockCard = require(script.LockCard)
 
 type Row = {
 	Frame: Frame,
@@ -55,11 +55,7 @@ local sections: { { Category: Upgrades.Category, Caption: string, Glyph: string 
 	{ Category = "Defense", Caption = "BASE DEFENSE", Glyph = "Walls" },
 }
 local sectionStride = 1000
-local lockCardHeight = 92
-local lockButtonWidth = 200
 local lockCardOrder = 900
-local lockReadyText = "LOCK BASE"
-local lockToast = "Lasers on! Your base is locked."
 
 local effectShortenings: { { string } } = {
 	{ " each level", "" },
@@ -346,95 +342,25 @@ function UpgradesScreen.new(context: Types.Context): Types.Screen
 		table.insert(rows, row)
 	end
 
-	local lockButton: Kit.Button
-	local lockCard: Frame
-	local lockDescription: TextLabel
-	local isLockBusy = false
-
-	local function clock(seconds: number): string
-		local whole = math.max(0, math.ceil(seconds))
-		return string.format("%d:%02d", whole // 60, whole % 60)
-	end
+	local lockCard: LockCard.Card? = nil
 
 	local function refreshLock()
-		local upgrade = Upgrades.ById.LockTime
-		local seconds = GameConfig.Defense.LockBaseSeconds + tracker.GetLevel("LockTime") * upgrade.PerLevel
-		lockDescription.Text = `Lasers zap thieves for {seconds}s`
-		local plot = PlayerState.OwnPlot()
-		local now = workspace:GetServerTimeNow()
-		local lockedUntil = if plot then plot:GetAttribute("LockedUntil") else nil
-		local cooldownUntil = if plot then plot:GetAttribute("LockCooldownUntil") else nil
-		if type(lockedUntil) == "number" and now < lockedUntil then
-			lockButton.SetText(`LOCKED {clock(lockedUntil - now)}`)
-			lockButton.SetColor(theme.Green)
-			lockButton.SetDisabled(true)
-		elseif type(cooldownUntil) == "number" and now < cooldownUntil then
-			lockButton.SetText(`READY IN {clock(cooldownUntil - now)}`)
-			lockButton.SetColor(theme.GreyDeep)
-			lockButton.SetDisabled(true)
-		else
-			lockButton.SetText(lockReadyText)
-			lockButton.SetColor(theme.Red)
-			lockButton.SetDisabled(plot == nil)
+		local current = lockCard
+		if current then
+			current.Refresh()
 		end
-	end
-
-	local function pressLock()
-		if isLockBusy then
-			return
-		end
-		isLockBusy = true
-		Kit.Spawn(trove, function()
-			return Packets.LockBase:Fire()
-		end, function(isOk: boolean, success: any)
-			isLockBusy = false
-			if isOk and success == true then
-				playUi("Confirm")
-				Kit.Pulse(lockCard, theme.Good, 1)
-				context.Toast(lockToast, "Good")
-			else
-				playUi("Error")
-				Kit.Shake(lockCard)
-			end
-			refreshLock()
-		end)
-	end
-
-	local function addLockCard(order: number)
-		local layout = Kit.Row({
-			Parent = scroll,
-			Name = "LockBase",
-			Height = lockCardHeight,
-			LayoutOrder = order,
-			Color = theme.Red,
-			Glyph = "Lock",
-			Title = "LOCK BASE",
-			Subtitle = "",
-			RightWidth = lockButtonWidth,
-		})
-		lockCard = layout.Frame
-		local sub = layout.Subtitle
-		if sub then
-			sub.Name = "Description"
-			lockDescription = sub
-		end
-		lockButton = Kit.Button(trove, {
-			Parent = lockCard,
-			Name = "Lock",
-			Text = lockReadyText,
-			Position = UDim2.new(1, -Kit.Space.M, 0.5, 0),
-			AnchorPoint = Vector2.new(1, 0.5),
-			Size = UDim2.fromOffset(lockButtonWidth, 56),
-			Color = theme.Red,
-			TextSize = Kit.Text.Subhead,
-			Callback = pressLock,
-		})
 	end
 
 	for sectionIndex, section in sections do
 		addCaption(section, sectionIndex * sectionStride)
 		if section.Category == "Defense" then
-			addLockCard(sectionIndex * sectionStride + lockCardOrder)
+			lockCard = LockCard.Build({
+				Trove = trove,
+				Context = context,
+				Parent = scroll,
+				Tracker = tracker,
+				PlayUi = playUi,
+			}, sectionIndex * sectionStride + lockCardOrder)
 		end
 		for index, upgrade in Upgrades.List do
 			if upgrade.Category == section.Category then

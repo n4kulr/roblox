@@ -1,10 +1,7 @@
 --!strict
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
-local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Market = require(ReplicatedStorage.Rules.Market)
@@ -15,6 +12,8 @@ local EggArt = require(script.Parent.Parent.EggArt)
 local Kit = require(script.Parent.Parent.Kit)
 local PlayerState = require(script.Parent.Parent.PlayerState)
 local Types = require(script.Parent.Parent.Types)
+local Counter = require(script.Counter)
+local Display = require(script.Display)
 
 type TroveInstance = typeof(Trove.new())
 type Card = {
@@ -32,85 +31,16 @@ type Card = {
 type Stored = { Slot: number?, Bought: { [string]: number }? }
 
 local theme = Kit.Theme
-local config = GameConfig.Market
-local barHeight = 84
+local barHeight = Display.BarHeight
 local expandedExtra = 84
 local expandInfo = Kit.Motion.Base
 local popInfo = Kit.Motion.Pop
-local reachSlack = 6
-local stalls = { "Market", "MarketPlaceholder" }
-local priceGap = 4
-local priceIconSize = 34
-local priceTextSize = 28
 local holdingText = "PLACE YOUR EGG FIRST"
 local holdingMessage = "Place the egg you are holding on your base first!"
 local fullText = "BASE FULL"
 local fullMessage = `Your base holds {Eggs.PlacedCap} eggs! Hatch one first.`
 
 local MarketScreen = {}
-
-local function counterPosition(): Vector3?
-	for _, name in stalls do
-		local stall = workspace:FindFirstChild(name)
-		local counter = if stall then stall:FindFirstChild("Counter", true) else nil
-		if counter and counter:IsA("BasePart") then
-			return counter.Position
-		end
-	end
-	return nil
-end
-
-local function isNearCounter(): boolean
-	local character = Players.LocalPlayer.Character
-	local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-	local position = counterPosition()
-	if not root or not root:IsA("BasePart") or not position then
-		return false
-	end
-	return (root.Position - position).Magnitude <= config.PromptRange + reachSlack
-end
-
-local function percentText(chance: number): string
-	local percent = chance * 100
-	return if percent >= 10 or percent % 1 == 0
-		then string.format("%d%%", math.floor(percent + 0.5))
-		else string.format("%.1f%%", percent)
-end
-
-local function centerPrice(face: Frame)
-	local icon = face:FindFirstChild("Icon") :: GuiObject?
-	local text = face:FindFirstChild("Text") :: TextLabel?
-	if not (icon and text) then
-		return
-	end
-	local holder = Instance.new("Frame")
-	holder.Name = "Price"
-	holder.BackgroundTransparency = 1
-	holder.BorderSizePixel = 0
-	holder.Position = UDim2.fromOffset(0, 2)
-	holder.Size = UDim2.new(1, 0, 1, -4)
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.VerticalAlignment = Enum.VerticalAlignment.Center
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, priceGap)
-	list.Parent = holder
-	icon.AnchorPoint = Vector2.zero
-	icon.Position = UDim2.new()
-	icon.Size = UDim2.fromOffset(priceIconSize, priceIconSize)
-	icon.LayoutOrder = 1
-	icon.Parent = holder
-	text.Position = UDim2.new()
-	text.Size = UDim2.fromScale(0, 1)
-	text.AutomaticSize = Enum.AutomaticSize.X
-	text.TextScaled = false
-	text.TextSize = priceTextSize
-	text.TextTruncate = Enum.TextTruncate.None
-	text.LayoutOrder = 2
-	text.Parent = holder
-	holder.Parent = face
-end
 
 function MarketScreen.new(context: Types.Context): Types.Screen
 	local trove = Trove.new()
@@ -270,7 +200,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 			context.Toast(`Need {NumberFormat.Compact(card.Price - balance)} more!`, "Bad")
 			return
 		end
-		if not isNearCounter() then
+		if not Counter.IsNear() then
 			playUi("Error")
 			context.Toast("Get closer to the market!", "Bad")
 			return
@@ -288,57 +218,13 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 					if isHolding()
 						then holdingMessage
 						elseif isBaseFull() then fullMessage
-						elseif isNearCounter() then "Couldn't buy that one!"
+						elseif Counter.IsNear() then "Couldn't buy that one!"
 						else "Get closer to the market!",
 					"Bad"
 				)
 			end
 			refreshCards()
 		end)
-	end
-
-	local function buildDrops(bar: Frame, egg: Eggs.Egg)
-		local panel = Instance.new("Frame")
-		panel.Name = "Details"
-		panel.BackgroundTransparency = 1
-		panel.Position = UDim2.fromOffset(30, 0)
-		panel.Size = UDim2.new(1, -46, 1, 0)
-		panel.Parent = bar
-		local total = 0
-		local names: { string } = {}
-		for _, weight in egg.Drops do
-			total += weight
-		end
-		for _, rarity in CharmConfig.Rarities do
-			if egg.Drops[rarity.Name] then
-				table.insert(names, rarity.Name)
-			end
-		end
-		local count = #names
-		local gap = 6
-		for index, name in names do
-			local rarity = CharmConfig.RarityByName[name]
-			local weight = egg.Drops[name]
-			Kit.Chip({
-				Parent = panel,
-				Name = name,
-				Text = `{name} {percentText(weight / total)}`,
-				Size = UDim2.new(1 / count, -gap, 0, 30),
-				Position = UDim2.new((index - 1) / count, 0, 0, barHeight + 6),
-				Color = rarity.Color,
-				TextSize = Kit.Text.Label,
-			})
-		end
-		Kit.Label({
-			Parent = panel,
-			Name = "Description",
-			Text = egg.Tagline,
-			Position = UDim2.fromOffset(2, barHeight + 42),
-			Size = UDim2.new(1, -2, 0, 24),
-			TextSize = Kit.Text.Body,
-			Subtle = true,
-			Scaled = true,
-		})
 	end
 
 	local function buildCard(offer: Market.Offer, animate: boolean)
@@ -429,7 +315,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 		local stockScale = Instance.new("UIScale")
 		stockScale.Name = "Pop"
 		stockScale.Parent = stockChip
-		buildDrops(panel, egg)
+		Display.BuildDrops(panel, egg)
 		local card: Card
 		local action = Kit.Button(cardsTrove, {
 			Parent = panel,
@@ -446,7 +332,7 @@ function MarketScreen.new(context: Types.Context): Types.Screen
 				buy(card)
 			end,
 		})
-		centerPrice(action.Face)
+		Display.CenterPrice(action.Face)
 		card = {
 			Offer = offer,
 			Price = 0,
