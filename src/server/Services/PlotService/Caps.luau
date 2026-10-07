@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local UiAssets = require(ReplicatedStorage.Config.UiAssets)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Gui = require(ReplicatedStorage.Utils.Gui)
 local KeyLegend = require(ReplicatedStorage.Utils.KeyLegend)
@@ -39,7 +40,7 @@ function Caps.EmptyColor(base: Color3): Color3
 end
 
 local function fenceColor(model: Instance, fallback: Color3): Color3
-	local fence = model:FindFirstChild("Fence")
+	local fence = model:FindFirstChild(WorldNames.Parts.Fence)
 	if not fence then
 		return fallback
 	end
@@ -83,14 +84,14 @@ function Caps.Create(info: Types.PlotInfo, cell: FloorGrid.Cell): BasePart
 		info.Base.CFrame * CFrame.new(cell.X, info.Base.Size.Y / 2 + capHeight / 2 - sink, cell.Z),
 		FloorKeys.Color(baseColor)
 	)
-	cap:SetAttribute("Cell", cell.Index)
-	cap:SetAttribute("PressDepth", capHeight - sink - FloorKeys.Top())
+	cap:SetAttribute(WorldNames.Attributes.Cell, cell.Index)
+	cap:SetAttribute(WorldNames.Attributes.PressDepth, capHeight - sink - FloorKeys.Top())
 	if slot then
 		cap.Name = `Slot{slot}`
-		cap:SetAttribute("Slot", slot)
+		cap:SetAttribute(WorldNames.Attributes.Slot, slot)
 	else
 		cap.Name = `Floor{cell.Index}`
-		cap:SetAttribute("Filler", true)
+		cap:SetAttribute(WorldNames.Attributes.Filler, true)
 		Legend.Attach(cap, Legend.SeedOf(info.Model.Name, cell.Index), Legend.ColorFor(baseColor))
 	end
 	return cap
@@ -233,16 +234,16 @@ local function paintCap(cap: BasePart, color: Color3, transparency: number, isLo
 	cap.Material = Enum.Material.SmoothPlastic
 	cap.Reflectance = 0
 	cap.Transparency = transparency
-	cap:SetAttribute("KeyId", nil)
-	cap:SetAttribute("Locked", if isLocked then true else nil)
+	cap:SetAttribute(WorldNames.Attributes.KeyId, nil)
+	cap:SetAttribute(WorldNames.Attributes.Locked, if isLocked then true else nil)
 end
 
 local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, key: Keys.Key)
 	local rarity = Keys.GetRarity(key)
 	Keys.ApplyVariantFinish(cap, keyId)
 	cap.Transparency = 0
-	cap:SetAttribute("KeyId", keyId)
-	cap:SetAttribute("Locked", nil)
+	cap:SetAttribute(WorldNames.Attributes.KeyId, keyId)
+	cap:SetAttribute(WorldNames.Attributes.Locked, nil)
 	local amount = amountOf(cap, visual)
 	amount.Text = `+{NumberFormat.Compact(Keys.GetIncome(keyId))}/s`
 	amount.TextColor3 = rarity.Color:Lerp(white, textLighten)

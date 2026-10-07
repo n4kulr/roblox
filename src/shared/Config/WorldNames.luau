@@ -82,6 +82,7 @@ local Folders = table.freeze({
 	Lasers = "Lasers",
 	Assets = "Assets",
 	Meshes = "Meshes",
+	Arena = "Arena",
 })
 
 local Parts = table.freeze({
@@ -93,6 +94,10 @@ local Parts = table.freeze({
 	Counter = "Counter",
 	Market = "Market",
 	MarketPlaceholder = "MarketPlaceholder",
+	DroppedKey = "DroppedKey",
+	Floor = "Floor",
+	Sign = "Sign",
+	Panel = "Panel",
 })
 
 local Prompts = table.freeze({

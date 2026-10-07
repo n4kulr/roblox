@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
 local Lock = require(script.Parent.Lock)
@@ -24,8 +25,8 @@ end
 
 local function vacate(info: PlotInfo, previousOwner: Player)
 	applyOwner(info, nil)
-	info.Model:SetAttribute("LastOwner", previousOwner.UserId)
-	info.Model:SetAttribute("Owner", nil)
+	info.Model:SetAttribute(WorldNames.Attributes.LastOwner, previousOwner.UserId)
+	info.Model:SetAttribute(WorldNames.Attributes.Owner, nil)
 	Present.RefreshWalls(info, nil)
 	Present.Render(info, nil)
 	if info.Sign then
@@ -73,7 +74,7 @@ function Assignment.Assign(context: Types.Context, player: Player, data: PlayerD
 	Assignment.ReleaseStale(context)
 	local free: PlotInfo? = nil
 	for _, info in context.Plots do
-		if not info.Owner and info.Model:GetAttribute("LastOwner") == player.UserId then
+		if not info.Owner and info.Model:GetAttribute(WorldNames.Attributes.LastOwner) == player.UserId then
 			free = info
 			break
 		end
@@ -92,7 +93,7 @@ function Assignment.Assign(context: Types.Context, player: Player, data: PlayerD
 	end
 	applyOwner(free, player)
 	context.ByPlayer[player] = free
-	free.Model:SetAttribute("Owner", player.UserId)
+	free.Model:SetAttribute(WorldNames.Attributes.Owner, player.UserId)
 	Present.RefreshWalls(free, data)
 	Present.Render(free, data)
 	if free.Sign then

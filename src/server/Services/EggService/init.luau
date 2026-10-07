@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Charms = require(ReplicatedStorage.Rules.Charms)
@@ -104,7 +105,7 @@ local function syncActive(player: Player, data: PlayerData.Data)
 	if table.concat(best, ",") ~= table.concat(data.EquippedCharms, ",") then
 		services.DataService:Set(player, { "EquippedCharms" }, best)
 	end
-	player:SetAttribute("EquippedCharms", table.concat(best, ","))
+	player:SetAttribute(WorldNames.Attributes.EquippedCharms, table.concat(best, ","))
 	showPets(player, data)
 end
 

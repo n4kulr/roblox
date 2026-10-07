@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Packets = require(ReplicatedStorage.Packets)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
@@ -55,13 +56,13 @@ local function lockOf(player: Player): Types.Defense?
 end
 
 local function buildPlots(trove: TroveInstance)
-	local folder = workspace:FindFirstChild("Plots")
+	local folder = workspace:FindFirstChild(WorldNames.Folders.Plots)
 	local isPlaceholder = false
 	if not folder then
 		isPlaceholder = true
 		warn("[PlotService] workspace.Plots not found; building placeholder plots")
 		local placeholder = Instance.new("Folder")
-		placeholder.Name = "Plots"
+		placeholder.Name = WorldNames.Folders.Plots
 		Placeholder.Build(placeholder)
 		placeholder.Parent = workspace
 		trove:Add(placeholder)

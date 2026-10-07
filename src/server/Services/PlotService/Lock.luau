@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Upgrades = require(ReplicatedStorage.Config.Upgrades)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Gui = require(ReplicatedStorage.Utils.Gui)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 local Types = require(script.Parent.Types)
@@ -97,7 +98,7 @@ function Lock.ShowLasers(info: Types.PlotInfo, state: Types.Defense)
 	local height = math.max(info.WallHeight, minLaserHeight)
 	local entrance = Lock.EntranceCFrame(info)
 	local folder = Instance.new("Folder")
-	folder.Name = "Lasers"
+	folder.Name = WorldNames.Folders.Lasers
 	local low = laserMargin
 	local high = math.max(low, height - laserMargin)
 	for index = 1, laserCount do
@@ -174,7 +175,10 @@ function Lock.Present(info: Types.PlotInfo, state: Types.Defense, now: number)
 	end
 	if state.PublishedLocked ~= state.LockedUntil then
 		state.PublishedLocked = state.LockedUntil
-		info.Model:SetAttribute("LockedUntil", if state.LockedUntil > 0 then state.LockedUntil else nil)
+		info.Model:SetAttribute(
+			WorldNames.Attributes.LockedUntil,
+			if state.LockedUntil > 0 then state.LockedUntil else nil
+		)
 	end
 	if state.PublishedCooldown ~= state.CooldownUntil then
 		state.PublishedCooldown = state.CooldownUntil

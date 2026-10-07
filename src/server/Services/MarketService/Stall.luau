@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local Market = require(ReplicatedStorage.Rules.Market)
 local Gui = require(ReplicatedStorage.Utils.Gui)
@@ -25,8 +26,8 @@ local stripeWidth = 2
 
 local Stall = {}
 
-Stall.PromptName = "MarketPrompt"
-Stall.PlaceholderName = "Market"
+Stall.PromptName = WorldNames.Prompts.MarketPrompt
+Stall.PlaceholderName = WorldNames.Parts.Market
 
 local function newPart(
 	parent: Instance,
@@ -65,10 +66,10 @@ end
 function Stall.Build(name: string): (Model, BasePart)
 	local model = Instance.new("Model")
 	model.Name = name
-	newPart(model, "Floor", Vector3.new(16, 0.2, 12), Vector3.new(0, 0.1, 0), rugColor, false)
+	newPart(model, WorldNames.Parts.Floor, Vector3.new(16, 0.2, 12), Vector3.new(0, 0.1, 0), rugColor, false)
 	local counter = newPart(
 		model,
-		"Counter",
+		WorldNames.Parts.Counter,
 		Vector3.new(12, counterHeight, 2.5),
 		Vector3.new(0, counterHeight / 2, counterZ),
 		counterColor
@@ -113,11 +114,11 @@ function Stall.Build(name: string): (Model, BasePart)
 end
 
 function Stall.FindAuthored(): (Model?, BasePart?)
-	local found = workspace:FindFirstChild("Market")
+	local found = workspace:FindFirstChild(WorldNames.Parts.Market)
 	if not found or not found:IsA("Model") then
 		return nil, nil
 	end
-	local counter = found:FindFirstChild("Counter", true)
+	local counter = found:FindFirstChild(WorldNames.Parts.Counter, true)
 	if counter and counter:IsA("BasePart") then
 		return found, counter
 	end

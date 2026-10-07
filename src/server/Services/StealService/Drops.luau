@@ -2,6 +2,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Gui = require(ReplicatedStorage.Utils.Gui)
 local KeyVisual = require(script.Parent.Parent.Parent.Utils.KeyVisual)
 local Prompts = require(script.Parent.Prompts)
@@ -11,10 +12,10 @@ local groundProbe = 12
 local hipHeight = 3
 local spinSpeed = 120
 local lift = 0.4
-local spinnerTag = "Spinner"
+local spinnerTag = WorldNames.Tags.Spinner
 
 local Drops = {
-	PartName = "DroppedKey",
+	PartName = WorldNames.Parts.DroppedKey,
 }
 
 local function groundPosition(root: BasePart, character: Model?): Vector3
@@ -47,9 +48,9 @@ function Drops.Build(
 	part.CanCollide = false
 	part.Massless = false
 	part.CFrame = CFrame.new(groundPosition(root, character))
-	part:SetAttribute("OwnerUserId", ownerUserId)
-	part:SetAttribute("KeyId", keyId)
-	part:SetAttribute("SpinSpeed", spinSpeed)
+	part:SetAttribute(WorldNames.Attributes.OwnerUserId, ownerUserId)
+	part:SetAttribute(WorldNames.Attributes.KeyId, keyId)
+	part:SetAttribute(WorldNames.Attributes.SpinSpeed, spinSpeed)
 	local gui = Gui.Billboard(part, {
 		Name = "OwnerTag",
 		Size = UDim2.fromOffset(220, 44),

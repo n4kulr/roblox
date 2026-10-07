@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Parts = require(script.Parent.Parts)
 
 export type Options = {
@@ -228,7 +229,7 @@ function EggModel.Build(parent: Instance, egg: Eggs.Egg, options: Options): { Ba
 		table.insert(parts, part)
 		return part
 	end
-	local bodyName = options.BodyName or "EggBody"
+	local bodyName = options.BodyName or WorldNames.Parts.EggBody
 	local body = add(bodyName, lower.Size, CFrame.new(lower.Center), egg.Color, Enum.MeshType.Sphere)
 	add("EggTop", upper.Size, CFrame.new(upper.Center), egg.Color, Enum.MeshType.Sphere)
 	add("EggMid", middle.Size, CFrame.new(middle.Center), egg.Color, Enum.MeshType.Sphere)

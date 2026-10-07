@@ -3,12 +3,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Packets = require(ReplicatedStorage.Packets)
 local Charms = require(ReplicatedStorage.Rules.Charms)
 local Steal = require(ReplicatedStorage.Rules.Steal)
 local Stats = require(ReplicatedStorage.Rules.Stats)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
-local Alerts = require(script.Parent.Parent.Parent.Utils.Alerts)
 local Character = require(script.Parent.Parent.Parent.Utils.Character)
 local Carry = require(script.Parent.Carry)
 local Locks = require(script.Parent.Locks)
@@ -104,7 +104,7 @@ local function onHoldBegan(
 			context.Locks[owner.UserId] = { Thief = thief, Slot = slot }
 			context.SyncPrompts(owner)
 		end
-		Alerts.Send(owner, thief.DisplayName, key.Index, Alerts.Phase.Grab)
+		Packets.StealAlert:FireClient(owner, thief.DisplayName, key.Index, Steal.AlertPhase.Stealing)
 	end
 end
 
@@ -136,13 +136,13 @@ local function onTriggered(
 	end
 	if not isAllowed then
 		Locks.Release(context, owner.UserId, thief)
-		Alerts.Bad(thief, reason)
+		Packets.StealAlert:FireClient(thief, reason, 0, Steal.AlertPhase.Rejected)
 		return
 	end
 	context.Locks[owner.UserId] = { Thief = thief, Slot = 0 }
 	if not services.KeyboardService:TakeFromSlot(owner, slot, current) then
 		Locks.Release(context, owner.UserId, thief)
-		Alerts.Bad(thief, Steal.Reasons.Gone)
+		Packets.StealAlert:FireClient(thief, Steal.Reasons.Gone, 0, Steal.AlertPhase.Rejected)
 		return
 	end
 	Carry.Begin(context, thief, owner, slot, current)

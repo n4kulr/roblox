@@ -3,9 +3,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local Packets = require(ReplicatedStorage.Packets)
+local Steal = require(ReplicatedStorage.Rules.Steal)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local PlayerData = require(script.Parent.Parent.Parent.Data.PlayerData)
-local Alerts = require(script.Parent.Parent.Parent.Utils.Alerts)
 local Character = require(script.Parent.Parent.Parent.Utils.Character)
 local Ragdoll = require(script.Parent.Parent.Parent.Utils.Ragdoll)
 local Config = require(script.Parent.Parent.Parent.Config.Steal)
@@ -67,7 +68,12 @@ local function returnDrop(context: Types.Context, drop: Types.Drop)
 	end
 	context.Services.KeyboardService:RestoreKey(owner, drop.Slot, drop.KeyId)
 	local key = Keys.Resolve(drop.KeyId)
-	Alerts.Send(owner, drop.ThiefName, if key then key.Index else 0, Alerts.Phase.Returned)
+	Packets.StealAlert:FireClient(
+		owner,
+		drop.ThiefName,
+		if key then key.Index else 0,
+		Steal.AlertPhase.Returned
+	)
 end
 
 local function spawnDrop(context: Types.Context, carrier: Types.Carrier, thief: Player, root: BasePart)
@@ -133,8 +139,13 @@ function Knock.Strike(context: Types.Context, victim: Player, thief: Player)
 	spawnDrop(context, carrier, thief, thiefRoot)
 	startRagdoll(context, thief)
 	context.KnockReadyAt[thief] = os.clock() + Config.RagdollSeconds + Config.KnockCooldownSeconds
-	Alerts.Good(victim, `You knocked down {thief.DisplayName}! Grab your key back!`)
-	Alerts.Bad(thief, Config.KnockedMessage)
+	Packets.StealAlert:FireClient(
+		victim,
+		`You knocked down {thief.DisplayName}! Grab your key back!`,
+		0,
+		Steal.AlertPhase.Good
+	)
+	Packets.StealAlert:FireClient(thief, Config.KnockedMessage, 0, Steal.AlertPhase.Rejected)
 end
 
 function Knock.ReleaseDropsOf(context: Types.Context, owner: Player, data: PlayerData.Data)

@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(ReplicatedStorage.Config.GameConfig)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local FloorKeys = require(script.Parent.Parent.Parent.Utils.FloorKeys)
@@ -26,13 +27,13 @@ local function findPart(model: Model, name: string): BasePart?
 end
 
 local function createCaps(context: Types.Context, info: PlotInfo, trove: TroveInstance)
-	local existing = info.Model:FindFirstChild("Keys")
+	local existing = info.Model:FindFirstChild(WorldNames.Folders.Keys)
 	if existing then
 		existing:Destroy()
 	end
 	local layout = info.Layout
 	local folder = Instance.new("Folder")
-	folder.Name = "Keys"
+	folder.Name = WorldNames.Folders.Keys
 	table.clear(info.Caps)
 	table.clear(info.FloorCaps)
 	table.clear(info.Visuals)
@@ -53,7 +54,7 @@ local function createCaps(context: Types.Context, info: PlotInfo, trove: TroveIn
 	end
 	local baseSize = info.Base.Size
 	local walkway = Parts.New({
-		Name = "Walkway",
+		Name = WorldNames.Parts.Walkway,
 		Parent = folder,
 		Anchored = true,
 		CanCollide = true,
@@ -64,10 +65,10 @@ local function createCaps(context: Types.Context, info: PlotInfo, trove: TroveIn
 		CFrame = info.Base.CFrame * CFrame.new(0, baseSize.Y / 2 + FloorKeys.Top() - walkwayThickness / 2, 0),
 	})
 	info.Walkway = walkway
-	info.Model:SetAttribute("FloorCell", FloorGrid.CellSize)
-	info.Model:SetAttribute("FloorGap", FloorGrid.CellGap)
-	info.Model:SetAttribute("FloorColumns", layout.Columns)
-	info.Model:SetAttribute("FloorRows", layout.Rows)
+	info.Model:SetAttribute(WorldNames.Attributes.FloorCell, FloorGrid.CellSize)
+	info.Model:SetAttribute(WorldNames.Attributes.FloorGap, FloorGrid.CellGap)
+	info.Model:SetAttribute(WorldNames.Attributes.FloorColumns, layout.Columns)
+	info.Model:SetAttribute(WorldNames.Attributes.FloorRows, layout.Rows)
 	folder.Parent = info.Model
 	trove:Add(folder)
 end
@@ -79,7 +80,7 @@ local function skinRollKey(context: Types.Context, info: PlotInfo)
 		return
 	end
 	local key = template:Clone()
-	key.Name = "RollKey"
+	key.Name = WorldNames.Parts.RollKey
 	key.Anchored = true
 	key.Size = old.Size
 	key.CFrame = old.CFrame
@@ -102,11 +103,11 @@ function Build.Collect(context: Types.Context, folder: Instance, trove: TroveIns
 		return a.Name < b.Name
 	end)
 	for _, model in models do
-		local base = findPart(model, "Base")
-		local rollKey = findPart(model, "RollKey")
+		local base = findPart(model, WorldNames.Parts.Base)
+		local rollKey = findPart(model, WorldNames.Parts.RollKey)
 		local board = findPart(model, "Board")
 		if base and rollKey and board then
-			local useMeshes = isPlaceholder or model:GetAttribute("UseMeshes") == true
+			local useMeshes = isPlaceholder or model:GetAttribute(WorldNames.Attributes.UseMeshes) == true
 			model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 			local info: PlotInfo = {
 				Model = model,

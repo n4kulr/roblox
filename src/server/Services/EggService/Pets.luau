@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CharmConfig = require(ReplicatedStorage.Config.Charms)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local FloorGrid = require(ReplicatedStorage.Rules.FloorGrid)
 local EggPlacement = require(ReplicatedStorage.Utils.EggPlacement)
 local PetModels = require(ReplicatedStorage.Utils.PetModels)
@@ -15,7 +16,7 @@ export type Shown = {
 	Models: { Model },
 }
 
-local folderName = "Pets"
+local folderName = WorldNames.Folders.Pets
 local ink = Color3.fromRGB(20, 20, 25)
 
 local Pets = {}
@@ -106,10 +107,10 @@ function Pets.Refresh(
 			local seed = ownerId * 31 + index * 7919
 			local walker = PetWander.New(seed, base.Size.X / 2, base.Size.Z / 2, avoid)
 			local lift = PetModels.LiftOf(size)
-			model:SetAttribute("Owner", ownerId)
-			model:SetAttribute("PetId", id)
-			model:SetAttribute("Seed", seed)
-			model:SetAttribute("Lift", lift)
+			model:SetAttribute(WorldNames.Attributes.Owner, ownerId)
+			model:SetAttribute(WorldNames.Attributes.PetId, id)
+			model:SetAttribute(WorldNames.Attributes.Seed, seed)
+			model:SetAttribute(WorldNames.Attributes.Lift, lift)
 			model:PivotTo(
 				base.CFrame
 					* CFrame.new(walker.X, floorY + lift, walker.Z)

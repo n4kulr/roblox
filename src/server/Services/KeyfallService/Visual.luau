@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Keys = require(ReplicatedStorage.Config.Keys)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local Parts = require(ReplicatedStorage.Utils.Parts)
 local Character = require(script.Parent.Parent.Parent.Utils.Character)
 
@@ -38,8 +39,8 @@ function Visual.Cap(keyId: string, isGolden: boolean, position: Vector3, isLande
 		Passive = true,
 	})
 	paint(part, keyId, isGolden)
-	part:SetAttribute("KeyId", keyId)
-	part:SetAttribute("Landed", isLanded)
+	part:SetAttribute(WorldNames.Attributes.KeyId, keyId)
+	part:SetAttribute(WorldNames.Attributes.Landed, isLanded)
 	return part
 end
 

@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Eggs = require(ReplicatedStorage.Config.Eggs)
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local EggModel = require(ReplicatedStorage.Utils.EggModel)
 local Character = require(script.Parent.Parent.Parent.Utils.Character)
 
@@ -9,7 +10,7 @@ local heldScale = 0.7
 
 local Tools = {}
 
-Tools.EggAttribute = "EggId"
+Tools.EggAttribute = WorldNames.Attributes.EggId
 
 function Tools.NameOf(egg: Eggs.Egg): string
 	return egg.Name

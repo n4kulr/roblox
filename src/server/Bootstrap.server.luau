@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WorldNames = require(ReplicatedStorage.Config.WorldNames)
 local EditorOnly = require(script.Parent.Utils.EditorOnly)
 
 EditorOnly.Strip()
@@ -14,4 +15,4 @@ game:BindToClose(function()
 end)
 
 runtime:Start()
-script:SetAttribute("Ready", true)
+script:SetAttribute(WorldNames.Attributes.Ready, true)

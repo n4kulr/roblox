@@ -3,7 +3,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Charms = require(ReplicatedStorage.Rules.Charms)
-local Alerts = require(script.Parent.Parent.Parent.Utils.Alerts)
+local Steal = require(ReplicatedStorage.Rules.Steal)
+local Packets = require(ReplicatedStorage.Packets)
 local Intruders = require(script.Parent.Intruders)
 local Lock = require(script.Parent.Lock)
 local Present = require(script.Parent.Present)
@@ -25,7 +26,7 @@ local function zapIntruders(context: Types.Context, info: PlotInfo, owner: Playe
 			local last = context.LastZap[player]
 			if not last or os.clock() - last >= zapToastSeconds then
 				context.LastZap[player] = os.clock()
-				Alerts.Bad(player, zapMessage)
+				Packets.StealAlert:FireClient(player, zapMessage, 0, Steal.AlertPhase.Rejected)
 			end
 		end
 	end
