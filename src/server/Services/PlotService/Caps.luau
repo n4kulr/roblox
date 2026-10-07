@@ -197,16 +197,6 @@ local function plusOf(visual: Types.CapVisual): TextLabel
 	return created
 end
 
-local function letterOf(visual: Types.CapVisual): TextLabel
-	local letter = visual.Letter
-	if letter then
-		return letter
-	end
-	local created = KeyLegend.Letter(visual.Surface, { Text = "", StrokeColor = strokeColor })
-	visual.Letter = created
-	return created
-end
-
 local function lockOf(visual: Types.CapVisual): ImageLabel
 	local lock = visual.Lock
 	if lock then
@@ -292,9 +282,7 @@ local function showKey(cap: BasePart, visual: Types.CapVisual, keyId: string, ke
 	visual.Stroke.Transparency = 0.1
 	setVisible(visual.Plus, false)
 	setVisible(visual.Lock, false)
-	local letter = letterOf(visual)
-	letter.Text = string.upper(string.sub(key.Name, 1, 1))
-	letter.Visible = true
+	setVisible(visual.Letter, false)
 end
 
 local function showEmpty(cap: BasePart, visual: Types.CapVisual, base: Color3)

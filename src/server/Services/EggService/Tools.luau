@@ -21,11 +21,27 @@ local function build(egg: Eggs.Egg): Tool
 	tool.Name = Tools.NameOf(egg)
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	tool.ToolTip = egg.Tagline
+	tool.ManualActivationOnly = true
+	tool.ToolTip = ""
 	tool.Grip = CFrame.new(0, -0.3, 0)
 	tool:SetAttribute(Tools.EggAttribute, egg.Id)
 	EggModel.Build(tool, egg, { Scale = heldScale, BodyName = "Handle", Anchored = false })
 	return tool
+end
+
+local function keepEquipped(tool: Tool)
+	tool.AncestryChanged:Connect(function()
+		if tool.Parent == nil then
+			return
+		end
+		local parent = tool.Parent
+		if parent:IsA("Backpack") then
+			local player = parent.Parent
+			if player and player:IsA("Player") then
+				Tools.Equip(player)
+			end
+		end
+	end)
 end
 
 local function collect(player: Player): { Tool }
@@ -59,9 +75,27 @@ function Tools.Sync(player: Player, heldEgg: string)
 		end
 	end
 	local egg = Eggs.ById[heldEgg]
-	local backpack = player:FindFirstChild("Backpack")
-	if keep == nil and egg ~= nil and backpack then
-		build(egg).Parent = backpack
+	local character = player.Character
+	local humanoid = Character.HumanoidOf(character)
+	if keep == nil and egg ~= nil then
+		local tool = build(egg)
+		keepEquipped(tool)
+		if character and humanoid then
+			tool.Parent = character
+		else
+			local backpack = player:FindFirstChild("Backpack")
+			if backpack then
+				tool.Parent = backpack
+			end
+		end
+		keep = tool
+	elseif keep ~= nil and not keep:GetAttribute("_EggBound") then
+		keep:SetAttribute("_EggBound", true)
+		keepEquipped(keep)
+	end
+	local equipped = keep
+	if equipped ~= nil and character and humanoid and equipped.Parent ~= character then
+		humanoid:EquipTool(equipped)
 	end
 end
 

@@ -182,16 +182,15 @@ describe("Hatch sequence", function()
 			expect(HatchPlan.Tilt(plan, plan.BurstAt + 0.1)):toBe(0)
 		end)
 
-		it("reveals cracks in three stages", function()
+		it("keeps crack stages in the plan but does not emit crack events", function()
 			local plan = HatchPlan.For("Common", 5, false)
 			expect(#plan.Cracks):toBe(3)
-			expect(HatchPlan.CracksShown(plan, 0.5)):toBe(0)
-			local seen = {}
-			for _, stage in plan.Cracks do
-				table.insert(seen, HatchPlan.CracksShown(plan, stage.At + 0.01))
+			local kinds = {}
+			for _, event in HatchPlan.Events(plan) do
+				kinds[event.Kind] = true
 			end
-			expect(seen[1] < seen[2] and seen[2] < seen[3]):toBe(true)
-			expect(seen[3]):toBe(HatchPlan.CrackLines)
+			expect(kinds.Crack):toBeNil()
+			expect(kinds.Burst):toBe(true)
 		end)
 
 		it("flashes white for 0.08 seconds and fades over 0.25", function()
@@ -229,26 +228,15 @@ describe("Hatch sequence", function()
 			expect(screen:IsPlaying()):toBe(false)
 		end)
 
-		it("shows more crack lines at every stage", function()
+		it("does not draw crack overlays while shaking", function()
 			boot()
 			screen:Play("Linear", "KeycapPin")
 			local plan = HatchPlan.For("Common", 5, false)
-			local function visibleCracks()
-				local total = 0
-				for index = 1, HatchPlan.CrackLines do
-					if find(`Crack{index}`).Visible then
-						total += 1
-					end
-				end
-				return total
-			end
-			expect(visibleCracks()):toBe(0)
-			local seen = {}
 			for _, stage in plan.Cracks do
 				screen:Seek(stage.At + 0.05)
-				table.insert(seen, visibleCracks())
+				expect(find("Tilt"):FindFirstChild("Crack1", true)):toBeNil()
 			end
-			expect(seen[1] > 0 and seen[2] > seen[1] and seen[3] > seen[2]):toBe(true)
+			expect(find("EggStage").Visible):toBe(true)
 		end)
 
 		it("shows the pet name, rarity and chance in a staggered order", function()
@@ -348,7 +336,7 @@ describe("Hatch sequence", function()
 			expect(toasts):toBe(0)
 			advance(0.1)
 			expect(count("Ui")):toBe(1)
-			expect(count("Release") >= 4):toBe(true)
+			expect(count("Release") >= 1):toBe(true)
 			expect(count("Reveal")):toBe(0)
 		end)
 

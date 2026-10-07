@@ -53,10 +53,17 @@ function Walkers.Step(walkers: Walkers, dt: number, origin: Vector3?)
 		PetWander.Step(walker, dt)
 		local base = entry.Base
 		if not origin or (base.CFrame.Position - origin).Magnitude <= range + base.Size.Magnitude * 0.5 then
-			local y = base.Size.Y / 2 + FloorGrid.CapHeight + entry.Lift + PetWander.Hop(walker)
-			model:PivotTo(
-				base.CFrame * CFrame.new(walker.X, y, walker.Z) * CFrame.Angles(0, walker.Heading, 0)
-			)
+			local hop = PetWander.Hop(walker)
+			local y = base.Size.Y / 2 + FloorGrid.CapHeight + entry.Lift + hop
+			local faceYaw = model:GetAttribute("FaceYaw")
+			local yaw = walker.Heading + (if type(faceYaw) == "number" then faceYaw else 0)
+			local pos = (base.CFrame * CFrame.new(walker.X, y, walker.Z)).Position
+			local look = base.CFrame:VectorToWorldSpace(Vector3.new(math.sin(yaw), 0, math.cos(yaw)))
+			if look.Magnitude > 1e-3 then
+				model:PivotTo(CFrame.lookAt(pos, pos + look))
+			else
+				model:PivotTo(base.CFrame * CFrame.new(walker.X, y, walker.Z))
+			end
 		end
 	end
 end

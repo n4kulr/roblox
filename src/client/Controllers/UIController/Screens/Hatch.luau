@@ -27,7 +27,6 @@ local shardCap = 24
 local sparkCap = 14
 local confettiCap = 36
 local starCap = 14
-local lineCount = HatchPlan.CrackLines
 local queueLimit = 5
 local gravity = 1500
 local shardLife = 1.1
@@ -259,25 +258,6 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 		Direction = Vector3.new(0, 0.12, 1),
 		ZIndex = Kit.ZIndex.Base,
 	})
-	local cracks: { Frame } = {}
-	for index = 1, lineCount do
-		local line = Instance.new("Frame")
-		line.Name = `Crack{index}`
-		line.BackgroundColor3 = ink
-		line.BorderSizePixel = 0
-		line.AnchorPoint = Vector2.new(0.5, 0.5)
-		local angle = math.rad((index - 1) * (360 / lineCount) + random:NextNumber() * 20)
-		local radius = 0.1 + random:NextNumber() * 0.26
-		line.Position = UDim2.fromScale(0.5 + math.cos(angle) * radius, 0.5 + math.sin(angle) * radius * 1.15)
-		line.Size = UDim2.fromScale(0.022, 0.1 + random:NextNumber() * 0.1)
-		line.Rotation = math.deg(angle) + 90 + (random:NextNumber() - 0.5) * 40
-		line.ZIndex = Kit.ZIndex.Under
-		line.Visible = false
-		Kit.Corner(line, 3)
-		Kit.Stroke(line, white, 2)
-		line.Parent = eggBox
-		table.insert(cracks, line)
-	end
 
 	local shards: { Shard } = {}
 	for index = 1, shardCap do
@@ -456,10 +436,6 @@ function HatchScreen.new(context: Types.Context): Types.Screen
 			local tilt = HatchPlan.Tilt(current, time)
 			eggBox.Rotation = tilt
 			Viewport.Pose(eggView, tilt * 0.5)
-			local shown = HatchPlan.CracksShown(current, time)
-			for index, line in cracks do
-				line.Visible = index <= shown
-			end
 		end
 
 		flash.BackgroundTransparency = 1 - HatchPlan.Flash(current, time)

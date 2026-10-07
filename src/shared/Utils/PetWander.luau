@@ -81,7 +81,7 @@ function PetWander.Step(walker: Walker, dt: number)
 	local distance = math.sqrt(dx * dx + dz * dz)
 	local travel = PetWander.Speed * dt
 	if distance > 0.001 then
-		walker.Heading = math.atan2(-dx, -dz)
+		walker.Heading = math.atan2(dx, dz)
 	end
 	if distance <= travel then
 		walker.X, walker.Z = walker.TargetX, walker.TargetZ

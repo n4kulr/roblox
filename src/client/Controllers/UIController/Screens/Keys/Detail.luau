@@ -44,8 +44,6 @@ local landSeconds = fuseSeconds * 0.65
 local flyerCount = Variants.FuseCost
 local previewHeight = 140
 local contentHeight = 540
-local spinSpeed = 0.9
-
 local Detail = {
 	GridShare = gridShare,
 }
@@ -272,8 +270,8 @@ function Detail.Build(env: Env): Panel
 			local box, size = model:GetBoundingBox()
 			local radius = math.max(math.sqrt(size.X * size.X + size.Z * size.Z) / 2, size.Y / 2, 0.5)
 			local focus = Vector3.new(0, box.Position.Y, 0)
-			local distance = radius * 1.15 / math.sin(math.rad(camera.FieldOfView) / 2)
-			camera.CFrame = CFrame.lookAt(focus + Vector3.new(0, 0.45, 1).Unit * distance, focus)
+			local distance = radius * 1.2 / math.sin(math.rad(camera.FieldOfView) / 2)
+			camera.CFrame = CFrame.lookAt(focus + Vector3.new(1.1, 0.35, 0.55).Unit * distance, focus)
 			camera.Parent = viewport
 			viewport.CurrentCamera = camera
 			model.Parent = viewport
@@ -295,7 +293,7 @@ function Detail.Build(env: Env): Panel
 			return
 		end
 		pcall(function()
-			model:PivotTo(CFrame.Angles(0, now * spinSpeed, 0))
+			model:PivotTo(CFrame.identity)
 			if previewTier == 2 then
 				for _, name in { "Skirt", "Top", "Cap" } do
 					local part = model:FindFirstChild(name)

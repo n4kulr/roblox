@@ -8,7 +8,7 @@ return table.freeze({
 	StickyShift = "rbxassetid://123140092810779",
 	PencilPad = "rbxassetid://106074806507394",
 	CoffeeCap = "rbxassetid://74442779271557",
-	CreamyThock = "rbxassetid://101910895552101",
+	CreamyThock = "rbxassetid://105258720852190",
 	MintLinear = "rbxassetid://126104620917509",
 	CloverCap = "rbxassetid://81347342825455",
 	MintTactile = "rbxassetid://136291694579623",

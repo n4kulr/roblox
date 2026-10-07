@@ -169,9 +169,9 @@ local function buildMesh(charm: CharmConfig.Charm, meshId: string): (Model?, num
 	local size = PetModels.SizeOf(charm.Rarity)
 	local body = template:Clone()
 	body.Name = "Body"
-	local height = body.Size.Y
-	if height > 1e-3 then
-		body.Size = body.Size * (size / height)
+	local extent = math.max(body.Size.X, body.Size.Y, body.Size.Z)
+	if extent > 1e-3 then
+		body.Size = body.Size * (size / extent)
 	end
 	body.Color = charm.Color
 	body.Anchored = true
@@ -186,7 +186,10 @@ local function buildMesh(charm: CharmConfig.Charm, meshId: string): (Model?, num
 	model.Name = `Pet_{charm.Id}`
 	body.Parent = model
 	model.PrimaryPart = body
-	model:SetAttribute(WorldNames.Attributes.Lift, 0)
+	local look = PetModels.StyleOf(charm)
+	local lift = if look.Wings then size * 1.4 else math.max(body.Size.Y * 0.5, 0.2)
+	model:SetAttribute(WorldNames.Attributes.Lift, lift)
+	model:SetAttribute("FaceYaw", math.pi)
 	return model, size
 end
 

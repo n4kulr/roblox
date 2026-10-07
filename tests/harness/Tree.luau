@@ -205,7 +205,20 @@ function methods.Destroy(self)
 end
 
 function methods.Clone(self)
-	return Tree.node(state[self].ClassName, state[self].Name, state[self].File)
+	local source = state[self]
+	local clone = Tree.node(source.ClassName, source.Name, source.File, source.NewSignal)
+	local cloned = state[clone]
+	for key, value in source.Props do
+		cloned.Props[key] = value
+	end
+	for key, value in source.Attributes do
+		cloned.Attributes[key] = value
+	end
+	for _, child in source.Children do
+		local childClone = methods.Clone(child)
+		childClone.Parent = clone
+	end
+	return clone
 end
 
 nodeMeta.__index = function(self, key)

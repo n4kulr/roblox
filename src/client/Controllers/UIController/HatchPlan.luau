@@ -226,9 +226,6 @@ function HatchPlan.Events(plan: Plan): { Event }
 	for index, swing in plan.Swings do
 		table.insert(events, { At = swing.At, Kind = "Swing", Index = index })
 	end
-	for index, stage in plan.Cracks do
-		table.insert(events, { At = stage.At, Kind = "Crack", Index = index })
-	end
 	table.insert(events, { At = plan.BurstAt, Kind = "Burst", Index = 0 })
 	table.insert(events, { At = plan.NameAt, Kind = "Name", Index = 0 })
 	table.insert(events, { At = plan.RarityAt, Kind = "Rarity", Index = 0 })

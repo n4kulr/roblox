@@ -5,7 +5,6 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local TweenService = game:GetService("TweenService")
 local Keys = require(ReplicatedStorage.Config.Keys)
 local KeyTiers = require(ReplicatedStorage.Config.KeyTiers)
-local KeyModels = require(ReplicatedStorage.Utils.KeyModels)
 local NumberFormat = require(ReplicatedStorage.Utils.NumberFormat)
 local Kit = require(script.Parent.Parent.UIController.Kit)
 local Viewport = require(script.Parent.Parent.UIController.Viewport)
@@ -25,9 +24,6 @@ type Role = Types.Role
 type View = Types.View
 local fadeSeconds = Config.FadeSeconds
 local fastFadeSeconds = Config.FastFadeSeconds
-local staticYaw = Config.StaticYaw
-local spinSpeed = Config.SpinSpeed
-local bobHeight = Config.BobHeight
 local bannerTextSize = Config.BannerTextSize
 local white = Config.White
 local rareRank = Config.RareRank
@@ -197,13 +193,8 @@ function ResultCards.Show(self: ResultCards, slot: ResultSlots.Slot, payload: Pa
 	view.Age = 0
 	view.IsFading = false
 	view.Name.Text = displayName
-	if view.ModelKey ~= fullId or view.Model.Model == nil then
-		Viewport.Set(view.Model, KeyModels.Build(fullId))
-		view.ModelKey = fullId
-	end
-	Viewport.Light(view.Model, if isGolden then goldColor else white, if rank >= epicRank then 0.25 else 0)
-	Viewport.Pose(view.Model, staticYaw)
-	Viewport.Zoom(view.Model, Viewport.PopScale(0))
+	view.Model.Frame.Visible = false
+	view.ModelKey = fullId
 	view.RarityLabel.Text = rarityText
 	view.IncomeLabel.Text = incomeText
 	Layout.PaintCard(view, rarity, isGolden)
@@ -365,19 +356,10 @@ end
 
 local function stepView(self: ResultCards, view: View, dt: number)
 	view.Age += dt
-	Viewport.Zoom(view.Model, Viewport.PopScale(view.Age))
+	view.Model.Frame.Visible = false
 	if self._isLowGraphics() then
 		view.Shimmer.Visible = false
 	else
-		local handle = view.Model
-		Viewport.Glint(handle, view.Age)
-		Viewport.Pose(
-			handle,
-			(staticYaw + view.Age * spinSpeed) % 360,
-			0,
-			0,
-			math.sin(view.Age * 2.6) * bobHeight * handle.Radius
-		)
 		if view.Burst.Visible then
 			view.Burst.Rotation = (view.Burst.Rotation + dt * 24) % 360
 			view.BurstEcho.Rotation = (view.BurstEcho.Rotation - dt * 38) % 360

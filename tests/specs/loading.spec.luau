@@ -20,29 +20,6 @@ describe("Loading screen", function()
 		return playerGui:FindFirstChild("ThockLoading")
 	end
 
-	local function keyCount(): number
-		local count = 0
-		for _, row in Config.Rows do
-			count += #row
-		end
-		return count
-	end
-
-	local function lit(): number
-		local count = 0
-		local board = gui().Background.Board
-		for _, row in board:GetChildren() do
-			if row:IsA("Frame") then
-				for _, key in row:GetChildren() do
-					if string.find(key.Name, "^Key_") and key.Face.BackgroundColor3 ~= Config.Unlit then
-						count += 1
-					end
-				end
-			end
-		end
-		return count
-	end
-
 	beforeEach(function()
 		world = H.newWorld()
 		player = world:newPlayer()
@@ -65,31 +42,42 @@ describe("Loading screen", function()
 		expect(root.DisplayOrder >= 100000):toBe(true)
 		expect(root:FindFirstChild("Skip", true).Visible):toBe(false)
 		expect(root:FindFirstChild("Tip", true).Text):toBe(Config.Tips[1])
-		expect(root:FindFirstChild("Title", true).Text):toBe(Config.Title)
-		expect(root:FindFirstChild("Status", true).Text):toBe("LOADING 0%")
-		local found = 0
-		for _, item in root.Background.Board:GetDescendants() do
-			if string.find(item.Name, "^Key_") then
-				found += 1
+		local letters = {}
+		for _, name in { "T", "H", "O", "C", "K" } do
+			table.insert(letters, name)
+		end
+		local found = {}
+		for _, item in root.Content:GetChildren() do
+			if item.Name == "Key" then
+				table.insert(found, item.Face.Letter.Text)
 			end
 		end
-		expect(found):toBe(keyCount())
+		expect(found):toEqual(letters)
 		expect(#world.errors):toBe(0)
 	end)
 
-	it("builds flat keys without pill corners or gloss", function()
+	it("builds the key caps with a 3px outline and a gloss", function()
 		start()
-		local key = gui().Background.Board:FindFirstChild("Key_1", true)
-		expect(key.Face:FindFirstChild("Gloss")):toBeNil()
-		expect(key:FindFirstChild("Skirt")):toBeNil()
-		expect(key.Face.UICorner.CornerRadius.Offset):toBe(6)
+		local key = gui().Content:FindFirstChild("Key")
+		expect(key.Face.UIStroke.Thickness):toBe(3)
+		expect(key.Face.Gloss ~= nil):toBe(true)
+		expect(key.Skirt ~= nil):toBe(true)
 	end)
 
-	it("skip is plain text, not a filled pill", function()
+	it("types the keys down and back up", function()
 		start()
-		local skip = gui():FindFirstChild("Skip", true)
-		expect(skip.BackgroundTransparency):toBe(1)
-		expect(skip:FindFirstChildOfClass("UICorner")):toBeNil()
+		local face = gui().Content:FindFirstChild("Key").Face
+		frames(0.05)
+		frames(0.05)
+		expect(face.Position.Y.Offset > 0):toBe(true)
+		frames(1)
+		expect(face.Position.Y.Offset <= 1):toBe(true)
+	end)
+
+	it("clicks once per press", function()
+		start()
+		frames(0.05)
+		expect(gui():FindFirstChild("Click").Plays >= 1):toBe(true)
 	end)
 
 	it("exits and destroys itself once loaded and the client is ready", function()
@@ -130,24 +118,27 @@ describe("Loading screen", function()
 		expect(gui()):toBe(nil)
 	end)
 
-	it("plays the exit in about 0.7 seconds", function()
+	it("plays the exit in about 0.8 seconds", function()
 		local handle = start()
 		player:SetAttribute("ClientReady", true)
 		frames(2.2)
 		expect(handle:IsDone()):toBe(false)
-		frames(0.3)
+		frames(0.4)
 		expect(handle:IsDone()):toBe(false)
 		frames(0.5)
 		expect(handle:IsDone()):toBe(true)
 	end)
 
-	it("shows the skip button after 8 seconds and skip leaves once the game is loaded", function()
+	it("shows plain text skip after 8 seconds and skip leaves once the game is loaded", function()
 		local handle = start()
 		frames(7.5)
 		local skip = gui():FindFirstChild("Skip", true)
 		expect(skip.Visible):toBe(false)
 		frames(1)
 		expect(skip.Visible):toBe(true)
+		expect(skip.BackgroundTransparency):toBe(1)
+		expect(skip:FindFirstChildOfClass("UICorner")):toBeNil()
+		expect(gui().Background:FindFirstChild("Pulse") ~= nil):toBe(true)
 		skip.Activated:Fire({})
 		frames(2)
 		expect(handle:IsDone()):toBe(true)
@@ -165,8 +156,17 @@ describe("Loading screen", function()
 		expect(handle:IsDone()):toBe(true)
 	end)
 
-	it("lights keyboard keys from top-left as loading advances", function()
+	it("lights progress keys one by one as loading advances", function()
 		start()
+		local function lit()
+			local count = 0
+			for _, item in gui().Content.Under:GetChildren() do
+				if string.find(item.Name, "^Bar") and item.Face.Position.Y.Offset > 0 then
+					count += 1
+				end
+			end
+			return count
+		end
 		expect(lit()):toBe(0)
 		frames(1)
 		local early = lit()
@@ -174,8 +174,7 @@ describe("Loading screen", function()
 		local later = lit()
 		expect(early > 0):toBe(true)
 		expect(later > early):toBe(true)
-		expect(later < keyCount()):toBe(true)
-		expect(gui():FindFirstChild("Click").Plays >= 1):toBe(true)
+		expect(later < Config.ProgressKeys):toBe(true)
 	end)
 
 	it("computes progress from stages and the content queue", function()

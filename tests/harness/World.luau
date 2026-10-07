@@ -386,7 +386,10 @@ local function makeFakeServices(world)
 			if world.meshFailures[content] then
 				error("fake asset service: cannot load " .. tostring(content))
 			end
-			return world:newInstance("MeshPart")
+			local mesh = world:newInstance("MeshPart")
+			mesh.Size = roblox.Vector3.new(1, 1, 1)
+			mesh.MeshId = tostring(content)
+			return mesh
 		end,
 	}
 	services.TextChatService = {}
@@ -908,6 +911,19 @@ function World.newInstance(self, className: string)
 	local node = Tree.node(className, className, nil, makeSignalFactory(self))
 	if className == "Part" or className == "MeshPart" then
 		node.Transparency = 0
+		node.Size = roblox.Vector3.new(1, 1, 1)
+		node.CFrame = roblox.CFrame.new()
+		node.Color = roblox.Color3.new(1, 1, 1)
+		node.Anchored = true
+		node.CanCollide = true
+		node.CanQuery = true
+		node.CanTouch = true
+		node.Massless = false
+		node.CastShadow = true
+		node.Material = "Plastic"
+	end
+	if className == "MeshPart" then
+		node.MeshId = ""
 	end
 	if guiClasses[className] then
 		node.AbsoluteSize = self.guiSize
